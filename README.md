@@ -1,1 +1,1 @@
-# Arbiter---2026-Pfizer-Hackathon
+# Arbiter - 2026 Pfizer Hackathon
