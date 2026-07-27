@@ -42,9 +42,14 @@ export const RulesetSchema = z
       excluded: z.array(z.string()),
     }),
     rules: z.array(RuleSchema),
+    precedenceOrder: z.array(z.enum(["R1", "R2", "R3", "R5"])).length(4),
+    precedenceRationale: z.string().min(1),
   })
   .refine((r) => r.rules.length === 6, { message: "A ruleset must declare all six rules R1-R6" })
-  .refine((r) => new Set(r.rules.map((x) => x.id)).size === 6, { message: "Rule ids must be unique across all six" });
+  .refine((r) => new Set(r.rules.map((x) => x.id)).size === 6, { message: "Rule ids must be unique across all six" })
+  .refine((r) => new Set(r.precedenceOrder).size === 4, {
+    message: "precedenceOrder must contain each of R1, R2, R3, R5 exactly once",
+  });
 
 export const EvidenceFileSchema = z.object({
   generatedAt: z.string(),

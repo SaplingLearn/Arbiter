@@ -52,6 +52,13 @@ export interface EvidenceClaim {
 
 export type RuleId = "R1" | "R2" | "R3" | "R4" | "R5" | "R6";
 
+/**
+ * The four pairwise defeat rules. R4 downweights rather than defeating a
+ * claim, and R6 is a property of a set of claims, not a pairwise comparison
+ * — neither participates in a precedence ordering between attacker/target.
+ */
+export type DefeatRuleId = "R1" | "R2" | "R3" | "R5";
+
 export interface Rule {
   id: RuleId;
   name: string;
@@ -71,6 +78,15 @@ export interface Ruleset {
   abstentionGapThreshold: number;
   dilirankBinarisation: { positive: string[]; negative: string[]; excluded: string[] };
   rules: Rule[];
+  /**
+   * Precedence order over the four defeat rules: earlier entries outrank
+   * later ones when two rules would each license an attack in opposite
+   * directions on the same pair of claims. Editable by a toxicologist
+   * alongside `rules`.
+   */
+  precedenceOrder: DefeatRuleId[];
+  /** Why this precedence order was chosen. Must not reference the demonstration case — see `rules[].framework`. */
+  precedenceRationale: string;
 }
 
 export type ClaimStatus = "admitted" | "defeated" | "downweighted" | "undecided";

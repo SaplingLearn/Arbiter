@@ -34,6 +34,21 @@ describe("EvidenceClaimSchema", () => {
   });
 });
 
+function validRuleset(over: Partial<Record<string, unknown>> = {}) {
+  return {
+    version: "1.0",
+    registeredAt: "2026-07-26",
+    abstentionGapThreshold: 0.5,
+    dilirankBinarisation: { positive: ["vMost-DILI-Concern"], negative: ["vNo-DILI-Concern"], excluded: ["Ambiguous"] },
+    rules: (["R1", "R2", "R3", "R4", "R5", "R6"] as const).map((id) => ({
+      id, name: id, statement: "s", framework: { name: "f", date: "standing" }, enabled: true, strength: 0.5,
+    })),
+    precedenceOrder: ["R3", "R1", "R2", "R5"],
+    precedenceRationale: "test fixture",
+    ...over,
+  };
+}
+
 describe("RulesetSchema", () => {
   it("requires all six rules", () => {
     const ruleset = {
@@ -42,7 +57,24 @@ describe("RulesetSchema", () => {
       abstentionGapThreshold: 0.5,
       dilirankBinarisation: { positive: ["vMost-DILI-Concern"], negative: ["vNo-DILI-Concern"], excluded: ["Ambiguous"] },
       rules: [{ id: "R1", name: "Human relevance", statement: "s", framework: { name: "f", date: "2025-04" }, enabled: true, strength: 1 }],
+      precedenceOrder: ["R3", "R1", "R2", "R5"],
+      precedenceRationale: "test fixture",
     };
     expect(() => RulesetSchema.parse(ruleset)).toThrow(/six/i);
+  });
+
+  it("rejects a precedenceOrder with a duplicate rule id", () => {
+    const ruleset = validRuleset({ precedenceOrder: ["R1", "R1", "R2", "R5"] });
+    expect(() => RulesetSchema.parse(ruleset)).toThrow(/precedenceOrder/i);
+  });
+
+  it("rejects a precedenceOrder that omits one of the four defeat rules", () => {
+    const ruleset = validRuleset({ precedenceOrder: ["R1", "R2", "R5"] as unknown as string[] });
+    expect(() => RulesetSchema.parse(ruleset)).toThrow();
+  });
+
+  it("rejects a precedenceOrder that names R4 or R6, which are not defeat rules", () => {
+    const ruleset = validRuleset({ precedenceOrder: ["R1", "R2", "R3", "R4"] });
+    expect(() => RulesetSchema.parse(ruleset)).toThrow();
   });
 });

@@ -1,11 +1,16 @@
 import { createHash } from "node:crypto";
 
 /**
- * SHA-256 of the pre-registration surface of a ruleset.
+ * SHA-256 of whatever value is passed in, canonicalised with object keys
+ * sorted so the hash is stable against JSON formatting (key order,
+ * whitespace, array-vs-object nesting reproduced identically).
  *
- * Hashes only the fields a toxicologist pre-registers - rules, thresholds,
- * binarisation policy - with object keys sorted, so the hash is stable
- * against JSON formatting and against fields we add later for display.
+ * This function does not decide what "the ruleset" is for pre-registration
+ * purposes - it hashes exactly the value it is handed, nothing more or
+ * less. Callers must project the pre-registration surface themselves
+ * (rules, abstentionGapThreshold, dilirankBinarisation, precedenceOrder)
+ * and pass only that object, so the hash answers "did the pre-registered
+ * decision surface change" and not "did some unrelated display field change".
  */
 export function rulesetHash(ruleset: unknown): string {
   return createHash("sha256").update(canonical(ruleset)).digest("hex");

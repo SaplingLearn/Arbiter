@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { concordanceBoost, conflictsWith, defeats, downweightFactor } from "../src/rules.js";
+import { RulesetSchema } from "../src/schema.js";
 import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
 import type { EvidenceClaim, Ruleset } from "../src/types.js";
 
@@ -44,6 +45,15 @@ describe("R2 mechanistic proximity", () => {
     const struct = claim({ id: "s", assertion: "safe", measuresKeyEvent: null, stream: "qsar", system: "human" });
     expect(defeats(mech, struct, RS)?.byRule).toBe("R2");
   });
+
+  it("does not fire against apical in-vivo evidence merely because no key event is annotated", () => {
+    // A 28-day repeat-dose study with no key event annotated is apical outcome
+    // evidence, not a structural correlation. Same species on both sides so R1
+    // cannot confound the result; equal exposure/klimisch so R3/R5 cannot either.
+    const mech = claim({ id: "m", assertion: "toxic", measuresKeyEvent: "KE:12", stream: "transporter", system: "rodent" });
+    const invivo = claim({ id: "iv", assertion: "safe", measuresKeyEvent: null, stream: "invivo_rodent", system: "rodent" });
+    expect(defeats(mech, invivo, RS)).toBeNull();
+  });
 });
 
 describe("R3 exposure relevance", () => {
@@ -70,11 +80,23 @@ describe("R4 applicability domain", () => {
 });
 
 describe("R5 study reliability", () => {
-  it("a more reliable study defeats a less reliable one at equal relevance", () => {
+  it("a more reliable study defeats a less reliable one at equal relevance (both key-event-null)", () => {
     const good = claim({ id: "g", assertion: "toxic", klimisch: 1 });
     const poor = claim({ id: "p", assertion: "safe", klimisch: 4 });
     expect(defeats(good, poor, RS)?.byRule).toBe("R5");
     expect(defeats(poor, good, RS)).toBeNull();
+  });
+
+  it("fires when key events match only after normalizing case and whitespace", () => {
+    const good = claim({ id: "g", assertion: "toxic", klimisch: 1, measuresKeyEvent: "KE:55" });
+    const poor = claim({ id: "p", assertion: "safe", klimisch: 4, measuresKeyEvent: " ke:55 " });
+    expect(defeats(good, poor, RS)?.byRule).toBe("R5");
+  });
+
+  it("declines when the two claims measure genuinely different key events", () => {
+    const good = claim({ id: "g", assertion: "toxic", klimisch: 1, measuresKeyEvent: "KE:55" });
+    const poor = claim({ id: "p", assertion: "safe", klimisch: 4, measuresKeyEvent: "KE:99" });
+    expect(defeats(good, poor, RS)).toBeNull();
   });
 });
 
@@ -82,7 +104,60 @@ describe("R6 concordance", () => {
   it("rewards agreement across distinct streams, not within one", () => {
     const twoStreams = [claim({ id: "a", stream: "cytotox" }), claim({ id: "b", stream: "transporter" })];
     const oneStream = [claim({ id: "a", stream: "cytotox" }), claim({ id: "b", stream: "cytotox" })];
-    expect(concordanceBoost(twoStreams, RS)).toBeGreaterThan(concordanceBoost(oneStream, RS));
+    expect(concordanceBoost(twoStreams, RS).boost).toBeGreaterThan(concordanceBoost(oneStream, RS).boost);
+  });
+
+  it("is independent of claim order", () => {
+    const claims = [
+      claim({ id: "a", stream: "cytotox", assertion: "toxic" }),
+      claim({ id: "b", stream: "transporter", assertion: "toxic" }),
+      claim({ id: "c", stream: "qsar", assertion: "safe" }),
+    ];
+    const shuffled = [claims[2]!, claims[0]!, claims[1]!];
+    expect(concordanceBoost(shuffled, RS)).toEqual(concordanceBoost(claims, RS));
+  });
+
+  it("scores an exact 2-2 stream split as no boost, with no side supported, strictly below unanimity", () => {
+    const split = [
+      claim({ id: "a", stream: "cytotox", assertion: "toxic" }),
+      claim({ id: "b", stream: "transporter", assertion: "toxic" }),
+      claim({ id: "c", stream: "qsar", assertion: "safe" }),
+      claim({ id: "d", stream: "toxicogenomics", assertion: "safe" }),
+    ];
+    const unanimous = [
+      claim({ id: "a", stream: "cytotox", assertion: "toxic" }),
+      claim({ id: "b", stream: "transporter", assertion: "toxic" }),
+      claim({ id: "c", stream: "qsar", assertion: "toxic" }),
+      claim({ id: "d", stream: "toxicogenomics", assertion: "toxic" }),
+    ];
+    const splitResult = concordanceBoost(split, RS);
+    expect(splitResult.supports).toBeNull();
+    expect(splitResult.boost).toBe(1);
+    expect(splitResult.boost).toBeLessThan(concordanceBoost(unanimous, RS).boost);
+  });
+
+  it("still scores a single chatty stream at 1.0", () => {
+    const oneStream = [claim({ id: "a", stream: "cytotox" }), claim({ id: "b", stream: "cytotox" })];
+    expect(concordanceBoost(oneStream, RS).boost).toBe(1);
+  });
+
+  it("attenuates a near-even split without flattening it all the way to no boost", () => {
+    const nearEven = [
+      claim({ id: "a", stream: "cytotox", assertion: "toxic" }),
+      claim({ id: "b", stream: "transporter", assertion: "toxic" }),
+      claim({ id: "c", stream: "toxicogenomics", assertion: "toxic" }),
+      claim({ id: "d", stream: "qsar", assertion: "safe" }),
+      claim({ id: "e", stream: "invivo_rodent", assertion: "safe" }),
+    ];
+    const unanimous = [
+      claim({ id: "a", stream: "cytotox", assertion: "toxic" }),
+      claim({ id: "b", stream: "transporter", assertion: "toxic" }),
+      claim({ id: "c", stream: "toxicogenomics", assertion: "toxic" }),
+    ];
+    const r = concordanceBoost(nearEven, RS);
+    expect(r.supports).toBe("toxic");
+    expect(r.boost).toBeGreaterThan(1);
+    expect(r.boost).toBeLessThan(concordanceBoost(unanimous, RS).boost);
   });
 });
 
@@ -95,9 +170,75 @@ describe("disabled rules", () => {
   });
 });
 
+describe("antisymmetry", () => {
+  // Cross-product over every field a defeat rule reads. For every pair drawn
+  // from it, at most one direction may be licensed as a defeat — never both.
+  // This is the test class a "pick one rule per test" test file structurally
+  // cannot express, and it is what caught the R1/R3 2-cycle.
+  function* variants(): Generator<Pick<EvidenceClaim, "system" | "measuresKeyEvent" | "exposureRelevant" | "klimisch" | "stream">> {
+    const systems: EvidenceClaim["system"][] = ["human", "rodent", "nonrodent", "in_silico"];
+    const keyEvents: (string | null)[] = [null, "KE:1"];
+    const exposures: (boolean | null)[] = [true, false, null];
+    const klimischs: EvidenceClaim["klimisch"][] = [1, 4, null];
+    const streams: EvidenceClaim["stream"][] = ["qsar", "cytotox"];
+    for (const system of systems) {
+      for (const measuresKeyEvent of keyEvents) {
+        for (const exposureRelevant of exposures) {
+          for (const klimisch of klimischs) {
+            for (const stream of streams) {
+              yield { system, measuresKeyEvent, exposureRelevant, klimisch, stream };
+            }
+          }
+        }
+      }
+    }
+  }
+
+  it("defeats() never licenses both directions, for any combination of rule-relevant fields", () => {
+    const vs = [...variants()];
+    let checked = 0;
+    for (const vi of vs) {
+      for (const vj of vs) {
+        const a = claim({ id: "a", assertion: "toxic", ...vi });
+        const b = claim({ id: "b", assertion: "safe", ...vj });
+        const forward = defeats(a, b, RS);
+        const reverse = defeats(b, a, RS);
+        if (forward !== null && reverse !== null) {
+          throw new Error(
+            `2-cycle: (${JSON.stringify(vi)}) vs (${JSON.stringify(vj)}) — forward=${forward.byRule}, reverse=${reverse.byRule}`,
+          );
+        }
+        checked++;
+      }
+    }
+    expect(checked).toBe(vs.length * vs.length);
+  });
+
+  it("the motivating fixture (human in-vitro, unstated exposure vs rodent in-vivo, clinical exposure) resolves to R3 one-way, not a cycle", () => {
+    const humanInVitro = claim({
+      id: "h", assertion: "safe", system: "human", stream: "cytotox",
+      measuresKeyEvent: "KE:1", exposureRelevant: null,
+    });
+    const rodentInVivo = claim({
+      id: "r", assertion: "toxic", system: "rodent", stream: "invivo_rodent",
+      measuresKeyEvent: null, exposureRelevant: true,
+    });
+    expect(defeats(humanInVitro, rodentInVivo, RS)).toBeNull();
+    expect(defeats(rodentInVivo, humanInVitro, RS)?.byRule).toBe("R3");
+  });
+});
+
+describe("ruleset validity", () => {
+  it("the pre-registered ruleset is schema-valid", () => {
+    expect(() => RulesetSchema.parse(ruleset)).not.toThrow();
+  });
+});
+
 describe("pre-registration", () => {
   it("no rule justification cites TAK-994", () => {
-    const blob = JSON.stringify(RS.rules).toLowerCase();
+    // Scans the whole ruleset, not just rules[], so a stray top-level field
+    // (e.g. precedenceRationale) can't slip a reference past this guard.
+    const blob = JSON.stringify(RS).toLowerCase();
     expect(blob).not.toContain("tak-994");
     expect(blob).not.toContain("tak994");
   });
