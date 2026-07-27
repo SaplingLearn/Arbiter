@@ -738,6 +738,65 @@ dishonest.
 - Two components rest on expert judgment rather than measurement — the preference ordering and the planner's
   priors. Both are explicit and editable, and expert review is the next thing needed.
 
+### The applicability boundary: idiosyncratic DILI
+
+**State this before a judge asks. A hepatotoxicity specialist will ask it with near-certainty, and volunteered
+it reads as command of the field while extracted it reads as not having considered it.**
+
+Drug-induced liver injury divides roughly into two classes:
+
+| | **Intrinsic** | **Idiosyncratic** |
+|---|---|---|
+| Dose relationship | Dose-dependent, reproducible | Largely host-dependent |
+| Mechanism | Findable in mechanistic assays | Often immune-mediated, HLA-associated |
+| Incidence | Higher, appears in small cohorts | Rare — may not surface until thousands are exposed |
+| Preclinical predictability | Tractable | Poorly predicted by standard models |
+
+**Most clinically serious DILI is idiosyncratic**, which is precisely why hepatotoxicity leads post-market
+withdrawals: it does not appear until large populations are exposed. No preclinical system predicts it — ours
+included.
+
+**What ARBITER actually addresses is the reconcilable fraction:** cases where the signal existed somewhere and
+nobody put it together in time. TAK-994 is squarely in that class — 8 of 73 participants over enzyme thresholds
+and 3 of 73 meeting Hy's Law is a high incidence, and a mechanism was found (hepatic single-cell necrosis
+following CYP induction at clinically relevant doses). That pattern is intrinsic and mechanism-findable. **This
+is exactly why it is the right demonstration case, and exactly why it does not generalise to idiosyncratic
+DILI.**
+
+**Why the failure mode is nonetheless the right one.** For a compound whose risk is idiosyncratic, mechanistic
+evidence genuinely cannot resolve the question — and reporting that is precisely what a wide belief–plausibility
+gap plus abstention *says*. A confident predictor on an idiosyncratic-risk compound would be actively
+dangerous. ARBITER's behaviour on the hardest class of DILI is honest rather than confidently wrong, which is
+the correct engineering outcome even though it is not a solution.
+
+**What this means for the business case, honestly.** The addressable share is smaller than "a third of attrition
+is toxicity" — it is the reconcilable part of that third. That does not weaken the arithmetic, because per the
+Playbook's own asymmetry argument, *"we do not need to claim a large effect size for the arithmetic to work; we
+need to claim a real one."* A narrower, defensible claim beats a broad, attackable one.
+
+**Roadmap, not dead end.** Idiosyncratic risk is where HLA genotype, immune-competent liver co-culture models,
+and post-marketing pharmacovigilance signals would enter as additional evidence streams. ARBITER's architecture
+absorbs new streams by adding claim types and rules rather than by redesign, so the boundary moves as the
+evidence base does.
+
+---
+
+## 12b. Q&A preparation — answers settled during design
+
+The hardest questions, with the answer each design decision produces. Rehearse these separately from the talk.
+
+| Question | Answer |
+|---|---|
+| **What about idiosyncratic DILI?** | See above. Name the class, name TAK-994 as intrinsic, explain that abstention is the correct behaviour, keep the claim narrow. |
+| **Is this novel? Hasn't Dempster–Shafer been used in risk assessment?** | Yes it has — Park et al. 2014. The components are precedented; the assembly as contestable software is not, and the specific novel mechanism is that the planner is driven by the argument structure rather than generic assay informativeness. See §2a. |
+| **You use an LLM as your baseline *and* in your product. Which is it?** | Models are used for **language** — parsing a sentence, matching a question to an anchor — and never for **judgment**. The navigator returns identifiers only and so cannot hallucinate. |
+| **Did you tune the rules to fit DILIrank?** | The ruleset, abstention threshold and binarisation policy were committed with a published hash before evaluation, and reliability priors are fit on a train split the reported numbers never touch. Check the hash against the git history. |
+| **Do you have accounts? Who signs?** | No accounts in the demo, deliberately — a login would stop you exploring it now. The record carries what a 21 CFR Part 11 signature requires, and `signatureMethod` is the only field deployment changes. See §7a. |
+| **What if the committee splits 2–1?** | It is not a vote. Positions are recorded and dissent is preserved; one named owner signs and is accountable. Counts never determine the outcome. |
+| **Isn't feeding it the mouse study hindsight?** | Yes, which is why the as-of control exists — move it yourself. Pass 1 uses only pre-first-in-human evidence, and ARBITER abstains and asks for that study. |
+| **Your consistency claim is trivial — deterministic code is deterministic.** | Agreed, which is why we also report robustness under perturbation. The claim that matters is inter-reviewer consistency, and we cannot measure it without human subjects. We say so. |
+| **What is your biggest weakness?** | The preference ordering has not been reviewed by a practising toxicologist. It is drawn from published frameworks, but expert validation is the next thing we need. |
+
 ---
 
 ## 12a. Adoption, workflow fit, and patient impact
