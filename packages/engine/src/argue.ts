@@ -41,6 +41,31 @@ export function argue(claims: EvidenceClaim[], ruleset: Ruleset): Argumentation 
   for (const c of claims) attackersOf.set(c.id, []);
   for (const a of attacks) attackersOf.get(a.targetId)!.push(a);
 
+  // Rank of a rule in the precedence order (lower is stronger); rules absent
+  // from precedenceOrder (there are none among defeat rules, but be defensive)
+  // rank last.
+  function precedenceRank(byRule: RuleId): number {
+    const idx = ruleset.precedenceOrder.findIndex((r) => r === byRule);
+    return idx === -1 ? Number.POSITIVE_INFINITY : idx;
+  }
+
+  /**
+   * Among several surviving attackers of a defeated claim, pick the one to
+   * report as "the" defeater deterministically - by strength of defeat
+   * (highest-precedence rule), not by array/input position. Ties break on
+   * attackerId. This is more than tie-breaking for its own sake: the most
+   * informative thing to show a toxicologist is the STRONGEST reason a claim
+   * fell, and that must not depend on the order evidence happened to load in.
+   */
+  function strongestKiller(survivors: Attack[]): Attack {
+    return survivors.reduce((best, cand) => {
+      const bestRank = precedenceRank(best.byRule);
+      const candRank = precedenceRank(cand.byRule);
+      if (candRank !== bestRank) return candRank < bestRank ? cand : best;
+      return cand.attackerId < best.attackerId ? cand : best;
+    });
+  }
+
   const IN = new Set<string>();
   const OUT = new Set<string>();
   const settled = (id: string) => IN.has(id) || OUT.has(id);
@@ -68,7 +93,7 @@ export function argue(claims: EvidenceClaim[], ruleset: Ruleset): Argumentation 
     const incoming = attackersOf.get(c.id)!;
 
     if (OUT.has(c.id)) {
-      const killer = incoming.find((a) => IN.has(a.attackerId))!;
+      const killer = strongestKiller(incoming.filter((a) => IN.has(a.attackerId)));
       statuses.set(c.id, "defeated");
       trace.push({
         claimId: c.id,
@@ -85,7 +110,10 @@ export function argue(claims: EvidenceClaim[], ruleset: Ruleset): Argumentation 
       trace.push({
         claimId: c.id,
         status: "undecided",
-        rationale: "Opposed by evidence of equal standing; no rule separates them. Contributes uncommitted mass only.",
+        rationale:
+          "Caught in a cycle of mutual defeats: each attacker in the chain is itself " +
+          "outranked by another, so no single rule ever settles which one stands. " +
+          "Contributes uncommitted mass only.",
       });
       continue;
     }

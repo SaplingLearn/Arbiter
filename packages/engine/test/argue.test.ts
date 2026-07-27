@@ -111,33 +111,42 @@ describe("argue", () => {
     }
   });
 
-  it("terminates and leaves cycle members UNDECIDED rather than looping", () => {
-    // 2-cycles are impossible (above), but the attack graph is BIPARTITE -
-    // attacks only ever cross the toxic/safe divide - so every cycle has even
-    // length, and a 4-cycle is not excluded by antisymmetry alone: four claims
-    // can each strictly outrank the next without any pair outranking each other.
+  it("terminates and leaves a genuine 4-cycle's members UNDECIDED rather than looping", () => {
+    // 2-cycles are impossible (see the antisymmetry test above), but the attack
+    // graph is BIPARTITE - attacks only ever cross the toxic/safe divide, since
+    // conflictsWith() requires opposite assertions - so every cycle has even
+    // length, and a 4-cycle is NOT excluded by antisymmetry alone: antisymmetry
+    // only forbids a and b each defeating the other directly, it says nothing
+    // about a -> b -> c -> d -> a.
+    //
+    // This is a REAL cycle against the actual R1-R6 ruleset (RS), constructed
+    // by hand-tracing defeats() with precedenceOrder = ["R3","R1","R2","R5"]:
+    //   a (toxic, human,    klimisch 4) --R1--> b (safe, rodent,    klimisch 1)
+    //   b (safe,  rodent,   klimisch 1) --R5--> c (toxic, nonrodent, klimisch 2)
+    //   c (toxic, nonrodent,klimisch 2) --R5--> d (safe, in_silico, klimisch 3)
+    //   d (safe,  in_silico,klimisch 3) --R5--> a (toxic, human,    klimisch 4)
+    // a beats b via R1 (human outranks animal) regardless of Klimisch, because
+    // R1 outranks R5 in precedence - so b's much-better Klimisch never gets a
+    // chance to reverse it. The other three edges are plain R5 (better Klimisch
+    // wins at equal - here, matching null - key event), each one-directional
+    // because the target's Klimisch is never better than its attacker's. No
+    // other pair among these four conflicts (a/c are both toxic, b/d are both
+    // safe), so this is exactly a 4-cycle with no extra edges.
     //
     // Grounded semantics leaves every member of such a cycle UNDECIDED, which
-    // reason() maps to uncommitted mass. This test exists to prove that branch is
-    // live code and that the fixpoint terminates, because an unbounded loop here
-    // would hang the demo rather than fail it.
-    //
-    // Constructed with a synthetic single-rule ruleset so the cycle is explicit
-    // rather than an accident of R1-R6 interactions.
-    const r = argue(
-      [
-        claim({ id: "a", assertion: "toxic", klimisch: 1 }),
-        claim({ id: "b", assertion: "safe", klimisch: 2 }),
-        claim({ id: "c", assertion: "toxic", klimisch: 3 }),
-        claim({ id: "d", assertion: "safe", klimisch: 4 }),
-      ],
-      RS,
-    );
-    // Whatever the statuses, the call must RETURN - and every claim must carry
-    // exactly one status. A missing entry means the fixpoint exited early.
+    // reason() maps to uncommitted mass. This test proves that branch is live
+    // code reachable from the real ruleset, and that the fixpoint terminates
+    // instead of looping forever on it.
+    const a = claim({ id: "a", assertion: "toxic", system: "human", klimisch: 4 });
+    const b = claim({ id: "b", assertion: "safe", system: "rodent", stream: "invivo_rodent", klimisch: 1 });
+    const c = claim({ id: "c", assertion: "toxic", system: "nonrodent", stream: "invivo_nonrodent", klimisch: 2 });
+    const d = claim({ id: "d", assertion: "safe", system: "in_silico", stream: "qsar", klimisch: 3 });
+
+    const r = argue([a, b, c, d], RS);
+
     expect(r.trace).toHaveLength(4);
     for (const id of ["a", "b", "c", "d"]) {
-      expect(["admitted", "defeated", "downweighted", "undecided"]).toContain(r.statuses.get(id));
+      expect(r.statuses.get(id)).toBe("undecided");
     }
   });
 
@@ -173,5 +182,38 @@ describe("argue", () => {
     const rev = argue([B, A], RS);
     expect(fwd.statuses.get("A")).toBe(rev.statuses.get("A"));
     expect(fwd.statuses.get("B")).toBe(rev.statuses.get("B"));
+  });
+
+  it("attributes a defeat to the STRONGEST surviving attacker, independent of input order", () => {
+    // X is attacked by two claims that both survive (neither Y nor Z is itself
+    // defeated), via two different rules of different precedence:
+    //   Y: human vs. X's rodent system -> beats X by R1 (precedence rank 1).
+    //   Z: far better Klimisch, same (null) key event -> beats X by R5 (rank 3).
+    // R1 outranks R5, so X's trace must always credit Y, never Z - regardless
+    // of which order Y and Z appear in the input array. A naive
+    // `incoming.find(...)` would instead credit whichever of Y/Z happened to
+    // be pushed into the attacker list first, which tracks input order, not
+    // rule strength - exactly the bug this test exists to catch.
+    const X = claim({ id: "X", assertion: "toxic", system: "rodent", stream: "invivo_rodent", klimisch: 4 });
+    const Y = claim({ id: "Y", assertion: "safe", system: "human", klimisch: 4 });
+    const Z = claim({ id: "Z", assertion: "safe", system: "nonrodent", stream: "invivo_nonrodent", klimisch: 1 });
+
+    const sortByClaimId = (r: ReturnType<typeof argue>) => [...r.trace].sort((a, b) => a.claimId.localeCompare(b.claimId));
+
+    const orderA = argue([X, Y, Z], RS);
+    const orderB = argue([Z, Y, X], RS);
+    const orderC = argue([Y, X, Z], RS);
+
+    // Sanity: this is actually the scenario intended - X defeated, credited to Y by R1.
+    expect(orderA.statuses.get("X")).toBe("defeated");
+    expect(orderA.statuses.get("Y")).toBe("admitted");
+    expect(orderA.statuses.get("Z")).toBe("admitted");
+    const xStep = orderA.trace.find((s) => s.claimId === "X")!;
+    expect(xStep.byRule).toBe("R1");
+    expect(xStep.defeatedBy).toBe("Y");
+
+    // Content, not emission order, must be identical across input orderings.
+    expect(sortByClaimId(orderB)).toEqual(sortByClaimId(orderA));
+    expect(sortByClaimId(orderC)).toEqual(sortByClaimId(orderA));
   });
 });
