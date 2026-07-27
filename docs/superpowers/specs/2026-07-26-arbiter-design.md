@@ -78,6 +78,44 @@ buys mechanistic credibility without a second graph view competing with the argu
 
 ---
 
+## 2a. Prior art, and what is actually new
+
+**Earlier drafts claimed "first system to…" and "nobody has built this." Both are dropped.** They are
+probably false, and a judge who knows the evidence-integration literature will discount everything said
+afterwards. The components are each precedented:
+
+| Prior art | What already exists |
+|---|---|
+| Park, Ogunseitan & Lejano (2014) | Dempster–Shafer evidence fusion applied to a regulatory decision process for toxic-chemical alternatives. **Cited in our own Pitch Bible** — so DS in regulatory toxicology has acknowledged precedent |
+| OECD IATA | A structured framework for integrating heterogeneous evidence. The *doctrine* already exists; it is simply not software |
+| OECD QSAR Toolbox | Read-across with documented, inspectable justification |
+| Argumentation in risk assessment | An established academic literature on argumentation schemes for evidence appraisal |
+| Emerging agentic toxicology tools | Orchestrate predictors and parse literature; do not perform formal conflict reasoning, experiment planning, or produce a signed record |
+
+### The claim we actually make
+
+Not that symbolic weight-of-evidence reasoning is new. Rather: **the assembly does not exist as usable
+software a safety lead can operate and contest** — rules a scientist owns and edits, a signed tamper-evident
+decision record, determinism validated as a build-enforced property, and one mechanism that is genuinely
+uncommon:
+
+> **The experiment planner is driven by the argument structure, not by generic assay informativeness.** It does
+> not ask "which assay is usually informative?" It asks *"which rule is doing the defeating, and what evidence
+> would overturn that specific rule?"* That coupling of defeasible argumentation to value-of-information is the
+> novel mechanism, and it is what makes beat 5 work.
+
+A second contribution is methodological rather than technical: **the as-of-date prospective replay** as a
+validation design for evidence-integration tools — testing the system on a historical case using only the
+evidence that existed at the decision point.
+
+### How to present it
+
+A short landscape slide naming the prior art above. Knowing precisely what is and is not new reads as
+command of the field; a novelty superlative reads as not having checked. Per Pitch Bible §20, any novelty
+statement is bounded to mid-2026 and re-checked before presenting.
+
+---
+
 ## 3. The demo — seven beats, 240 seconds
 
 TAK-994 is run as a **two-pass replay** driven by an evidence `availableFrom` date and an "as of" control in
@@ -233,10 +271,35 @@ Combination is Dempster's rule. `belief(toxic) = m({toxic})`;
 `plausibility(toxic) = m({toxic}) + m(Θ)`. Conflict mass **K** is tracked and surfaced rather than
 normalised away — high K means the sources genuinely disagree, and it widens the reported range.
 
+### Conformal prediction on the QSAR stream
+
+The Pitch Bible specifies conformal prediction (§06, §17) and earlier drafts of this spec dropped it. It is
+restored, because it is the difference between *measuring* calibration and *guaranteeing* it.
+
+**Split conformal** over the ADMET-AI / TDC predictions, using a DILIrank calibration split held separate
+from both training and test. This yields two things the engine consumes:
+
+- A **calibrated confidence** per prediction with distribution-free coverage at a chosen level, rather than a
+  raw model score
+- A principled **in / out of applicability domain** flag, feeding R4 — so "outside its domain" is a
+  nonconformity threshold rather than a judgment call
+
+This upgrades calibration from an empirical observation to a guaranteed level, which is a materially stronger
+answer to *"is your uncertainty real?"* Roughly half a day, and it applies to the stream we wrap rather than
+requiring us to build a predictor.
+
+### Read-across and structural alerts
+
+For compounds with no history, the mechanistic and structural lens is what transfers: a novel molecule sharing
+a scaffold with known hepatotoxicants, or carrying a known toxicophore, inherits those inferences. This is
+regulatory-accepted rather than exotic, and it is why public data functions as **the lens, not the answer**.
+In this build it enters as evidence claims flagged `measuresKeyEvent: null` — structural correlation, which
+R2 correctly ranks below direct key-event measurement.
+
 ### Abstention
 
-Triggers when the belief–plausibility gap exceeds a threshold, or when the dominant streams fail their
-applicability domain. **The threshold lives in the pre-registered ruleset** so it cannot be tuned after
+Triggers when the belief–plausibility gap exceeds a threshold, when conformal nonconformity places the
+compound outside the applicability domain, or when the dominant streams fail their domain checks. **The threshold lives in the pre-registered ruleset** so it cannot be tuned after
 results are seen. **Proposed starting value: gap > 0.50.** The final value is committed to
 `ruleset-v1.0.json` before any evaluation runs and is not changed afterwards; if it proves badly chosen, that
 is reported as a finding rather than quietly corrected.
@@ -279,7 +342,9 @@ quality determines which evidence wins* displaying the quality of its own eviden
 | ADMET-AI / Therapeutics Data Commons | QSAR and ADMET predictions per SMILES | `pip install`, half a day | 2 — essential |
 | Tox21 via PubChem PUG-REST | In-vitro assay evidence, no API key required | 1–2 days | 3 — expected |
 | EPA ToxCast (CompTox API) | Richer in-vitro coverage, needs an emailed API key | Uncertain turnaround | 4 — opportunistic |
+| ChEMBL | Structure linking for the InChIKey crosswalk; bioactivity enrichment | REST API, hours | 3 — required by the crosswalk |
 | Open TG-GATEs | Toxicogenomics | A week minimum; raw CEL files; predominantly rat liver | 5 — literature fallback expected |
+| Comparative Toxicogenomics DB | Curated chemical–gene–disease interactions; mechanistic enrichment | Free for research | 6 — opportunistic |
 
 **Identifier crosswalk** is by chemical structure — InChIKey, with SMILES via PubChem and ChEMBL. This is the
 known time sink and it is scheduled first.
@@ -432,6 +497,29 @@ design commitment, in the same category as the security architecture.
 - Ruleset, abstention threshold, and DILIrank binarisation policy pre-registered, hashed, committed **before**
   evaluation
 - Held-out test set untouched during development
+
+### Three-way split — a correctness constraint, not a nicety
+
+**This resolves a genuine conflict inside the source documents.** Pitch Bible §05 point 3 and §17 both call for
+per-source reliabilities *calibrated on ground truth* — measuring how often each source has historically been
+right, using DILIrank. The Playbook simultaneously demands pre-registration before evaluation. **Fitting source
+weights on DILIrank and then scoring on DILIrank is leakage**, and it inflates the headline metric by an
+unknown amount.
+
+The data is therefore split three ways, with the boundaries fixed before any fitting:
+
+| Split | Used for | Never used for |
+|---|---|---|
+| **Train** | Fitting per-source reliability priors | Anything reported |
+| **Calibration** | Conformal nonconformity thresholds | Fitting priors; anything reported |
+| **Test** | Every reported number | Any fitting or threshold selection, ever |
+
+What is pre-registered is the **procedure** — how reliabilities are estimated and how thresholds are chosen —
+not the resulting values, which are derived from the train and calibration splits. Split assignments are
+committed with a fixed seed alongside the ruleset hash.
+
+Without this, the reported conflict-subset accuracy does not mean what a slide would claim it means. It is not
+an enhancement; it is the condition under which the numbers are valid at all.
 - Conflict subset reported separately from overall — overall accuracy is inflated by easy unanimous cases
 - Repeat runs for the stochastic pipeline; identical treatment applied to ARBITER
 - Wilson confidence intervals, explicit n, and confusion matrices rather than bare accuracy
@@ -445,7 +533,7 @@ separately rather than quietly dropped.
 |---|---|---|
 | 1 | Conflict-subset balanced accuracy | Against all four baselines. The headline. |
 | 2 | Decision consistency **and robustness** | Determinism (trivially 100%) reported *alongside* stability under perturbation: evidence `strength` jittered by **±10%** and rule `strength` varied by **±25%**, over **2,000 samples** per compound, reporting the share of samples returning the original verdict. A deterministic but knife-edge system is not consistent in any useful sense. |
-| 3 | Uncertainty calibration | Coverage *and* mean interval width, both reported — a wide-but-always-right interval is worthless. |
+| 3 | Uncertainty calibration | Coverage *and* mean interval width, both reported — a wide-but-always-right interval is worthless. Reported alongside the **conformal coverage guarantee** at the chosen level, so the claim is guaranteed rather than merely observed. |
 | 4 | Abstention quality **with coverage** | Accuracy on committed cases reported *inseparably* from the decline rate. 85% accuracy while abstaining on 60% of cases is meaningless, and reporting accuracy alone would silently inflate the headline. |
 | 5 | Planner sensitivity | Share of cases where the top recommendation survives **±50%** perturbation of the outcome priors, over **2,000 samples**. Converts a stated limitation into a measurement. |
 
@@ -652,6 +740,62 @@ dishonest.
 
 ---
 
+## 12a. Adoption, workflow fit, and patient impact
+
+Absent from earlier drafts of this spec despite being central to two judged criteria — **Business &
+Operational Feasibility** and the newly added **Pfizer & Patient Impact**.
+
+### The adoption ladder
+
+| Stage | What happens |
+|---|---|
+| **Shadow mode** | Runs in parallel on real cases; output reviewed but **never binding**. Pure validation, zero risk, no workflow change. This is where the track record is earned. |
+| **Advisory** | Once the record holds, its evidence package becomes the official pre-read that frames the safety discussion. |
+| **Integrated** | Part of the standard candidate-nomination package, feeding NAM submissions. |
+
+**The human is the decision-maker at every stage.** Nothing about that changes as the ladder is climbed.
+
+### Where ARBITER physically sits
+
+The workflow today, in five steps:
+
+1. Assays run; results land in separate systems — predictions in one place, in-vitro in a LIMS, omics in
+   another, literature in people's heads and reference managers
+2. A safety lead **manually** pulls results together and assembles an evidence package
+3. Where sources conflict, the lead reconciles them from experience. **This reasoning is rarely written down
+   in structured form**
+4. The committee reviews, debates, decides — often re-deriving the same conflicts from scratch in the meeting
+5. If the programme advances, the reasoning is reconstructed later for the submission, often by different people
+
+**ARBITER occupies steps 2 and 3 only.** Steps 1, 4 and 5 are unchanged — and steps 2 and 3 are precisely the
+manual, inconsistent, undocumented part.
+
+| | |
+|---|---|
+| **Uses it directly** | The preclinical safety assessment lead — opens a compound, reads the reasoning, adjusts rules where their expertise disagrees, exports the package |
+| **Consumes the output** | The safety review committee as a pre-read; regulatory affairs later, as the basis for the submission narrative |
+| **Never touches it** | **Bench scientists generating the assay data.** Their workflow is completely unchanged |
+| **Integrates with** | Lab notebooks, LIMS, assay databases. Wraps existing predictors rather than replacing them |
+
+**"Bench scientists never touch it" is the strongest adoption line available**, because it means adoption
+requires no change in laboratory behaviour — which is where technology rollouts in pharma usually die.
+
+### Four channels of patient benefit
+
+| Channel | Mechanism |
+|---|---|
+| **Fewer patients exposed to unsafe candidates** | Catching a reconcilable signal before first-in-human means the trial that would have injured participants never runs |
+| **More safe medicines reaching patients** | Overly conservative review kills borderline candidates; naming the resolving experiment rescues them, and a rescued medicine is a treatment someone eventually receives |
+| **Resources redirected to candidates that can work** | Every year spent advancing a doomed compound is not spent on one that could help. Earlier termination is a patient benefit, not only a financial one |
+| **Fewer animals used** | Supporting the shift to human-relevant methods advances the **3Rs** directly — and human-relevant evidence is also *better* evidence for predicting human outcomes |
+
+**The line for the patient-impact slide:** *Three people in that trial developed serious liver injury. The
+signals that pointed to it existed, scattered across species and assays that disagreed with each other. Nobody
+had a structured way to put them together in time. That is the problem we are solving, and that is who we are
+solving it for.*
+
+---
+
 ## 13. Pfizer values, mapped to decisions
 
 - **Courage** — makes disagreement visible instead of averaging it away, and preserves dissent in the record.
@@ -675,6 +819,19 @@ preserves dissent.** Values plastered across an interface read as pandering and 
 | **Aug 3 – Aug 9** | Harness, four baselines, ablation runs, metrics, sensitivity analysis, golden files. Web shell, workbench, trace, belief track. |
 | **Aug 10 – Aug 14** | Deliberation Room, three AI surfaces with full fallback ladders, export, spotlight and tour, motion, Playwright walk, Teams-share test, static build. |
 | **Aug 15 – Aug 16** | Deck on real numbers, recorded walkthrough, rehearse to 14:00, **submit early.** |
+
+**A nearer deadline than Aug 16:** the next ambassador check-in expects **the demo and the business
+presentation**. Whatever exists then is what gets feedback, so a thin end-to-end slice beats a polished
+fragment. Roughly 22 teams are in this round; the mentor's guess at advancement was around half but he was
+explicit that he did not know — treat as unknown.
+
+### Roadmap beyond Round 1, in order
+
+Generalise beyond liver to **cardiotoxicity** then mutagenicity — the reasoning engine is endpoint-agnostic, so
+extending means adding evidence streams and pathway-specific rules, not rebuilding. Wire in real prediction and
+assay pipelines. Add **organ-on-chip** readouts as an evidence stream: it is named explicitly in the FDA's NAMs
+roadmap and is what a NAMs-literate audience is tracking. Then internal shadow-mode pilot on one team and one
+endpoint, validated against historical decisions.
 
 ### Cut order, decided now while it is cheap
 
@@ -735,3 +892,6 @@ is exactly the audience that will catch an error about Pfizer.
 | Motion | Level 2 staged, with kill switch |
 | Build ownership | Claude builds; team owns science review, validation, deck, rehearsal |
 | TAK-994 handling | Two-pass as-of-date replay; motivating case only; excluded from all metrics |
+| Novelty claim | Precise, with a prior-art landscape slide. No "first system to." The specific novel mechanism is argument-structure-driven experiment planning; the methodological contribution is the as-of prospective replay |
+| Uncertainty | Dempster–Shafer belief/plausibility **plus split conformal** on the QSAR stream, giving a guaranteed coverage level and a principled applicability-domain flag |
+| Data splits | Three-way train / calibration / test, boundaries and seed fixed before any fitting. A correctness constraint — reliability priors fit on train only, never on the evaluated data |
