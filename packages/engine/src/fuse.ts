@@ -50,16 +50,20 @@ export function combine(a: Mass, b: Mass): { mass: Mass; conflict: number } {
  * Fuse many masses. belief(toxic) = m({toxic}); plausibility(toxic) =
  * m({toxic}) + m(Theta). The gap between them is what ARBITER does not know.
  *
- * conflictMass is reported as the maximum pairwise conflict encountered
- * during folding, which is the quantity that should widen the range.
+ * conflictMass is the cumulative conflict removed across all combination steps:
+ * 1 - ∏(1 - Kᵢ), where Kᵢ is the conflict at step i. This is the honest
+ * aggregate: because each step normalises by (1 - Kᵢ), multiplying the survival
+ * factors gives the total survival probability, and 1 minus that is the true
+ * conflict removed. It is strictly >= max(Kᵢ) and equals max only when at most
+ * one step has nonzero conflict.
  */
 export function fuse(masses: Mass[]): { belief: number; plausibility: number; conflictMass: number } {
   let acc: Mass = { ...VACUOUS };
-  let maxConflict = 0;
+  let survival = 1;
   for (const m of masses) {
     const { mass, conflict } = combine(acc, m);
     acc = mass;
-    if (conflict > maxConflict) maxConflict = conflict;
+    survival *= 1 - conflict;
   }
-  return { belief: acc.toxic, plausibility: acc.toxic + acc.uncommitted, conflictMass: maxConflict };
+  return { belief: acc.toxic, plausibility: acc.toxic + acc.uncommitted, conflictMass: 1 - survival };
 }

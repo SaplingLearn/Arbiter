@@ -77,4 +77,19 @@ describe("fuse", () => {
     near(r.belief, 0);
     near(r.plausibility, 1);
   });
+
+  it("accumulates conflict multiplicatively when sources partially conflict", () => {
+    // Three sources: toxic at 0.6, safe at 0.6, toxic at 0.6
+    // Hand derivation:
+    // A ⊕ B: {toxic: 0.375, safe: 0.375, uncommitted: 0.25}, K₁ = 0.36
+    // (A ⊕ B) ⊕ C: K₂ = 0.225
+    // Cumulative conflict = 1 - (1 - K₁)(1 - K₂) = 1 - 0.64 × 0.775 = 0.504
+    const a = claimToMass("toxic", 0.6);
+    const b = claimToMass("safe", 0.6);
+    const c = claimToMass("toxic", 0.6);
+    const r = fuse([a, b, c]);
+
+    // Expected cumulative conflict is 0.504, strictly greater than max(K₁, K₂) = 0.36
+    near(r.conflictMass, 0.504);
+  });
 });
