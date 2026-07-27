@@ -5,7 +5,23 @@
 # workbook is 110KB of US-government public-domain data, and committing it pins
 # the exact dataset version a result was produced from. DILIrank 2.0 reclassified
 # 49 drugs from 1.0, so "which version" is part of the result.
-data/out/
+# `data/out/*` and not `data/out/` on purpose: git cannot re-include a file whose
+# PARENT DIRECTORY is excluded, so the trailing-slash form would make the two
+# negations below silently dead.
+data/out/*
+
+# Two deliberate exceptions, on the same reasoning that keeps data/raw/ tracked.
+#
+# spike-report*.json is the record of Task 1's decision gate - the measurement
+# that licensed continuing with the conflict-subset thesis. A gate result that
+# only ever existed on one machine is not a gate result.
+#
+# smiles-cache.json pins PubChem's name -> SMILES resolution, which is an input
+# to every QSAR number downstream. PubChem is a live service: it can re-resolve a
+# name or change a canonicalisation, and then a "reproduction" would silently be
+# a different experiment. 94KB to make the resolution part of the provenance.
+!data/out/spike-report*.json
+!data/out/smiles-cache.json
 
 # Node
 node_modules/
