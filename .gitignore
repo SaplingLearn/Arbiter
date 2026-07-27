@@ -1,0 +1,18 @@
+# Visual brainstorming companion session files
+.superpowers/
+
+# Node
+node_modules/
+dist/
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
