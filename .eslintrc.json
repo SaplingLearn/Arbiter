@@ -1,0 +1,26 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "extends": ["eslint:recommended"],
+  "env": { "es2022": true, "node": true },
+  "overrides": [
+    {
+      "files": ["packages/engine/src/**/*.ts"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          { "name": "Date", "message": "The engine must be deterministic. Callers filter by availableFrom." }
+        ],
+        "no-restricted-properties": [
+          "error",
+          { "object": "Math", "property": "random", "message": "All randomness lives in apps/harness with a committed seed." }
+        ],
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["../*", "node:*", "fs", "path", "crypto"] }
+        ]
+      }
+    }
+  ]
+}
