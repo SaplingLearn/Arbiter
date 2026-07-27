@@ -3644,13 +3644,479 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
+## Task 13: Harness — engine run and the three deterministic baselines
+
+**Files:**
+- Create: `apps/harness/src/prng.ts`, `apps/harness/src/load.ts`, `apps/harness/src/baselines.ts`, `apps/harness/src/main.ts`
+- Create: `apps/harness/src/validate-evidence.ts`
+- Modify: `package.json` — add `validate:evidence` script
+- Test: `apps/harness/test/baselines.test.ts`, `apps/harness/test/prng.test.ts`
+
+**Interfaces:**
+- Consumes: `reason`, `detectConflict`, `EvidenceClaim`, `Ruleset`, `Verdict` from `@arbiter/engine`; `rulesetHash` from `./hash.js`
+- Produces:
+  - `mulberry32(seed: number): () => number`
+  - `interface Prediction { verdict: Verdict; score: number }`
+  - `majorityVote(claims: EvidenceClaim[]): Prediction`
+  - `weightedAverage(claims: EvidenceClaim[]): Prediction`
+  - `bestSingleSource(claims: EvidenceClaim[], stream: Stream): Prediction`
+  - `loadInputs(): { evidence, splits, ruleset, assays, compounds, hash }`
+  - `interface ResultRow { compoundId; y; conflicting; arbiter: Reasoning; baselines: Record<string, Prediction> }`
+  - `results/results.json`
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `apps/harness/test/prng.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { mulberry32 } from "../src/prng.js";
+
+describe("mulberry32", () => {
+  it("is reproducible from a seed", () => {
+    const a = Array.from({ length: 20 }, mulberry32(42));
+    const b = Array.from({ length: 20 }, mulberry32(42));
+    expect(a).toEqual(b);
+  });
+
+  it("differs across seeds", () => {
+    expect(Array.from({ length: 20 }, mulberry32(1))).not.toEqual(Array.from({ length: 20 }, mulberry32(2)));
+  });
+
+  it("stays inside [0, 1)", () => {
+    const next = mulberry32(7);
+    for (let i = 0; i < 5000; i++) {
+      const v = next();
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(1);
+    }
+  });
+});
+```
+
+Create `apps/harness/test/baselines.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { bestSingleSource, majorityVote, weightedAverage } from "../src/baselines.js";
+import type { EvidenceClaim } from "@arbiter/engine";
+
+function claim(over: Partial<EvidenceClaim> & { id: string }): EvidenceClaim {
+  return {
+    compoundId: "X", stream: "cytotox", assertion: "safe", strength: 0.8,
+    system: "human", measuresKeyEvent: null, exposureRelevant: null,
+    inApplicabilityDomain: true, klimisch: 2, availableFrom: "2020-01-01",
+    provenance: { kind: "database", source: "t", retrieved: "2026-07-26" },
+    ...over,
+  };
+}
+
+describe("majorityVote", () => {
+  it("counts heads regardless of strength - this is the point of the baseline", () => {
+    const r = majorityVote([
+      claim({ id: "a", assertion: "safe", strength: 0.01 }),
+      claim({ id: "b", assertion: "safe", strength: 0.01 }),
+      claim({ id: "c", assertion: "toxic", strength: 0.99 }),
+    ]);
+    expect(r.verdict).toBe("advance");
+  });
+
+  it("THE FLAW WE ARE DEMONSTRATING: an ambiguous claim is counted as not-toxic", () => {
+    // Majority vote has nowhere to put "I don't know", so silence leans safe.
+    // This is exactly what Dempster-Shafer refuses to do.
+    const r = majorityVote([
+      claim({ id: "a", assertion: "toxic", strength: 0.9 }),
+      claim({ id: "b", assertion: "ambiguous", strength: 0 }),
+      claim({ id: "c", assertion: "ambiguous", strength: 0 }),
+    ]);
+    expect(r.verdict).toBe("advance");
+  });
+
+  it("abstains only when there is nothing at all to count", () => {
+    expect(majorityVote([]).verdict).toBe("abstain");
+  });
+
+  it("breaks a tie by abstaining rather than guessing", () => {
+    const r = majorityVote([
+      claim({ id: "a", assertion: "toxic" }),
+      claim({ id: "b", assertion: "safe" }),
+    ]);
+    expect(r.verdict).toBe("abstain");
+  });
+});
+
+describe("weightedAverage", () => {
+  it("lets one strong claim outweigh two weak ones", () => {
+    const r = weightedAverage([
+      claim({ id: "a", assertion: "safe", strength: 0.1 }),
+      claim({ id: "b", assertion: "safe", strength: 0.1 }),
+      claim({ id: "c", assertion: "toxic", strength: 0.95 }),
+    ]);
+    expect(r.verdict).toBe("do_not_advance");
+  });
+
+  it("treats an ambiguous claim as a zero-strength safe vote - the averaging flaw", () => {
+    const withAmbiguous = weightedAverage([
+      claim({ id: "a", assertion: "toxic", strength: 0.6 }),
+      claim({ id: "b", assertion: "ambiguous", strength: 0 }),
+    ]);
+    const alone = weightedAverage([claim({ id: "a", assertion: "toxic", strength: 0.6 })]);
+    expect(withAmbiguous.score).toBeLessThan(alone.score);
+  });
+});
+
+describe("bestSingleSource", () => {
+  it("uses only the named stream and ignores everything else", () => {
+    const r = bestSingleSource([
+      claim({ id: "a", assertion: "toxic", strength: 0.9, stream: "cytotox" }),
+      claim({ id: "b", assertion: "safe", strength: 0.9, stream: "qsar" }),
+    ], "qsar");
+    expect(r.verdict).toBe("advance");
+  });
+
+  it("abstains when the named stream is silent for this compound", () => {
+    const r = bestSingleSource([claim({ id: "a", stream: "cytotox" })], "toxicogenomics");
+    expect(r.verdict).toBe("abstain");
+  });
+});
+
+describe("all three baselines", () => {
+  it("are deterministic", () => {
+    const claims = [claim({ id: "a", assertion: "toxic" }), claim({ id: "b", assertion: "safe", stream: "qsar" })];
+    for (const fn of [majorityVote, weightedAverage]) {
+      const runs = new Set(Array.from({ length: 50 }, () => JSON.stringify(fn(claims))));
+      expect(runs.size).toBe(1);
+    }
+  });
+});
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- apps/harness
+```
+
+Expected: FAIL — `Cannot find module '../src/prng.js'` and `'../src/baselines.js'`
+
+- [ ] **Step 3: Write the PRNG**
+
+Create `apps/harness/src/prng.ts`:
+
+```ts
+/**
+ * All randomness in ARBITER lives here.
+ *
+ * The engine bans Math.random outright, so perturbation sampling for the
+ * robustness and planner-sensitivity metrics happens in the harness with a
+ * seeded generator and the seed committed alongside the results. That is what
+ * makes those figures reproducible - and they have to be, because they are
+ * golden-filed in Task 16.
+ *
+ * mulberry32: small, fast, well-distributed, and identical across platforms,
+ * which matters because CI must reproduce a local number exactly.
+ */
+export function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Uniform in [lo, hi). */
+export function uniform(next: () => number, lo: number, hi: number): number {
+  return lo + next() * (hi - lo);
+}
+
+/** Multiplicative jitter: value scaled by a factor in [1-pct, 1+pct], clamped to [0,1]. */
+export function jitter01(next: () => number, value: number, pct: number): number {
+  return Math.max(0, Math.min(1, value * uniform(next, 1 - pct, 1 + pct)));
+}
+```
+
+- [ ] **Step 4: Write the baselines**
+
+Create `apps/harness/src/baselines.ts`:
+
+```ts
+import type { EvidenceClaim, Stream, Verdict } from "@arbiter/engine";
+
+export interface Prediction {
+  verdict: Verdict;
+  /** Toxicity leaning in [0,1]; 0.5 means undecided. For ranking and calibration plots. */
+  score: number;
+}
+
+const ABSTAIN: Prediction = { verdict: "abstain", score: 0.5 };
+
+/**
+ * Baseline 1: majority vote.
+ *
+ * The naive aggregation the mentor named. It has NOWHERE TO PUT "I don't know" -
+ * an ambiguous claim simply is not a toxic vote, so silence leans safe. That is
+ * the flaw Dempster-Shafer exists to avoid, and there is a test asserting this
+ * baseline exhibits it. We are not strawmanning it; we are showing its actual
+ * behaviour.
+ */
+export function majorityVote(claims: EvidenceClaim[]): Prediction {
+  if (claims.length === 0) return ABSTAIN;
+  const toxic = claims.filter((c) => c.assertion === "toxic").length;
+  const safe = claims.filter((c) => c.assertion === "safe").length;
+  if (toxic === 0 && safe === 0) return ABSTAIN;
+  if (toxic === safe) return ABSTAIN;
+  const total = toxic + safe;
+  return toxic > safe
+    ? { verdict: "do_not_advance", score: toxic / total }
+    : { verdict: "advance", score: toxic / total };
+}
+
+/**
+ * Baseline 2: confidence-weighted average.
+ *
+ * Included because majority vote is not actually *averaging*, and averaging is
+ * what the pitch claims to beat. An ambiguous claim contributes zero numerator
+ * and non-zero denominator, i.e. it is treated as a zero-strength safe vote -
+ * the precise error the spec's one-liner names.
+ */
+export function weightedAverage(claims: EvidenceClaim[]): Prediction {
+  const committed = claims.filter((c) => c.assertion !== "ambiguous" || c.strength === 0);
+  if (claims.length === 0) return ABSTAIN;
+  const denom = claims.reduce((s, c) => s + Math.max(c.strength, 0.0001), 0);
+  const numer = claims.reduce((s, c) => s + (c.assertion === "toxic" ? Math.max(c.strength, 0.0001) : 0), 0);
+  if (denom === 0 || committed.length === 0) return ABSTAIN;
+  const score = numer / denom;
+  if (Math.abs(score - 0.5) < 1e-12) return ABSTAIN;
+  return { verdict: score > 0.5 ? "do_not_advance" : "advance", score };
+}
+
+/**
+ * Baseline 3: best single source.
+ *
+ * The unflattering bar, included precisely because it is unflattering: if one
+ * predictor alone matches the whole system, the complexity is not earning its
+ * place. The harness runs this once per stream and reports the strongest.
+ */
+export function bestSingleSource(claims: EvidenceClaim[], stream: Stream): Prediction {
+  const own = claims.filter((c) => c.stream === stream && c.assertion !== "ambiguous");
+  if (own.length === 0) return ABSTAIN;
+  const strongest = own.reduce((a, b) => (b.strength > a.strength ? b : a));
+  return strongest.assertion === "toxic"
+    ? { verdict: "do_not_advance", score: strongest.strength }
+    : { verdict: "advance", score: 1 - strongest.strength };
+}
+
+export const ALL_STREAMS: Stream[] = [
+  "qsar", "cytotox", "toxicogenomics", "transporter", "invivo_rodent", "invivo_nonrodent",
+];
+```
+
+- [ ] **Step 5: Write the loader and the evidence validator**
+
+Create `apps/harness/src/load.ts`:
+
+```ts
+import { readFileSync } from "node:fs";
+import { EvidenceClaimSchema, RulesetSchema, type AssayOperator, type EvidenceClaim, type Ruleset } from "@arbiter/engine";
+import { rulesetHash } from "./hash.js";
+
+const read = (p: string) => JSON.parse(readFileSync(p, "utf8"));
+
+export interface Inputs {
+  claimsByCompound: Map<string, EvidenceClaim[]>;
+  benchmarkIds: string[];
+  splits: { seed: number; train: string[]; calibration: string[]; test: string[] };
+  truth: Map<string, number>;
+  ruleset: Ruleset;
+  hash: string;
+  assays: AssayOperator[];
+}
+
+/**
+ * Load and VALIDATE every input before the harness computes anything.
+ *
+ * A malformed evidence file must fail here, loudly, rather than producing a
+ * plausible-looking number downstream.
+ */
+export function loadInputs(): Inputs {
+  const ruleset = RulesetSchema.parse(read("rules/ruleset-v1.0.json")) as Ruleset;
+  const evidence = read("data/out/evidence.json");
+  const splits = read("data/out/splits.json");
+  const compounds = read("data/out/compounds.json").compounds as { compoundId: string; y: number }[];
+  const assays = read("data/out/assays.json").assays as AssayOperator[];
+
+  const claimsByCompound = new Map<string, EvidenceClaim[]>();
+  for (const raw of evidence.claims) {
+    const claim = EvidenceClaimSchema.parse(raw) as EvidenceClaim;
+    const list = claimsByCompound.get(claim.compoundId) ?? [];
+    list.push(claim);
+    claimsByCompound.set(claim.compoundId, list);
+  }
+
+  return {
+    claimsByCompound,
+    benchmarkIds: evidence.benchmarkCompoundIds as string[],
+    splits,
+    truth: new Map(compounds.map((c) => [c.compoundId, c.y])),
+    ruleset,
+    hash: rulesetHash({
+      rules: ruleset.rules,
+      abstentionGapThreshold: ruleset.abstentionGapThreshold,
+      dilirankBinarisation: ruleset.dilirankBinarisation,
+    }),
+    assays,
+  };
+}
+
+/** Claims visible as of a date. The engine cannot do this - it has no clock. */
+export function asOf(claims: EvidenceClaim[], date: string): EvidenceClaim[] {
+  return claims.filter((c) => c.availableFrom <= date);
+}
+```
+
+Create `apps/harness/src/validate-evidence.ts`:
+
+```ts
+import { loadInputs } from "./load.js";
+
+const { claimsByCompound, benchmarkIds, splits, ruleset, hash } = loadInputs();
+const nClaims = [...claimsByCompound.values()].reduce((s, v) => s + v.length, 0);
+
+// The fixture must never be a benchmark row.
+const leaked = benchmarkIds.filter((id) => id.startsWith("TAK-994"));
+if (leaked.length > 0) throw new Error(`TAK-994 leaked into the benchmark: ${leaked.join(", ")}`);
+
+console.log(JSON.stringify({
+  ok: true,
+  claims: nClaims,
+  compoundsWithEvidence: claimsByCompound.size,
+  benchmarkCompounds: benchmarkIds.length,
+  testSplit: splits.test.length,
+  rulesetVersion: ruleset.version,
+  rulesetHash: hash,
+}, null, 2));
+```
+
+Add to the root `package.json` scripts:
+
+```json
+    "validate:evidence": "tsx apps/harness/src/validate-evidence.ts",
+```
+
+- [ ] **Step 6: Write the harness entry point**
+
+Create `apps/harness/src/main.ts`:
+
+```ts
+import { mkdirSync, writeFileSync } from "node:fs";
+import { detectConflict, reason, type Reasoning } from "@arbiter/engine";
+import { ALL_STREAMS, bestSingleSource, majorityVote, weightedAverage, type Prediction } from "./baselines.js";
+import { loadInputs } from "./load.js";
+
+export interface ResultRow {
+  compoundId: string;
+  y: number;
+  conflicting: boolean;
+  arbiter: Reasoning;
+  baselines: Record<string, Prediction>;
+}
+
+function main(): void {
+  const { claimsByCompound, splits, truth, ruleset, hash, assays } = loadInputs();
+
+  // ONLY the test split is scored. train fitted the QSAR model, calibration set
+  // the conformal threshold; scoring either would be leakage.
+  const rows: ResultRow[] = [];
+  for (const compoundId of splits.test) {
+    const claims = claimsByCompound.get(compoundId) ?? [];
+    const y = truth.get(compoundId);
+    if (y === undefined) continue;
+
+    const baselines: Record<string, Prediction> = {
+      majorityVote: majorityVote(claims),
+      weightedAverage: weightedAverage(claims),
+    };
+    for (const s of ALL_STREAMS) baselines[`single:${s}`] = bestSingleSource(claims, s);
+
+    rows.push({
+      compoundId,
+      y,
+      conflicting: detectConflict(claims).conflicting,
+      arbiter: reason(claims, ruleset, hash, assays),
+      baselines,
+    });
+  }
+
+  mkdirSync("results", { recursive: true });
+  writeFileSync("results/results.json", JSON.stringify({
+    rulesetVersion: ruleset.version,
+    rulesetHash: hash,
+    splitSeed: splits.seed,
+    scoredSplit: "test",
+    n: rows.length,
+    nConflicting: rows.filter((r) => r.conflicting).length,
+    rows,
+  }, null, 2));
+
+  console.log(JSON.stringify({
+    scored: rows.length,
+    conflictSubset: rows.filter((r) => r.conflicting).length,
+    arbiterAbstentions: rows.filter((r) => r.arbiter.verdict === "abstain").length,
+    rulesetHash: hash,
+  }, null, 2));
+}
+
+main();
+```
+
+- [ ] **Step 7: Run everything and verify it passes**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- apps/harness && npm run validate:evidence && npm run harness && npm run lint && npm run typecheck
+```
+
+Expected: PASS (11 harness tests). `validate:evidence` prints `ok: true` with the ruleset hash. `harness` writes `results/results.json` and prints the scored count, the conflict-subset size, and the abstention count. **Record the conflict-subset size** — it is the denominator of the headline metric.
+
+- [ ] **Step 8: Commit**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && echo "results/" >> .gitignore && git add .gitignore package.json apps/harness && git commit -m "Add harness: engine run over the test split plus three deterministic baselines
+
+Only the test split is scored - train fitted the QSAR model and calibration set
+the conformal threshold, so scoring either would be leakage.
+
+The baselines are implemented to exhibit their real flaws rather than being
+strawmanned, and there are tests asserting they do:
+- majorityVote has nowhere to put 'I don't know', so an ambiguous claim is
+  simply not a toxic vote and silence leans safe. That is precisely what
+  Dempster-Shafer refuses to do
+- weightedAverage is included because majority vote is not actually averaging,
+  and averaging is what the pitch claims to beat. An ambiguous claim lands as a
+  zero-strength safe vote
+- bestSingleSource is the unflattering bar, run per stream, included because if
+  one predictor matches the whole system the complexity is not earning its place
+
+All randomness in the project now lives in prng.ts (mulberry32, seeded), since
+the engine bans Math.random. Platform-identical output matters because CI has
+to reproduce a local number exactly in Task 16.
+
+validate:evidence fails loudly on a malformed evidence file and refuses to let
+TAK-994 appear in benchmarkCompoundIds.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
 ## Remaining Phase 1 tasks — OUTLINE, NOT YET WRITTEN
 
-> ⚠️ **Tasks 1–12 above are complete and executable. Tasks 13–16 below are an outline.** They contain no test code, implementation, or commands and **must not be handed to an implementer in this state.**
+> ⚠️ **Tasks 1–13 above are complete and executable. Tasks 14–16 below are an outline.** They contain no test code, implementation, or commands and **must not be handed to an implementer in this state.**
 
 | # | Task | Key deliverable |
 |---|---|---|
-| 13 | Harness: engine run + three deterministic baselines | `results.json`; majority vote, confidence-weighted average, best single source |
 | 14 | Harness: LLM ablation via Batches API | 25 runs/compound, structured outputs, refusal handling, prompt caching, **no temperature parameter** |
 | 15 | Metrics suite | Five metrics with Wilson intervals; accuracy and coverage reported inseparably; planner sensitivity |
 | 16 | Golden files + CI | Any change moving a benchmark number fails the build |
