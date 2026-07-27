@@ -837,19 +837,42 @@ export function combine(a: Mass, b: Mass): { mass: Mass; conflict: number } {
  * Fuse many masses. belief(toxic) = m({toxic}); plausibility(toxic) =
  * m({toxic}) + m(Theta). The gap between them is what ARBITER does not know.
  *
- * conflictMass is reported as the maximum pairwise conflict encountered
- * during folding, which is the quantity that should widen the range.
+ * conflictMass is the CUMULATIVE conflict across the whole combination:
+ * 1 - prod(1 - K_i). Dempster's rule normalises by (1 - K_i) at each step, so
+ * that product is the share of mass that survived, and one minus it is the
+ * share destroyed by disagreement.
+ *
+ * NOT max(K_i). Because every (1 - K_i) <= 1, the product is at most the
+ * smallest factor, so 1 - prod(1 - K_i) >= max(K_i) always - the maximum is a
+ * strict UNDERESTIMATE whenever more than one step conflicts. Three sources
+ * each conflicting at K = 0.9 destroy 1 - 0.1^3 ~ 0.999 of the mass, but the
+ * maximum would report 0.9. Under-reporting here would make the total-conflict
+ * abstention in abstain.ts unreachable: evidence that had almost entirely
+ * cancelled itself out would still receive a confident verdict.
  */
 export function fuse(masses: Mass[]): { belief: number; plausibility: number; conflictMass: number } {
   let acc: Mass = { ...VACUOUS };
-  let maxConflict = 0;
+  let survival = 1; // prod(1 - K_i): the share of mass that survived combination
   for (const m of masses) {
     const { mass, conflict } = combine(acc, m);
     acc = mass;
-    if (conflict > maxConflict) maxConflict = conflict;
+    survival *= 1 - conflict;
   }
-  return { belief: acc.toxic, plausibility: acc.toxic + acc.uncommitted, conflictMass: maxConflict };
+  return { belief: acc.toxic, plausibility: acc.toxic + acc.uncommitted, conflictMass: 1 - survival };
 }
+```
+
+Add this test to `packages/engine/test/fuse.test.ts` — it is the case `max(K_i)` cannot satisfy:
+
+```ts
+  it("accumulates conflict across the fold rather than taking the maximum", () => {
+    // Three mutually opposed sources. Each fold step conflicts, so the mass
+    // destroyed compounds: cumulative conflict must EXCEED the largest single
+    // pairwise conflict. This is the property a max() aggregate fails.
+    const r = fuse([claimToMass("toxic", 0.9), claimToMass("safe", 0.9), claimToMass("toxic", 0.9)]);
+    expect(r.conflictMass).toBeGreaterThan(0.9);
+    expect(r.conflictMass).toBeLessThanOrEqual(1);
+  });
 ```
 
 - [ ] **Step 4: Run the tests to verify they pass**
@@ -1954,15 +1977,17 @@ In `packages/engine/src/fuse.ts`, change the `fuse` signature and its return sta
 ```ts
 export function fuse(masses: Mass[]): { belief: number; plausibility: number; conflictMass: number; mass: Mass } {
   let acc: Mass = { ...VACUOUS };
-  let maxConflict = 0;
+  let survival = 1; // prod(1 - K_i)
   for (const m of masses) {
     const { mass, conflict } = combine(acc, m);
     acc = mass;
-    if (conflict > maxConflict) maxConflict = conflict;
+    survival *= 1 - conflict;
   }
-  return { belief: acc.toxic, plausibility: acc.toxic + acc.uncommitted, conflictMass: maxConflict, mass: acc };
+  return { belief: acc.toxic, plausibility: acc.toxic + acc.uncommitted, conflictMass: 1 - survival, mass: acc };
 }
 ```
+
+Only the `mass` field is new here — the cumulative-conflict accumulation is already in place from Task 3. Do not reintroduce a maximum.
 
 - [ ] **Step 4: Write `index.ts`**
 
