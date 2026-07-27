@@ -17,7 +17,7 @@
 Every task's requirements implicitly include this section.
 
 - **Node 20.12.1**, npm workspaces. TypeScript strict mode on.
-- **`packages/engine` has zero runtime dependencies.** No imports outside the package. No `Date`, no `Math.random`, no I/O. Enforced by ESLint rule + a determinism test.
+- **`packages/engine` has exactly one runtime dependency: `zod`.** Nothing else. No `Date`, no `Math.random`, no I/O, no `fs`/`path`/`crypto`, no parent-directory imports. Enforced by ESLint rule + a determinism test. (`zod` is admitted deliberately — validating at the seam is worth more than nominal purity, and it introduces no clock, no I/O, and no randomness.)
 - **All randomness lives in `apps/harness`**, via a seeded PRNG. The seed is committed alongside results.
 - **`rules/ruleset-v1.0.json` is committed before any evaluation runs.** Its SHA-256 goes in `results/metrics.json`.
 - **Three-way data split** — train / calibration / test. Boundaries and seed fixed before any fitting. Reliability priors fit on train only. Reported numbers come from test only.
@@ -1377,14 +1377,35 @@ describe("argue", () => {
     expect(bStep.rationale).toMatch(/reinstat/i);
   });
 
-  it("leaves both claims undecided under mutual attack", () => {
-    // Equal Klimisch, same system, same key-event status: no rule can separate
-    // them, so neither is defeated and neither is admitted.
+  it("admits BOTH when no rule can separate two opposed claims", () => {
+    // Equal Klimisch, same system, same key-event status, same exposure status:
+    // no rule fires in either direction, so there is no attack at all.
+    //
+    // This is worth asserting explicitly because it is easy to assume such a
+    // pair lands UNDECIDED. It does not. Every rule in R1-R6 is ASYMMETRIC by
+    // construction (human beats animal, measured beats correlated, reliable
+    // beats unreliable), so no pair can attack each other. The genuine conflict
+    // is expressed downstream instead: both survive into fusion, the opposing
+    // masses produce conflict mass K > 0, and reason() marks the case contested.
     const a = claim({ id: "a", assertion: "toxic", klimisch: 2 });
     const b = claim({ id: "b", assertion: "safe", klimisch: 2 });
     const r = argue([a, b], RS);
-    expect(r.statuses.get("a")).toBe("undecided");
-    expect(r.statuses.get("b")).toBe("undecided");
+    expect(r.attacks).toHaveLength(0);
+    expect(r.statuses.get("a")).toBe("admitted");
+    expect(r.statuses.get("b")).toBe("admitted");
+  });
+
+  it("admits everything when the whole ruleset is disabled", () => {
+    // The floor case: a fully disabled ruleset is a no-op, not a crash. Also the
+    // mechanism behind live rule editing in Phase 2 - a toxicologist switching
+    // R1 off must get a coherent verdict, not an exception.
+    const off: Ruleset = { ...RS, rules: RS.rules.map((r) => ({ ...r, enabled: false })) };
+    const a = claim({ id: "a", assertion: "toxic", system: "human", klimisch: 1 });
+    const b = claim({ id: "b", assertion: "safe", system: "rodent", stream: "invivo_rodent", klimisch: 4 });
+    const r = argue([a, b], off);
+    expect(r.attacks).toHaveLength(0);
+    expect(r.statuses.get("a")).toBe("admitted");
+    expect(r.statuses.get("b")).toBe("admitted");
   });
 
   it("marks an out-of-domain claim downweighted, not defeated", () => {
@@ -1544,7 +1565,7 @@ export function argue(claims: EvidenceClaim[], ruleset: Ruleset): Argumentation 
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/argue.test.ts && npm run lint
 ```
 
-Expected: PASS (7 tests), lint clean.
+Expected: PASS (8 tests), lint clean.
 
 - [ ] **Step 5: Commit**
 
@@ -3034,24 +3055,31 @@ def test_ambiguous_when_the_conformal_set_holds_both_labels():
             assert c["strength"] == 0.0, "an ambiguous claim carries no committed strength"
 
 
-def test_claims_validate_against_the_engine_schema():
-    """The Python side must produce exactly what the TypeScript engine accepts."""
-    import subprocess
-    r = subprocess.run(
-        ["node", "--input-type=module", "-e", """
-import { readFileSync } from "node:fs";
-import { EvidenceClaimSchema } from "./packages/engine/src/schema.ts";
-const { claims } = JSON.parse(readFileSync("data/out/stream-qsar.json", "utf8"));
-for (const c of claims) EvidenceClaimSchema.parse(c);
-console.log("ok", claims.length);
-"""],
-        cwd=ROOT, capture_output=True, text=True,
-    )
-    # tsx is needed to import a .ts module; fall back to a clear skip message.
-    assert "ok" in r.stdout or "ERR_UNKNOWN_FILE_EXTENSION" in r.stderr, r.stderr[:400]
-```
+def test_claims_carry_every_field_the_engine_schema_requires():
+    """The Python side must produce exactly the shape the TypeScript engine accepts.
 
-> **Note on the last test:** Node cannot import a `.ts` file directly. Task 13 adds a proper `npm run validate:evidence` script using `tsx`, and that becomes the real contract check. Keep this test as written — it passes either way and documents the intent until Task 13 replaces it.
+    Checked structurally here rather than by invoking the TS schema, because Node
+    cannot import a .ts module without a loader. The authoritative cross-language
+    check is `npm run validate:evidence` in Task 13, which parses every claim
+    through the real zod schema; this test is the fast local guard.
+    """
+    required = {
+        "id", "compoundId", "stream", "assertion", "strength", "system",
+        "measuresKeyEvent", "exposureRelevant", "inApplicabilityDomain",
+        "klimisch", "availableFrom", "provenance",
+    }
+    streams = {"qsar", "cytotox", "toxicogenomics", "transporter", "invivo_rodent", "invivo_nonrodent"}
+
+    for c in load()["claims"]:
+        assert set(c) == required, f"{c['id']}: field mismatch {set(c) ^ required}"
+        assert c["stream"] in streams
+        assert c["assertion"] in {"toxic", "safe", "ambiguous"}
+        assert 0.0 <= c["strength"] <= 1.0
+        assert c["system"] in {"human", "rodent", "nonrodent", "in_silico"}
+        assert c["klimisch"] in {1, 2, 3, 4, None}
+        assert set(c["provenance"]) >= {"kind", "source", "retrieved"}
+        assert c["provenance"]["kind"] in {"database", "literature"}
+```
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
