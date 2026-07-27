@@ -4111,13 +4111,554 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
+## Task 14: LLM ablation baseline via the Batches API
+
+**The most important thing we build**, per the spec: without the ablation, "symbolic reasoning beats black-box judgment on conflicting evidence" is an argument. With it, it is a measurement. It is also a test that could have disproved our own premise.
+
+**Four decisions that need stating before the code, because each is a Q&A answer:**
+
+1. **No `temperature`, and none is possible.** The parameter does not exist on `claude-opus-5` — sending it returns HTTP 400. We record the sampling configuration as *"none available"*. This is stronger than disclosing a value: nobody can claim we tuned a knob to manufacture variance, because there is no knob.
+2. **Thinking stays ON** (the model's default). Disabling it would strawman the baseline, and on this model disabled thinking is *also* known to leak `<thinking>` tags into visible output, which would corrupt a structured-output run. Leaving it on is both fairer and safer.
+3. **Structured outputs**, not prompted JSON. The verdict is schema-guaranteed, so "your parser mangled the LLM's answer" cannot explain away its variance.
+4. **Refusals are exclusions, never wrong answers.** Drug-hepatotoxicity prompts can trip `bio`-category safety classifiers. A refusal is HTTP 200 with `stop_reason: "refusal"` and empty content. We count them and report the rate.
+
+**Files:**
+- Create: `apps/harness/src/ablation.ts`, `apps/harness/src/run-ablation.ts`
+- Modify: `package.json` — add `@anthropic-ai/sdk` and an `ablation` script
+- Test: `apps/harness/test/ablation.test.ts`
+
+**Interfaces:**
+- Consumes: `loadInputs` from `./load.js`; `EvidenceClaim`
+- Produces:
+  - `const LlmVerdictSchema` (zod) — `{ verdict: "advance" | "do_not_advance" | "abstain", confidence: number, reasoning: string }`
+  - `buildEvidenceBlock(claims: EvidenceClaim[]): string`
+  - `buildRequests(compoundId, claims, runs): BatchRequest[]`
+  - `summariseRuns(runs: AblationRun[]): { modalVerdict; agreementRate; confidenceStdDev; nRefusals }`
+  - `results/ablation.json` — every run, cached so the batch is never re-billed
+
+- [ ] **Step 1: Add the SDK**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm install @anthropic-ai/sdk@^0.65.0 --workspace @arbiter/harness && npm exec -- node -e "console.log(require('@anthropic-ai/sdk/package.json').version)"
+```
+
+Add to root `package.json` scripts:
+
+```json
+    "ablation": "tsx apps/harness/src/run-ablation.ts",
+```
+
+- [ ] **Step 2: Write the failing tests**
+
+These test the pure parts — prompt construction and run summarisation. Nothing here calls the API; the network path is exercised manually in Step 6.
+
+Create `apps/harness/test/ablation.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { ABLATION_CONFIG, LlmVerdictSchema, buildEvidenceBlock, buildRequests, summariseRuns, type AblationRun } from "../src/ablation.js";
+import type { EvidenceClaim } from "@arbiter/engine";
+
+function claim(over: Partial<EvidenceClaim> & { id: string }): EvidenceClaim {
+  return {
+    compoundId: "X", stream: "cytotox", assertion: "safe", strength: 0.8,
+    system: "human", measuresKeyEvent: null, exposureRelevant: null,
+    inApplicabilityDomain: true, klimisch: 2, availableFrom: "2020-01-01",
+    provenance: { kind: "database", source: "Tox21", retrieved: "2026-07-26" },
+    ...over,
+  };
+}
+
+describe("ABLATION_CONFIG", () => {
+  it("NEVER declares a temperature - the parameter does not exist on this model", () => {
+    const json = JSON.stringify(ABLATION_CONFIG);
+    expect(json).not.toMatch(/temperature/i);
+    expect(json).not.toMatch(/top_p/i);
+    expect(json).not.toMatch(/top_k/i);
+  });
+
+  it("records sampling as unavailable rather than omitting the field", () => {
+    // Silence would read as an oversight; an explicit record is the Q&A answer.
+    expect(ABLATION_CONFIG.sampling).toMatch(/not available|none/i);
+  });
+
+  it("runs 25 times per compound, as pre-registered", () => {
+    expect(ABLATION_CONFIG.runsPerCompound).toBe(25);
+  });
+
+  it("leaves thinking at the model default rather than disabling it", () => {
+    expect(ABLATION_CONFIG.thinking).toMatch(/default|adaptive|on/i);
+  });
+});
+
+describe("buildEvidenceBlock", () => {
+  it("includes every claim's stream, assertion, and strength", () => {
+    const text = buildEvidenceBlock([
+      claim({ id: "a", stream: "qsar", assertion: "toxic", strength: 0.7 }),
+      claim({ id: "b", stream: "transporter", assertion: "safe", strength: 0.6 }),
+    ]);
+    expect(text).toContain("qsar");
+    expect(text).toContain("transporter");
+    expect(text).toContain("0.7");
+    expect(text).toContain("0.6");
+  });
+
+  it("renders ambiguous as an explicit 'cannot determine', never as missing", () => {
+    const text = buildEvidenceBlock([claim({ id: "a", assertion: "ambiguous", strength: 0 })]);
+    expect(text.toLowerCase()).toMatch(/ambiguous|cannot determine/);
+  });
+
+  it("gives the LLM the SAME evidence as the engine - no rules, no hints", () => {
+    const text = buildEvidenceBlock([claim({ id: "a" })]);
+    // The ablation isolates the reasoning layer. Leaking R1-R6 into the prompt
+    // would make this a test of prompt engineering, not of the engine.
+    expect(text).not.toMatch(/\bR[1-6]\b/);
+    expect(text.toLowerCase()).not.toContain("human relevance");
+    expect(text.toLowerCase()).not.toContain("dempster");
+  });
+
+  it("is byte-identical for identical claims, so the prefix can cache", () => {
+    const claims = [claim({ id: "a" }), claim({ id: "b", stream: "qsar" })];
+    expect(buildEvidenceBlock(claims)).toBe(buildEvidenceBlock(claims));
+  });
+});
+
+describe("buildRequests", () => {
+  it("creates one request per run with unique custom_ids", () => {
+    const reqs = buildRequests("CID1", [claim({ id: "a" })], 25);
+    expect(reqs).toHaveLength(25);
+    expect(new Set(reqs.map((r) => r.custom_id)).size).toBe(25);
+  });
+
+  it("encodes the compound and run index in custom_id, since results arrive unordered", () => {
+    const reqs = buildRequests("CID1", [claim({ id: "a" })], 3);
+    expect(reqs[0]!.custom_id).toContain("CID1");
+    expect(reqs.map((r) => r.custom_id).join()).toMatch(/0.*1.*2/);
+  });
+
+  it("sets max_tokens with headroom for thinking, which is on by default", () => {
+    const [req] = buildRequests("CID1", [claim({ id: "a" })], 1);
+    // max_tokens caps thinking AND response text together on this model.
+    expect(req!.params.max_tokens).toBeGreaterThanOrEqual(4000);
+  });
+
+  it("marks the evidence prefix cacheable", () => {
+    const [req] = buildRequests("CID1", [claim({ id: "a" })], 1);
+    expect(JSON.stringify(req!.params)).toContain("cache_control");
+  });
+});
+
+describe("summariseRuns", () => {
+  const run = (verdict: AblationRun["verdict"], confidence: number): AblationRun =>
+    ({ compoundId: "X", runIndex: 0, verdict, confidence, refused: false });
+
+  it("reports perfect agreement when every run agrees", () => {
+    const s = summariseRuns([run("advance", 0.8), run("advance", 0.8), run("advance", 0.8)]);
+    expect(s.agreementRate).toBe(1);
+    expect(s.modalVerdict).toBe("advance");
+    expect(s.confidenceStdDev).toBeCloseTo(0, 10);
+  });
+
+  it("measures disagreement across runs - the headline consistency claim", () => {
+    const s = summariseRuns([run("advance", 0.9), run("do_not_advance", 0.7), run("advance", 0.8)]);
+    expect(s.agreementRate).toBeCloseTo(2 / 3, 6);
+    expect(s.confidenceStdDev).toBeGreaterThan(0);
+  });
+
+  it("EXCLUDES refusals from agreement and counts them separately", () => {
+    const refusal: AblationRun = { compoundId: "X", runIndex: 3, verdict: null, confidence: null, refused: true };
+    const s = summariseRuns([run("advance", 0.8), run("advance", 0.8), refusal]);
+    expect(s.nRefusals).toBe(1);
+    expect(s.agreementRate).toBe(1); // computed over the two non-refused runs only
+  });
+
+  it("reports a null modal verdict when every run was refused", () => {
+    const s = summariseRuns([{ compoundId: "X", runIndex: 0, verdict: null, confidence: null, refused: true }]);
+    expect(s.modalVerdict).toBeNull();
+    expect(s.nRefusals).toBe(1);
+  });
+});
+
+describe("LlmVerdictSchema", () => {
+  it("accepts a well-formed verdict", () => {
+    expect(LlmVerdictSchema.parse({ verdict: "advance", confidence: 0.7, reasoning: "x" }).verdict).toBe("advance");
+  });
+
+  it("rejects a confidence outside 0..1", () => {
+    expect(() => LlmVerdictSchema.parse({ verdict: "advance", confidence: 4, reasoning: "x" })).toThrow();
+  });
+});
+```
+
+- [ ] **Step 3: Run the tests to verify they fail**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- apps/harness/test/ablation.test.ts
+```
+
+Expected: FAIL — `Cannot find module '../src/ablation.js'`
+
+- [ ] **Step 4: Write the ablation module**
+
+Create `apps/harness/src/ablation.ts`:
+
+```ts
+import { z } from "zod";
+import type { EvidenceClaim } from "@arbiter/engine";
+
+/**
+ * Configuration, recorded verbatim into results so the protocol is disclosed
+ * rather than described.
+ *
+ * NOTE THE ABSENCE OF temperature. On claude-opus-5 the sampling parameters
+ * (temperature, top_p, top_k) do not exist - sending one returns HTTP 400. So
+ * the variance this baseline exhibits is the model's own at settings we could
+ * not have tuned. That is a stronger position than disclosing a value.
+ */
+export const ABLATION_CONFIG = {
+  model: "claude-opus-5",
+  runsPerCompound: 25,
+  maxTokens: 8000,
+  /** On by default on this model. Deliberately NOT disabled - see below. */
+  thinking: "model default (adaptive, on)",
+  effort: "high (API default)",
+  sampling: "not available on this model - temperature/top_p/top_k are rejected with HTTP 400",
+  thinkingRationale:
+    "Left on for two reasons. Disabling it would strawman the baseline by denying it the reasoning the engine is being compared against. And on this model disabled thinking is known to leak <thinking> tags into visible output, which would corrupt a structured-output run.",
+  api: "Message Batches (50% of standard pricing; correct shape for offline, non-latency-sensitive work)",
+} as const;
+
+/** The LLM's answer, schema-enforced so parsing can never be blamed for variance. */
+export const LlmVerdictSchema = z.object({
+  verdict: z.enum(["advance", "do_not_advance", "abstain"]),
+  confidence: z.number().min(0).max(1),
+  reasoning: z.string(),
+});
+
+export interface AblationRun {
+  compoundId: string;
+  runIndex: number;
+  verdict: "advance" | "do_not_advance" | "abstain" | null;
+  confidence: number | null;
+  refused: boolean;
+  refusalCategory?: string | null;
+  error?: string;
+}
+
+export interface BatchRequest {
+  custom_id: string;
+  params: Record<string, unknown>;
+}
+
+const SYSTEM_PROMPT =
+  "You are a preclinical safety reviewer assessing whether a drug candidate should advance, " +
+  "based only on the evidence provided. Return a verdict, a calibrated confidence in [0,1], " +
+  "and a one-paragraph justification.";
+
+/**
+ * Render the evidence exactly as the engine sees it - and NOTHING ELSE.
+ *
+ * No rule names, no preference ordering, no mention of belief functions. The
+ * ablation isolates the contribution of the reasoning engine; leaking R1-R6
+ * into the prompt would turn it into a test of prompt engineering instead.
+ *
+ * Output is a pure function of the claims, so 25 runs share a byte-identical
+ * prefix and can hit the prompt cache.
+ */
+export function buildEvidenceBlock(claims: EvidenceClaim[]): string {
+  if (claims.length === 0) return "No evidence is available for this compound.";
+  const lines = [...claims]
+    .sort((a, b) => (a.id < b.id ? -1 : 1))
+    .map((c) => {
+      const finding =
+        c.assertion === "ambiguous"
+          ? "AMBIGUOUS - this source cannot determine an answer"
+          : c.assertion.toUpperCase();
+      const parts = [
+        `- Source: ${c.stream}`,
+        `  Biological system: ${c.system}`,
+        `  Finding: ${finding}`,
+        `  Source-reported confidence: ${c.strength}`,
+        `  Measures a mechanistic key event: ${c.measuresKeyEvent ?? "no"}`,
+        `  Tested at clinically relevant exposure: ${c.exposureRelevant === null ? "unstated" : c.exposureRelevant}`,
+        `  Within the model's applicability domain: ${c.inApplicabilityDomain === null ? "not assessed" : c.inApplicabilityDomain}`,
+        `  Study reliability (Klimisch, 1 best): ${c.klimisch ?? "not scored"}`,
+        `  Provenance: ${c.provenance.kind} - ${c.provenance.source}`,
+      ];
+      return parts.join("\n");
+    });
+  return `Evidence for this compound (${claims.length} source${claims.length === 1 ? "" : "s"}):\n\n${lines.join("\n\n")}`;
+}
+
+export function buildRequests(compoundId: string, claims: EvidenceClaim[], runs: number): BatchRequest[] {
+  const evidence = buildEvidenceBlock(claims);
+  return Array.from({ length: runs }, (_, runIndex) => ({
+    custom_id: `${compoundId}::run-${runIndex}`,
+    params: {
+      model: ABLATION_CONFIG.model,
+      max_tokens: ABLATION_CONFIG.maxTokens,
+      // No temperature / top_p / top_k. They are rejected on this model.
+      system: [
+        { type: "text", text: SYSTEM_PROMPT },
+        // Cacheable prefix. Batch requests run concurrently, so cache reads are
+        // opportunistic rather than guaranteed - the 50% batch discount is the
+        // saving we actually rely on. Recorded either way from usage.
+        { type: "text", text: evidence, cache_control: { type: "ephemeral" } },
+      ],
+      output_config: {
+        format: {
+          type: "json_schema",
+          schema: {
+            type: "object",
+            properties: {
+              verdict: { type: "string", enum: ["advance", "do_not_advance", "abstain"] },
+              confidence: { type: "number" },
+              reasoning: { type: "string" },
+            },
+            required: ["verdict", "confidence", "reasoning"],
+            additionalProperties: false,
+          },
+        },
+      },
+      messages: [{ role: "user", content: "Assess this compound and return your verdict." }],
+    },
+  }));
+}
+
+/**
+ * Collapse 25 runs into the numbers the consistency metric needs.
+ *
+ * Refusals are EXCLUDED from the agreement denominator and counted separately.
+ * A refused run is a request the classifier declined; scoring it as a wrong
+ * answer would understate the baseline and overstate ARBITER.
+ */
+export function summariseRuns(runs: AblationRun[]): {
+  modalVerdict: AblationRun["verdict"];
+  agreementRate: number;
+  confidenceStdDev: number;
+  nRefusals: number;
+  nScored: number;
+} {
+  const nRefusals = runs.filter((r) => r.refused).length;
+  const scored = runs.filter((r) => !r.refused && r.verdict !== null);
+  if (scored.length === 0) {
+    return { modalVerdict: null, agreementRate: 0, confidenceStdDev: 0, nRefusals, nScored: 0 };
+  }
+
+  const counts = new Map<string, number>();
+  for (const r of scored) counts.set(r.verdict!, (counts.get(r.verdict!) ?? 0) + 1);
+  const [modal, modalCount] = [...counts.entries()].sort((a, b) =>
+    b[1] - a[1] || (a[0] < b[0] ? -1 : 1),
+  )[0]!;
+
+  const confs = scored.map((r) => r.confidence ?? 0);
+  const mean = confs.reduce((s, v) => s + v, 0) / confs.length;
+  const variance = confs.reduce((s, v) => s + (v - mean) ** 2, 0) / confs.length;
+
+  return {
+    modalVerdict: modal as AblationRun["verdict"],
+    agreementRate: modalCount / scored.length,
+    confidenceStdDev: Math.sqrt(variance),
+    nRefusals,
+    nScored: scored.length,
+  };
+}
+```
+
+- [ ] **Step 5: Write the batch runner**
+
+Create `apps/harness/src/run-ablation.ts`:
+
+```ts
+import Anthropic from "@anthropic-ai/sdk";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { ABLATION_CONFIG, LlmVerdictSchema, buildRequests, summariseRuns, type AblationRun, type BatchRequest } from "./ablation.js";
+import { loadInputs } from "./load.js";
+
+const OUT = "results/ablation.json";
+
+/**
+ * Submit the ablation as ONE batch and cache the result.
+ *
+ * The batch is billed once. If results/ablation.json already exists this script
+ * exits without spending anything - re-running the harness must never re-bill.
+ * Delete the file deliberately to re-run.
+ */
+async function main(): Promise<void> {
+  if (existsSync(OUT)) {
+    console.log(`${OUT} exists - refusing to re-bill. Delete it deliberately to re-run.`);
+    return;
+  }
+
+  const { claimsByCompound, splits, ruleset, hash } = loadInputs();
+  const client = new Anthropic(); // resolves ANTHROPIC_API_KEY or an `ant auth login` profile
+
+  const requests: BatchRequest[] = [];
+  for (const compoundId of splits.test) {
+    const claims = claimsByCompound.get(compoundId) ?? [];
+    requests.push(...buildRequests(compoundId, claims, ABLATION_CONFIG.runsPerCompound));
+  }
+  console.log(`Submitting ${requests.length} requests (${splits.test.length} compounds x ${ABLATION_CONFIG.runsPerCompound} runs)`);
+
+  const batch = await client.messages.batches.create({ requests: requests as never });
+  console.log(`Batch ${batch.id} submitted; polling.`);
+
+  let status = batch;
+  while (status.processing_status !== "ended") {
+    await new Promise((r) => setTimeout(r, 30_000));
+    status = await client.messages.batches.retrieve(batch.id);
+    console.log(`  ${status.processing_status} - succeeded ${status.request_counts.succeeded}, errored ${status.request_counts.errored}`);
+  }
+
+  // Results arrive in ANY order. Key by custom_id, never by position.
+  const runs: AblationRun[] = [];
+  let cacheReadTokens = 0;
+  for await (const result of await client.messages.batches.results(batch.id)) {
+    const [compoundId, runTag] = result.custom_id.split("::");
+    const runIndex = Number((runTag ?? "run-0").replace("run-", ""));
+    const base = { compoundId: compoundId!, runIndex };
+
+    if (result.result.type !== "succeeded") {
+      runs.push({ ...base, verdict: null, confidence: null, refused: false, error: result.result.type });
+      continue;
+    }
+
+    const msg = result.result.message;
+    cacheReadTokens += msg.usage.cache_read_input_tokens ?? 0;
+
+    // CHECK stop_reason BEFORE READING content. A refusal is HTTP 200 with an
+    // empty content array; indexing content[0] here would throw.
+    if (msg.stop_reason === "refusal") {
+      runs.push({
+        ...base, verdict: null, confidence: null, refused: true,
+        refusalCategory: msg.stop_details?.category ?? null,
+      });
+      continue;
+    }
+
+    const text = msg.content.find((b) => b.type === "text");
+    if (!text || text.type !== "text") {
+      runs.push({ ...base, verdict: null, confidence: null, refused: false, error: "no text block" });
+      continue;
+    }
+
+    const parsed = LlmVerdictSchema.safeParse(JSON.parse(text.text));
+    runs.push(parsed.success
+      ? { ...base, verdict: parsed.data.verdict, confidence: parsed.data.confidence, refused: false }
+      : { ...base, verdict: null, confidence: null, refused: false, error: "schema mismatch" });
+  }
+
+  const byCompound: Record<string, ReturnType<typeof summariseRuns>> = {};
+  for (const compoundId of splits.test) {
+    byCompound[compoundId] = summariseRuns(runs.filter((r) => r.compoundId === compoundId));
+  }
+
+  const nRefused = runs.filter((r) => r.refused).length;
+  mkdirSync("results", { recursive: true });
+  writeFileSync(OUT, JSON.stringify({
+    batchId: batch.id,
+    config: ABLATION_CONFIG,
+    rulesetVersion: ruleset.version,
+    rulesetHash: hash,
+    totals: {
+      requests: runs.length,
+      refused: nRefused,
+      refusalRate: runs.length > 0 ? nRefused / runs.length : 0,
+      cacheReadTokens,
+    },
+    byCompound,
+    runs,
+  }, null, 2));
+
+  console.log(JSON.stringify({
+    runs: runs.length,
+    refused: nRefused,
+    refusalRate: (nRefused / runs.length).toFixed(4),
+    compoundsWithAnyRefusal: Object.values(byCompound).filter((s) => s.nRefusals > 0).length,
+    meanAgreementRate: (
+      Object.values(byCompound).filter((s) => s.nScored > 0).reduce((s, v) => s + v.agreementRate, 0) /
+      Math.max(1, Object.values(byCompound).filter((s) => s.nScored > 0).length)
+    ).toFixed(4),
+    cacheReadTokens,
+  }, null, 2));
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
+```
+
+Add `results/ablation.json` to git (it is a *result*, not a build artifact) by amending `.gitignore`:
+
+```
+results/*
+!results/ablation.json
+```
+
+- [ ] **Step 6: Run the unit tests, then the batch once**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- apps/harness/test/ablation.test.ts && npm run lint && npm run typecheck
+```
+
+Expected: PASS (14 tests), lint and typecheck clean.
+
+Then confirm credentials and submit the batch. **This is the only step in Phase 1 that costs money** — expect roughly $20–40 depending on test-split size, since thinking output dominates and the batch discount halves it.
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm run ablation
+```
+
+Expected: a batch id, then poll lines every 30s until `ended`, then a summary. **Record `refusalRate` and `meanAgreementRate`.** If `refusalRate` is above ~0.05, report it before continuing — a materially refused benchmark needs disclosing in §8 and may need a prompt that frames the task as safety review more explicitly.
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && git add .gitignore package.json package-lock.json apps/harness results/ablation.json && git commit -m "Add LLM ablation baseline via the Batches API
+
+The spec calls this the most important thing we build: without it, 'symbolic
+reasoning beats black-box judgment on conflicting evidence' is an argument;
+with it, it is a measurement, and it is a test that could have disproved our
+own premise.
+
+Four decisions, each a Q&A answer, all recorded into results/ablation.json:
+
+- NO temperature, because none exists. The sampling parameters are rejected
+  with HTTP 400 on claude-opus-5, so the variance measured is the model's own
+  at settings we could not have tuned. A test asserts the request config
+  contains no temperature/top_p/top_k, and the config records sampling as
+  explicitly unavailable rather than omitting the field
+- Thinking left ON at the model default. Disabling it would strawman the
+  baseline by denying it the reasoning the engine is compared against, and on
+  this model disabled thinking is known to leak <thinking> tags into visible
+  output, which would corrupt a structured-output run
+- Structured outputs rather than prompted JSON, so 'your parser mangled the
+  answer' cannot explain away the variance
+- Refusals are exclusions, not wrong answers. Drug-hepatotoxicity prompts can
+  trip bio-category classifiers; a refusal is HTTP 200 with empty content, so
+  stop_reason is checked before content is read, refusals are excluded from the
+  agreement denominator, and the refusal rate is reported
+
+The prompt gives the model exactly the evidence the engine sees and nothing
+else - a test asserts R1-R6 and the fusion vocabulary never leak into it, since
+that would make this a test of prompt engineering rather than of the engine.
+
+Results are cached: the runner refuses to re-bill if results/ablation.json
+exists. Results are keyed by custom_id because the Batches API returns them in
+any order.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
 ## Remaining Phase 1 tasks — OUTLINE, NOT YET WRITTEN
 
-> ⚠️ **Tasks 1–13 above are complete and executable. Tasks 14–16 below are an outline.** They contain no test code, implementation, or commands and **must not be handed to an implementer in this state.**
+> ⚠️ **Tasks 1–14 above are complete and executable. Tasks 15–16 below are an outline.** They contain no test code, implementation, or commands and **must not be handed to an implementer in this state.**
 
 | # | Task | Key deliverable |
 |---|---|---|
-| 14 | Harness: LLM ablation via Batches API | 25 runs/compound, structured outputs, refusal handling, prompt caching, **no temperature parameter** |
 | 15 | Metrics suite | Five metrics with Wilson intervals; accuracy and coverage reported inseparably; planner sensitivity |
 | 16 | Golden files + CI | Any change moving a benchmark number fails the build |
 
