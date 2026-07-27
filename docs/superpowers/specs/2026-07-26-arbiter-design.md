@@ -24,6 +24,12 @@ signs.
 **Closing line, verbatim:** ARBITER helps toxicologists reason through conflicting safety signals,
 transparently, with the human experts still making the decision.
 
+**What kind of business this is — a judge will ask.** ARBITER is an **internal capability, not a product to
+sell.** Its value to Pfizer is avoided cost, faster and more consistent decisions, and a stronger regulatory
+position — not licensing revenue. If pressed on longer-term commercial potential, the credible extensions are
+a cross-company consortium for shared safety-reasoning standards, or contribution to the emerging NAMs
+qualification ecosystem. Offer those as possibilities, never as a plan.
+
 ### Language discipline (non-negotiable across code, UI copy, and deck)
 
 | Say | Never say |
@@ -382,6 +388,20 @@ separately rather than quietly dropped.
 | 4 | Abstention quality **with coverage** | Accuracy on committed cases reported *inseparably* from the decline rate. 85% accuracy while abstaining on 60% of cases is meaningless, and reporting accuracy alone would silently inflate the headline. |
 | 5 | Planner sensitivity | Share of cases where the top recommendation survives **±50%** perturbation of the outcome priors, over **2,000 samples**. Converts a stated limitation into a measurement. |
 
+### Operational metrics — modeled, never presented as measured
+
+Business & Operational Feasibility is a judged criterion, so these belong in the deck. **They must be
+labelled as projected, with assumptions stated, and never reported as measured results:**
+
+- Time to assemble a review-ready evidence package, versus manual assembly
+- Number of confirmatory assays avoided through targeted next-experiment recommendations
+- Inter-reviewer variance removed
+
+**Inter-reviewer consistency is the metric that actually matters to the workflow** — the real problem is that
+different reviewers weigh the same evidence differently — and it is **not measurable in this build**, because
+it needs human subjects. Say so. Reporting engine determinism as if it were inter-reviewer agreement would be
+the single most misleading thing in the presentation.
+
 ### Where the randomness lives
 
 Metrics 2 and 5 require sampling, but the engine forbids `Math.random`. **The harness owns all randomness**,
@@ -559,7 +579,7 @@ preserves dissent.** Values plastered across an interface read as pandering and 
 
 | Window | Work |
 |---|---|
-| **Jul 26 – Aug 2** | Task-zero conflict spike. Engine plus R1–R6 pre-registered, hashed, committed. Python prep, `evidence.json`, TAK-994 fixture. **Data freeze 2 August.** |
+| **Jul 26 – Aug 2** | **Order matters here.** (1) Task-zero conflict spike. (2) **Data layer first** — assemble compounds, crosswalk identifiers by structure, normalise each stream to a common scale; the playbook names this the hidden time sink. (3) R1–R6 plus abstention threshold and binarisation policy pre-registered, hashed, committed *before any evaluation*. (4) Conflict detection defined in code. The engine is developed **in parallel** against the TAK-994 fixture, since it is pure and depends on no real data. **Data freeze 2 August.** |
 | **Aug 3 – Aug 9** | Harness, four baselines, ablation runs, metrics, sensitivity analysis, golden files. Web shell, workbench, trace, belief track. |
 | **Aug 10 – Aug 14** | Deliberation Room, three AI surfaces with full fallback ladders, export, spotlight and tour, motion, Playwright walk, Teams-share test, static build. |
 | **Aug 15 – Aug 16** | Deck on real numbers, recorded walkthrough, rehearse to 14:00, **submit early.** |
@@ -592,8 +612,15 @@ is exactly the audience that will catch an error about Pfizer.
 5. ICH M3(R2) and S9 — two-species repeat-dose requirement before first-in-human.
 6. FDA DILIrank / Liver Toxicity Knowledge Base — ground-truth classifications.
 7. Klimisch et al. (1997) — study reliability scoring. OECD AOP handbook and AOP-Wiki — key-event confidence.
-8. Cost figures — Tufts CSDD analyses; Martin et al. (2017) per-phase costs. **Present as ranges with
-   attribution; the literature is contested by an order of magnitude depending on methodology.**
+8. Cost figures — Tufts CSDD analyses (capitalised cost per approved drug ≈ $2.23bn in 2024 for major
+   biopharma; the widely cited Tufts figure is $2.6bn in 2013 dollars); Wong et al. and Tufts phase-transition
+   data (roughly 10–14% of drugs entering Phase 1 reach approval); Tufts 2014 and the Institute for Safe
+   Medication Practices analysis (average Phase 3 ≈ $255m; median pivotal trial ≈ $48m, IQR $20–102m);
+   Martin et al. (2017) median per-phase costs (≈ $3.4m Phase 1, $8.6m Phase 2, $21.4m Phase 3).
+   **Present as ranges with attribution; the literature is contested by an order of magnitude depending on
+   methodology, mostly over whether capital and failure costs are included. A Pfizer judge will know this
+   literature far better than we do, and acknowledging the controversy is safer than quoting one number as
+   fact.**
 9. DILI attrition and withdrawal literature — hepatotoxicity as a leading cause of development termination
    and post-market withdrawal.
 
