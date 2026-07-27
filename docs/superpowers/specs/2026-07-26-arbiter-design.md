@@ -126,7 +126,7 @@ later.
 |---|---|---|---|
 | 1 | The desk, before first-in-human | 20s | Rat clean · primate clean · in-vitro margin >100× · QSAR ambiguous. Conflict rate across the whole assembled set shown, so the case is visibly not cherry-picked. |
 | 2 | What happens today | 30s | Majority vote → advance. Weighted average → advance. Best single source → advance. LLM given identical evidence → advance, with a confident number. |
-| 3 | ARBITER's argument | 55s | Rat and primate defeated by R1. In-vitro margin defeated by R3. QSAR downweighted by R4. Little survives as evidence either way. Verdict: **ABSTAIN**. |
+| 3 | ARBITER's argument | 55s | **Nothing is defeated — nothing contradicts anything.** Each source is instead discounted for what it cannot license: rat and primate are non-human (R1); none of the four established an exposure margin at the clinical range (R3); the QSAR read is ambiguous and commits nothing either way. Most of the weight lands on *uncommitted*. Verdict: **ABSTAIN**. |
 | 4 | The honest gap, and what would flip it | 30s | Belief–plausibility gap opens from centre — the widest in the set. Then the exhaustive counterfactual. |
 | 5 | The experiment it asks for | 50s | Planner names the murine CYP-induction study at clinically relevant dose. Reveal: that is the study Takeda ran, during Phase 2, after three participants met Hy's Law. Then the result is fed in and the verdict flips live to **DO NOT ADVANCE**. |
 | 6 | The table | 35s | Challenge in plain English → interpreted → proposed change shown → applied → re-run → delta. Positions recorded including one dissent; the named decision owner signs. ARBITER holds no position. |
@@ -147,6 +147,7 @@ control themselves.
 
 - Beat 3: *"You are not being asked to trust this. You are being asked to read it."*
 - Beat 3: *"Note what it did not do. It did not say this drug is toxic. It said it cannot tell you yet."*
+- Beat 3 (the mechanism line): *"Nothing here contradicts anything. That is the point. Four studies agreed — and not one of them measured a human endpoint at a clinically relevant dose. Agreement on a question none of them asked is not evidence."*
 - Beat 7 (honesty line): *"TAK-994 is why we built this. It is not evidence that it works. The evidence is
   the benchmark, and the rules never saw it."*
 
@@ -249,6 +250,40 @@ All six are justifiable from published frameworks alone.
 TAK-994 is positioned as the **motivating case**, explicitly not as evidence. It is excluded from every
 metric, and the rules were never exposed to it.
 
+### The six rules do two jobs, and the second one is what makes pass 1 work
+
+Read only as tie-breakers, R1–R6 fire when claims collide. That is not enough. TAK-994's pass 1 contains
+four sources that all say *safe* and one that says *ambiguous* — **nothing conflicts, so nothing is
+defeated.** Under defeat-only semantics every claim is admitted at full strength and the verdict is
+**advance**: the engine reproduces the historical decision, for the same reason the humans made it, and the
+demo's central beat does not exist.
+
+The gap is conceptual rather than arithmetic. The lesson of the case is not *animal evidence loses an
+argument* — it is that **a clean rat study is weak evidence about a human endpoint even when nothing
+contradicts it.** So each rule also acts as a **discount** on how much of a claim's confidence it may
+commit, applied whether or not anything opposes it. The discounted portion moves to **uncommitted** mass,
+which is precisely what uncommitted mass means: weight this source cannot place anywhere. It does *not*
+move to the opposing side — weak evidence for safety is never evidence of toxicity. Discounts compound
+multiplicatively, so a rodent study whose exposure was never established is weaker than either flaw alone.
+Each factor is `1 − rule.strength`, read from the same pre-registered, hashed strengths that govern defeats:
+one number per principle, one meaning, two mechanisms. R4 already behaved this way; the others generalise it.
+
+**One rule is directional, and its own registered text makes it so.** R3 discounts only claims asserting
+*safe*, because R3 is written about negative findings — "defeats **a negative finding** whose margin is
+unstated or untested at that range." R1, R2, R4 and R5 describe what *kind* of evidence a claim is and so
+apply whichever way it points; R3 describes what a result can *license*, which is direction-dependent. A
+positive hit at an unrecorded concentration is still informative and sets up the next experiment. An absence
+of signal at an unrecorded concentration licenses nothing about safety.
+
+This asymmetry is load-bearing in both directions. Without it, a lone hepatotoxicity finding whose margin
+was never recorded retains 15% of its weight and yields a belief–plausibility gap of 0.87 — an abstention.
+Since `exposureRelevant` is `null` for nearly every claim the QSAR and Tox21 streams produce (neither has a
+Cmax source), applying R3 symmetrically would abstain on essentially the entire evaluation set.
+
+**Expect the question "isn't discounting just a fudge factor?"** The answer is that the discounts are the
+same six pre-registered numbers as the defeats, fixed and hashed before any evaluation ran, with no separate
+knob to tune. A toxicologist who disagrees edits one strength and both mechanisms move together.
+
 ### Argumentation must earn the word — reinstatement is required
 
 Six rules with a preference ordering is only genuinely defeasible argumentation if it implements
@@ -298,8 +333,16 @@ R2 correctly ranks below direct key-event measurement.
 
 ### Abstention
 
-Triggers when the belief–plausibility gap exceeds a threshold, when conformal nonconformity places the
-compound outside the applicability domain, or when the dominant streams fail their domain checks. **The threshold lives in the pre-registered ruleset** so it cannot be tuned after
+Triggers when the belief–plausibility gap exceeds a threshold, when the sources have entirely cancelled each
+other out (total conflict mass), or when every **live** committed source lies outside its applicability
+domain. "Live" is doing real work in that third trigger: a *defeated* claim contributes no mass, so an
+in-domain claim that lost its argument must not be allowed to vouch for a verdict resting entirely on
+out-of-domain survivors. An *undecided* claim is excluded for the same reason — it contributes ignorance,
+not a vote.
+
+Note the division of labour with the discount mechanism above: discounting decides *how much* each source
+commits, and abstention reads the resulting gap. Pass 1 abstains through the gap trigger, not the domain
+trigger — nothing there is out of domain; it is simply that nothing licenses a conclusion. **The threshold lives in the pre-registered ruleset** so it cannot be tuned after
 results are seen. **Proposed starting value: gap > 0.50.** The final value is committed to
 `ruleset-v1.0.json` before any evaluation runs and is not changed afterwards; if it proves badly chosen, that
 is reported as a finding rather than quietly corrected.
@@ -531,7 +574,7 @@ separately rather than quietly dropped.
 
 | # | Metric | Definition |
 |---|---|---|
-| 1 | Conflict-subset balanced accuracy | Against all four baselines. The headline. |
+| 1 | Conflict-subset balanced accuracy | Against all four baselines. The headline. **Subset definition, fixed before any data landed:** a compound is in the conflict subset when *some* stream committing to `toxic` differs from *some* stream committing to `safe`. Stream-level, not claim-level — two disagreeing readouts from one assay is measurement noise, whereas a hepatocyte assay disagreeing with a transporter assay is the situation ARBITER exists for. A stream split against itself does not qualify on its own, but it still counts against a third stream that opposes it. Ambiguous claims commit to nothing and never create a conflict. |
 | 2 | Decision consistency **and robustness** | Determinism (trivially 100%) reported *alongside* stability under perturbation: evidence `strength` jittered by **±10%** and rule `strength` varied by **±25%**, over **2,000 samples** per compound, reporting the share of samples returning the original verdict. A deterministic but knife-edge system is not consistent in any useful sense. |
 | 3 | Uncertainty calibration | Coverage *and* mean interval width, both reported — a wide-but-always-right interval is worthless. Reported alongside the **conformal coverage guarantee** at the chosen level, so the claim is guaranteed rather than merely observed. |
 | 4 | Abstention quality **with coverage** | Accuracy on committed cases reported *inseparably* from the decline rate. 85% accuracy while abstaining on 60% of cases is meaningless, and reporting accuracy alone would silently inflate the headline. |
@@ -795,6 +838,10 @@ The hardest questions, with the answer each design decision produces. Rehearse t
 | **What if the committee splits 2–1?** | It is not a vote. Positions are recorded and dissent is preserved; one named owner signs and is accountable. Counts never determine the outcome. |
 | **Isn't feeding it the mouse study hindsight?** | Yes, which is why the as-of control exists — move it yourself. Pass 1 uses only pre-first-in-human evidence, and ARBITER abstains and asks for that study. |
 | **Your consistency claim is trivial — deterministic code is deterministic.** | Agreed, which is why we also report robustness under perturbation. The claim that matters is inter-reviewer consistency, and we cannot measure it without human subjects. We say so. |
+| **Nothing in pass 1 contradicts anything. So what is there to arbitrate?** | Exactly the point, and it is the case most tools miss. Arbitration is not only about resolving contradictions — it is about deciding what evidence *licenses*. Four sources agreed, and not one measured a human endpoint at a clinically relevant dose. ARBITER discounts each for what it cannot support, the weight lands on *uncommitted*, and the gap opens. See §5. |
+| **Isn't the discounting just a fudge factor to force the answer you wanted?** | The discounts are the same six pre-registered strengths as the defeats — one number per principle, hashed before any evaluation ran, with no separate knob. Disagree with a weight and you edit one value; both mechanisms move together. What we did *not* do is touch the abstention threshold, which is pre-registered precisely so the abstention rate cannot be tuned. |
+| **Why does R3 only apply to negative findings? That looks convenient.** | It is R3's registered wording, written before we implemented it: *"defeats a negative finding whose margin is unstated or untested at that range."* A hazard signal at an unrecorded concentration is still a signal — you go and measure the margin next. An absence of signal at an unrecorded concentration tells you nothing about safety. The other five rules describe what *kind* of evidence a claim is and apply in both directions. |
+| **Doesn't discounting make you abstain on everything?** | It nearly did, and we measured it rather than assumed it: applying R3 in both directions gave a lone hepatotoxicity finding a gap of 0.87 and would have abstained on essentially the whole evaluation set. The reported abstention rate is a headline metric for exactly this reason — a system that abstains on everything is useless, and we show the number rather than hide it. |
 | **What is your biggest weakness?** | The preference ordering has not been reviewed by a practising toxicologist. It is drawn from published frameworks, but expert validation is the next thing we need. |
 
 ---
