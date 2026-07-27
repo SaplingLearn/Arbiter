@@ -98,6 +98,12 @@ export interface TraceStep {
   byRule?: RuleId;
   /** The claim that defeated this one, when applicable. */
   defeatedBy?: string;
+  /**
+   * Set only on the synthetic step carrying the verdict's own explanation. Filter
+   * on this rather than on `claimId === "__verdict__"`, which a real claim could
+   * collide with, or on `status`, which reads as a real undecided claim.
+   */
+  kind?: "verdict";
   /** Human-readable, rendered directly in the UI. */
   rationale: string;
 }
@@ -125,6 +131,13 @@ export interface Reasoning {
   contested: boolean;
   belief: number;
   plausibility: number;
+  /**
+   * The fused Dempster-Shafer mass the verdict was read off. Reported so a
+   * reviewer can reconcile the verdict against the numbers: `belief` alone is the
+   * mass on TOXIC, which cannot explain an "advance". Structurally identical to
+   * `Mass` in fuse.ts.
+   */
+  mass: { toxic: number; safe: number; uncommitted: number };
   /** Dempster conflict mass. Surfaced, never normalised away. */
   conflictMass: number;
   trace: TraceStep[];

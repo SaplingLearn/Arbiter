@@ -22,9 +22,21 @@ describe("determinism", () => {
     expect(hashes.size).toBe(1);
   });
 
-  it("does not mutate its inputs", () => {
-    const before = JSON.stringify({ CLAIMS, RS });
-    reason(CLAIMS, RS, "h");
-    expect(JSON.stringify({ CLAIMS, RS })).toBe(before);
+  it("does not mutate its inputs, including nested objects", () => {
+    // Built fresh and frozen INSIDE this test. The previous version snapshotted a
+    // shared array that the 1000-run test above had already passed through
+    // reason(), so any mutation that converged after the first call was invisible
+    // to it - verified by injecting an idempotent write, which it did not catch.
+    const fresh: EvidenceClaim[] = JSON.parse(JSON.stringify(CLAIMS));
+    for (const c of fresh) Object.freeze(c.provenance);
+    Object.freeze(fresh);
+    const rs: Ruleset = JSON.parse(JSON.stringify(RS));
+    rs.rules.forEach((r) => { Object.freeze(r.framework); Object.freeze(r); });
+    Object.freeze(rs.rules);
+    Object.freeze(rs);
+
+    const before = JSON.stringify({ fresh, rs });
+    reason(fresh, rs, "h");
+    expect(JSON.stringify({ fresh, rs })).toBe(before);
   });
 });

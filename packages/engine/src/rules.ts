@@ -174,7 +174,11 @@ export function relevanceDiscount(claim: EvidenceClaim, ruleset: Ruleset): Disco
   const apply = (id: RuleId, rationale: string) => {
     const r = rule(ruleset, id);
     if (!r) return;
-    factor *= 1 - r.strength;
+    // Clamped for the same reason claimToMass clamps: a schema-invalid ruleset
+    // must not be able to produce a negative belief, and reason() does not
+    // validate its ruleset on every call (it is invoked thousands of times in
+    // robustness sampling).
+    factor *= Math.min(1, Math.max(0, 1 - r.strength));
     reasons.push({ byRule: id, rationale });
   };
 
@@ -230,6 +234,12 @@ export function relevanceDiscount(claim: EvidenceClaim, ruleset: Ruleset): Disco
  * tie. `supports` reports which side the concordance favors, so a caller
  * can't accidentally apply a boost computed from one cluster to the other
  * cluster's belief.
+ *
+ * DIAGNOSTIC ONLY - this is deliberately NOT applied to any mass. Concordance is
+ * already realised by Dempster's rule of combination in fuse(); applying a second
+ * multiplicative boost on top double-counted it and could invert a verdict. Kept
+ * because "how many independent streams concur, and on which side" is worth
+ * REPORTING to a reviewer. If you are about to multiply a mass by this, don't.
  */
 export function concordanceBoost(
   claims: EvidenceClaim[],

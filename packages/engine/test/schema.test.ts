@@ -32,6 +32,32 @@ describe("EvidenceClaimSchema", () => {
   it("rejects a klimisch score outside 1..4", () => {
     expect(() => EvidenceClaimSchema.parse({ ...validClaim, klimisch: 7 })).toThrow();
   });
+
+  it("rejects an in_silico/qsar claim that asserts it MEASURED a key event", () => {
+    // A computational prediction predicts a key event; it does not measure one.
+    // Left unchecked, such a claim escapes every discount clause - R2 requires
+    // measuresKeyEvent === null - and gets weighted like human clinical evidence.
+    const r = EvidenceClaimSchema.safeParse({
+      ...validClaim,
+      stream: "qsar",
+      system: "in_silico",
+      measuresKeyEvent: "KE:55",
+    });
+    expect(r.success).toBe(false);
+    if (r.success) throw new Error("expected the schema to reject this claim");
+    expect(r.error.issues.some((i) => i.path.join(".") === "measuresKeyEvent")).toBe(true);
+    expect(r.error.issues.map((i) => i.message).join(" ")).toMatch(/cannot MEASURE/);
+  });
+
+  it("accepts the same in_silico/qsar claim once measuresKeyEvent is null", () => {
+    const r = EvidenceClaimSchema.safeParse({
+      ...validClaim,
+      stream: "qsar",
+      system: "in_silico",
+      measuresKeyEvent: null,
+    });
+    expect(r.success).toBe(true);
+  });
 });
 
 function validRuleset(over: Partial<Record<string, unknown>> = {}) {

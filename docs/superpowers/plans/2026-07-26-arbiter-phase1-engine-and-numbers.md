@@ -359,7 +359,11 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
       "rules": {
         "no-restricted-globals": [
           "error",
-          { "name": "Date", "message": "The engine must be deterministic. Callers filter by availableFrom." }
+          { "name": "Date", "message": "The engine must be deterministic. Callers filter by availableFrom." },
+          { "name": "performance", "message": "The engine must be deterministic. performance.now() is a clock. Callers filter by availableFrom." },
+          { "name": "process", "message": "The engine must be pure. Reading process.env or process.hrtime makes the same input produce different output." },
+          { "name": "crypto", "message": "The engine must be deterministic. crypto.randomUUID/getRandomValues are randomness; all randomness lives in apps/harness with a committed seed." },
+          { "name": "globalThis", "message": "globalThis re-exposes every banned global (globalThis.Date.now(), globalThis.Math.random()). Name what you need directly so the other rules can see it." }
         ],
         "no-restricted-properties": [
           "error",
@@ -368,6 +372,13 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
         "no-restricted-imports": [
           "error",
           { "patterns": ["../*", "node:*", "fs", "path", "crypto"] }
+        ],
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "ImportExpression",
+            "message": "Dynamic import() bypasses no-restricted-imports. The engine is pure and imports nothing at runtime."
+          }
         ]
       }
     }
@@ -384,6 +395,8 @@ cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm install && npm exec tsc --vers
 Expected: npm installs without error, `tsc` prints `Version 5.6.x`.
 
 The ban targets `Math.random` specifically via `no-restricted-properties`, not the `Math` global — the engine legitimately uses `Math.min`, `Math.max`, and `Math.abs`, and banning the whole namespace would force pointless aliasing while catching nothing extra.
+
+**`Date` and `Math.random` alone do not enforce purity — VERIFY the config by trying to break it.** An earlier version of this override banned only those two, and every one of the following passed with zero errors: `performance.now()` (a clock), `globalThis.Date.now()` (the banned global reached through another name), `process.env.FOO` (ambient input), `crypto.randomUUID()` (randomness), and `await import("node:fs")` — dynamic `import()` is an `ImportExpression`, which `no-restricted-imports` cannot see at all, so it needs `no-restricted-syntax`. Note `crypto` appears in BOTH `no-restricted-imports` (the module) and `no-restricted-globals` (the Web Crypto global); they are different things and banning one does not ban the other. After editing this file, write each of the five expressions into a throwaway file under `packages/engine/src/` and confirm `npx eslint` exits non-zero on every one before deleting it. A determinism guard nobody has attacked is not a guard.
 
 - [ ] **Step 2: Write the failing schema test**
 
@@ -423,6 +436,34 @@ describe("EvidenceClaimSchema", () => {
 
   it("rejects a klimisch score outside 1..4", () => {
     expect(() => EvidenceClaimSchema.parse({ ...validClaim, klimisch: 7 })).toThrow();
+  });
+
+  it("rejects an in_silico/qsar claim that asserts it MEASURED a key event", () => {
+    // A computational prediction predicts a key event; it does not measure one.
+    // Left unchecked, such a claim escapes every discount clause - R2 requires
+    // measuresKeyEvent === null - and gets weighted like human clinical evidence.
+    // Asserted on the RESULT, not merely that something threw: a `.toThrow()` here
+    // would also pass if the claim were rejected for an unrelated reason.
+    const r = EvidenceClaimSchema.safeParse({
+      ...validClaim,
+      stream: "qsar",
+      system: "in_silico",
+      measuresKeyEvent: "KE:55",
+    });
+    expect(r.success).toBe(false);
+    if (r.success) throw new Error("expected the schema to reject this claim");
+    expect(r.error.issues.some((i) => i.path.join(".") === "measuresKeyEvent")).toBe(true);
+    expect(r.error.issues.map((i) => i.message).join(" ")).toMatch(/cannot MEASURE/);
+  });
+
+  it("accepts the same in_silico/qsar claim once measuresKeyEvent is null", () => {
+    const r = EvidenceClaimSchema.safeParse({
+      ...validClaim,
+      stream: "qsar",
+      system: "in_silico",
+      measuresKeyEvent: null,
+    });
+    expect(r.success).toBe(true);
   });
 });
 
@@ -539,6 +580,12 @@ export interface TraceStep {
   byRule?: RuleId;
   /** The claim that defeated this one, when applicable. */
   defeatedBy?: string;
+  /**
+   * Set only on the synthetic step carrying the verdict's own explanation. Filter
+   * on this rather than on `claimId === "__verdict__"`, which a real claim could
+   * collide with, or on `status`, which reads as a real undecided claim.
+   */
+  kind?: "verdict";
   /** Human-readable, rendered directly in the UI. */
   rationale: string;
 }
@@ -566,6 +613,17 @@ export interface Reasoning {
   contested: boolean;
   belief: number;
   plausibility: number;
+  /**
+   * The fused Dempster-Shafer mass the verdict was read off. Reported so a
+   * reviewer can reconcile the verdict against the numbers: `belief` alone is the
+   * mass on TOXIC, which cannot explain an "advance". Structurally identical to
+   * `Mass` in fuse.ts.
+   *
+   * Written as an inline structural type ON PURPOSE. Do NOT `import` `Mass` from
+   * fuse.ts here - types.ts is the leaf every other module depends on, and making
+   * it depend on an implementation module inverts that.
+   */
+  mass: { toxic: number; safe: number; uncommitted: number };
   /** Dempster conflict mass. Surfaced, never normalised away. */
   conflictMass: number;
   trace: TraceStep[];
@@ -595,20 +653,39 @@ export const ProvenanceSchema = z.object({
   url: z.string().url().optional(),
 });
 
-export const EvidenceClaimSchema = z.object({
-  id: z.string().min(1),
-  compoundId: z.string().min(1),
-  stream: z.enum(["qsar", "cytotox", "toxicogenomics", "transporter", "invivo_rodent", "invivo_nonrodent"]),
-  assertion: z.enum(["toxic", "safe", "ambiguous"]),
-  strength: z.number().min(0).max(1),
-  system: z.enum(["human", "rodent", "nonrodent", "in_silico"]),
-  measuresKeyEvent: z.string().nullable(),
-  exposureRelevant: z.boolean().nullable(),
-  inApplicabilityDomain: z.boolean().nullable(),
-  klimisch: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).nullable(),
-  availableFrom: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/),
-  provenance: ProvenanceSchema,
-});
+export const EvidenceClaimSchema = z
+  .object({
+    id: z.string().min(1),
+    compoundId: z.string().min(1),
+    stream: z.enum(["qsar", "cytotox", "toxicogenomics", "transporter", "invivo_rodent", "invivo_nonrodent"]),
+    assertion: z.enum(["toxic", "safe", "ambiguous"]),
+    strength: z.number().min(0).max(1),
+    system: z.enum(["human", "rodent", "nonrodent", "in_silico"]),
+    measuresKeyEvent: z.string().nullable(),
+    exposureRelevant: z.boolean().nullable(),
+    inApplicabilityDomain: z.boolean().nullable(),
+    klimisch: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).nullable(),
+    availableFrom: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/),
+    provenance: ProvenanceSchema,
+  })
+  // A claim with system "in_silico" (or stream "qsar") and a non-null
+  // measuresKeyEvent escapes EVERY discount clause in relevanceDiscount: R1 covers
+  // only rodent/nonrodent, R2 fires only when measuresKeyEvent === null, R4 needs
+  // inApplicabilityDomain === false and R5 needs klimisch >= 3. Measured at
+  // strength 0.95 such a claim alone returns ADVANCE, weighted identically to human
+  // clinical evidence. The invalid thing is the DATA, not the rules - a
+  // computational model predicts a key event, it does not measure one - so the
+  // seam rejects it rather than the rule layer special-casing it.
+  .refine(
+    (c) => !(c.system === "in_silico" || c.stream === "qsar") || c.measuresKeyEvent === null,
+    {
+      message:
+        "A computational prediction cannot MEASURE an AOP key event - it can only predict one. " +
+        "Leaving measuresKeyEvent non-null on an in_silico or qsar claim lets it escape R2's " +
+        "structural-correlation discount and be weighted like human clinical evidence.",
+      path: ["measuresKeyEvent"],
+    },
+  );
 
 export const RuleSchema = z.object({
   id: z.enum(["R1", "R2", "R3", "R4", "R5", "R6"]),
@@ -1309,6 +1386,12 @@ export function downweightFactor(
  * A split ATTENUATES: opposition cancels support stream-for-stream, so a near-even
  * split earns nothing. Rewarding maximal discordance as if it were concordance
  * would invert the rule's meaning.
+ *
+ * DIAGNOSTIC ONLY - this is deliberately NOT applied to any mass. Concordance is
+ * already realised by Dempster's rule of combination in fuse(); applying a second
+ * multiplicative boost on top double-counted it and could invert a verdict. Kept
+ * because "how many independent streams concur, and on which side" is worth
+ * REPORTING to a reviewer. If you are about to multiply a mass by this, don't.
  */
 export function concordanceBoost(
   claims: EvidenceClaim[],
@@ -2188,11 +2271,20 @@ describe("reason", () => {
   });
 
   it("discounting reduces belief without flipping it to the opposing side", () => {
-    // Weak evidence for safety must never become evidence of toxicity.
+    // Weak evidence for safety must never become evidence of toxicity. Asserted on
+    // the MASS, not on `belief`: belief is the mass on toxic, and a lone safe claim
+    // puts exactly 0 there under any implementation, so a `belief < 0.5` assertion
+    // could not fail.
     const weak = reason([
       claim({ id: "a", assertion: "safe", strength: 0.9, system: "rodent", stream: "invivo_rodent", exposureRelevant: null }),
     ], RS);
-    expect(weak.belief).toBeLessThan(0.5); // belief in TOXIC stays low
+    // Nothing leaked to the opposing side.
+    expect(weak.mass.toxic).toBe(0);
+    // The discount actually bit: safe mass is strictly below the stated 0.9.
+    expect(weak.mass.safe).toBeGreaterThan(0);
+    expect(weak.mass.safe).toBeLessThan(0.9);
+    // And the reduction went to Theta, not anywhere else.
+    expect(weak.mass.uncommitted).toBeCloseTo(1 - weak.mass.safe, 10);
     expect(weak.plausibility).toBeGreaterThan(0.5); // ignorance is wide
   });
 
@@ -2219,7 +2311,11 @@ describe("reason", () => {
     const alone = reason([claim({ id: "h", assertion: "toxic", strength: 0.9, system: "human", klimisch: 1 })], RS);
     // The very strong defeated claim must not drag belief down.
     expect(withDefeat.belief).toBeCloseTo(alone.belief, 10);
-    expect(withDefeat.trace).toHaveLength(2);
+    // One step per claim. Counted over real claim steps only, so this does not
+    // silently double as an assertion that the case never abstains - a bare
+    // toHaveLength(2) breaks the day this case starts abstaining for an unrelated
+    // reason and appends a verdict step.
+    expect(withDefeat.trace.filter((s) => s.kind !== "verdict")).toHaveLength(2);
   });
 
   it("marks a case contested when both sides survive", () => {
@@ -2234,9 +2330,111 @@ describe("reason", () => {
     expect(reason([], RS, "deadbeef").rulesetHash).toBe("deadbeef");
   });
 
-  it("emits belief <= plausibility always", () => {
-    const r = reason([claim({ id: "a", assertion: "toxic", strength: 0.5 })], RS);
-    expect(r.belief).toBeLessThanOrEqual(r.plausibility);
+  it("emits a coherent mass - belief <= plausibility, components in [0,1], sum 1 - on every shape of input", () => {
+    // The previous version of this test used ONE single-claim input, where the
+    // relation holds by construction, and never touched multi-mass fusion,
+    // normalisation, defeat, or the undecided branch. These are the shapes where
+    // the arithmetic could actually go wrong.
+    const cases: Record<string, EvidenceClaim[]> = {
+      "empty": [],
+      "all ambiguous": [
+        claim({ id: "a", assertion: "ambiguous", strength: 0.9, stream: "qsar", system: "in_silico" }),
+        claim({ id: "b", assertion: "ambiguous", strength: 0.4, stream: "cytotox" }),
+      ],
+      // Neither side can defeat the other (same system, equal Klimisch, both at
+      // clinical exposure), so both survive into fusion and normalisation runs on
+      // a genuinely conflicting pair.
+      "live conflict, both admitted": [
+        claim({ id: "t", assertion: "toxic", strength: 0.9, stream: "cytotox", exposureRelevant: true }),
+        claim({ id: "s", assertion: "safe", strength: 0.9, stream: "transporter", exposureRelevant: true }),
+      ],
+      "one claim defeated": [
+        claim({ id: "h", assertion: "toxic", strength: 0.9, system: "human", klimisch: 1 }),
+        claim({ id: "r", assertion: "safe", strength: 0.99, system: "rodent", stream: "invivo_rodent", klimisch: 2 }),
+      ],
+      // A real 4-cycle against the pre-registered ruleset: grounded semantics
+      // settles none of these, so all four are UNDECIDED and contribute pure
+      // ignorance. See argue.test.ts for the hand-traced edges.
+      "undecided 4-cycle": [
+        claim({ id: "a", assertion: "toxic", system: "human", klimisch: 4 }),
+        claim({ id: "b", assertion: "safe", system: "rodent", stream: "invivo_rodent", klimisch: 1 }),
+        claim({ id: "c", assertion: "toxic", system: "nonrodent", stream: "invivo_nonrodent", klimisch: 2 }),
+        claim({ id: "d", assertion: "safe", system: "in_silico", stream: "qsar", klimisch: 3 }),
+      ],
+      "everything out of applicability domain": [
+        claim({ id: "a", assertion: "toxic", strength: 0.7, stream: "qsar", system: "in_silico", inApplicabilityDomain: false }),
+        claim({ id: "b", assertion: "safe", strength: 0.7, stream: "cytotox", inApplicabilityDomain: false }),
+      ],
+      "the pass-1 case": [
+        claim({ id: "rat", assertion: "safe", strength: 0.85, system: "rodent", stream: "invivo_rodent" }),
+        claim({ id: "invitro", assertion: "safe", strength: 0.8, system: "human", stream: "cytotox", measuresKeyEvent: "KE:1" }),
+      ],
+    };
+
+    for (const [name, claims] of Object.entries(cases)) {
+      const r = reason(claims, RS);
+      const parts = [r.mass.toxic, r.mass.safe, r.mass.uncommitted, r.belief, r.plausibility, r.conflictMass];
+      for (const v of parts) {
+        expect(Number.isFinite(v), `${name}: non-finite value ${v}`).toBe(true);
+      }
+      expect(r.belief, name).toBeLessThanOrEqual(r.plausibility);
+      for (const v of [r.mass.toxic, r.mass.safe, r.mass.uncommitted]) {
+        expect(v, `${name}: mass component out of [0,1]`).toBeGreaterThanOrEqual(0);
+        expect(v, `${name}: mass component out of [0,1]`).toBeLessThanOrEqual(1);
+      }
+      expect(r.mass.toxic + r.mass.safe + r.mass.uncommitted, name).toBeCloseTo(1, 9);
+      // belief and plausibility must be the mass, not a separately-derived number.
+      expect(r.belief, name).toBeCloseTo(r.mass.toxic, 12);
+      expect(r.plausibility, name).toBeCloseTo(r.mass.toxic + r.mass.uncommitted, 12);
+    }
+  });
+
+  it("explains an exactly-balanced abstention in the trace instead of going silent", () => {
+    // Two equally strong, equally qualified, directly opposed human claims. No
+    // rule can separate them, so the fused mass on toxic and on safe are exactly
+    // equal and the honest verdict is to decline - which the trace must SAY.
+    const r = reason([
+      claim({ id: "t", assertion: "toxic", strength: 0.9, stream: "cytotox", exposureRelevant: true, klimisch: 2 }),
+      claim({ id: "s", assertion: "safe", strength: 0.9, stream: "transporter", exposureRelevant: true, klimisch: 2 }),
+    ], RS);
+    expect(r.mass.toxic).toBe(r.mass.safe);
+    expect(r.verdict).toBe("abstain");
+    const note = r.trace.find((s) => s.kind === "verdict");
+    expect(note).toBeDefined();
+    expect(note!.rationale).toMatch(/exactly balanced/i);
+  });
+
+  it("marks the verdict pseudo-step with kind, and only when there is one", () => {
+    // Consumers (Tasks 8 and 9, and the UI) walk this trace. The synthetic verdict
+    // note must be distinguishable from a real claim step by something better than
+    // its id or its status.
+    const abstaining = reason([
+      claim({ id: "rat", assertion: "safe", strength: 0.85, system: "rodent", stream: "invivo_rodent" }),
+      claim({ id: "primate", assertion: "safe", strength: 0.85, system: "nonrodent", stream: "invivo_nonrodent" }),
+    ], RS);
+    expect(abstaining.verdict).toBe("abstain");
+    expect(abstaining.trace.filter((s) => s.kind === "verdict")).toHaveLength(1);
+
+    const committing = reason([
+      claim({ id: "a", assertion: "safe", strength: 0.9, stream: "cytotox", exposureRelevant: true, measuresKeyEvent: "KE:1" }),
+      claim({ id: "b", assertion: "safe", strength: 0.9, stream: "transporter", exposureRelevant: true, measuresKeyEvent: "KE:2" }),
+    ], RS);
+    expect(committing.verdict).not.toBe("abstain");
+    expect(committing.trace.filter((s) => s.kind === "verdict")).toHaveLength(0);
+  });
+
+  it("does not annotate an ambiguous claim with a discount that never happened", () => {
+    // An ambiguous claim commits no mass, so there is nothing to discount. A
+    // rodent Klimisch-4 ambiguous claim previously got "Weight reduced to 4% of
+    // stated confidence" even though claimToMass had returned VACUOUS.
+    const r = reason([
+      claim({ id: "amb", assertion: "ambiguous", strength: 0.9, system: "rodent", stream: "invivo_rodent", klimisch: 4 }),
+    ], RS);
+    const step = r.trace.find((s) => s.claimId === "amb")!;
+    expect(step.rationale).not.toMatch(/Weight reduced/);
+    expect(r.mass.toxic).toBe(0);
+    expect(r.mass.safe).toBe(0);
+    expect(r.mass.uncommitted).toBe(1);
   });
 });
 ```
@@ -2268,13 +2466,27 @@ describe("determinism", () => {
     expect(hashes.size).toBe(1);
   });
 
-  it("does not mutate its inputs", () => {
-    const before = JSON.stringify({ CLAIMS, RS });
-    reason(CLAIMS, RS, "h");
-    expect(JSON.stringify({ CLAIMS, RS })).toBe(before);
+  it("does not mutate its inputs, including nested objects", () => {
+    // Built fresh and frozen INSIDE this test. The previous version snapshotted a
+    // shared array that the 1000-run test above had already passed through
+    // reason(), so any mutation that converged after the first call was invisible
+    // to it - verified by injecting an idempotent write, which it did not catch.
+    const fresh: EvidenceClaim[] = JSON.parse(JSON.stringify(CLAIMS));
+    for (const c of fresh) Object.freeze(c.provenance);
+    Object.freeze(fresh);
+    const rs: Ruleset = JSON.parse(JSON.stringify(RS));
+    rs.rules.forEach((r) => { Object.freeze(r.framework); Object.freeze(r); });
+    Object.freeze(rs.rules);
+    Object.freeze(rs);
+
+    const before = JSON.stringify({ fresh, rs });
+    reason(fresh, rs, "h");
+    expect(JSON.stringify({ fresh, rs })).toBe(before);
   });
 });
 ```
+
+Do NOT snapshot a fixture the previous `it` already ran through `reason()`. `Object.freeze` on a non-strict-mode write fails SILENTLY, which is why the snapshot comparison is kept alongside the freezing rather than replaced by it — Vitest runs ESM (strict), so a write should throw, but keep both belts.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -2333,7 +2545,12 @@ export function relevanceDiscount(claim: EvidenceClaim, ruleset: Ruleset): Disco
   const apply = (id: RuleId, rationale: string) => {
     const r = rule(ruleset, id);
     if (!r) return;
-    factor *= 1 - r.strength;
+    // Clamped for the same reason claimToMass clamps: a schema-invalid ruleset
+    // must not be able to produce a negative belief, and reason() does not
+    // validate its ruleset on every call (it is invoked thousands of times in
+    // robustness sampling). Measured without the clamp: strength 1.6 gives a
+    // factor of -0.6 and reason() reports belief -0.54.
+    factor *= Math.min(1, Math.max(0, 1 - r.strength));
     reasons.push({ byRule: id, rationale });
   };
 
@@ -2401,16 +2618,39 @@ describe("relevanceDiscount", () => {
     expect(d.reasons.map((r) => r.byRule).sort()).toEqual(["R1", "R3"]);
   });
 
-  it("compounds multiplicatively - two weaknesses are worse than either", () => {
+  it("compounds multiplicatively - the factor is exactly the product of (1 - strength)", () => {
+    // `both < one` alone would also be satisfied by max() or by 1 - sum(). Assert
+    // the actual product, read from the ruleset's own strengths rather than
+    // hard-coded, so the test tracks a re-registration instead of breaking on one.
+    const r1 = RS.rules.find((r) => r.id === "R1")!.strength;
+    const r3 = RS.rules.find((r) => r.id === "R3")!.strength;
     const both = relevanceDiscount(claim({ system: "rodent", exposureRelevant: null }), RS).factor;
     const one = relevanceDiscount(claim({ system: "rodent", exposureRelevant: true }), RS).factor;
+    expect(both).toBeCloseTo((1 - r1) * (1 - r3), 10);
+    expect(one).toBeCloseTo(1 - r1, 10);
     expect(both).toBeLessThan(one);
   });
 
   it("moves discounted mass nowhere - it only reduces, never flips", () => {
-    const d = relevanceDiscount(claim({ system: "rodent" }), RS);
-    expect(d.factor).toBeGreaterThan(0);
-    expect(d.factor).toBeLessThan(1);
+    // The no-flip property is only OBSERVABLE on a mass, so assert it there. A
+    // range check on the factor cannot see a flip at all: any implementation that
+    // moved mass to the opposing side would still return a factor in (0,1). This
+    // needs `reason` imported from ../src/index.js.
+    const discountedSafe = reason([claim({
+      id: "s", assertion: "safe", strength: 0.9, system: "rodent",
+      stream: "invivo_rodent", exposureRelevant: null, klimisch: 1,
+    })], RS);
+    expect(discountedSafe.mass.safe).toBeGreaterThan(0);
+    expect(discountedSafe.mass.safe).toBeLessThan(0.9);
+    expect(discountedSafe.mass.toxic).toBe(0);
+
+    const discountedToxic = reason([claim({
+      id: "t", assertion: "toxic", strength: 0.9, system: "rodent",
+      stream: "invivo_rodent", exposureRelevant: null, klimisch: 3,
+    })], RS);
+    expect(discountedToxic.mass.toxic).toBeGreaterThan(0);
+    expect(discountedToxic.mass.toxic).toBeLessThan(0.9);
+    expect(discountedToxic.mass.safe).toBe(0);
   });
 
   it("applies R3 ONLY to negative findings - a positive hit is not discounted for margin", () => {
@@ -2480,13 +2720,20 @@ import { shouldAbstain } from "./abstain.js";
 import { argue } from "./argue.js";
 import { detectConflict } from "./conflict.js";
 import { VACUOUS, claimToMass, fuse, type Mass } from "./fuse.js";
-import { concordanceBoost, relevanceDiscount } from "./rules.js";
+import { relevanceDiscount } from "./rules.js";
 import type { EvidenceClaim, Reasoning, Ruleset, TraceStep, Verdict } from "./types.js";
 
 export * from "./types.js";
 export { EvidenceClaimSchema, EvidenceFileSchema, RulesetSchema } from "./schema.js";
 export { VACUOUS, claimToMass, combine, fuse } from "./fuse.js";
-export { concordanceBoost, conflictsWith, defeats, downweightFactor } from "./rules.js";
+export type { Mass } from "./fuse.js";
+// relevanceDiscount and Discount are the LIVE weighting mechanism - every claim's
+// weight comes from them - so they belong on the public surface. concordanceBoost
+// stays exported as a diagnostic (see its doc comment) but is deliberately not
+// imported here: reason() must not apply it. downweightFactor only assigns a
+// status in argue.ts; it scales no mass.
+export { concordanceBoost, conflictsWith, defeats, downweightFactor, relevanceDiscount } from "./rules.js";
+export type { Discount } from "./rules.js";
 export { argue } from "./argue.js";
 export { detectConflict } from "./conflict.js";
 export { shouldAbstain } from "./abstain.js";
@@ -2532,6 +2779,14 @@ export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = 
       continue;
     }
 
+    // Ambiguous claims commit to nothing, so there is no committed mass to
+    // discount and a discount note would describe a reduction that never
+    // happened. claimToMass already returns VACUOUS for these.
+    if (c.assertion === "ambiguous") {
+      masses.push(claimToMass(c.assertion, c.strength));
+      continue;
+    }
+
     // Admitted: apply the evidence-quality discount.
     //
     // This is what makes an unopposed-but-weak evidence set abstain rather than
@@ -2558,24 +2813,26 @@ export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = 
     return note ? { ...step, rationale: step.rationale + note } : step;
   });
 
-  const admitted = claims.filter((c) => statuses.get(c.id) === "admitted");
   const fused = fuse(masses);
 
-  // R6 sharpens a concordant conclusion by moving uncommitted mass onto the side
-  // the independent streams agree on, capped so it cannot exceed available mass.
+  // R6 needs no separate mechanism here: Dempster's rule of combination IS the
+  // concordance mechanism. Two independent 0.18 "safe" claims fuse to 0.3276 -
+  // agreement between independent streams already raises belief more than one
+  // source repeating itself, which is exactly R6's registered statement. The
+  // ruleset's own framework note says so: "Formalised by the evidence fusion
+  // layer; independence is at the stream level."
   //
-  // The side comes from concordanceBoost's own `supports` field - NOT from a lean
-  // computed separately off the fused mass. Deriving the side independently is how
-  // a boost earned by the safe cluster could end up sharpening a toxic verdict.
-  const { supports, boost } = concordanceBoost(admitted, ruleset);
-  let mass = fused.mass;
-  if (supports !== null && supports !== "ambiguous" && boost > 1) {
-    const side = supports; // "toxic" | "safe"
-    const move = Math.min(mass.uncommitted, mass[side] * (boost - 1));
-    mass = side === "toxic"
-      ? { toxic: mass.toxic + move, safe: mass.safe, uncommitted: mass.uncommitted - move }
-      : { toxic: mass.toxic, safe: mass.safe + move, uncommitted: mass.uncommitted - move };
-  }
+  // An earlier draft ALSO applied an explicit multiplicative boost on top. It was
+  // removed for three reasons, in order of severity:
+  //   1. It could invert the verdict. A stream-count majority overrode a
+  //      Dempster-Shafer mass majority: safe 0.18 + safe 0.18 + toxic 0.33 fuses
+  //      to toxic 0.2488 vs safe 0.2461, yet the boost lifted safe to 0.2543 and
+  //      reason() returned "advance" while still reporting belief 0.2488. The
+  //      output contradicted itself and no field explained why.
+  //   2. It double-counted concordance, which fusion had already rewarded.
+  //   3. Its 0.25 coefficient lived outside the pre-registered, hashed ruleset,
+  //      so "where did 0.25 come from?" had no defensible answer.
+  const mass = fused.mass;
 
   const belief = mass.toxic;
   const plausibility = mass.toxic + mass.uncommitted;
@@ -2583,10 +2840,17 @@ export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = 
   const abst = shouldAbstain({ belief, plausibility, conflictMass: fused.conflictMass, statuses, claims, ruleset });
 
   let verdict: Verdict;
+  let verdictReason = abst.reason;
   if (abst.abstain) verdict = "abstain";
   else if (mass.toxic > mass.safe) verdict = "do_not_advance";
   else if (mass.safe > mass.toxic) verdict = "advance";
-  else verdict = "abstain"; // exactly balanced: declining is the honest answer
+  else {
+    // Exactly balanced. Declining is the honest answer, and it needs to SAY so -
+    // an abstention the trace cannot explain undercuts the claim that abstention
+    // is a first-class output.
+    verdict = "abstain";
+    verdictReason = "Evidence for and against is exactly balanced; no side can be preferred.";
+  }
 
   const survivors = claims.filter((c) => {
     const s = statuses.get(c.id);
@@ -2594,8 +2858,8 @@ export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = 
   });
   const contested = detectConflict(survivors).conflicting || fused.conflictMass > 0;
 
-  const withReason = abst.reason
-    ? [...enrichedTrace, { claimId: "__verdict__", status: "undecided" as const, rationale: abst.reason }]
+  const withReason: TraceStep[] = verdictReason
+    ? [...enrichedTrace, { claimId: "__verdict__", status: "undecided" as const, kind: "verdict" as const, rationale: verdictReason }]
     : enrichedTrace;
 
   return {
@@ -2603,6 +2867,7 @@ export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = 
     contested,
     belief,
     plausibility,
+    mass,
     conflictMass: fused.conflictMass,
     trace: withReason,
     counterfactual: null, // Task 8
@@ -2833,7 +3098,7 @@ const bare = (c: EvidenceClaim[], rs: Ruleset) => reasonCore(c, rs, "", false);
 function reasonCore(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash: string, withExtras: boolean): Reasoning {
   /* ...everything from Task 7, unchanged, down to the return... */
   return {
-    verdict, contested, belief, plausibility,
+    verdict, contested, belief, plausibility, mass,
     conflictMass: fused.conflictMass,
     trace: withReason,
     counterfactual: withExtras ? findCounterfactual(claims, ruleset, verdict, bare) : null,

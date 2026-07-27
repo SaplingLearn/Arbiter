@@ -15,7 +15,11 @@
       "rules": {
         "no-restricted-globals": [
           "error",
-          { "name": "Date", "message": "The engine must be deterministic. Callers filter by availableFrom." }
+          { "name": "Date", "message": "The engine must be deterministic. Callers filter by availableFrom." },
+          { "name": "performance", "message": "The engine must be deterministic. performance.now() is a clock. Callers filter by availableFrom." },
+          { "name": "process", "message": "The engine must be pure. Reading process.env or process.hrtime makes the same input produce different output." },
+          { "name": "crypto", "message": "The engine must be deterministic. crypto.randomUUID/getRandomValues are randomness; all randomness lives in apps/harness with a committed seed." },
+          { "name": "globalThis", "message": "globalThis re-exposes every banned global (globalThis.Date.now(), globalThis.Math.random()). Name what you need directly so the other rules can see it." }
         ],
         "no-restricted-properties": [
           "error",
@@ -24,6 +28,13 @@
         "no-restricted-imports": [
           "error",
           { "patterns": ["../*", "node:*", "fs", "path", "crypto"] }
+        ],
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "ImportExpression",
+            "message": "Dynamic import() bypasses no-restricted-imports. The engine is pure and imports nothing at runtime."
+          }
         ]
       }
     }

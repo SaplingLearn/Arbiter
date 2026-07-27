@@ -62,11 +62,20 @@ describe("reason", () => {
   });
 
   it("discounting reduces belief without flipping it to the opposing side", () => {
-    // Weak evidence for safety must never become evidence of toxicity.
+    // Weak evidence for safety must never become evidence of toxicity. Asserted on
+    // the MASS, not on `belief`: belief is the mass on toxic, and a lone safe claim
+    // puts exactly 0 there under any implementation, so a `belief < 0.5` assertion
+    // could not fail.
     const weak = reason([
       claim({ id: "a", assertion: "safe", strength: 0.9, system: "rodent", stream: "invivo_rodent", exposureRelevant: null }),
     ], RS);
-    expect(weak.belief).toBeLessThan(0.5); // belief in TOXIC stays low
+    // Nothing leaked to the opposing side.
+    expect(weak.mass.toxic).toBe(0);
+    // The discount actually bit: safe mass is strictly below the stated 0.9.
+    expect(weak.mass.safe).toBeGreaterThan(0);
+    expect(weak.mass.safe).toBeLessThan(0.9);
+    // And the reduction went to Theta, not anywhere else.
+    expect(weak.mass.uncommitted).toBeCloseTo(1 - weak.mass.safe, 10);
     expect(weak.plausibility).toBeGreaterThan(0.5); // ignorance is wide
   });
 
@@ -93,7 +102,9 @@ describe("reason", () => {
     const alone = reason([claim({ id: "h", assertion: "toxic", strength: 0.9, system: "human", klimisch: 1 })], RS);
     // The very strong defeated claim must not drag belief down.
     expect(withDefeat.belief).toBeCloseTo(alone.belief, 10);
-    expect(withDefeat.trace).toHaveLength(2);
+    // One step per claim. Counted over real claim steps only, so this does not
+    // silently double as an assertion that the case never abstains.
+    expect(withDefeat.trace.filter((s) => s.kind !== "verdict")).toHaveLength(2);
   });
 
   it("marks a case contested when both sides survive", () => {
@@ -108,8 +119,110 @@ describe("reason", () => {
     expect(reason([], RS, "deadbeef").rulesetHash).toBe("deadbeef");
   });
 
-  it("emits belief <= plausibility always", () => {
-    const r = reason([claim({ id: "a", assertion: "toxic", strength: 0.5 })], RS);
-    expect(r.belief).toBeLessThanOrEqual(r.plausibility);
+  it("emits a coherent mass - belief <= plausibility, components in [0,1], sum 1 - on every shape of input", () => {
+    // The previous version of this test used ONE single-claim input, where the
+    // relation holds by construction, and never touched multi-mass fusion,
+    // normalisation, defeat, or the undecided branch. These are the shapes where
+    // the arithmetic could actually go wrong.
+    const cases: Record<string, EvidenceClaim[]> = {
+      "empty": [],
+      "all ambiguous": [
+        claim({ id: "a", assertion: "ambiguous", strength: 0.9, stream: "qsar", system: "in_silico" }),
+        claim({ id: "b", assertion: "ambiguous", strength: 0.4, stream: "cytotox" }),
+      ],
+      // Neither side can defeat the other (same system, equal Klimisch, both at
+      // clinical exposure), so both survive into fusion and normalisation runs on
+      // a genuinely conflicting pair.
+      "live conflict, both admitted": [
+        claim({ id: "t", assertion: "toxic", strength: 0.9, stream: "cytotox", exposureRelevant: true }),
+        claim({ id: "s", assertion: "safe", strength: 0.9, stream: "transporter", exposureRelevant: true }),
+      ],
+      "one claim defeated": [
+        claim({ id: "h", assertion: "toxic", strength: 0.9, system: "human", klimisch: 1 }),
+        claim({ id: "r", assertion: "safe", strength: 0.99, system: "rodent", stream: "invivo_rodent", klimisch: 2 }),
+      ],
+      // A real 4-cycle against the pre-registered ruleset: grounded semantics
+      // settles none of these, so all four are UNDECIDED and contribute pure
+      // ignorance. See argue.test.ts for the hand-traced edges.
+      "undecided 4-cycle": [
+        claim({ id: "a", assertion: "toxic", system: "human", klimisch: 4 }),
+        claim({ id: "b", assertion: "safe", system: "rodent", stream: "invivo_rodent", klimisch: 1 }),
+        claim({ id: "c", assertion: "toxic", system: "nonrodent", stream: "invivo_nonrodent", klimisch: 2 }),
+        claim({ id: "d", assertion: "safe", system: "in_silico", stream: "qsar", klimisch: 3 }),
+      ],
+      "everything out of applicability domain": [
+        claim({ id: "a", assertion: "toxic", strength: 0.7, stream: "qsar", system: "in_silico", inApplicabilityDomain: false }),
+        claim({ id: "b", assertion: "safe", strength: 0.7, stream: "cytotox", inApplicabilityDomain: false }),
+      ],
+      "the pass-1 case": [
+        claim({ id: "rat", assertion: "safe", strength: 0.85, system: "rodent", stream: "invivo_rodent" }),
+        claim({ id: "invitro", assertion: "safe", strength: 0.8, system: "human", stream: "cytotox", measuresKeyEvent: "KE:1" }),
+      ],
+    };
+
+    for (const [name, claims] of Object.entries(cases)) {
+      const r = reason(claims, RS);
+      const parts = [r.mass.toxic, r.mass.safe, r.mass.uncommitted, r.belief, r.plausibility, r.conflictMass];
+      for (const v of parts) {
+        expect(Number.isFinite(v), `${name}: non-finite value ${v}`).toBe(true);
+      }
+      expect(r.belief, name).toBeLessThanOrEqual(r.plausibility);
+      for (const v of [r.mass.toxic, r.mass.safe, r.mass.uncommitted]) {
+        expect(v, `${name}: mass component out of [0,1]`).toBeGreaterThanOrEqual(0);
+        expect(v, `${name}: mass component out of [0,1]`).toBeLessThanOrEqual(1);
+      }
+      expect(r.mass.toxic + r.mass.safe + r.mass.uncommitted, name).toBeCloseTo(1, 9);
+      // belief and plausibility must be the mass, not a separately-derived number.
+      expect(r.belief, name).toBeCloseTo(r.mass.toxic, 12);
+      expect(r.plausibility, name).toBeCloseTo(r.mass.toxic + r.mass.uncommitted, 12);
+    }
+  });
+
+  it("explains an exactly-balanced abstention in the trace instead of going silent", () => {
+    // Two equally strong, equally qualified, directly opposed human claims. No
+    // rule can separate them, so the fused mass on toxic and on safe are exactly
+    // equal and the honest verdict is to decline - which the trace must SAY.
+    const r = reason([
+      claim({ id: "t", assertion: "toxic", strength: 0.9, stream: "cytotox", exposureRelevant: true, klimisch: 2 }),
+      claim({ id: "s", assertion: "safe", strength: 0.9, stream: "transporter", exposureRelevant: true, klimisch: 2 }),
+    ], RS);
+    expect(r.mass.toxic).toBe(r.mass.safe);
+    expect(r.verdict).toBe("abstain");
+    const note = r.trace.find((s) => s.kind === "verdict");
+    expect(note).toBeDefined();
+    expect(note!.rationale).toMatch(/exactly balanced/i);
+  });
+
+  it("marks the verdict pseudo-step with kind, and only when there is one", () => {
+    // Consumers (Tasks 8 and 9, and the UI) walk this trace. The synthetic verdict
+    // note must be distinguishable from a real claim step by something better than
+    // its id or its status.
+    const abstaining = reason([
+      claim({ id: "rat", assertion: "safe", strength: 0.85, system: "rodent", stream: "invivo_rodent" }),
+      claim({ id: "primate", assertion: "safe", strength: 0.85, system: "nonrodent", stream: "invivo_nonrodent" }),
+    ], RS);
+    expect(abstaining.verdict).toBe("abstain");
+    expect(abstaining.trace.filter((s) => s.kind === "verdict")).toHaveLength(1);
+
+    const committing = reason([
+      claim({ id: "a", assertion: "safe", strength: 0.9, stream: "cytotox", exposureRelevant: true, measuresKeyEvent: "KE:1" }),
+      claim({ id: "b", assertion: "safe", strength: 0.9, stream: "transporter", exposureRelevant: true, measuresKeyEvent: "KE:2" }),
+    ], RS);
+    expect(committing.verdict).not.toBe("abstain");
+    expect(committing.trace.filter((s) => s.kind === "verdict")).toHaveLength(0);
+  });
+
+  it("does not annotate an ambiguous claim with a discount that never happened", () => {
+    // An ambiguous claim commits no mass, so there is nothing to discount. A
+    // rodent Klimisch-4 ambiguous claim previously got "Weight reduced to 4% of
+    // stated confidence" even though claimToMass had returned VACUOUS.
+    const r = reason([
+      claim({ id: "amb", assertion: "ambiguous", strength: 0.9, system: "rodent", stream: "invivo_rodent", klimisch: 4 }),
+    ], RS);
+    const step = r.trace.find((s) => s.claimId === "amb")!;
+    expect(step.rationale).not.toMatch(/Weight reduced/);
+    expect(r.mass.toxic).toBe(0);
+    expect(r.mass.safe).toBe(0);
+    expect(r.mass.uncommitted).toBe(1);
   });
 });

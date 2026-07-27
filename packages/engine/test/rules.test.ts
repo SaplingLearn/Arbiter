@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { reason } from "../src/index.js";
 import { concordanceBoost, conflictsWith, defeats, downweightFactor, relevanceDiscount } from "../src/rules.js";
 import { RulesetSchema } from "../src/schema.js";
 import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
@@ -264,16 +265,38 @@ describe("relevanceDiscount", () => {
     expect(d.reasons.map((r) => r.byRule).sort()).toEqual(["R1", "R3"]);
   });
 
-  it("compounds multiplicatively - two weaknesses are worse than either", () => {
+  it("compounds multiplicatively - the factor is exactly the product of (1 - strength)", () => {
+    // `both < one` alone would also be satisfied by max() or by 1 - sum(). Assert
+    // the actual product, read from the ruleset's own strengths rather than
+    // hard-coded, so the test tracks a re-registration instead of breaking on one.
+    const r1 = RS.rules.find((r) => r.id === "R1")!.strength;
+    const r3 = RS.rules.find((r) => r.id === "R3")!.strength;
     const both = relevanceDiscount(claim({ system: "rodent", exposureRelevant: null }), RS).factor;
     const one = relevanceDiscount(claim({ system: "rodent", exposureRelevant: true }), RS).factor;
+    expect(both).toBeCloseTo((1 - r1) * (1 - r3), 10);
+    expect(one).toBeCloseTo(1 - r1, 10);
     expect(both).toBeLessThan(one);
   });
 
   it("moves discounted mass nowhere - it only reduces, never flips", () => {
-    const d = relevanceDiscount(claim({ system: "rodent" }), RS);
-    expect(d.factor).toBeGreaterThan(0);
-    expect(d.factor).toBeLessThan(1);
+    // The no-flip property is only OBSERVABLE on a mass, so assert it there. A
+    // range check on the factor cannot see a flip at all: any implementation that
+    // moved mass to the opposing side would still return a factor in (0,1).
+    const discountedSafe = reason([claim({
+      id: "s", assertion: "safe", strength: 0.9, system: "rodent",
+      stream: "invivo_rodent", exposureRelevant: null, klimisch: 1,
+    })], RS);
+    expect(discountedSafe.mass.safe).toBeGreaterThan(0);
+    expect(discountedSafe.mass.safe).toBeLessThan(0.9);
+    expect(discountedSafe.mass.toxic).toBe(0);
+
+    const discountedToxic = reason([claim({
+      id: "t", assertion: "toxic", strength: 0.9, system: "rodent",
+      stream: "invivo_rodent", exposureRelevant: null, klimisch: 3,
+    })], RS);
+    expect(discountedToxic.mass.toxic).toBeGreaterThan(0);
+    expect(discountedToxic.mass.toxic).toBeLessThan(0.9);
+    expect(discountedToxic.mass.safe).toBe(0);
   });
 
   it("applies R3 ONLY to negative findings - a positive hit is not discounted for margin", () => {
