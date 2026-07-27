@@ -2197,6 +2197,10 @@ describe("reason", () => {
   });
 
   it("does not advance when the surviving evidence says toxic", () => {
+    // The surviving human claim has exposureRelevant: null, so this case ALSO
+    // guards R3's directional scope. If R3 ever starts discounting positives
+    // too, this claim drops to 15% of its weight, the gap widens to 0.87, and
+    // the verdict silently becomes "abstain".
     const r = reason([
       claim({ id: "h", assertion: "toxic", strength: 0.9, system: "human", klimisch: 1 }),
       claim({ id: "r", assertion: "safe", strength: 0.9, system: "rodent", stream: "invivo_rodent", klimisch: 2 }),
@@ -2288,6 +2292,10 @@ The gap is conceptual, not arithmetic. The lesson of the case is not that animal
 
 So the same six principles apply as **discounts** absent conflict, with the discounted portion becoming *uncommitted* mass — which is exactly what uncommitted mass means. R4 already worked this way; this generalises it.
 
+**One asymmetry, and it comes from the registered text.** R3 discounts only claims asserting *safe*. That is not a tuning choice — R3's pre-registered statement is already written about negative findings ("…defeats **a negative finding** whose exposure margin is unstated or untested at that range"). R1, R2, R4 and R5 characterise what *kind* of evidence a claim is and so apply in both directions; R3 characterises what a result can *license*, which is direction-dependent. A positive hit at an unrecorded concentration still tells you something and sets up the next experiment; an absence of signal at an unrecorded concentration tells you nothing about safety.
+
+This was measured, not assumed. With R3 applied in both directions, a lone human hepatotoxicity hit whose margin was never recorded yields belief 0.135 against plausibility 1.0 — a gap of 0.87, so **abstain** — and it takes **eight** concordant sources before anything escapes abstention. Since `exposureRelevant` will be `null` for nearly every claim the QSAR (Task 11) and Tox21 (Task 12) streams produce, that would have abstained on essentially the entire evaluation set and taken the Task 15 metrics with it. Scoped to negatives, all six of this task's verdict expectations hold, including Task 7's own `do_not_advance` case.
+
 Add to `packages/engine/src/rules.ts`:
 
 ```ts
@@ -2337,11 +2345,23 @@ export function relevanceDiscount(claim: EvidenceClaim, ruleset: Ruleset): Disco
   if (isStructuralOnly(claim) && normalizeKeyEvent(claim) === null) {
     apply("R2", "Correlates with chemical structure; measures no key event directly.");
   }
-  // R3: exposure never established at the clinically relevant range.
-  if (claim.exposureRelevant !== true) {
+  // R3: a NEGATIVE finding whose exposure margin was never established.
+  //
+  // R3 is the ONLY directional rule, and it is directional in its own
+  // pre-registered statement: "A positive finding at clinically relevant
+  // exposure defeats A NEGATIVE FINDING whose exposure margin is unstated or
+  // untested at that range." R1, R2, R4 and R5 describe what KIND of evidence
+  // this is, so they apply whichever way the claim points. R3 describes what a
+  // result can LICENSE, and that is asymmetric: a positive hit is informative
+  // whatever the margin - you go and establish the margin next - whereas an
+  // absence of signal at an unknown concentration licenses nothing about
+  // safety. Applying R3 to positives as well would have crushed every hazard
+  // finding in the automated streams, where the margin is almost never
+  // recorded, and abstained on essentially the whole evaluation set.
+  if (claim.assertion === "safe" && claim.exposureRelevant !== true) {
     apply("R3", claim.exposureRelevant === false
-      ? "Tested outside the clinically relevant exposure range."
-      : "Exposure relative to the clinical range was never established.");
+      ? "A negative result from testing outside the clinically relevant exposure range."
+      : "A negative result whose exposure margin relative to the clinical range was never established.");
   }
   // R4: outside the model's applicability domain. Already the existing behaviour.
   if (claim.inApplicabilityDomain === false) {
@@ -2389,6 +2409,29 @@ describe("relevanceDiscount", () => {
     const d = relevanceDiscount(claim({ system: "rodent" }), RS);
     expect(d.factor).toBeGreaterThan(0);
     expect(d.factor).toBeLessThan(1);
+  });
+
+  it("applies R3 ONLY to negative findings - a positive hit is not discounted for margin", () => {
+    // R3's registered statement is about negative findings. A hazard signal at an
+    // unrecorded concentration is still a hazard signal; you go and measure the
+    // margin next. An absence of signal at an unrecorded concentration licenses
+    // nothing. If this test flips, every hazard call in the automated streams gets
+    // crushed to 15% and the whole evaluation set abstains.
+    const shared = { system: "human" as const, stream: "cytotox" as const, exposureRelevant: null, klimisch: 1 };
+    expect(relevanceDiscount(claim({ ...shared, assertion: "safe" }), RS).reasons.map((r) => r.byRule)).toEqual(["R3"]);
+    const positive = relevanceDiscount(claim({ ...shared, assertion: "toxic" }), RS);
+    expect(positive.reasons).toHaveLength(0);
+    expect(positive.factor).toBe(1);
+  });
+
+  it("still discounts a positive finding for every NON-directional weakness", () => {
+    // The R3 carve-out must not become a blanket exemption for positives: a
+    // low-reliability rodent hit is still weak evidence about humans.
+    const d = relevanceDiscount(claim({
+      assertion: "toxic", system: "rodent", stream: "invivo_rodent",
+      exposureRelevant: null, klimisch: 3,
+    }), RS);
+    expect(d.reasons.map((r) => r.byRule).sort()).toEqual(["R1", "R5"]);
   });
 
   it("respects disabled rules", () => {
