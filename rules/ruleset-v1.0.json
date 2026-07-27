@@ -7,6 +7,8 @@
     "negative": ["vNo-DILI-Concern"],
     "excluded": ["Ambiguous-DILI-concern"]
   },
+  "precedenceOrder": ["R3", "R1", "R2", "R5"],
+  "precedenceRationale": "Exposure relevance (R3) is checked before human relevance (R1). A negative finding only carries weight across the exposure range it actually tested, so evidence from a more human-relevant system must not override a positive finding at a clinically relevant dose merely because the system is more human-relevant; the exposure margin of the negative has to be established first. Mechanistic proximity (R2) is checked next, ahead of study reliability (R5): whether the evidence directly measures a key event or only correlates with structure is a question about what kind of evidence is being compared, and that should be settled before asking how well any single study was conducted.",
   "rules": [
     {
       "id": "R1",
