@@ -2341,8 +2341,10 @@ export function relevanceDiscount(claim: EvidenceClaim, ruleset: Ruleset): Disco
   if (claim.system === "rodent" || claim.system === "nonrodent") {
     apply("R1", `${claim.system} evidence is indirect for a human endpoint.`);
   }
-  // R2: structural correlation rather than a measured key event.
-  if (isStructuralOnly(claim) && normalizeKeyEvent(claim) === null) {
+  // R2: structural correlation rather than a measured key event. isStructuralOnly
+  // already requires measuresKeyEvent === null, so no second key-event test is
+  // needed - an earlier draft had one and it could never be false.
+  if (isStructuralOnly(claim)) {
     apply("R2", "Correlates with chemical structure; measures no key event directly.");
   }
   // R3: a NEGATIVE finding whose exposure margin was never established.
@@ -2489,7 +2491,13 @@ export { argue } from "./argue.js";
 export { detectConflict } from "./conflict.js";
 export { shouldAbstain } from "./abstain.js";
 
-/** Shift a claim's committed mass toward Theta by `factor`. Used for R4 and UNDECIDED. */
+/**
+ * Shift a claim's committed mass toward Theta by `factor`, leaving the rest
+ * uncommitted. This is the only place evidence quality changes a mass, and it is
+ * driven entirely by `relevanceDiscount` - including R4, which is one of the six
+ * principles it applies. UNDECIDED claims never reach here; they push VACUOUS
+ * directly, because ignorance is not a discounted opinion.
+ */
 function soften(m: Mass, factor: number): Mass {
   const toxic = m.toxic * factor;
   const safe = m.safe * factor;

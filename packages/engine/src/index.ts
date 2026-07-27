@@ -13,7 +13,13 @@ export { argue } from "./argue.js";
 export { detectConflict } from "./conflict.js";
 export { shouldAbstain } from "./abstain.js";
 
-/** Shift a claim's committed mass toward Theta by `factor`. Used for R4 and UNDECIDED. */
+/**
+ * Shift a claim's committed mass toward Theta by `factor`, leaving the rest
+ * uncommitted. This is the only place evidence quality changes a mass, and it is
+ * driven entirely by `relevanceDiscount` - including R4, which is one of the six
+ * principles it applies. UNDECIDED claims never reach here; they push VACUOUS
+ * directly, because ignorance is not a discounted opinion.
+ */
 function soften(m: Mass, factor: number): Mass {
   const toxic = m.toxic * factor;
   const safe = m.safe * factor;
