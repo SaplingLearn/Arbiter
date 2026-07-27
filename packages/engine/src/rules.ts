@@ -140,6 +140,82 @@ export function downweightFactor(
   };
 }
 
+export interface Discount {
+  /** Multiplier in (0,1] applied to the claim's committed mass. */
+  factor: number;
+  /** Which principles reduced it, for the trace. Empty when factor is 1. */
+  reasons: { byRule: RuleId; rationale: string }[];
+}
+
+/**
+ * How much does this claim's committed mass survive, absent any conflict?
+ *
+ * R1-R6 are tie-breakers when evidence collides. They are ALSO statements about
+ * evidence quality, and quality matters even when nothing disagrees. A clean
+ * rodent study is weak evidence about a human endpoint whether or not anything
+ * contradicts it; a margin never measured at clinical exposure does not become
+ * informative just because no one challenged it.
+ *
+ * Discounted mass moves to Theta - uncommitted - because that is precisely what
+ * it is: mass this source cannot commit anywhere. It does NOT move to the
+ * opposing side. Weak evidence for safety is not evidence of toxicity.
+ *
+ * Multiplicative, so several weaknesses compound: a rodent study whose exposure
+ * was never established is weaker than either flaw alone.
+ *
+ * Each factor is 1 - rule.strength, so a toxicologist tunes discounting by
+ * editing the same pre-registered, hashed strengths that govern defeats. One
+ * number per principle, one meaning, two mechanisms.
+ */
+export function relevanceDiscount(claim: EvidenceClaim, ruleset: Ruleset): Discount {
+  const reasons: Discount["reasons"] = [];
+  let factor = 1;
+
+  const apply = (id: RuleId, rationale: string) => {
+    const r = rule(ruleset, id);
+    if (!r) return;
+    factor *= 1 - r.strength;
+    reasons.push({ byRule: id, rationale });
+  };
+
+  // R1: non-human evidence about a human endpoint.
+  if (claim.system === "rodent" || claim.system === "nonrodent") {
+    apply("R1", `${claim.system} evidence is indirect for a human endpoint.`);
+  }
+  // R2: structural correlation rather than a measured key event.
+  if (isStructuralOnly(claim) && normalizeKeyEvent(claim.measuresKeyEvent) === null) {
+    apply("R2", "Correlates with chemical structure; measures no key event directly.");
+  }
+  // R3: a NEGATIVE finding whose exposure margin was never established.
+  //
+  // R3 is the ONLY directional rule, and it is directional in its own
+  // pre-registered statement: "A positive finding at clinically relevant
+  // exposure defeats A NEGATIVE FINDING whose exposure margin is unstated or
+  // untested at that range." R1, R2, R4 and R5 describe what KIND of evidence
+  // this is, so they apply whichever way the claim points. R3 describes what a
+  // result can LICENSE, and that is asymmetric: a positive hit is informative
+  // whatever the margin - you go and establish the margin next - whereas an
+  // absence of signal at an unknown concentration licenses nothing about
+  // safety. Applying R3 to positives as well would have crushed every hazard
+  // finding in the automated streams, where the margin is almost never
+  // recorded, and abstained on essentially the whole evaluation set.
+  if (claim.assertion === "safe" && claim.exposureRelevant !== true) {
+    apply("R3", claim.exposureRelevant === false
+      ? "A negative result from testing outside the clinically relevant exposure range."
+      : "A negative result whose exposure margin relative to the clinical range was never established.");
+  }
+  // R4: outside the model's applicability domain. Already the existing behaviour.
+  if (claim.inApplicabilityDomain === false) {
+    apply("R4", "Model was operating outside its applicability domain.");
+  }
+  // R5: low study reliability. Klimisch 1 and 2 are reliable; 3 and 4 are not.
+  if (claim.klimisch !== null && claim.klimisch >= 3) {
+    apply("R5", `Klimisch ${claim.klimisch} indicates limited study reliability.`);
+  }
+
+  return { factor, reasons };
+}
+
 /**
  * R6: a multiplier rewarding agreement across DISTINCT streams, attenuated
  * by dissent.

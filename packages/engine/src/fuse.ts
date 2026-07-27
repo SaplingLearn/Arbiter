@@ -57,13 +57,13 @@ export function combine(a: Mass, b: Mass): { mass: Mass; conflict: number } {
  * conflict removed. It is strictly >= max(Kᵢ) and equals max only when at most
  * one step has nonzero conflict.
  */
-export function fuse(masses: Mass[]): { belief: number; plausibility: number; conflictMass: number } {
+export function fuse(masses: Mass[]): { belief: number; plausibility: number; conflictMass: number; mass: Mass } {
   let acc: Mass = { ...VACUOUS };
-  let survival = 1;
+  let survival = 1; // prod(1 - K_i)
   for (const m of masses) {
     const { mass, conflict } = combine(acc, m);
     acc = mass;
     survival *= 1 - conflict;
   }
-  return { belief: acc.toxic, plausibility: acc.toxic + acc.uncommitted, conflictMass: 1 - survival };
+  return { belief: acc.toxic, plausibility: acc.toxic + acc.uncommitted, conflictMass: 1 - survival, mass: acc };
 }

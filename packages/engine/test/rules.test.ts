@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { concordanceBoost, conflictsWith, defeats, downweightFactor } from "../src/rules.js";
+import { concordanceBoost, conflictsWith, defeats, downweightFactor, relevanceDiscount } from "../src/rules.js";
 import { RulesetSchema } from "../src/schema.js";
 import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
 import type { EvidenceClaim, Ruleset } from "../src/types.js";
@@ -241,5 +241,73 @@ describe("pre-registration", () => {
     const blob = JSON.stringify(RS).toLowerCase();
     expect(blob).not.toContain("tak-994");
     expect(blob).not.toContain("tak994");
+  });
+});
+
+describe("relevanceDiscount", () => {
+  it("leaves ideal evidence undiscounted", () => {
+    const d = relevanceDiscount(claim({
+      system: "human", stream: "cytotox", measuresKeyEvent: "KE:1",
+      exposureRelevant: true, inApplicabilityDomain: true, klimisch: 1,
+    }), RS);
+    expect(d.factor).toBe(1);
+    expect(d.reasons).toHaveLength(0);
+  });
+
+  it("discounts a clean rodent study whose exposure was never established", () => {
+    // THE PASS-1 CASE. Unopposed, but it licenses very little.
+    const d = relevanceDiscount(claim({
+      system: "rodent", stream: "invivo_rodent", measuresKeyEvent: null,
+      exposureRelevant: null, klimisch: 1,
+    }), RS);
+    expect(d.factor).toBeLessThan(0.2);
+    expect(d.reasons.map((r) => r.byRule).sort()).toEqual(["R1", "R3"]);
+  });
+
+  it("compounds multiplicatively - two weaknesses are worse than either", () => {
+    const both = relevanceDiscount(claim({ system: "rodent", exposureRelevant: null }), RS).factor;
+    const one = relevanceDiscount(claim({ system: "rodent", exposureRelevant: true }), RS).factor;
+    expect(both).toBeLessThan(one);
+  });
+
+  it("moves discounted mass nowhere - it only reduces, never flips", () => {
+    const d = relevanceDiscount(claim({ system: "rodent" }), RS);
+    expect(d.factor).toBeGreaterThan(0);
+    expect(d.factor).toBeLessThan(1);
+  });
+
+  it("applies R3 ONLY to negative findings - a positive hit is not discounted for margin", () => {
+    // R3's registered statement is about negative findings. A hazard signal at an
+    // unrecorded concentration is still a hazard signal; you go and measure the
+    // margin next. An absence of signal at an unrecorded concentration licenses
+    // nothing. If this test flips, every hazard call in the automated streams gets
+    // crushed to 15% and the whole evaluation set abstains.
+    const shared = { system: "human" as const, stream: "cytotox" as const, exposureRelevant: null, klimisch: 1 };
+    expect(relevanceDiscount(claim({ ...shared, assertion: "safe" }), RS).reasons.map((r) => r.byRule)).toEqual(["R3"]);
+    const positive = relevanceDiscount(claim({ ...shared, assertion: "toxic" }), RS);
+    expect(positive.reasons).toHaveLength(0);
+    expect(positive.factor).toBe(1);
+  });
+
+  it("still discounts a positive finding for every NON-directional weakness", () => {
+    // The R3 carve-out must not become a blanket exemption for positives: a
+    // low-reliability rodent hit is still weak evidence about humans.
+    const d = relevanceDiscount(claim({
+      assertion: "toxic", system: "rodent", stream: "invivo_rodent",
+      exposureRelevant: null, klimisch: 3,
+    }), RS);
+    expect(d.reasons.map((r) => r.byRule).sort()).toEqual(["R1", "R5"]);
+  });
+
+  it("respects disabled rules", () => {
+    const off: Ruleset = { ...RS, rules: RS.rules.map((r) => ({ ...r, enabled: false })) };
+    expect(relevanceDiscount(claim({ system: "rodent", exposureRelevant: null }), off).factor).toBe(1);
+  });
+
+  it("reads strengths from the ruleset rather than hard-coding them", () => {
+    const weak: Ruleset = { ...RS, rules: RS.rules.map((r) => r.id === "R1" ? { ...r, strength: 0.1 } : r) };
+    const strong: Ruleset = { ...RS, rules: RS.rules.map((r) => r.id === "R1" ? { ...r, strength: 0.9 } : r) };
+    const c = claim({ system: "rodent", exposureRelevant: true });
+    expect(relevanceDiscount(c, weak).factor).toBeGreaterThan(relevanceDiscount(c, strong).factor);
   });
 });
