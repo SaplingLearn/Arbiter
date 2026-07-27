@@ -5306,13 +5306,404 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Remaining Phase 1 task — OUTLINE, NOT YET WRITTEN
+## Task 16: Golden files and CI — the numbers cannot drift
 
-> ⚠️ **Tasks 1–15 above are complete and executable. Task 16 below is an outline.**
+**What this task actually buys you.** The sharpest question in Q&A is *"are the numbers on your slide from the same code as the demo?"* Golden files make the answer structural: if anyone changes the engine, the rules, or the data in a way that moves a reported number, **the build fails**. Drift becomes a red CI run instead of a discovery mid-presentation.
 
-| # | Task | Key deliverable |
-|---|---|---|
-| 16 | Golden files + CI | Any change moving a benchmark number fails the build |
+**Files:**
+- Create: `apps/harness/src/golden.ts`, `apps/harness/src/preflight.ts`
+- Create: `apps/harness/test/golden.test.ts`
+- Create: `results/golden/metrics.golden.json` (generated)
+- Create: `.github/workflows/ci.yml`
+- Modify: `.gitignore`, `package.json`
+
+**Interfaces:**
+- Consumes: `results/metrics.json`
+- Produces:
+  - `extractGolden(metrics: unknown): GoldenNumbers` — the reported-number surface only
+  - `results/golden/metrics.golden.json`
+  - scripts: `golden:check`, `golden:update`, `preflight`
+
+- [ ] **Step 1: Write the failing golden test**
+
+Create `apps/harness/test/golden.test.ts`:
+
+```ts
+import { existsSync, readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+import { extractGolden } from "../src/golden.js";
+
+const GOLDEN = "results/golden/metrics.golden.json";
+const CURRENT = "results/metrics.json";
+
+describe("extractGolden", () => {
+  it("keeps every reported number", () => {
+    const g = extractGolden({
+      provenance: { rulesetHash: "abc", splitSeed: 1, perturbationSeed: 2 },
+      sampleSizes: { scored: 100, conflictSubset: 40 },
+      metric1_conflictSubsetAccuracy: {
+        n: 40,
+        arbiter: { balancedAccuracy: 0.7, coverage: 0.9, nCommitted: 36, ci: { lo: 0.5, hi: 0.85 } },
+        baselines: { majorityVote: { balancedAccuracy: 0.55, coverage: 1, nCommitted: 40, ci: { lo: 0.4, hi: 0.7 } } },
+      },
+      metric2b_arbiterRobustness: { meanHeldFraction: 0.95, worstHeldFraction: 0.8 },
+      metric3_calibration: { strictCoverage: 0.1, meanWidth: 0.3, meanWidthOnCorrect: 0.2, meanWidthOnIncorrect: 0.5, widthDiscriminates: true },
+      metric4_abstentionQuality: { declineRate: 0.1, balancedAccuracyOnCommitted: 0.72 },
+      metric5_plannerSensitivity: { meanUnchangedFraction: 0.94 },
+    });
+    expect(g.arbiterBalancedAccuracy).toBe(0.7);
+    expect(g.baselines.majorityVote.balancedAccuracy).toBe(0.55);
+    expect(g.widthDiscriminates).toBe(true);
+    expect(g.rulesetHash).toBe("abc");
+  });
+
+  it("EXCLUDES timestamps and prose, which would make the golden file churn", () => {
+    const json = JSON.stringify(extractGolden({
+      provenance: { rulesetHash: "abc", splitSeed: 1, perturbationSeed: 2, note: "some prose that may be reworded" },
+      sampleSizes: { scored: 1, conflictSubset: 1 },
+      metric1_conflictSubsetAccuracy: { n: 1, arbiter: { balancedAccuracy: 0.5, coverage: 1, nCommitted: 1, ci: { lo: 0, hi: 1 } }, baselines: {} },
+      metric2b_arbiterRobustness: { meanHeldFraction: 1, worstHeldFraction: 1, determinismNote: "prose" },
+      metric3_calibration: { strictCoverage: 0, meanWidth: 0, meanWidthOnCorrect: 0, meanWidthOnIncorrect: 0, widthDiscriminates: false },
+      metric4_abstentionQuality: { declineRate: 0, balancedAccuracyOnCommitted: 0.5 },
+      metric5_plannerSensitivity: { meanUnchangedFraction: 1 },
+      generatedAt: "2026-07-26T00:00:00Z",
+    }));
+    expect(json).not.toContain("generatedAt");
+    expect(json).not.toContain("prose");
+  });
+
+  it("is stable across repeated extraction", () => {
+    const input = {
+      provenance: { rulesetHash: "h", splitSeed: 1, perturbationSeed: 2 },
+      sampleSizes: { scored: 1, conflictSubset: 1 },
+      metric1_conflictSubsetAccuracy: { n: 1, arbiter: { balancedAccuracy: 0.5, coverage: 1, nCommitted: 1, ci: { lo: 0, hi: 1 } }, baselines: {} },
+      metric2b_arbiterRobustness: { meanHeldFraction: 1, worstHeldFraction: 1 },
+      metric3_calibration: { strictCoverage: 0, meanWidth: 0, meanWidthOnCorrect: 0, meanWidthOnIncorrect: 0, widthDiscriminates: false },
+      metric4_abstentionQuality: { declineRate: 0, balancedAccuracyOnCommitted: 0.5 },
+      metric5_plannerSensitivity: { meanUnchangedFraction: 1 },
+    };
+    expect(JSON.stringify(extractGolden(input))).toBe(JSON.stringify(extractGolden(input)));
+  });
+});
+
+describe("the committed golden numbers", () => {
+  it("matches freshly computed metrics", () => {
+    if (!existsSync(GOLDEN)) {
+      // First run: there is nothing to compare against yet.
+      expect(existsSync(CURRENT)).toBe(true);
+      return;
+    }
+    expect(existsSync(CURRENT)).toBe(true);
+
+    const golden = JSON.parse(readFileSync(GOLDEN, "utf8"));
+    const current = extractGolden(JSON.parse(readFileSync(CURRENT, "utf8")));
+
+    // A failure here means a reported number moved. That is either a bug or a
+    // deliberate change - and if deliberate, `npm run golden:update` records it
+    // in a commit rather than letting it slip in unnoticed.
+    expect(current).toEqual(golden);
+  });
+});
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- apps/harness/test/golden.test.ts
+```
+
+Expected: FAIL — `Cannot find module '../src/golden.js'`
+
+- [ ] **Step 3: Write the golden extractor**
+
+Create `apps/harness/src/golden.ts`:
+
+```ts
+export interface GoldenPipeline {
+  balancedAccuracy: number;
+  coverage: number;
+  nCommitted: number;
+  ci: { lo: number; hi: number };
+}
+
+export interface GoldenNumbers {
+  rulesetHash: string;
+  splitSeed: number;
+  perturbationSeed: number;
+  nScored: number;
+  nConflictSubset: number;
+  arbiterBalancedAccuracy: number;
+  arbiterCoverage: number;
+  arbiterNCommitted: number;
+  arbiterCi: { lo: number; hi: number };
+  baselines: Record<string, GoldenPipeline>;
+  meanHeldFraction: number;
+  worstHeldFraction: number;
+  strictCoverage: number;
+  meanWidth: number;
+  meanWidthOnCorrect: number;
+  meanWidthOnIncorrect: number;
+  widthDiscriminates: boolean;
+  declineRate: number;
+  balancedAccuracyOnCommitted: number;
+  plannerMeanUnchangedFraction: number;
+}
+
+/**
+ * Project metrics.json down to the numbers that are actually REPORTED.
+ *
+ * Prose, notes, and timestamps are excluded deliberately. Golden-filing the
+ * whole document would make the file churn on every wording change, and a
+ * golden file that cries wolf gets ignored - which defeats the point.
+ *
+ * Extraction is ordered and total, so the JSON is byte-stable.
+ */
+export function extractGolden(raw: unknown): GoldenNumbers {
+  const m = raw as any;
+  const acc = m.metric1_conflictSubsetAccuracy;
+
+  const baselines: Record<string, GoldenPipeline> = {};
+  for (const name of Object.keys(acc.baselines ?? {}).sort()) {
+    const b = acc.baselines[name];
+    baselines[name] = {
+      balancedAccuracy: b.balancedAccuracy,
+      coverage: b.coverage,
+      nCommitted: b.nCommitted,
+      ci: { lo: b.ci.lo, hi: b.ci.hi },
+    };
+  }
+
+  return {
+    rulesetHash: m.provenance.rulesetHash,
+    splitSeed: m.provenance.splitSeed,
+    perturbationSeed: m.provenance.perturbationSeed,
+    nScored: m.sampleSizes.scored,
+    nConflictSubset: m.sampleSizes.conflictSubset,
+    arbiterBalancedAccuracy: acc.arbiter.balancedAccuracy,
+    arbiterCoverage: acc.arbiter.coverage,
+    arbiterNCommitted: acc.arbiter.nCommitted,
+    arbiterCi: { lo: acc.arbiter.ci.lo, hi: acc.arbiter.ci.hi },
+    baselines,
+    meanHeldFraction: m.metric2b_arbiterRobustness.meanHeldFraction,
+    worstHeldFraction: m.metric2b_arbiterRobustness.worstHeldFraction,
+    strictCoverage: m.metric3_calibration.strictCoverage,
+    meanWidth: m.metric3_calibration.meanWidth,
+    meanWidthOnCorrect: m.metric3_calibration.meanWidthOnCorrect,
+    meanWidthOnIncorrect: m.metric3_calibration.meanWidthOnIncorrect,
+    widthDiscriminates: m.metric3_calibration.widthDiscriminates,
+    declineRate: m.metric4_abstentionQuality.declineRate,
+    balancedAccuracyOnCommitted: m.metric4_abstentionQuality.balancedAccuracyOnCommitted,
+    plannerMeanUnchangedFraction: m.metric5_plannerSensitivity.meanUnchangedFraction,
+  };
+}
+```
+
+Create `apps/harness/src/update-golden.ts`:
+
+```ts
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { extractGolden } from "./golden.js";
+
+/**
+ * Deliberately re-baseline the golden numbers.
+ *
+ * Only run this when a number moved ON PURPOSE. The resulting diff is the
+ * record of what changed and belongs in its own commit with a reason.
+ */
+const golden = extractGolden(JSON.parse(readFileSync("results/metrics.json", "utf8")));
+mkdirSync("results/golden", { recursive: true });
+writeFileSync("results/golden/metrics.golden.json", JSON.stringify(golden, null, 2));
+console.log("Updated results/golden/metrics.golden.json - commit the diff with a reason.");
+console.log(JSON.stringify(golden, null, 2));
+```
+
+- [ ] **Step 4: Write the pre-flight check**
+
+Create `apps/harness/src/preflight.ts`:
+
+```ts
+import { execSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { loadInputs } from "./load.js";
+
+/**
+ * Ninety seconds before presenting, answer: is everything consistent?
+ *
+ * Verifies the ruleset hash in the committed results matches the ruleset on
+ * disk, and surfaces the pre-registration commit so its timestamp can be quoted
+ * from memory instead of hunted for live.
+ */
+function main(): void {
+  const checks: { name: string; ok: boolean; detail: string }[] = [];
+  const { ruleset, hash, splits, benchmarkIds } = loadInputs();
+
+  checks.push({ name: "ruleset parses and declares six rules", ok: ruleset.rules.length === 6, detail: `v${ruleset.version}` });
+  checks.push({ name: "ruleset hash", ok: true, detail: hash });
+
+  for (const [name, file] of [["results", "results/results.json"], ["metrics", "results/metrics.json"], ["golden", "results/golden/metrics.golden.json"], ["ablation", "results/ablation.json"]] as const) {
+    checks.push({ name: `${name} present`, ok: existsSync(file), detail: file });
+  }
+
+  if (existsSync("results/results.json")) {
+    const r = JSON.parse(readFileSync("results/results.json", "utf8"));
+    checks.push({
+      name: "results were produced by THIS ruleset",
+      ok: r.rulesetHash === hash,
+      detail: r.rulesetHash === hash ? "match" : `results=${r.rulesetHash} disk=${hash}`,
+    });
+    checks.push({ name: "results scored the test split only", ok: r.scoredSplit === "test", detail: String(r.scoredSplit) });
+  }
+
+  checks.push({
+    name: "TAK-994 absent from the benchmark",
+    ok: !benchmarkIds.some((id) => id.startsWith("TAK-994")),
+    detail: `${benchmarkIds.length} benchmark compounds`,
+  });
+  checks.push({ name: "test split size", ok: splits.test.length >= 60, detail: `${splits.test.length} compounds` });
+
+  try {
+    const log = execSync('git log --diff-filter=A --format="%h %cI" -- rules/ruleset-v1.0.json', { encoding: "utf8" }).trim();
+    checks.push({ name: "pre-registration commit", ok: log.length > 0, detail: log || "not found" });
+  } catch {
+    checks.push({ name: "pre-registration commit", ok: false, detail: "git unavailable" });
+  }
+
+  for (const c of checks) console.log(`${c.ok ? "PASS" : "FAIL"}  ${c.name.padEnd(42)} ${c.detail}`);
+  const failed = checks.filter((c) => !c.ok);
+  if (failed.length > 0) {
+    console.error(`\n${failed.length} check(s) failed.`);
+    process.exit(1);
+  }
+  console.log("\nAll pre-flight checks passed.");
+}
+
+main();
+```
+
+- [ ] **Step 5: Wire up scripts, gitignore, and CI**
+
+Update `.gitignore` so results are ignored *except* the ones that are evidence:
+
+```
+results/*
+!results/ablation.json
+!results/golden/
+```
+
+Add to root `package.json` scripts:
+
+```json
+    "golden:check": "vitest run apps/harness/test/golden.test.ts",
+    "golden:update": "tsx apps/harness/src/update-golden.ts",
+    "preflight": "tsx apps/harness/src/preflight.ts",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run harness && npm run metrics && npm run golden:check"
+```
+
+Create `.github/workflows/ci.yml`:
+
+```yaml
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.12.1"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      # data/out/* and rules/* are committed, so the harness runs with no
+      # network and no API key. The ablation is NOT re-run - its cached results
+      # are committed, so CI never spends money.
+      - name: Recompute results and metrics
+        run: |
+          npm run harness
+          npm run metrics
+
+      - name: Golden numbers must not have drifted
+        run: npm run golden:check
+
+      - name: Pre-flight consistency
+        run: npm run preflight
+```
+
+- [ ] **Step 6: Generate the first golden file and verify the whole chain**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm run harness && npm run metrics && npm run golden:update && npm run verify && npm run preflight
+```
+
+Expected: `golden:update` prints the captured numbers, then `verify` runs the full chain green, then `preflight` prints all PASS lines including the pre-registration commit hash and ISO timestamp.
+
+- [ ] **Step 7: Prove the guard actually works**
+
+A golden file nobody has seen fail is not a guard. Break something on purpose and confirm the build goes red.
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && node -e "const f='rules/ruleset-v1.0.json';const fs=require('fs');const r=JSON.parse(fs.readFileSync(f));r.rules.find(x=>x.id==='R1').strength=0.1;fs.writeFileSync(f,JSON.stringify(r,null,2));" && npm run harness && npm run metrics && (npm run golden:check && echo "GUARD FAILED - it should have caught this" && exit 1 || echo "GUARD WORKS - drift was caught") ; git checkout rules/ruleset-v1.0.json && npm run harness && npm run metrics && npm run golden:check
+```
+
+Expected: `GUARD WORKS - drift was caught`, then the revert restores green.
+
+- [ ] **Step 8: Commit**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && git add .gitignore package.json apps/harness .github results/golden/metrics.golden.json && git commit -m "Add golden files, pre-flight check, and CI
+
+Makes the sharpest Q&A question structural. 'Are the numbers on your slide from
+the same code as the demo?' is now answered by a red build: any change to the
+engine, the rules, or the data that moves a reported number fails golden:check.
+
+extractGolden projects metrics.json down to the numbers actually reported and
+deliberately excludes prose, notes, and timestamps - golden-filing the whole
+document would churn on every wording change, and a golden file that cries wolf
+gets ignored, which defeats the point. Re-baselining requires golden:update,
+whose diff is the record of what changed and why.
+
+CI recomputes results and metrics from the committed data on every push, with no
+network and no API key. The ablation is never re-run - its cached results are
+committed, so CI cannot spend money.
+
+preflight is the ninety-seconds-before-presenting check: it verifies the results
+were produced by the ruleset currently on disk, that only the test split was
+scored, that TAK-994 is absent from the benchmark, and it prints the
+pre-registration commit hash and ISO timestamp so they can be quoted rather than
+hunted for live.
+
+Step 7 deliberately breaks a rule strength and asserts the guard catches it,
+because a golden file nobody has seen fail is not a guard.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Phase 1 is complete at this point
+
+When task 16 lands you have: a pure, deterministic reasoning engine with reinstatement, conformal-calibrated evidence, a pre-registered ruleset with a checkable hash, four baselines including the LLM ablation, five metrics with intervals, and CI that refuses to let any of those numbers drift.
+
+**What Phase 2 consumes:** `results/results.json`, `results/metrics.json`, `data/out/evidence.json`, `data/out/tak994.json`, `rules/ruleset-v1.0.json`, and `packages/engine` imported directly into the browser. That contract is now fixed, which is why Phase 2's plan waited for this one.
+
+**What to record as you go, because Phase 2 and the deck both need it:** the conflict-subset n, ARBITER's balanced accuracy with its Wilson interval and coverage, the best baseline's same three, whether `widthDiscriminates` is true, mean robustness, the LLM refusal rate and mean agreement rate, the planner's unchanged fraction, and the pre-registration commit hash and timestamp.
 
 ---
 
