@@ -866,12 +866,16 @@ Add this test to `packages/engine/test/fuse.test.ts` — it is the case `max(K_i
 
 ```ts
   it("accumulates conflict across the fold rather than taking the maximum", () => {
-    // Three mutually opposed sources. Each fold step conflicts, so the mass
-    // destroyed compounds: cumulative conflict must EXCEED the largest single
-    // pairwise conflict. This is the property a max() aggregate fails.
-    const r = fuse([claimToMass("toxic", 0.9), claimToMass("safe", 0.9), claimToMass("toxic", 0.9)]);
-    expect(r.conflictMass).toBeGreaterThan(0.9);
-    expect(r.conflictMass).toBeLessThanOrEqual(1);
+    // Three mutually opposed sources at strength 0.6. Hand derivation:
+    //   step 1: acc = {t .6, s 0,  u .4}         K1 = 0
+    //   step 2: K2 = .6*.6 = .36, norm = .64  -> acc = {t .375, s .375, u .25}
+    //   step 3: K3 = .375*.6 = .225, norm = .775
+    //   survival = 1 * .64 * .775 = .496  ->  conflictMass = .504
+    // max(K_i) = .36, so cumulative STRICTLY EXCEEDS the largest single pairwise
+    // conflict. That inequality is the property a max() aggregate cannot satisfy.
+    const r = fuse([claimToMass("toxic", 0.6), claimToMass("safe", 0.6), claimToMass("toxic", 0.6)]);
+    expect(r.conflictMass).toBeCloseTo(0.504, 6);
+    expect(r.conflictMass).toBeGreaterThan(0.36);
   });
 ```
 
