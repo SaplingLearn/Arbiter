@@ -16,3 +16,7 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# LibreOffice / Office transient lock files
+.~lock.*#
+~$*
