@@ -2045,13 +2045,51 @@ describe("reason", () => {
     expect(r.plausibility).toBeCloseTo(1, 10);
   });
 
-  it("advances on unanimous strong safe evidence across streams", () => {
+  it("advances on unanimous strong safe evidence that is human and exposure-established", () => {
     const r = reason([
-      claim({ id: "a", assertion: "safe", strength: 0.9, stream: "cytotox" }),
-      claim({ id: "b", assertion: "safe", strength: 0.9, stream: "transporter" }),
+      claim({ id: "a", assertion: "safe", strength: 0.9, stream: "cytotox", exposureRelevant: true, measuresKeyEvent: "KE:1" }),
+      claim({ id: "b", assertion: "safe", strength: 0.9, stream: "transporter", exposureRelevant: true, measuresKeyEvent: "KE:2" }),
     ], RS);
     expect(r.verdict).toBe("advance");
     expect(r.contested).toBe(false);
+  });
+
+  it("THE PASS-1 CASE: abstains on unanimous evidence that licenses nothing", () => {
+    // Four claims all saying "safe", none contradicting any other - and yet the
+    // honest answer is that we cannot tell. Every one is either non-human or was
+    // never measured at clinical exposure, so most of their mass belongs in Theta
+    // rather than on "safe".
+    //
+    // This is the mechanism demo beat 3 rests on. Before evidence-quality
+    // discounting existed, no rule fired (nothing conflicts), every claim was
+    // admitted at full strength, and reason() returned ADVANCE - agreeing with the
+    // historical decision that harmed three trial participants. If this test ever
+    // goes back to expecting "advance", the discount mechanism has regressed and
+    // the demo's central beat is broken.
+    const r = reason([
+      claim({ id: "rat", assertion: "safe", strength: 0.85, system: "rodent", stream: "invivo_rodent", exposureRelevant: null, measuresKeyEvent: null }),
+      claim({ id: "primate", assertion: "safe", strength: 0.85, system: "nonrodent", stream: "invivo_nonrodent", exposureRelevant: null, measuresKeyEvent: null }),
+      claim({ id: "invitro", assertion: "safe", strength: 0.8, system: "human", stream: "cytotox", exposureRelevant: null, measuresKeyEvent: "KE:HEPATOCYTE-DEATH" }),
+      claim({ id: "bsep", assertion: "safe", strength: 0.75, system: "human", stream: "transporter", exposureRelevant: null, measuresKeyEvent: "KE:BSEP" }),
+    ], RS);
+
+    expect(r.verdict).toBe("abstain");
+    // Nothing was defeated - there was no conflict to resolve.
+    expect(r.trace.filter((s) => s.status === "defeated")).toHaveLength(0);
+    // The gap is what carries the abstention.
+    expect(r.plausibility - r.belief).toBeGreaterThan(RS.abstentionGapThreshold);
+    // And the trace must SAY why, per claim, not just report a verdict.
+    const ratStep = r.trace.find((s) => s.claimId === "rat")!;
+    expect(ratStep.rationale).toMatch(/exposure|indirect|reduced/i);
+  });
+
+  it("discounting reduces belief without flipping it to the opposing side", () => {
+    // Weak evidence for safety must never become evidence of toxicity.
+    const weak = reason([
+      claim({ id: "a", assertion: "safe", strength: 0.9, system: "rodent", stream: "invivo_rodent", exposureRelevant: null }),
+    ], RS);
+    expect(weak.belief).toBeLessThan(0.5); // belief in TOXIC stays low
+    expect(weak.plausibility).toBeGreaterThan(0.5); // ignorance is wide
   });
 
   it("does not advance when the surviving evidence says toxic", () => {
@@ -2138,6 +2176,131 @@ cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/r
 
 Expected: FAIL — `Cannot find module '../src/index.js'`
 
+- [ ] **Step 2a: Add `relevanceDiscount` to `rules.ts` — the mechanism beat 3 depends on**
+
+**Why this exists.** R1–R6 as written are pure tie-breakers: they only fire when claims collide. But TAK-994's pass 1 contains four claims that all say *safe* and one that says *ambiguous* — no conflict at all. Nothing gets defeated, everything is admitted at full strength, and `reason()` returns **advance**. Demo beat 3 shows an abstention, so as specified the flagship case does not work.
+
+The gap is conceptual, not arithmetic. The lesson of the case is not that animal evidence loses an argument — it is that **a clean rat study is weak evidence about humans even when nothing contradicts it.** Four sources agreeing tells you little if all four are either non-human or never tested at clinical exposure. The engine had no way to express that.
+
+So the same six principles apply as **discounts** absent conflict, with the discounted portion becoming *uncommitted* mass — which is exactly what uncommitted mass means. R4 already worked this way; this generalises it.
+
+Add to `packages/engine/src/rules.ts`:
+
+```ts
+export interface Discount {
+  /** Multiplier in (0,1] applied to the claim's committed mass. */
+  factor: number;
+  /** Which principles reduced it, for the trace. Empty when factor is 1. */
+  reasons: { byRule: RuleId; rationale: string }[];
+}
+
+/**
+ * How much does this claim's committed mass survive, absent any conflict?
+ *
+ * R1-R6 are tie-breakers when evidence collides. They are ALSO statements about
+ * evidence quality, and quality matters even when nothing disagrees. A clean
+ * rodent study is weak evidence about a human endpoint whether or not anything
+ * contradicts it; a margin never measured at clinical exposure does not become
+ * informative just because no one challenged it.
+ *
+ * Discounted mass moves to Theta - uncommitted - because that is precisely what
+ * it is: mass this source cannot commit anywhere. It does NOT move to the
+ * opposing side. Weak evidence for safety is not evidence of toxicity.
+ *
+ * Multiplicative, so several weaknesses compound: a rodent study whose exposure
+ * was never established is weaker than either flaw alone.
+ *
+ * Each factor is 1 - rule.strength, so a toxicologist tunes discounting by
+ * editing the same pre-registered, hashed strengths that govern defeats. One
+ * number per principle, one meaning, two mechanisms.
+ */
+export function relevanceDiscount(claim: EvidenceClaim, ruleset: Ruleset): Discount {
+  const reasons: Discount["reasons"] = [];
+  let factor = 1;
+
+  const apply = (id: RuleId, rationale: string) => {
+    const r = rule(ruleset, id);
+    if (!r) return;
+    factor *= 1 - r.strength;
+    reasons.push({ byRule: id, rationale });
+  };
+
+  // R1: non-human evidence about a human endpoint.
+  if (claim.system === "rodent" || claim.system === "nonrodent") {
+    apply("R1", `${claim.system} evidence is indirect for a human endpoint.`);
+  }
+  // R2: structural correlation rather than a measured key event.
+  if (isStructuralOnly(claim) && normalizeKeyEvent(claim) === null) {
+    apply("R2", "Correlates with chemical structure; measures no key event directly.");
+  }
+  // R3: exposure never established at the clinically relevant range.
+  if (claim.exposureRelevant !== true) {
+    apply("R3", claim.exposureRelevant === false
+      ? "Tested outside the clinically relevant exposure range."
+      : "Exposure relative to the clinical range was never established.");
+  }
+  // R4: outside the model's applicability domain. Already the existing behaviour.
+  if (claim.inApplicabilityDomain === false) {
+    apply("R4", "Model was operating outside its applicability domain.");
+  }
+  // R5: low study reliability. Klimisch 1 and 2 are reliable; 3 and 4 are not.
+  if (claim.klimisch !== null && claim.klimisch >= 3) {
+    apply("R5", `Klimisch ${claim.klimisch} indicates limited study reliability.`);
+  }
+
+  return { factor, reasons };
+}
+```
+
+**Tests to add to `packages/engine/test/rules.test.ts`:**
+
+```ts
+describe("relevanceDiscount", () => {
+  it("leaves ideal evidence undiscounted", () => {
+    const d = relevanceDiscount(claim({
+      system: "human", stream: "cytotox", measuresKeyEvent: "KE:1",
+      exposureRelevant: true, inApplicabilityDomain: true, klimisch: 1,
+    }), RS);
+    expect(d.factor).toBe(1);
+    expect(d.reasons).toHaveLength(0);
+  });
+
+  it("discounts a clean rodent study whose exposure was never established", () => {
+    // THE PASS-1 CASE. Unopposed, but it licenses very little.
+    const d = relevanceDiscount(claim({
+      system: "rodent", stream: "invivo_rodent", measuresKeyEvent: null,
+      exposureRelevant: null, klimisch: 1,
+    }), RS);
+    expect(d.factor).toBeLessThan(0.2);
+    expect(d.reasons.map((r) => r.byRule).sort()).toEqual(["R1", "R3"]);
+  });
+
+  it("compounds multiplicatively - two weaknesses are worse than either", () => {
+    const both = relevanceDiscount(claim({ system: "rodent", exposureRelevant: null }), RS).factor;
+    const one = relevanceDiscount(claim({ system: "rodent", exposureRelevant: true }), RS).factor;
+    expect(both).toBeLessThan(one);
+  });
+
+  it("moves discounted mass nowhere - it only reduces, never flips", () => {
+    const d = relevanceDiscount(claim({ system: "rodent" }), RS);
+    expect(d.factor).toBeGreaterThan(0);
+    expect(d.factor).toBeLessThan(1);
+  });
+
+  it("respects disabled rules", () => {
+    const off: Ruleset = { ...RS, rules: RS.rules.map((r) => ({ ...r, enabled: false })) };
+    expect(relevanceDiscount(claim({ system: "rodent", exposureRelevant: null }), off).factor).toBe(1);
+  });
+
+  it("reads strengths from the ruleset rather than hard-coding them", () => {
+    const weak: Ruleset = { ...RS, rules: RS.rules.map((r) => r.id === "R1" ? { ...r, strength: 0.1 } : r) };
+    const strong: Ruleset = { ...RS, rules: RS.rules.map((r) => r.id === "R1" ? { ...r, strength: 0.9 } : r) };
+    const c = claim({ system: "rodent", exposureRelevant: true });
+    expect(relevanceDiscount(c, weak).factor).toBeGreaterThan(relevanceDiscount(c, strong).factor);
+  });
+});
+```
+
 - [ ] **Step 3: Extend `fuse` additively to expose the full mass**
 
 `reason()` needs `mass.safe` to compare the two beliefs, which Task 3's return type does not carry. Add it — a purely additive change, so every Task 3 test still passes.
@@ -2168,8 +2331,8 @@ import { shouldAbstain } from "./abstain.js";
 import { argue } from "./argue.js";
 import { detectConflict } from "./conflict.js";
 import { VACUOUS, claimToMass, fuse, type Mass } from "./fuse.js";
-import { concordanceBoost } from "./rules.js";
-import type { EvidenceClaim, Reasoning, Ruleset, Verdict } from "./types.js";
+import { concordanceBoost, relevanceDiscount } from "./rules.js";
+import type { EvidenceClaim, Reasoning, Ruleset, TraceStep, Verdict } from "./types.js";
 
 export * from "./types.js";
 export { EvidenceClaimSchema, EvidenceFileSchema, RulesetSchema } from "./schema.js";
@@ -2198,26 +2361,47 @@ export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = 
   const { statuses, trace } = argue(claims, ruleset);
 
   const masses: Mass[] = [];
+  /** claimId -> the discount explanation, folded into that claim's existing trace step. */
+  const discountNotes = new Map<string, string>();
+
   for (const c of claims) {
-    switch (statuses.get(c.id)) {
-      case "admitted":
-        masses.push(claimToMass(c.assertion, c.strength));
-        break;
-      case "downweighted": {
-        // R4: admitted with reduced weight rather than excluded.
-        const r4 = ruleset.rules.find((x) => x.id === "R4");
-        masses.push(soften(claimToMass(c.assertion, c.strength), r4?.enabled ? 1 - r4.strength : 1));
-        break;
-      }
-      case "undecided":
-        // Contributes ignorance, not a vote. This is the fusion-vs-averaging
-        // distinction applied to the argumentation layer.
-        masses.push({ ...VACUOUS });
-        break;
-      default:
-        break; // defeated: excluded from fusion, retained in the trace
+    const status = statuses.get(c.id);
+
+    // Defeated: excluded from fusion entirely, but RETAINED in the trace.
+    if (status === "defeated") continue;
+
+    // Undecided: contributes ignorance, never a vote. This is the
+    // fusion-versus-averaging distinction applied to the argumentation layer.
+    if (status === "undecided") {
+      masses.push({ ...VACUOUS });
+      continue;
+    }
+
+    // Admitted: apply the evidence-quality discount.
+    //
+    // This is what makes an unopposed-but-weak evidence set abstain rather than
+    // advance. Four clean rodent studies with no exposure data do not license a
+    // safety conclusion just because nothing contradicts them - so most of their
+    // mass belongs in Theta, not on "safe".
+    const { factor, reasons } = relevanceDiscount(c, ruleset);
+    masses.push(soften(claimToMass(c.assertion, c.strength), factor));
+
+    if (reasons.length > 0) {
+      discountNotes.set(
+        c.id,
+        ` Weight reduced to ${(factor * 100).toFixed(0)}% of stated confidence: ` +
+        reasons.map((r) => r.rationale).join(" "),
+      );
     }
   }
+
+  // Fold discount explanations into the EXISTING step for each claim rather than
+  // appending new ones - exactly one trace step per claim is an invariant the UI
+  // and the tests both rely on.
+  const enrichedTrace: TraceStep[] = trace.map((step) => {
+    const note = discountNotes.get(step.claimId);
+    return note ? { ...step, rationale: step.rationale + note } : step;
+  });
 
   const admitted = claims.filter((c) => statuses.get(c.id) === "admitted");
   const fused = fuse(masses);
@@ -2256,8 +2440,8 @@ export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = 
   const contested = detectConflict(survivors).conflicting || fused.conflictMass > 0;
 
   const withReason = abst.reason
-    ? [...trace, { claimId: "__verdict__", status: "undecided" as const, rationale: abst.reason }]
-    : trace;
+    ? [...enrichedTrace, { claimId: "__verdict__", status: "undecided" as const, rationale: abst.reason }]
+    : enrichedTrace;
 
   return {
     verdict,
