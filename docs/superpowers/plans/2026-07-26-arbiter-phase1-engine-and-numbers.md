@@ -963,9 +963,22 @@ export interface TraceStep {
 }
 
 export interface Counterfactual {
-  /** Claims whose assertions must flip together to change the verdict. */
-  claimIds: string[];
-  flipTo: Assertion;
+  /**
+   * Every claim that must change, and what it must become, for the verdict to
+   * flip — sorted by claimId so the value is stable under input reordering.
+   *
+   * A per-claim target rather than one shared `flipTo`, because the search is
+   * exhaustive over ASSIGNMENTS and a minimal answer can be heterogeneous: "this
+   * toxic reading would have to become safe *and* that one would have to become
+   * ambiguous". A single `flipTo` field cannot express that, and having one is
+   * what let an earlier draft search 3 combinations per pair instead of 9 while
+   * still calling itself exhaustive.
+   *
+   * Every entry is a genuine change: a flip whose target equals the claim's
+   * current assertion is never reported, so `flips.length` is the true size of
+   * the minimal set.
+   */
+  flips: { claimId: string; to: Assertion }[];
   newVerdict: Verdict;
 }
 
@@ -3851,6 +3864,7 @@ Create `packages/engine/src/index.ts`:
 import { shouldAbstain } from "./abstain.js";
 import { argue } from "./argue.js";
 import { detectConflict } from "./conflict.js";
+import { findCounterfactual } from "./counterfactual.js";
 import { VACUOUS, claimToMass, fuse, type Mass } from "./fuse.js";
 import { relevanceDiscount } from "./rules.js";
 import type { EvidenceClaim, Reasoning, Ruleset, TraceStep, Verdict } from "./types.js";
@@ -3864,6 +3878,7 @@ export type { Discount } from "./rules.js";
 export { argue } from "./argue.js";
 export { detectConflict } from "./conflict.js";
 export { shouldAbstain } from "./abstain.js";
+export { findCounterfactual } from "./counterfactual.js";
 
 /**
  * Shift a claim's committed mass toward Theta by `factor`, leaving the rest
@@ -3887,6 +3902,35 @@ function soften(m: Mass, factor: number): Mass {
  * of behaviour.
  */
 export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = ""): Reasoning {
+  return reasonCore(claims, ruleset, rulesetHash, true);
+}
+
+/**
+ * The verdict and the range only - no counterfactual, no planner.
+ *
+ * Robustness sampling in Task 15 needs thousands of evaluations per compound and
+ * reads nothing but the verdict. The counterfactual search alone costs ~130
+ * recursive evaluations, so calling the full `reason` there would multiply the
+ * work by two orders of magnitude for output nobody looks at.
+ *
+ * Identical verdict logic by construction: same function, one flag.
+ */
+export function reasonVerdictOnly(claims: EvidenceClaim[], ruleset: Ruleset): Reasoning {
+  return reasonCore(claims, ruleset, "", false);
+}
+
+/**
+ * The extras-free recursion target handed to the counterfactual search, so the
+ * search cannot re-enter itself. Bound once rather than allocated per call.
+ */
+const bare = (c: EvidenceClaim[], rs: Ruleset): Reasoning => reasonCore(c, rs, "", false);
+
+function reasonCore(
+  claims: EvidenceClaim[],
+  ruleset: Ruleset,
+  rulesetHash: string,
+  withExtras: boolean,
+): Reasoning {
   const { statuses, trace } = argue(claims, ruleset);
 
   const masses: Mass[] = [];
@@ -4006,7 +4050,7 @@ export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = 
     mass,
     conflictMass: fused.conflictMass,
     trace: withReason,
-    counterfactual: null, // Task 8
+    counterfactual: withExtras ? findCounterfactual(claims, ruleset, verdict, bare) : null,
     nextExperiment: null, // Task 9
     rulesetHash,
   };
@@ -4061,12 +4105,13 @@ Create `packages/engine/test/counterfactual.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { reason } from "../src/index.js";
+import { reason, reasonVerdictOnly } from "../src/index.js";
 import { findCounterfactual } from "../src/counterfactual.js";
 import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
 import type { Assertion, EvidenceClaim, Ruleset } from "../src/types.js";
 
 const RS = ruleset as Ruleset;
+const TARGETS: Assertion[] = ["toxic", "safe", "ambiguous"];
 
 function claim(over: Partial<EvidenceClaim> & { id: string }): EvidenceClaim {
   return {
@@ -4078,20 +4123,43 @@ function claim(over: Partial<EvidenceClaim> & { id: string }): EvidenceClaim {
   };
 }
 
-/** Brute-force oracle: try every subset up to size 2 and every target assertion. */
-function oracle(claims: EvidenceClaim[], rs: Ruleset): { size: number } | null {
-  const current = reason(claims, rs).verdict;
-  const targets: Assertion[] = ["toxic", "safe", "ambiguous"];
-  for (const size of [1, 2]) {
-    const subsets = size === 1
-      ? claims.map((c) => [c])
-      : claims.flatMap((a, i) => claims.slice(i + 1).map((b) => [a, b]));
-    for (const subset of subsets) {
-      for (const t of targets) {
-        const flipped = claims.map((c) =>
-          subset.some((s) => s.id === c.id) ? { ...c, assertion: t } : c,
-        );
-        if (reason(flipped, rs).verdict !== current) return { size };
+const find = (claims: EvidenceClaim[]) =>
+  findCounterfactual(claims, RS, reasonVerdictOnly(claims, RS).verdict, reasonVerdictOnly);
+
+/**
+ * Brute-force oracle, built to be INDEPENDENT of the implementation rather than a
+ * paraphrase of it. The implementation walks nested claim/target loops; this
+ * enumerates subsets as bitmasks and assignments as base-3 counters. Same
+ * question, different construction, so agreement is evidence rather than an echo.
+ *
+ * Shares exactly one rule with the implementation on purpose: every flip must be a
+ * genuine change. Without that they would disagree legitimately, since a "pair"
+ * containing a no-op is really a single.
+ */
+function oracleMinSize(claims: EvidenceClaim[]): number | null {
+  const current = reasonVerdictOnly(claims, RS).verdict;
+  const n = claims.length;
+  for (const wantSize of [1, 2]) {
+    for (let mask = 1; mask < (1 << n); mask++) {
+      const idx: number[] = [];
+      for (let b = 0; b < n; b++) if (mask & (1 << b)) idx.push(b);
+      if (idx.length !== wantSize) continue;
+
+      const combos = 3 ** wantSize;
+      for (let code = 0; code < combos; code++) {
+        const assign: Assertion[] = [];
+        let rest = code;
+        for (let k = 0; k < wantSize; k++) {
+          assign.push(TARGETS[rest % 3]!);
+          rest = Math.floor(rest / 3);
+        }
+        if (assign.some((t, k) => claims[idx[k]!]!.assertion === t)) continue;
+
+        const flipped = claims.map((c, i) => {
+          const k = idx.indexOf(i);
+          return k === -1 ? c : { ...c, assertion: assign[k]! };
+        });
+        if (reasonVerdictOnly(flipped, RS).verdict !== current) return wantSize;
       }
     }
   }
@@ -4101,52 +4169,205 @@ function oracle(claims: EvidenceClaim[], rs: Ruleset): { size: number } | null {
 describe("findCounterfactual", () => {
   it("finds a single-claim flip when one exists", () => {
     const claims = [
-      claim({ id: "a", assertion: "safe", strength: 0.9, stream: "cytotox" }),
-      claim({ id: "b", assertion: "safe", strength: 0.9, stream: "transporter" }),
+      claim({ id: "a", assertion: "safe", strength: 0.9, stream: "cytotox", exposureRelevant: true, measuresKeyEvent: "KE:1" }),
+      claim({ id: "b", assertion: "safe", strength: 0.9, stream: "transporter", exposureRelevant: true, measuresKeyEvent: "KE:2" }),
     ];
-    const cf = findCounterfactual(claims, RS, reason(claims, RS).verdict, reason);
+    const before = reasonVerdictOnly(claims, RS).verdict;
+    const cf = find(claims);
     expect(cf).not.toBeNull();
-    expect(cf!.claimIds).toHaveLength(1);
-    expect(cf!.newVerdict).not.toBe(reason(claims, RS).verdict);
+    expect(cf!.flips).toHaveLength(1);
+    expect(cf!.newVerdict).not.toBe(before);
+
+    // The reported flip must actually produce the reported verdict. Without this
+    // the whole output could be internally inconsistent and still "pass".
+    const applied = claims.map((c) =>
+      c.id === cf!.flips[0]!.claimId ? { ...c, assertion: cf!.flips[0]!.to } : c);
+    expect(reasonVerdictOnly(applied, RS).verdict).toBe(cf!.newVerdict);
   });
 
-  it("prefers the smallest flip - never reports a pair when a single works", () => {
+  it("prefers the smallest flip - reports a single, never a pair, when a single works", () => {
     const claims = [
-      claim({ id: "a", assertion: "safe", strength: 0.95, stream: "cytotox" }),
-      claim({ id: "b", assertion: "safe", strength: 0.95, stream: "transporter" }),
-      claim({ id: "c", assertion: "safe", strength: 0.95, stream: "qsar", system: "in_silico" }),
+      claim({ id: "a", assertion: "safe", strength: 0.95, stream: "cytotox", exposureRelevant: true, measuresKeyEvent: "KE:1" }),
+      claim({ id: "b", assertion: "safe", strength: 0.95, stream: "transporter", exposureRelevant: true, measuresKeyEvent: "KE:2" }),
+      claim({ id: "c", assertion: "safe", strength: 0.95, stream: "invivo_rodent", system: "rodent", exposureRelevant: true }),
     ];
-    const cf = findCounterfactual(claims, RS, reason(claims, RS).verdict, reason);
-    if (cf) expect(cf.claimIds).toHaveLength(1);
+    const cf = find(claims);
+    // Asserted UNCONDITIONALLY. An earlier draft wrapped this in `if (cf)`, which
+    // passes silently whenever the search returns null - the one outcome that
+    // would mean the search is broken.
+    expect(cf).not.toBeNull();
+    expect(cf!.flips).toHaveLength(1);
+    expect(oracleMinSize(claims)).toBe(1);
   });
 
-  it("returns null when nothing within two flips changes the verdict", () => {
-    const cf = findCounterfactual([], RS, reason([], RS).verdict, reason);
-    expect(cf).toBeNull();
+  it("returns null when NO combination of one or two flips changes the verdict", () => {
+    // A real case, not the empty list. Four heavily-discounted rodent claims: every
+    // one is non-human (R1, x0.1) and most carry no exposure margin, so the fused
+    // mass sits far inside the abstention gap. Flipping one or two of them cannot
+    // move enough mass to escape, whichever way they are flipped.
+    const stuck = [
+      claim({ id: "r1", assertion: "safe", strength: 0.85, system: "rodent", stream: "invivo_rodent", klimisch: 3 }),
+      claim({ id: "r2", assertion: "safe", strength: 0.85, system: "rodent", stream: "invivo_rodent", klimisch: 3 }),
+      claim({ id: "r3", assertion: "safe", strength: 0.8, system: "nonrodent", stream: "invivo_nonrodent", klimisch: 3 }),
+      claim({ id: "r4", assertion: "safe", strength: 0.8, system: "nonrodent", stream: "invivo_nonrodent", klimisch: 3 }),
+    ];
+    expect(reasonVerdictOnly(stuck, RS).verdict).toBe("abstain");
+    expect(find(stuck)).toBeNull();
+    // The independent oracle must agree it is genuinely unreachable, so this is a
+    // real negative rather than a search that gave up.
+    expect(oracleMinSize(stuck)).toBeNull();
   });
 
-  it("AGREES WITH THE BRUTE-FORCE ORACLE on deterministic random cases", () => {
+  it("returns null on no evidence at all", () => {
+    expect(find([])).toBeNull();
+  });
+
+  it("never reports a flip that is not a change, so flips.length is the true minimal size", () => {
+    const claims = [
+      claim({ id: "a", assertion: "toxic", strength: 0.9, exposureRelevant: true, measuresKeyEvent: "KE:1" }),
+      claim({ id: "b", assertion: "safe", strength: 0.5, stream: "transporter", exposureRelevant: true, measuresKeyEvent: "KE:2" }),
+      claim({ id: "c", assertion: "safe", strength: 0.5, stream: "toxicogenomics", exposureRelevant: true, measuresKeyEvent: "KE:3" }),
+    ];
+    const cf = find(claims);
+    if (cf) {
+      for (const f of cf.flips) {
+        const original = claims.find((c) => c.id === f.claimId)!;
+        expect(f.to).not.toBe(original.assertion);
+      }
+      expect(new Set(cf.flips.map((f) => f.claimId)).size).toBe(cf.flips.length);
+    }
+    // Guard against the block above being skipped entirely.
+    expect(cf === null || cf.flips.length > 0).toBe(true);
+  });
+
+  it("is INDEPENDENT OF CLAIM ORDER - the same evidence gives the same counterfactual", () => {
+    // The Task 5 ruling on `defeatedBy` attribution applies here too: a trace is a
+    // UI output, so the same situation must give the same explanation. Returning
+    // the first hit found would make this depend on load order.
+    const claims = [
+      claim({ id: "a", assertion: "toxic", strength: 0.7, stream: "cytotox", exposureRelevant: true, measuresKeyEvent: "KE:1" }),
+      claim({ id: "b", assertion: "safe", strength: 0.7, stream: "transporter", exposureRelevant: true, measuresKeyEvent: "KE:2" }),
+      claim({ id: "c", assertion: "safe", strength: 0.6, stream: "toxicogenomics", exposureRelevant: true, measuresKeyEvent: "KE:3" }),
+      claim({ id: "d", assertion: "toxic", strength: 0.6, stream: "qsar", system: "in_silico" }),
+    ];
+    const forward = find(claims);
+    const reversed = find([...claims].reverse());
+    const rotated = find([claims[2]!, claims[3]!, claims[0]!, claims[1]!]);
+    expect(reversed).toEqual(forward);
+    expect(rotated).toEqual(forward);
+  });
+
+  it("SEARCHES HETEROGENEOUS PAIRS - finds a flip that no single shared target could express", () => {
+    // Measured on 4,000 random cases: the narrower search that flips both claims of
+    // a pair to the SAME assertion never actually disagrees with this one, because
+    // homogeneous assignments dominate - "both to X" moves mass further toward a
+    // committed verdict than a mixed pair does, and "both to ambiguous" dominates a
+    // mixed pair for reaching abstention. So this cannot be tested against the real
+    // engine: no natural input distinguishes them.
+    //
+    // It is still worth GUARANTEEING rather than leaving to that argument, because
+    // the spec promises "exhaustive, not heuristic - exact, with nothing to defend",
+    // and because Tasks 11 and 12 introduce discount profiles this corpus does not
+    // contain. So the property is tested where it lives: `reasonFn` is an injected
+    // seam, so a stub can make exactly one heterogeneous assignment decisive. A
+    // search that only ever tries shared targets returns null here.
+    const claims = [
+      claim({ id: "a", assertion: "toxic" }),
+      claim({ id: "b", assertion: "safe" }),
+    ];
+    let calls = 0;
+    const stub = (cs: EvidenceClaim[]): ReturnType<typeof reasonVerdictOnly> => {
+      calls++;
+      const a = cs.find((c) => c.id === "a")!.assertion;
+      const b = cs.find((c) => c.id === "b")!.assertion;
+      // Decisive ONLY for a -> safe together with b -> ambiguous. Every other
+      // assignment, including all three homogeneous ones, keeps the verdict.
+      const flipped = a === "safe" && b === "ambiguous";
+      return { verdict: flipped ? "advance" : "abstain" } as ReturnType<typeof reasonVerdictOnly>;
+    };
+
+    const cf = findCounterfactual(claims, RS, "abstain", stub);
+    expect(cf).not.toBeNull();
+    expect(cf!.newVerdict).toBe("advance");
+    expect(cf!.flips).toEqual([
+      { claimId: "a", to: "safe" },
+      { claimId: "b", to: "ambiguous" },
+    ]);
+    // Sanity: the stub really was consulted many times, so this is not passing by
+    // some short-circuit that never evaluated anything.
+    expect(calls).toBeGreaterThan(4);
+  });
+
+  it("AGREES WITH THE BRUTE-FORCE ORACLE on 120 deterministic random cases", () => {
     let s = 987654;
     const next = () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648);
     const streams = ["qsar", "cytotox", "toxicogenomics", "transporter"] as const;
-    const assertions: Assertion[] = ["toxic", "safe", "ambiguous"];
 
+    let nonNull = 0;
     for (let trial = 0; trial < 120; trial++) {
       const n = 1 + Math.floor(next() * 4);
-      const claims = Array.from({ length: n }, (_, i) =>
-        claim({
+      const claims = Array.from({ length: n }, (_, i) => {
+        const stream = streams[Math.floor(next() * streams.length)]!;
+        return claim({
           id: `c${i}`,
-          stream: streams[Math.floor(next() * streams.length)]!,
-          assertion: assertions[Math.floor(next() * assertions.length)]!,
+          stream,
+          // qsar claims must stay in_silico-consistent: the schema forbids a
+          // computational prediction from asserting a MEASURED key event.
+          system: stream === "qsar" ? "in_silico" : "human",
+          assertion: TARGETS[Math.floor(next() * TARGETS.length)]!,
           strength: 0.4 + next() * 0.6,
           klimisch: (1 + Math.floor(next() * 4)) as 1 | 2 | 3 | 4,
-        }),
-      );
-      const found = findCounterfactual(claims, RS, reason(claims, RS).verdict, reason);
-      const expected = oracle(claims, RS);
-      expect(found === null).toBe(expected === null);
-      if (found && expected) expect(found.claimIds.length).toBe(expected.size);
+          exposureRelevant: next() < 0.5 ? true : null,
+        });
+      });
+      const found = find(claims);
+      const expected = oracleMinSize(claims);
+      expect(found === null, `trial ${trial}: null disagreement`).toBe(expected === null);
+      if (found && expected !== null) {
+        expect(found.flips.length, `trial ${trial}: size disagreement`).toBe(expected);
+      }
+      if (found) nonNull++;
     }
+    // The corpus must actually exercise the search. If every trial came back null
+    // the agreement above would be unanimous and worthless.
+    expect(nonNull).toBeGreaterThan(20);
+  });
+});
+
+describe("reason() integration", () => {
+  it("populates counterfactual, and the reported flip really does produce the reported verdict", () => {
+    const claims = [
+      claim({ id: "a", assertion: "safe", strength: 0.9, stream: "cytotox", exposureRelevant: true, measuresKeyEvent: "KE:1" }),
+      claim({ id: "b", assertion: "safe", strength: 0.9, stream: "transporter", exposureRelevant: true, measuresKeyEvent: "KE:2" }),
+    ];
+    const r = reason(claims, RS);
+    expect(r.counterfactual).not.toBeNull();
+    const applied = claims.map((c) => {
+      const f = r.counterfactual!.flips.find((x) => x.claimId === c.id);
+      return f ? { ...c, assertion: f.to } : c;
+    });
+    expect(reasonVerdictOnly(applied, RS).verdict).toBe(r.counterfactual!.newVerdict);
+    expect(r.counterfactual!.newVerdict).not.toBe(r.verdict);
+  });
+
+  it("reasonVerdictOnly skips the search but returns the identical verdict and range", () => {
+    const claims = [
+      claim({ id: "a", assertion: "toxic", strength: 0.9, system: "human", klimisch: 1, exposureRelevant: true, measuresKeyEvent: "KE:1" }),
+      claim({ id: "b", assertion: "safe", strength: 0.9, system: "rodent", stream: "invivo_rodent", klimisch: 2 }),
+    ];
+    const full = reason(claims, RS);
+    const cheap = reasonVerdictOnly(claims, RS);
+    expect(cheap.counterfactual).toBeNull();
+    expect(full.counterfactual).not.toBeNull();
+    // Everything the sampling path reads must be bit-identical, or Task 15's
+    // robustness numbers would describe a different engine than the one shipped.
+    expect(cheap.verdict).toBe(full.verdict);
+    expect(cheap.belief).toBe(full.belief);
+    expect(cheap.plausibility).toBe(full.plausibility);
+    expect(cheap.mass).toEqual(full.mass);
+    expect(cheap.conflictMass).toBe(full.conflictMass);
+    expect(cheap.contested).toBe(full.contested);
+    expect(cheap.trace).toEqual(full.trace);
   });
 });
 ```
@@ -4166,19 +4387,38 @@ Create `packages/engine/src/counterfactual.ts`:
 ```ts
 import type { Assertion, Counterfactual, EvidenceClaim, Reasoning, Ruleset, Verdict } from "./types.js";
 
-const TARGETS: Assertion[] = ["toxic", "safe", "ambiguous"];
+/** Fixed iteration order, so the canonical tie-break below is reproducible. */
+const TARGETS: readonly Assertion[] = ["toxic", "safe", "ambiguous"] as const;
+
+const targetRank = (a: Assertion): number => TARGETS.indexOf(a);
+
+type Flip = { claimId: string; to: Assertion };
 
 /**
  * "What would have to change for this verdict to flip?"
  *
- * EXHAUSTIVE, not heuristic. With at most six claims per compound the search
- * space is 6 single flips plus 15 pairs, times three target assertions - well
- * under 100 evaluations of a pure microsecond-scale function. So we search
- * singles first, then pairs, and return the smallest set. There is no
- * approximation to defend in Q&A.
+ * EXHAUSTIVE, not heuristic — and exhaustive in the sense the spec promises,
+ * which is stronger than it first looks. An earlier draft searched pairs by
+ * flipping BOTH claims to the SAME assertion, which is 3 combinations per pair
+ * rather than 9, and would have missed any minimal answer of the form "this
+ * toxic reading would have to become safe AND that one would have to become
+ * ambiguous". The spec's claim is "exact, with nothing to defend", so the search
+ * covers every assignment of target assertions to the chosen claims.
  *
- * `reasonFn` is injected rather than imported to keep index.ts -> here a
- * one-way dependency.
+ * Cost, with the six-claims-per-compound ceiling: 6x2 = 12 singles, plus 15
+ * pairs x (3x3 - the no-op combinations) = at most 120 more. Around 130
+ * evaluations of a pure microsecond-scale function per call. (The plan's
+ * Task 15 note estimated 21; that was the homogeneous count and is corrected
+ * there.) Sampling paths must use the extras-free entry point, which is exactly
+ * why `reasonVerdictOnly` exists.
+ *
+ * A REPORTED PAIR ALWAYS REQUIRES BOTH CLAIMS TO CHANGE. Combinations where
+ * either target equals the claim's existing assertion are skipped, because that
+ * is a single flip wearing a pair's clothing, and the singles pass has already
+ * rejected it.
+ *
+ * `reasonFn` is injected rather than imported to keep index.ts -> here a one-way
+ * dependency.
  */
 export function findCounterfactual(
   claims: EvidenceClaim[],
@@ -4186,27 +4426,81 @@ export function findCounterfactual(
   currentVerdict: Verdict,
   reasonFn: (claims: EvidenceClaim[], ruleset: Ruleset) => Reasoning,
 ): Counterfactual | null {
-  const flip = (ids: Set<string>, to: Assertion) =>
-    claims.map((c) => (ids.has(c.id) ? { ...c, assertion: to } : c));
+  const apply = (flips: Flip[]): EvidenceClaim[] => {
+    const byId = new Map(flips.map((f) => [f.claimId, f.to]));
+    return claims.map((c) => {
+      const to = byId.get(c.id);
+      return to === undefined ? c : { ...c, assertion: to };
+    });
+  };
 
-  // Singles.
-  for (const c of claims) {
-    for (const to of TARGETS) {
-      if (c.assertion === to) continue;
-      const v = reasonFn(flip(new Set([c.id]), to), ruleset).verdict;
-      if (v !== currentVerdict) return { claimIds: [c.id], flipTo: to, newVerdict: v };
+  /**
+   * Every solution of a given size, not just the first.
+   *
+   * Collecting all of them costs nothing at this scale and buys a property the
+   * project already ruled it wants: the same situation must produce the same
+   * explanation. Returning the first hit would make the reported counterfactual
+   * depend on the order claims happened to load in, which is the defect fixed in
+   * `defeatedBy` attribution during Task 5.
+   */
+  const solutionsOfSize = (size: 1 | 2): { flips: Flip[]; newVerdict: Verdict }[] => {
+    const found: { flips: Flip[]; newVerdict: Verdict }[] = [];
+
+    if (size === 1) {
+      for (const c of claims) {
+        for (const to of TARGETS) {
+          if (c.assertion === to) continue;
+          const flips: Flip[] = [{ claimId: c.id, to }];
+          const v = reasonFn(apply(flips), ruleset).verdict;
+          if (v !== currentVerdict) found.push({ flips, newVerdict: v });
+        }
+      }
+      return found;
     }
-  }
 
-  // Pairs.
-  for (let i = 0; i < claims.length; i++) {
-    for (let j = i + 1; j < claims.length; j++) {
-      const ids = new Set([claims[i]!.id, claims[j]!.id]);
-      for (const to of TARGETS) {
-        const v = reasonFn(flip(ids, to), ruleset).verdict;
-        if (v !== currentVerdict) return { claimIds: [...ids], flipTo: to, newVerdict: v };
+    for (let i = 0; i < claims.length; i++) {
+      for (let j = i + 1; j < claims.length; j++) {
+        const a = claims[i]!;
+        const b = claims[j]!;
+        // Two claims sharing an id are one claim; a "pair" over them is a single
+        // flip and `apply` would rewrite both anyway.
+        if (a.id === b.id) continue;
+        for (const toA of TARGETS) {
+          if (a.assertion === toA) continue;
+          for (const toB of TARGETS) {
+            if (b.assertion === toB) continue;
+            const flips: Flip[] = [{ claimId: a.id, to: toA }, { claimId: b.id, to: toB }];
+            const v = reasonFn(apply(flips), ruleset).verdict;
+            if (v !== currentVerdict) found.push({ flips, newVerdict: v });
+          }
+        }
       }
     }
+    return found;
+  };
+
+  /**
+   * Total order over solutions of equal size: claim ids first (sorted, so the
+   * key does not depend on input order), then target assertions in TARGETS
+   * order. Deterministic and input-order-independent.
+   */
+  const key = (s: { flips: Flip[] }): string => {
+    const sorted = [...s.flips].sort((x, y) => (x.claimId < y.claimId ? -1 : x.claimId > y.claimId ? 1 : 0));
+    // JSON rather than a delimiter-joined string. Claim ids come from external
+    // data files, so any printable separator could appear inside an id and make
+    // two different solutions collide on one key; JSON quotes and escapes each
+    // field, so the encoding is injective without picking a magic character.
+    return JSON.stringify(sorted.map((f) => [f.claimId, targetRank(f.to)]));
+  };
+
+  for (const size of [1, 2] as const) {
+    const found = solutionsOfSize(size);
+    if (found.length === 0) continue;
+    const best = found.reduce((lo, cand) => (key(cand) < key(lo) ? cand : lo));
+    // Report the flips in sorted-id order too, so the output itself is stable
+    // rather than merely the choice between candidates.
+    const flips = [...best.flips].sort((x, y) => (x.claimId < y.claimId ? -1 : x.claimId > y.claimId ? 1 : 0));
+    return { flips, newVerdict: best.newVerdict };
   }
 
   return null;
@@ -4224,15 +4518,36 @@ export { findCounterfactual } from "./counterfactual.js";
 
 Replace the `return { ... }` block's counterfactual field. Because the search calls `reason` recursively, guard against infinite recursion with an internal flag: extract the body of `reason` into `reasonCore(claims, ruleset, rulesetHash, withExtras)` and have `reason` call it with `withExtras = true`, while the counterfactual search passes a bound `reasonCore(..., false)`.
 
+**Also export `reasonVerdictOnly` here, rather than waiting for Task 15.** Task 15's plan
+introduces it, but the flag it needs is created by *this* task, and leaving the public
+extras-free entry point until later means Task 9's planner — which re-runs the engine per
+candidate outcome — has nothing cheap to call and would recurse through the counterfactual
+search on every probe.
+
+> **Excerpt.** The authoritative `index.ts` listing is in Task 7 and is kept byte-identical
+> to the shipped source by `tools/sync_plan.py`. The elision below is real elision, not a
+> claim that the omitted lines are unchanged.
+
 ```ts
 export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = ""): Reasoning {
   return reasonCore(claims, ruleset, rulesetHash, true);
 }
 
-const bare = (c: EvidenceClaim[], rs: Ruleset) => reasonCore(c, rs, "", false);
+/** The verdict and the range only — for sampling paths that read nothing else. */
+export function reasonVerdictOnly(claims: EvidenceClaim[], ruleset: Ruleset): Reasoning {
+  return reasonCore(claims, ruleset, "", false);
+}
 
-function reasonCore(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash: string, withExtras: boolean): Reasoning {
-  /* ...everything from Task 7, unchanged, down to the return... */
+/** Extras-free recursion target, so the search cannot re-enter itself. */
+const bare = (c: EvidenceClaim[], rs: Ruleset): Reasoning => reasonCore(c, rs, "", false);
+
+function reasonCore(
+  claims: EvidenceClaim[],
+  ruleset: Ruleset,
+  rulesetHash: string,
+  withExtras: boolean,
+): Reasoning {
+  /* ...argue -> discount -> fuse -> abstain -> verdict, exactly as in Task 7... */
   return {
     verdict, contested, belief, plausibility, mass,
     conflictMass: fused.conflictMass,
@@ -6916,7 +7231,7 @@ Expected: FAIL — `Cannot find module '../src/stats.js'` and `'../src/metrics.j
 
 - [ ] **Step 4: Add a verdict-only engine entry point**
 
-Robustness needs ~2,000 engine evaluations per compound. `reason()` also runs the exhaustive counterfactual (≈21 recursive evaluations), which would multiply that by 21 for no benefit — perturbation only needs the verdict.
+Robustness needs ~2,000 engine evaluations per compound. `reason()` also runs the exhaustive counterfactual, which is ~130 recursive evaluations once pairs are searched over every combination of target assertions and not just a shared one — so calling it here would multiply the work by two orders of magnitude for output nobody reads. Perturbation only needs the verdict, which is what `reasonVerdictOnly` returns. (An earlier draft of this note said ≈21; that was the homogeneous-pair count.)
 
 In `packages/engine/src/index.ts`, add:
 
@@ -7347,7 +7662,7 @@ stays inside [0,1] at the extremes where the normal approximation produces
 intervals like [-0.06, 0.31].
 
 Adds reasonVerdictOnly to the engine so perturbation sampling skips the
-counterfactual, which costs 20x and is never read during sampling.
+counterfactual, which costs ~130 extra engine evaluations and is never read during sampling.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```

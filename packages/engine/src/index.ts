@@ -1,6 +1,7 @@
 import { shouldAbstain } from "./abstain.js";
 import { argue } from "./argue.js";
 import { detectConflict } from "./conflict.js";
+import { findCounterfactual } from "./counterfactual.js";
 import { VACUOUS, claimToMass, fuse, type Mass } from "./fuse.js";
 import { relevanceDiscount } from "./rules.js";
 import type { EvidenceClaim, Reasoning, Ruleset, TraceStep, Verdict } from "./types.js";
@@ -14,6 +15,7 @@ export type { Discount } from "./rules.js";
 export { argue } from "./argue.js";
 export { detectConflict } from "./conflict.js";
 export { shouldAbstain } from "./abstain.js";
+export { findCounterfactual } from "./counterfactual.js";
 
 /**
  * Shift a claim's committed mass toward Theta by `factor`, leaving the rest
@@ -37,6 +39,35 @@ function soften(m: Mass, factor: number): Mass {
  * of behaviour.
  */
 export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = ""): Reasoning {
+  return reasonCore(claims, ruleset, rulesetHash, true);
+}
+
+/**
+ * The verdict and the range only - no counterfactual, no planner.
+ *
+ * Robustness sampling in Task 15 needs thousands of evaluations per compound and
+ * reads nothing but the verdict. The counterfactual search alone costs ~130
+ * recursive evaluations, so calling the full `reason` there would multiply the
+ * work by two orders of magnitude for output nobody looks at.
+ *
+ * Identical verdict logic by construction: same function, one flag.
+ */
+export function reasonVerdictOnly(claims: EvidenceClaim[], ruleset: Ruleset): Reasoning {
+  return reasonCore(claims, ruleset, "", false);
+}
+
+/**
+ * The extras-free recursion target handed to the counterfactual search, so the
+ * search cannot re-enter itself. Bound once rather than allocated per call.
+ */
+const bare = (c: EvidenceClaim[], rs: Ruleset): Reasoning => reasonCore(c, rs, "", false);
+
+function reasonCore(
+  claims: EvidenceClaim[],
+  ruleset: Ruleset,
+  rulesetHash: string,
+  withExtras: boolean,
+): Reasoning {
   const { statuses, trace } = argue(claims, ruleset);
 
   const masses: Mass[] = [];
@@ -156,7 +187,7 @@ export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = 
     mass,
     conflictMass: fused.conflictMass,
     trace: withReason,
-    counterfactual: null, // Task 8
+    counterfactual: withExtras ? findCounterfactual(claims, ruleset, verdict, bare) : null,
     nextExperiment: null, // Task 9
     rulesetHash,
   };

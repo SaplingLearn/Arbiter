@@ -132,9 +132,22 @@ export interface TraceStep {
 }
 
 export interface Counterfactual {
-  /** Claims whose assertions must flip together to change the verdict. */
-  claimIds: string[];
-  flipTo: Assertion;
+  /**
+   * Every claim that must change, and what it must become, for the verdict to
+   * flip — sorted by claimId so the value is stable under input reordering.
+   *
+   * A per-claim target rather than one shared `flipTo`, because the search is
+   * exhaustive over ASSIGNMENTS and a minimal answer can be heterogeneous: "this
+   * toxic reading would have to become safe *and* that one would have to become
+   * ambiguous". A single `flipTo` field cannot express that, and having one is
+   * what let an earlier draft search 3 combinations per pair instead of 9 while
+   * still calling itself exhaustive.
+   *
+   * Every entry is a genuine change: a flip whose target equals the claim's
+   * current assertion is never reported, so `flips.length` is the true size of
+   * the minimal set.
+   */
+  flips: { claimId: string; to: Assertion }[];
   newVerdict: Verdict;
 }
 

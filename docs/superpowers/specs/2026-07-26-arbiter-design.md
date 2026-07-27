@@ -374,8 +374,19 @@ is reported as a finding rather than quietly corrected.
 
 ### Counterfactual — exhaustive, not heuristic
 
-With at most six claims per compound, each assertion is flipped, the engine re-run, and the minimal set that
-changes the verdict identified. Six re-runs of a pure function. Exact, with nothing to defend.
+With at most six claims per compound, the engine is re-run over every single-claim flip and then every pair,
+and the smallest set that changes the verdict is reported. Exhaustive over **assignments**, not just over
+subsets: a pair is tried with every combination of target assertions, so a minimal answer of the form "this
+toxic reading would have to become safe *and* that one would have to become ambiguous" cannot be missed. That
+is 12 single flips plus at most 120 pairs — around 130 re-runs of a pure microsecond-scale function. Exact,
+with nothing to defend.
+
+Measured aside, recorded because it is the kind of thing worth knowing rather than assuming: across 4,000
+random cases the narrower search that flips both claims of a pair to the *same* assertion never once produced a
+different answer. Homogeneous assignments appear to dominate — "both to X" pushes mass further toward a
+committed verdict than a mixed pair does, and "both to ambiguous" dominates a mixed pair for reaching
+abstention. The exhaustive search is kept because the guarantee is what was promised, the cost is negligible,
+and 4,000 samples of one evidence distribution is not a proof.
 
 ### Value-of-information planner
 

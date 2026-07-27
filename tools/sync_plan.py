@@ -26,6 +26,8 @@ TARGETS = {
     "packages/engine/src/argue.ts": "export function argue(",
     "packages/engine/src/abstain.ts": "export function shouldAbstain(",
     "packages/engine/src/conflict.ts": "export function detectConflict(",
+    "packages/engine/src/counterfactual.ts": "export function findCounterfactual(",
+    "packages/engine/test/counterfactual.test.ts": 'describe("findCounterfactual"',
     "packages/engine/src/index.ts": 'import { shouldAbstain } from "./abstain.js";',
     "packages/engine/test/fuse.test.ts": 'describe("claimToMass"',
     "packages/engine/test/rules.test.ts": 'describe("conflictsWith"',
