@@ -6,6 +6,13 @@
   "extends": ["eslint:recommended"],
   "env": { "es2022": true, "node": true },
   "rules": {
+    // Repo-wide ON PURPOSE, not a leftover from one task. The base eslint rule
+    // does not understand TypeScript and reports false positives on type-only
+    // imports, interface method parameters and declaration merging; the
+    // @typescript-eslint version is the same check with type awareness. Disabling
+    // the base rule and enabling the plugin's is the required pairing, not a
+    // relaxation - turning both on double-reports, and turning both off loses the
+    // check entirely.
     "no-unused-vars": "off",
     "@typescript-eslint/no-unused-vars": "error"
   },

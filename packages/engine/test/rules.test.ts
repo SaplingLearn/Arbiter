@@ -23,6 +23,20 @@ describe("conflictsWith", () => {
     expect(conflictsWith(claim({ assertion: "toxic" }), claim({ assertion: "toxic" }))).toBe(false);
     expect(conflictsWith(claim({ assertion: "toxic" }), claim({ assertion: "ambiguous" }))).toBe(false);
   });
+
+  it("never lets claims about DIFFERENT compounds conflict, or defeat each other", () => {
+    // Every caller groups by compound before reasoning, so this cannot happen
+    // today - but the failure it prevents is silent: a toxic finding on compound A
+    // deleting a safe finding on compound B produces a confident verdict whose
+    // trace reads perfectly plausible.
+    const a = claim({ id: "a", compoundId: "DRUG-1", assertion: "toxic", system: "human" });
+    const b = claim({ id: "b", compoundId: "DRUG-2", assertion: "safe", system: "rodent", stream: "invivo_rodent" });
+    expect(conflictsWith(a, b)).toBe(false);
+    // Same pair WOULD be an R1 defeat if they were about one compound, which is
+    // what makes this a real guard rather than a vacuous assertion.
+    expect(defeats(a, b, RS)).toBeNull();
+    expect(defeats(a, { ...b, compoundId: "DRUG-1" }, RS)?.byRule).toBe("R1");
+  });
 });
 
 describe("R1 human relevance", () => {
@@ -45,6 +59,16 @@ describe("R2 mechanistic proximity", () => {
     const mech = claim({ id: "m", assertion: "toxic", measuresKeyEvent: "KE:55", stream: "transporter" });
     const struct = claim({ id: "s", assertion: "safe", measuresKeyEvent: null, stream: "qsar", system: "human" });
     expect(defeats(mech, struct, RS)?.byRule).toBe("R2");
+  });
+
+  it("does not fire in reverse - structural correlation cannot outrank a measured key event", () => {
+    // R2 was the only defeat rule with no reverse-direction test; R1, R3 and R5 all
+    // had one. Same system on both sides so R1 cannot supply the asymmetry, equal
+    // exposure and Klimisch so R3 and R5 cannot either.
+    const mech = claim({ id: "m", assertion: "toxic", measuresKeyEvent: "KE:55", stream: "transporter", system: "human" });
+    const struct = claim({ id: "s", assertion: "safe", measuresKeyEvent: null, stream: "qsar", system: "human" });
+    expect(defeats(mech, struct, RS)?.byRule).toBe("R2");
+    expect(defeats(struct, mech, RS)).toBeNull();
   });
 
   it("does not fire against apical in-vivo evidence merely because no key event is annotated", () => {
@@ -77,6 +101,26 @@ describe("R4 applicability domain", () => {
 
   it("leaves an in-domain claim alone", () => {
     expect(downweightFactor(claim({ inApplicabilityDomain: true }), RS)).toBeNull();
+  });
+
+  it("returns exactly 1 - strength, measured at a strength where that differs from strength itself", () => {
+    // R4's registered strength is 0.5, and 1 - 0.5 === 0.5, so EVERY test using the
+    // real ruleset passes whether the code computes `1 - strength` or `strength`.
+    // Re-measure at 0.8, where the two answers are 0.2 and 0.8.
+    const eighty: Ruleset = { ...RS, rules: RS.rules.map((r) => (r.id === "R4" ? { ...r, strength: 0.8 } : r)) };
+    expect(downweightFactor(claim({ inApplicabilityDomain: false }), eighty)!.factor).toBeCloseTo(0.2, 12);
+    // And confirm the real ruleset is the ambiguous case, so this test is not
+    // duplicating one that already discriminates.
+    expect(RS.rules.find((r) => r.id === "R4")!.strength).toBe(0.5);
+  });
+
+  it("treats a null applicability domain as benign, unlike R3's null exposure", () => {
+    // The two rules read `null` in opposite directions and that asymmetry is
+    // deliberate: an unassessed domain is not evidence of being outside it, while an
+    // unestablished exposure margin IS the reason a negative licenses nothing.
+    expect(downweightFactor(claim({ inApplicabilityDomain: null }), RS)).toBeNull();
+    const nullExposureNegative = relevanceDiscount(claim({ assertion: "safe", exposureRelevant: null }), RS);
+    expect(nullExposureNegative.reasons.map((r) => r.byRule)).toContain("R3");
   });
 });
 
@@ -163,11 +207,69 @@ describe("R6 concordance", () => {
 });
 
 describe("disabled rules", () => {
+  /** The ruleset with exactly one rule turned off. */
+  const without = (id: string): Ruleset =>
+    ({ ...RS, rules: RS.rules.map((r) => (r.id === id ? { ...r, enabled: false } : r)) });
+
   it("a disabled rule never fires", () => {
-    const off: Ruleset = { ...RS, rules: RS.rules.map((r) => (r.id === "R1" ? { ...r, enabled: false } : r)) };
     const human = claim({ id: "h", assertion: "toxic", system: "human", exposureRelevant: null, klimisch: 2 });
     const rat = claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", exposureRelevant: null, klimisch: 2 });
-    expect(defeats(human, rat, off)?.byRule).not.toBe("R1");
+    expect(defeats(human, rat, without("R1"))?.byRule).not.toBe("R1");
+  });
+
+  // Coverage was uneven: only R1 had a disabled-path test, so five of the six
+  // rules could have ignored `enabled` entirely. Each case below is built so the
+  // named rule is the ONLY one that fires, then asserted to fall silent - which
+  // also proves each pairing was reaching that rule in the first place.
+
+  it("R2 disabled: a measured key event stops outranking structural correlation", () => {
+    const mech = claim({ id: "m", assertion: "toxic", measuresKeyEvent: "KE:55", stream: "transporter", system: "human" });
+    const struct = claim({ id: "s", assertion: "safe", measuresKeyEvent: null, stream: "qsar", system: "human" });
+    expect(defeats(mech, struct, RS)?.byRule).toBe("R2");
+    expect(defeats(mech, struct, without("R2"))).toBeNull();
+  });
+
+  it("R3 disabled: a positive at clinical exposure stops outranking an untested margin", () => {
+    const pos = claim({ id: "p", assertion: "toxic", exposureRelevant: true });
+    const neg = claim({ id: "n", assertion: "safe", exposureRelevant: null });
+    expect(defeats(pos, neg, RS)?.byRule).toBe("R3");
+    expect(defeats(pos, neg, without("R3"))).toBeNull();
+  });
+
+  it("R4 disabled: an out-of-domain claim is no longer downweighted or discounted", () => {
+    const out = claim({ inApplicabilityDomain: false });
+    expect(downweightFactor(out, RS)?.byRule).toBe("R4");
+    expect(downweightFactor(out, without("R4"))).toBeNull();
+    // R4 also reaches mass through relevanceDiscount, which is a separate call
+    // site and therefore a separate chance to ignore `enabled`.
+    expect(relevanceDiscount(out, RS).reasons.map((r) => r.byRule)).toContain("R4");
+    expect(relevanceDiscount(out, without("R4")).reasons.map((r) => r.byRule)).not.toContain("R4");
+  });
+
+  it("R5 disabled: a more reliable study stops outranking a less reliable one", () => {
+    const good = claim({ id: "g", assertion: "toxic", klimisch: 1 });
+    const poor = claim({ id: "p", assertion: "safe", klimisch: 4 });
+    expect(defeats(good, poor, RS)?.byRule).toBe("R5");
+    expect(defeats(good, poor, without("R5"))).toBeNull();
+  });
+
+  it("R6 disabled: concordance reports no boost and supports no side", () => {
+    const twoStreams = [
+      claim({ id: "a", stream: "cytotox", assertion: "toxic" }),
+      claim({ id: "b", stream: "transporter", assertion: "toxic" }),
+    ];
+    expect(concordanceBoost(twoStreams, RS).boost).toBeGreaterThan(1);
+    expect(concordanceBoost(twoStreams, without("R6"))).toEqual({ supports: null, boost: 1 });
+  });
+
+  it("disabling a rule leaves a GAP a lower-precedence rule can fill, rather than reordering", () => {
+    // R1 outranks R5 in the pre-registered order. With R1 off, the same pair must
+    // still be decided - by R5 - rather than silently surviving. This is the
+    // behaviour the docstring promises and nothing asserted it.
+    const human = claim({ id: "h", assertion: "toxic", system: "human", klimisch: 1 });
+    const rat = claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", klimisch: 4 });
+    expect(defeats(human, rat, RS)?.byRule).toBe("R1");
+    expect(defeats(human, rat, without("R1"))?.byRule).toBe("R5");
   });
 });
 

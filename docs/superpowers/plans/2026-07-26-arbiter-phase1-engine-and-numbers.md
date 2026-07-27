@@ -851,7 +851,15 @@ export interface Provenance {
   source: string;
   /** ISO date the prep run fetched it. Set by Python, never by the engine. */
   retrieved: string;
-  url?: string;
+  /**
+   * `| undefined` is explicit, not redundant. The repo runs
+   * `exactOptionalPropertyTypes`, under which `url?: string` means "may be absent
+   * but never explicitly undefined" - and zod's `.optional()` infers
+   * `string | undefined`, which permits both. Writing the narrower form made the
+   * schema's inferred type NOT assignable to this interface, so the drift guard in
+   * schema.ts could never pass. This form says what parsing actually produces.
+   */
+  url?: string | undefined;
 }
 
 /**
@@ -881,6 +889,17 @@ export interface EvidenceClaim {
   provenance: Provenance;
 }
 
+/**
+ * The on-disk evidence file the Python prep layer writes and the harness reads.
+ * Mirrors `EvidenceFileSchema`; schema.ts asserts at compile time that the two
+ * cannot drift apart.
+ */
+export interface EvidenceFile {
+  /** ISO timestamp. Set by the Python prep run, never by the engine. */
+  generatedAt: string;
+  claims: EvidenceClaim[];
+}
+
 export type RuleId = "R1" | "R2" | "R3" | "R4" | "R5" | "R6";
 
 /**
@@ -894,8 +913,12 @@ export interface Rule {
   id: RuleId;
   name: string;
   statement: string;
-  /** The published framework the rule rests on. No rule may cite TAK-994. */
-  framework: { name: string; date: string; note?: string };
+  /**
+   * The published framework the rule rests on. No rule may cite TAK-994.
+   * `note?: string | undefined` for the same exactOptionalPropertyTypes reason as
+   * `Provenance.url` - see the note there.
+   */
+  framework: { name: string; date: string; note?: string | undefined };
   enabled: boolean;
   /** How strongly this rule defeats, 0..1. Editable by a toxicologist. */
   strength: number;
@@ -999,6 +1022,7 @@ Create `packages/engine/src/schema.ts`:
 
 ```ts
 import { z } from "zod";
+import type { EvidenceClaim, EvidenceFile, Ruleset } from "./types.js";
 
 export const ProvenanceSchema = z.object({
   kind: z.enum(["database", "literature"]),
@@ -1022,14 +1046,6 @@ export const EvidenceClaimSchema = z
     availableFrom: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/),
     provenance: ProvenanceSchema,
   })
-  // A claim with system "in_silico" (or stream "qsar") and a non-null
-  // measuresKeyEvent escapes EVERY discount clause in relevanceDiscount: R1 covers
-  // only rodent/nonrodent, R2 fires only when measuresKeyEvent === null, R4 needs
-  // inApplicabilityDomain === false and R5 needs klimisch >= 3. Measured at
-  // strength 0.95 such a claim alone returns ADVANCE, weighted identically to human
-  // clinical evidence. The invalid thing is the DATA, not the rules - a
-  // computational model predicts a key event, it does not measure one - so the
-  // seam rejects it rather than the rule layer special-casing it.
   .refine(
     (c) => !(c.system === "in_silico" || c.stream === "qsar") || c.measuresKeyEvent === null,
     {
@@ -1061,14 +1077,52 @@ export const RulesetSchema = z
       excluded: z.array(z.string()),
     }),
     rules: z.array(RuleSchema),
+    precedenceOrder: z.array(z.enum(["R1", "R2", "R3", "R5"])).length(4),
+    precedenceRationale: z.string().min(1),
   })
   .refine((r) => r.rules.length === 6, { message: "A ruleset must declare all six rules R1-R6" })
-  .refine((r) => new Set(r.rules.map((x) => x.id)).size === 6, { message: "Rule ids must be unique across all six" });
+  .refine((r) => new Set(r.rules.map((x) => x.id)).size === 6, { message: "Rule ids must be unique across all six" })
+  .refine((r) => new Set(r.precedenceOrder).size === 4, {
+    message: "precedenceOrder must contain each of R1, R2, R3, R5 exactly once",
+  });
 
 export const EvidenceFileSchema = z.object({
   generatedAt: z.string(),
   claims: z.array(EvidenceClaimSchema),
 });
+
+/* ------------------------------------------------------------------------- *
+ * Drift guards: the hand-written interfaces in types.ts and the zod schemas
+ * here declare the same field lists twice, and nothing forced them to agree.
+ *
+ * The obvious fix - derive the interfaces via `z.infer` - is WRONG HERE, and
+ * that is why this was deferred rather than done. types.ts is the leaf module
+ * every other engine module imports; making it depend on schema.ts would make it
+ * depend on zod and invert the dependency direction the whole package rests on.
+ *
+ * So the assertion points the other way. These types are erased at build time
+ * and cost nothing at runtime, but any field added, removed or retyped on
+ * EITHER side fails the typecheck with a message naming the offending property.
+ * Bidirectional on purpose: a one-way `extends` check passes happily when one
+ * side gains an extra field.
+ * ------------------------------------------------------------------------- */
+
+/** Resolves to `true` only when A and B are mutually assignable. */
+type MutuallyAssignable<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
+
+export type ClaimShapeMatchesInterface = MutuallyAssignable<z.infer<typeof EvidenceClaimSchema>, EvidenceClaim>;
+export type RulesetShapeMatchesInterface = MutuallyAssignable<z.infer<typeof RulesetSchema>, Ruleset>;
+export type EvidenceFileShapeMatchesInterface = MutuallyAssignable<z.infer<typeof EvidenceFileSchema>, EvidenceFile>;
+
+/**
+ * Forces the three checks above to be evaluated. Without a value site TypeScript
+ * would leave them as unused aliases and never report the `never`.
+ */
+export const SCHEMAS_MATCH_TYPES: [
+  ClaimShapeMatchesInterface,
+  RulesetShapeMatchesInterface,
+  EvidenceFileShapeMatchesInterface,
+] = [true, true, true];
 ```
 
 - [ ] **Step 6: Run the tests to verify they pass**
@@ -1200,6 +1254,54 @@ describe("fuse", () => {
     near(r.belief, 0);
     near(r.plausibility, 1);
   });
+
+  it("accumulates conflict multiplicatively when sources partially conflict", () => {
+    // Three sources: toxic at 0.6, safe at 0.6, toxic at 0.6
+    // Hand derivation:
+    // A ⊕ B: {toxic: 0.375, safe: 0.375, uncommitted: 0.25}, K₁ = 0.36
+    // (A ⊕ B) ⊕ C: K₂ = 0.225
+    // Cumulative conflict = 1 - (1 - K₁)(1 - K₂) = 1 - 0.64 × 0.775 = 0.504
+    const a = claimToMass("toxic", 0.6);
+    const b = claimToMass("safe", 0.6);
+    const c = claimToMass("toxic", 0.6);
+    const r = fuse([a, b, c]);
+
+    // Expected cumulative conflict is 0.504, strictly greater than max(K₁, K₂) = 0.36
+    near(r.conflictMass, 0.504);
+    // Strictly greater than max() is the whole point of the fix this test came
+    // from, so assert it rather than leaving it to the comment.
+    expect(r.conflictMass).toBeGreaterThan(0.36);
+  });
+
+  it("produces the hand-derived MASS for an ordinary partial conflict, not just the right shape", () => {
+    // The suite validated structure (sums to 1, belief <= plausibility) and the
+    // conflict scalar, but never an absolute mass for a partial conflict - so an
+    // implementation that normalised correctly while distributing mass wrongly
+    // would have passed everything.
+    //
+    // Two sources, toxic 0.6 against safe 0.6. Unnormalised:
+    //   toxic = 0.6*0.4 = 0.24,  safe = 0.4*0.6 = 0.24,  Theta = 0.4*0.4 = 0.16
+    //   K = 0.6*0.6 = 0.36,  norm = 0.64
+    // Normalised: 0.24/0.64 = 0.375, 0.375, 0.16/0.64 = 0.25.
+    const two = fuse([claimToMass("toxic", 0.6), claimToMass("safe", 0.6)]);
+    near(two.mass.toxic, 0.375);
+    near(two.mass.safe, 0.375);
+    near(two.mass.uncommitted, 0.25);
+
+    // Adding a third source, toxic 0.6, against that accumulator:
+    //   toxic = 0.375*0.6 + 0.375*0.4 + 0.25*0.6 = 0.525
+    //   safe  = 0.375*0.4                        = 0.15
+    //   Theta = 0.25*0.4                         = 0.10
+    //   K = 0.375*0.6 = 0.225,  norm = 0.775
+    // which lands on exact thirty-firsts: 21/31, 6/31, 4/31 (summing to 31/31).
+    const three = fuse([claimToMass("toxic", 0.6), claimToMass("safe", 0.6), claimToMass("toxic", 0.6)]);
+    near(three.mass.toxic, 21 / 31);
+    near(three.mass.safe, 6 / 31);
+    near(three.mass.uncommitted, 4 / 31);
+    // The two agreeing toxic sources must outweigh the lone safe one, and the
+    // surviving belief must exceed what either toxic source carried alone.
+    expect(three.mass.toxic).toBeGreaterThan(0.6);
+  });
 });
 ```
 
@@ -1268,28 +1370,22 @@ export function combine(a: Mass, b: Mass): { mass: Mass; conflict: number } {
  * Fuse many masses. belief(toxic) = m({toxic}); plausibility(toxic) =
  * m({toxic}) + m(Theta). The gap between them is what ARBITER does not know.
  *
- * conflictMass is the CUMULATIVE conflict across the whole combination:
- * 1 - prod(1 - K_i). Dempster's rule normalises by (1 - K_i) at each step, so
- * that product is the share of mass that survived, and one minus it is the
- * share destroyed by disagreement.
- *
- * NOT max(K_i). Because every (1 - K_i) <= 1, the product is at most the
- * smallest factor, so 1 - prod(1 - K_i) >= max(K_i) always - the maximum is a
- * strict UNDERESTIMATE whenever more than one step conflicts. Three sources
- * each conflicting at K = 0.9 destroy 1 - 0.1^3 ~ 0.999 of the mass, but the
- * maximum would report 0.9. Under-reporting here would make the total-conflict
- * abstention in abstain.ts unreachable: evidence that had almost entirely
- * cancelled itself out would still receive a confident verdict.
+ * conflictMass is the cumulative conflict removed across all combination steps:
+ * 1 - ∏(1 - Kᵢ), where Kᵢ is the conflict at step i. This is the honest
+ * aggregate: because each step normalises by (1 - Kᵢ), multiplying the survival
+ * factors gives the total survival probability, and 1 minus that is the true
+ * conflict removed. It is strictly >= max(Kᵢ) and equals max only when at most
+ * one step has nonzero conflict.
  */
-export function fuse(masses: Mass[]): { belief: number; plausibility: number; conflictMass: number } {
+export function fuse(masses: Mass[]): { belief: number; plausibility: number; conflictMass: number; mass: Mass } {
   let acc: Mass = { ...VACUOUS };
-  let survival = 1; // prod(1 - K_i): the share of mass that survived combination
+  let survival = 1; // prod(1 - K_i)
   for (const m of masses) {
     const { mass, conflict } = combine(acc, m);
     acc = mass;
     survival *= 1 - conflict;
   }
-  return { belief: acc.toxic, plausibility: acc.toxic + acc.uncommitted, conflictMass: 1 - survival };
+  return { belief: acc.toxic, plausibility: acc.toxic + acc.uncommitted, conflictMass: 1 - survival, mass: acc };
 }
 ```
 
@@ -1363,7 +1459,9 @@ Create `packages/engine/test/rules.test.ts`. Each test crafts a minimal pair whe
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { concordanceBoost, conflictsWith, defeats, downweightFactor } from "../src/rules.js";
+import { reason } from "../src/index.js";
+import { concordanceBoost, conflictsWith, defeats, downweightFactor, relevanceDiscount } from "../src/rules.js";
+import { RulesetSchema } from "../src/schema.js";
 import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
 import type { EvidenceClaim, Ruleset } from "../src/types.js";
 
@@ -1384,6 +1482,20 @@ describe("conflictsWith", () => {
     expect(conflictsWith(claim({ assertion: "toxic" }), claim({ assertion: "safe" }))).toBe(true);
     expect(conflictsWith(claim({ assertion: "toxic" }), claim({ assertion: "toxic" }))).toBe(false);
     expect(conflictsWith(claim({ assertion: "toxic" }), claim({ assertion: "ambiguous" }))).toBe(false);
+  });
+
+  it("never lets claims about DIFFERENT compounds conflict, or defeat each other", () => {
+    // Every caller groups by compound before reasoning, so this cannot happen
+    // today - but the failure it prevents is silent: a toxic finding on compound A
+    // deleting a safe finding on compound B produces a confident verdict whose
+    // trace reads perfectly plausible.
+    const a = claim({ id: "a", compoundId: "DRUG-1", assertion: "toxic", system: "human" });
+    const b = claim({ id: "b", compoundId: "DRUG-2", assertion: "safe", system: "rodent", stream: "invivo_rodent" });
+    expect(conflictsWith(a, b)).toBe(false);
+    // Same pair WOULD be an R1 defeat if they were about one compound, which is
+    // what makes this a real guard rather than a vacuous assertion.
+    expect(defeats(a, b, RS)).toBeNull();
+    expect(defeats(a, { ...b, compoundId: "DRUG-1" }, RS)?.byRule).toBe("R1");
   });
 });
 
@@ -1408,6 +1520,25 @@ describe("R2 mechanistic proximity", () => {
     const struct = claim({ id: "s", assertion: "safe", measuresKeyEvent: null, stream: "qsar", system: "human" });
     expect(defeats(mech, struct, RS)?.byRule).toBe("R2");
   });
+
+  it("does not fire in reverse - structural correlation cannot outrank a measured key event", () => {
+    // R2 was the only defeat rule with no reverse-direction test; R1, R3 and R5 all
+    // had one. Same system on both sides so R1 cannot supply the asymmetry, equal
+    // exposure and Klimisch so R3 and R5 cannot either.
+    const mech = claim({ id: "m", assertion: "toxic", measuresKeyEvent: "KE:55", stream: "transporter", system: "human" });
+    const struct = claim({ id: "s", assertion: "safe", measuresKeyEvent: null, stream: "qsar", system: "human" });
+    expect(defeats(mech, struct, RS)?.byRule).toBe("R2");
+    expect(defeats(struct, mech, RS)).toBeNull();
+  });
+
+  it("does not fire against apical in-vivo evidence merely because no key event is annotated", () => {
+    // A 28-day repeat-dose study with no key event annotated is apical outcome
+    // evidence, not a structural correlation. Same species on both sides so R1
+    // cannot confound the result; equal exposure/klimisch so R3/R5 cannot either.
+    const mech = claim({ id: "m", assertion: "toxic", measuresKeyEvent: "KE:12", stream: "transporter", system: "rodent" });
+    const invivo = claim({ id: "iv", assertion: "safe", measuresKeyEvent: null, stream: "invivo_rodent", system: "rodent" });
+    expect(defeats(mech, invivo, RS)).toBeNull();
+  });
 });
 
 describe("R3 exposure relevance", () => {
@@ -1431,14 +1562,46 @@ describe("R4 applicability domain", () => {
   it("leaves an in-domain claim alone", () => {
     expect(downweightFactor(claim({ inApplicabilityDomain: true }), RS)).toBeNull();
   });
+
+  it("returns exactly 1 - strength, measured at a strength where that differs from strength itself", () => {
+    // R4's registered strength is 0.5, and 1 - 0.5 === 0.5, so EVERY test using the
+    // real ruleset passes whether the code computes `1 - strength` or `strength`.
+    // Re-measure at 0.8, where the two answers are 0.2 and 0.8.
+    const eighty: Ruleset = { ...RS, rules: RS.rules.map((r) => (r.id === "R4" ? { ...r, strength: 0.8 } : r)) };
+    expect(downweightFactor(claim({ inApplicabilityDomain: false }), eighty)!.factor).toBeCloseTo(0.2, 12);
+    // And confirm the real ruleset is the ambiguous case, so this test is not
+    // duplicating one that already discriminates.
+    expect(RS.rules.find((r) => r.id === "R4")!.strength).toBe(0.5);
+  });
+
+  it("treats a null applicability domain as benign, unlike R3's null exposure", () => {
+    // The two rules read `null` in opposite directions and that asymmetry is
+    // deliberate: an unassessed domain is not evidence of being outside it, while an
+    // unestablished exposure margin IS the reason a negative licenses nothing.
+    expect(downweightFactor(claim({ inApplicabilityDomain: null }), RS)).toBeNull();
+    const nullExposureNegative = relevanceDiscount(claim({ assertion: "safe", exposureRelevant: null }), RS);
+    expect(nullExposureNegative.reasons.map((r) => r.byRule)).toContain("R3");
+  });
 });
 
 describe("R5 study reliability", () => {
-  it("a more reliable study defeats a less reliable one at equal relevance", () => {
+  it("a more reliable study defeats a less reliable one at equal relevance (both key-event-null)", () => {
     const good = claim({ id: "g", assertion: "toxic", klimisch: 1 });
     const poor = claim({ id: "p", assertion: "safe", klimisch: 4 });
     expect(defeats(good, poor, RS)?.byRule).toBe("R5");
     expect(defeats(poor, good, RS)).toBeNull();
+  });
+
+  it("fires when key events match only after normalizing case and whitespace", () => {
+    const good = claim({ id: "g", assertion: "toxic", klimisch: 1, measuresKeyEvent: "KE:55" });
+    const poor = claim({ id: "p", assertion: "safe", klimisch: 4, measuresKeyEvent: " ke:55 " });
+    expect(defeats(good, poor, RS)?.byRule).toBe("R5");
+  });
+
+  it("declines when the two claims measure genuinely different key events", () => {
+    const good = claim({ id: "g", assertion: "toxic", klimisch: 1, measuresKeyEvent: "KE:55" });
+    const poor = claim({ id: "p", assertion: "safe", klimisch: 4, measuresKeyEvent: "KE:99" });
+    expect(defeats(good, poor, RS)).toBeNull();
   });
 });
 
@@ -1446,24 +1609,291 @@ describe("R6 concordance", () => {
   it("rewards agreement across distinct streams, not within one", () => {
     const twoStreams = [claim({ id: "a", stream: "cytotox" }), claim({ id: "b", stream: "transporter" })];
     const oneStream = [claim({ id: "a", stream: "cytotox" }), claim({ id: "b", stream: "cytotox" })];
-    expect(concordanceBoost(twoStreams, RS)).toBeGreaterThan(concordanceBoost(oneStream, RS));
+    expect(concordanceBoost(twoStreams, RS).boost).toBeGreaterThan(concordanceBoost(oneStream, RS).boost);
+  });
+
+  it("is independent of claim order", () => {
+    const claims = [
+      claim({ id: "a", stream: "cytotox", assertion: "toxic" }),
+      claim({ id: "b", stream: "transporter", assertion: "toxic" }),
+      claim({ id: "c", stream: "qsar", assertion: "safe" }),
+    ];
+    const shuffled = [claims[2]!, claims[0]!, claims[1]!];
+    expect(concordanceBoost(shuffled, RS)).toEqual(concordanceBoost(claims, RS));
+  });
+
+  it("scores an exact 2-2 stream split as no boost, with no side supported, strictly below unanimity", () => {
+    const split = [
+      claim({ id: "a", stream: "cytotox", assertion: "toxic" }),
+      claim({ id: "b", stream: "transporter", assertion: "toxic" }),
+      claim({ id: "c", stream: "qsar", assertion: "safe" }),
+      claim({ id: "d", stream: "toxicogenomics", assertion: "safe" }),
+    ];
+    const unanimous = [
+      claim({ id: "a", stream: "cytotox", assertion: "toxic" }),
+      claim({ id: "b", stream: "transporter", assertion: "toxic" }),
+      claim({ id: "c", stream: "qsar", assertion: "toxic" }),
+      claim({ id: "d", stream: "toxicogenomics", assertion: "toxic" }),
+    ];
+    const splitResult = concordanceBoost(split, RS);
+    expect(splitResult.supports).toBeNull();
+    expect(splitResult.boost).toBe(1);
+    expect(splitResult.boost).toBeLessThan(concordanceBoost(unanimous, RS).boost);
+  });
+
+  it("still scores a single chatty stream at 1.0", () => {
+    const oneStream = [claim({ id: "a", stream: "cytotox" }), claim({ id: "b", stream: "cytotox" })];
+    expect(concordanceBoost(oneStream, RS).boost).toBe(1);
+  });
+
+  it("attenuates a near-even split without flattening it all the way to no boost", () => {
+    const nearEven = [
+      claim({ id: "a", stream: "cytotox", assertion: "toxic" }),
+      claim({ id: "b", stream: "transporter", assertion: "toxic" }),
+      claim({ id: "c", stream: "toxicogenomics", assertion: "toxic" }),
+      claim({ id: "d", stream: "qsar", assertion: "safe" }),
+      claim({ id: "e", stream: "invivo_rodent", assertion: "safe" }),
+    ];
+    const unanimous = [
+      claim({ id: "a", stream: "cytotox", assertion: "toxic" }),
+      claim({ id: "b", stream: "transporter", assertion: "toxic" }),
+      claim({ id: "c", stream: "toxicogenomics", assertion: "toxic" }),
+    ];
+    const r = concordanceBoost(nearEven, RS);
+    expect(r.supports).toBe("toxic");
+    expect(r.boost).toBeGreaterThan(1);
+    expect(r.boost).toBeLessThan(concordanceBoost(unanimous, RS).boost);
   });
 });
 
 describe("disabled rules", () => {
+  /** The ruleset with exactly one rule turned off. */
+  const without = (id: string): Ruleset =>
+    ({ ...RS, rules: RS.rules.map((r) => (r.id === id ? { ...r, enabled: false } : r)) });
+
   it("a disabled rule never fires", () => {
-    const off: Ruleset = { ...RS, rules: RS.rules.map((r) => (r.id === "R1" ? { ...r, enabled: false } : r)) };
     const human = claim({ id: "h", assertion: "toxic", system: "human", exposureRelevant: null, klimisch: 2 });
     const rat = claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", exposureRelevant: null, klimisch: 2 });
-    expect(defeats(human, rat, off)?.byRule).not.toBe("R1");
+    expect(defeats(human, rat, without("R1"))?.byRule).not.toBe("R1");
+  });
+
+  // Coverage was uneven: only R1 had a disabled-path test, so five of the six
+  // rules could have ignored `enabled` entirely. Each case below is built so the
+  // named rule is the ONLY one that fires, then asserted to fall silent - which
+  // also proves each pairing was reaching that rule in the first place.
+
+  it("R2 disabled: a measured key event stops outranking structural correlation", () => {
+    const mech = claim({ id: "m", assertion: "toxic", measuresKeyEvent: "KE:55", stream: "transporter", system: "human" });
+    const struct = claim({ id: "s", assertion: "safe", measuresKeyEvent: null, stream: "qsar", system: "human" });
+    expect(defeats(mech, struct, RS)?.byRule).toBe("R2");
+    expect(defeats(mech, struct, without("R2"))).toBeNull();
+  });
+
+  it("R3 disabled: a positive at clinical exposure stops outranking an untested margin", () => {
+    const pos = claim({ id: "p", assertion: "toxic", exposureRelevant: true });
+    const neg = claim({ id: "n", assertion: "safe", exposureRelevant: null });
+    expect(defeats(pos, neg, RS)?.byRule).toBe("R3");
+    expect(defeats(pos, neg, without("R3"))).toBeNull();
+  });
+
+  it("R4 disabled: an out-of-domain claim is no longer downweighted or discounted", () => {
+    const out = claim({ inApplicabilityDomain: false });
+    expect(downweightFactor(out, RS)?.byRule).toBe("R4");
+    expect(downweightFactor(out, without("R4"))).toBeNull();
+    // R4 also reaches mass through relevanceDiscount, which is a separate call
+    // site and therefore a separate chance to ignore `enabled`.
+    expect(relevanceDiscount(out, RS).reasons.map((r) => r.byRule)).toContain("R4");
+    expect(relevanceDiscount(out, without("R4")).reasons.map((r) => r.byRule)).not.toContain("R4");
+  });
+
+  it("R5 disabled: a more reliable study stops outranking a less reliable one", () => {
+    const good = claim({ id: "g", assertion: "toxic", klimisch: 1 });
+    const poor = claim({ id: "p", assertion: "safe", klimisch: 4 });
+    expect(defeats(good, poor, RS)?.byRule).toBe("R5");
+    expect(defeats(good, poor, without("R5"))).toBeNull();
+  });
+
+  it("R6 disabled: concordance reports no boost and supports no side", () => {
+    const twoStreams = [
+      claim({ id: "a", stream: "cytotox", assertion: "toxic" }),
+      claim({ id: "b", stream: "transporter", assertion: "toxic" }),
+    ];
+    expect(concordanceBoost(twoStreams, RS).boost).toBeGreaterThan(1);
+    expect(concordanceBoost(twoStreams, without("R6"))).toEqual({ supports: null, boost: 1 });
+  });
+
+  it("disabling a rule leaves a GAP a lower-precedence rule can fill, rather than reordering", () => {
+    // R1 outranks R5 in the pre-registered order. With R1 off, the same pair must
+    // still be decided - by R5 - rather than silently surviving. This is the
+    // behaviour the docstring promises and nothing asserted it.
+    const human = claim({ id: "h", assertion: "toxic", system: "human", klimisch: 1 });
+    const rat = claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", klimisch: 4 });
+    expect(defeats(human, rat, RS)?.byRule).toBe("R1");
+    expect(defeats(human, rat, without("R1"))?.byRule).toBe("R5");
+  });
+});
+
+describe("antisymmetry", () => {
+  // Cross-product over every field a defeat rule reads. For every pair drawn
+  // from it, at most one direction may be licensed as a defeat — never both.
+  // This is the test class a "pick one rule per test" test file structurally
+  // cannot express, and it is what caught the R1/R3 2-cycle.
+  function* variants(): Generator<Pick<EvidenceClaim, "system" | "measuresKeyEvent" | "exposureRelevant" | "klimisch" | "stream">> {
+    const systems: EvidenceClaim["system"][] = ["human", "rodent", "nonrodent", "in_silico"];
+    const keyEvents: (string | null)[] = [null, "KE:1"];
+    const exposures: (boolean | null)[] = [true, false, null];
+    const klimischs: EvidenceClaim["klimisch"][] = [1, 4, null];
+    const streams: EvidenceClaim["stream"][] = ["qsar", "cytotox"];
+    for (const system of systems) {
+      for (const measuresKeyEvent of keyEvents) {
+        for (const exposureRelevant of exposures) {
+          for (const klimisch of klimischs) {
+            for (const stream of streams) {
+              yield { system, measuresKeyEvent, exposureRelevant, klimisch, stream };
+            }
+          }
+        }
+      }
+    }
+  }
+
+  it("defeats() never licenses both directions, for any combination of rule-relevant fields", () => {
+    const vs = [...variants()];
+    let checked = 0;
+    for (const vi of vs) {
+      for (const vj of vs) {
+        const a = claim({ id: "a", assertion: "toxic", ...vi });
+        const b = claim({ id: "b", assertion: "safe", ...vj });
+        const forward = defeats(a, b, RS);
+        const reverse = defeats(b, a, RS);
+        if (forward !== null && reverse !== null) {
+          throw new Error(
+            `2-cycle: (${JSON.stringify(vi)}) vs (${JSON.stringify(vj)}) — forward=${forward.byRule}, reverse=${reverse.byRule}`,
+          );
+        }
+        checked++;
+      }
+    }
+    expect(checked).toBe(vs.length * vs.length);
+  });
+
+  it("the motivating fixture (human in-vitro, unstated exposure vs rodent in-vivo, clinical exposure) resolves to R3 one-way, not a cycle", () => {
+    const humanInVitro = claim({
+      id: "h", assertion: "safe", system: "human", stream: "cytotox",
+      measuresKeyEvent: "KE:1", exposureRelevant: null,
+    });
+    const rodentInVivo = claim({
+      id: "r", assertion: "toxic", system: "rodent", stream: "invivo_rodent",
+      measuresKeyEvent: null, exposureRelevant: true,
+    });
+    expect(defeats(humanInVitro, rodentInVivo, RS)).toBeNull();
+    expect(defeats(rodentInVivo, humanInVitro, RS)?.byRule).toBe("R3");
+  });
+});
+
+describe("ruleset validity", () => {
+  it("the pre-registered ruleset is schema-valid", () => {
+    expect(() => RulesetSchema.parse(ruleset)).not.toThrow();
   });
 });
 
 describe("pre-registration", () => {
   it("no rule justification cites TAK-994", () => {
-    const blob = JSON.stringify(RS.rules).toLowerCase();
+    // Scans the whole ruleset, not just rules[], so a stray top-level field
+    // (e.g. precedenceRationale) can't slip a reference past this guard.
+    const blob = JSON.stringify(RS).toLowerCase();
     expect(blob).not.toContain("tak-994");
     expect(blob).not.toContain("tak994");
+  });
+});
+
+describe("relevanceDiscount", () => {
+  it("leaves ideal evidence undiscounted", () => {
+    const d = relevanceDiscount(claim({
+      system: "human", stream: "cytotox", measuresKeyEvent: "KE:1",
+      exposureRelevant: true, inApplicabilityDomain: true, klimisch: 1,
+    }), RS);
+    expect(d.factor).toBe(1);
+    expect(d.reasons).toHaveLength(0);
+  });
+
+  it("discounts a clean rodent study whose exposure was never established", () => {
+    // THE PASS-1 CASE. Unopposed, but it licenses very little.
+    const d = relevanceDiscount(claim({
+      system: "rodent", stream: "invivo_rodent", measuresKeyEvent: null,
+      exposureRelevant: null, klimisch: 1,
+    }), RS);
+    expect(d.factor).toBeLessThan(0.2);
+    expect(d.reasons.map((r) => r.byRule).sort()).toEqual(["R1", "R3"]);
+  });
+
+  it("compounds multiplicatively - the factor is exactly the product of (1 - strength)", () => {
+    // `both < one` alone would also be satisfied by max() or by 1 - sum(). Assert
+    // the actual product, read from the ruleset's own strengths rather than
+    // hard-coded, so the test tracks a re-registration instead of breaking on one.
+    const r1 = RS.rules.find((r) => r.id === "R1")!.strength;
+    const r3 = RS.rules.find((r) => r.id === "R3")!.strength;
+    const both = relevanceDiscount(claim({ system: "rodent", exposureRelevant: null }), RS).factor;
+    const one = relevanceDiscount(claim({ system: "rodent", exposureRelevant: true }), RS).factor;
+    expect(both).toBeCloseTo((1 - r1) * (1 - r3), 10);
+    expect(one).toBeCloseTo(1 - r1, 10);
+    expect(both).toBeLessThan(one);
+  });
+
+  it("moves discounted mass nowhere - it only reduces, never flips", () => {
+    // The no-flip property is only OBSERVABLE on a mass, so assert it there. A
+    // range check on the factor cannot see a flip at all: any implementation that
+    // moved mass to the opposing side would still return a factor in (0,1).
+    const discountedSafe = reason([claim({
+      id: "s", assertion: "safe", strength: 0.9, system: "rodent",
+      stream: "invivo_rodent", exposureRelevant: null, klimisch: 1,
+    })], RS);
+    expect(discountedSafe.mass.safe).toBeGreaterThan(0);
+    expect(discountedSafe.mass.safe).toBeLessThan(0.9);
+    expect(discountedSafe.mass.toxic).toBe(0);
+
+    const discountedToxic = reason([claim({
+      id: "t", assertion: "toxic", strength: 0.9, system: "rodent",
+      stream: "invivo_rodent", exposureRelevant: null, klimisch: 3,
+    })], RS);
+    expect(discountedToxic.mass.toxic).toBeGreaterThan(0);
+    expect(discountedToxic.mass.toxic).toBeLessThan(0.9);
+    expect(discountedToxic.mass.safe).toBe(0);
+  });
+
+  it("applies R3 ONLY to negative findings - a positive hit is not discounted for margin", () => {
+    // R3's registered statement is about negative findings. A hazard signal at an
+    // unrecorded concentration is still a hazard signal; you go and measure the
+    // margin next. An absence of signal at an unrecorded concentration licenses
+    // nothing. If this test flips, every hazard call in the automated streams gets
+    // crushed to 15% and the whole evaluation set abstains.
+    const shared = { system: "human" as const, stream: "cytotox" as const, exposureRelevant: null, klimisch: 1 };
+    expect(relevanceDiscount(claim({ ...shared, assertion: "safe" }), RS).reasons.map((r) => r.byRule)).toEqual(["R3"]);
+    const positive = relevanceDiscount(claim({ ...shared, assertion: "toxic" }), RS);
+    expect(positive.reasons).toHaveLength(0);
+    expect(positive.factor).toBe(1);
+  });
+
+  it("still discounts a positive finding for every NON-directional weakness", () => {
+    // The R3 carve-out must not become a blanket exemption for positives: a
+    // low-reliability rodent hit is still weak evidence about humans.
+    const d = relevanceDiscount(claim({
+      assertion: "toxic", system: "rodent", stream: "invivo_rodent",
+      exposureRelevant: null, klimisch: 3,
+    }), RS);
+    expect(d.reasons.map((r) => r.byRule).sort()).toEqual(["R1", "R5"]);
+  });
+
+  it("respects disabled rules", () => {
+    const off: Ruleset = { ...RS, rules: RS.rules.map((r) => ({ ...r, enabled: false })) };
+    expect(relevanceDiscount(claim({ system: "rodent", exposureRelevant: null }), off).factor).toBe(1);
+  });
+
+  it("reads strengths from the ruleset rather than hard-coding them", () => {
+    const weak: Ruleset = { ...RS, rules: RS.rules.map((r) => r.id === "R1" ? { ...r, strength: 0.1 } : r) };
+    const strong: Ruleset = { ...RS, rules: RS.rules.map((r) => r.id === "R1" ? { ...r, strength: 0.9 } : r) };
+    const c = claim({ system: "rodent", exposureRelevant: true });
+    expect(relevanceDiscount(c, weak).factor).toBeGreaterThan(relevanceDiscount(c, strong).factor);
   });
 });
 ```
@@ -1598,7 +2028,7 @@ array of exactly the four defeat-rule ids with no duplicates, and a non-empty st
 Create `packages/engine/src/rules.ts`:
 
 ```ts
-import type { Assertion, EvidenceClaim, RuleId, Ruleset } from "./types.js";
+import type { Assertion, DefeatRuleId, EvidenceClaim, RuleId, Ruleset } from "./types.js";
 
 const ANIMAL_SYSTEMS = new Set(["rodent", "nonrodent"]);
 
@@ -1607,87 +2037,132 @@ function rule(ruleset: Ruleset, id: RuleId) {
   return r && r.enabled ? r : null;
 }
 
-/** Two claims conflict only when both commit to opposite conclusions. */
+/** Trim and lowercase a key-event id so "KE:55" and " ke:55 " compare equal. */
+function normalizeKeyEvent(ke: string | null): string | null {
+  return ke === null ? null : ke.trim().toLowerCase();
+}
+
+/** True only for evidence that is structural correlation, not apical/mechanistic evidence that simply lacks a key-event annotation. */
+function isStructuralOnly(claim: EvidenceClaim): boolean {
+  return claim.measuresKeyEvent === null && (claim.stream === "qsar" || claim.system === "in_silico");
+}
+
+/**
+ * Two claims conflict only when both commit to opposite conclusions ABOUT THE
+ * SAME COMPOUND.
+ *
+ * The compoundId guard is not decoration. Every caller today groups claims by
+ * compound before calling `reason`, so it cannot fire - but nothing in the type
+ * system says so, and the failure it prevents is silent and severe: a "toxic"
+ * finding on compound A defeating a "safe" finding on compound B would delete a
+ * live argument from an unrelated compound's verdict and the trace would read
+ * perfectly plausible. Cheap guard, unbounded downside.
+ */
 export function conflictsWith(a: EvidenceClaim, b: EvidenceClaim): boolean {
+  if (a.compoundId !== b.compoundId) return false;
   if (a.assertion === "ambiguous" || b.assertion === "ambiguous") return false;
   return a.assertion !== b.assertion;
 }
 
-/** Structural evidence: correlates with chemistry rather than measuring biology. */
-function isStructural(c: EvidenceClaim): boolean {
-  return c.stream === "qsar" || c.system === "in_silico";
-}
-
-/** Normalise a key-event id so "KE:55" and "ke:55 " compare equal. */
-function keyEvent(c: EvidenceClaim): string | null {
-  return c.measuresKeyEvent === null ? null : c.measuresKeyEvent.trim().toLowerCase();
-}
+type RuleHit = { rationale: string };
 
 /**
- * The highest-precedence rule licensing attacker -> target, or null.
- *
- * Precedence comes from `ruleset.precedenceOrder`, NOT from the order of the
- * checks below - so a toxicologist reorders it by editing pre-registered,
- * hashed data rather than by editing code.
+ * Predicates for the four pairwise defeat rules. Each is precedence-agnostic
+ * — it only decides whether `attacker` beats `target` *if this rule is
+ * consulted at all*. Which rule gets consulted first, when more than one
+ * would apply, is `ruleset.precedenceOrder` (see `bestRule`/`defeats` below).
  */
-function bestRule(attacker: EvidenceClaim, target: EvidenceClaim, ruleset: Ruleset): RuleId | null {
-  const licensed = new Set<RuleId>();
+const RULE_PREDICATES: Record<DefeatRuleId, (attacker: EvidenceClaim, target: EvidenceClaim) => RuleHit | null> = {
+  // Says "evidence" and not "in vivo evidence" deliberately. R1's registered
+  // statement is phrased about animal in vivo evidence, but the predicate reads
+  // `system`, which is orthogonal to in vivo/in vitro - a rodent hepatocyte assay
+  // is system: "rodent", stream: "cytotox". Claiming "in vivo" in the rationale
+  // would put a false statement about the study design into the trace a
+  // toxicologist reads. Narrowing the PREDICATE to in vivo streams instead would
+  // be a change to the registered rule, not a correction toward it, so the
+  // rationale is what gets fixed.
+  R1: (attacker, target) =>
+    attacker.system === "human" && ANIMAL_SYSTEMS.has(target.system)
+      ? { rationale: `Human-relevant evidence outranks ${target.system} evidence for a human endpoint.` }
+      : null,
 
-  if (rule(ruleset, "R1") && attacker.system === "human" && ANIMAL_SYSTEMS.has(target.system)) {
-    licensed.add("R1");
-  }
-  // R2's target must be GENUINELY structural. A null key event alone is not
-  // enough: a 28-day repeat-dose study has no key event annotated and is apical
-  // outcome evidence, not a structural correlation.
-  if (rule(ruleset, "R2") && keyEvent(attacker) !== null && keyEvent(target) === null && isStructural(target)) {
-    licensed.add("R2");
-  }
-  if (
-    rule(ruleset, "R3") &&
+  R2: (attacker, target) =>
+    attacker.measuresKeyEvent !== null && isStructuralOnly(target)
+      ? { rationale: `Direct measurement of key event ${attacker.measuresKeyEvent} outranks structural correlation.` }
+      : null,
+
+  R3: (attacker, target) =>
     attacker.assertion === "toxic" &&
     attacker.exposureRelevant === true &&
     target.assertion === "safe" &&
     target.exposureRelevant !== true
-  ) {
-    licensed.add("R3");
-  }
-  if (
-    rule(ruleset, "R5") &&
+      ? {
+          rationale: "A positive at clinically relevant exposure outranks a negative whose margin was never tested at that range.",
+        }
+      : null,
+
+  // Declines when the two claims measure different key events, deliberately:
+  // reliability alone should not adjudicate between two mechanistically
+  // distinct measurements, only between two readings of the same question.
+  R5: (attacker, target) =>
     attacker.klimisch !== null &&
     target.klimisch !== null &&
     attacker.klimisch < target.klimisch &&
-    keyEvent(attacker) === keyEvent(target)
-  ) {
-    licensed.add("R5");
-  }
+    normalizeKeyEvent(attacker.measuresKeyEvent) === normalizeKeyEvent(target.measuresKeyEvent)
+      ? { rationale: `Klimisch ${attacker.klimisch} outranks Klimisch ${target.klimisch} at equal mechanistic relevance.` }
+      : null,
+};
 
-  for (const id of ruleset.precedenceOrder) if (licensed.has(id)) return id;
+/**
+ * The highest-precedence rule (per `ruleset.precedenceOrder`) that licenses
+ * `attacker` defeating `target`, or null if none applies. A disabled rule is
+ * skipped entirely — never merely deprioritised — so it can still leave a
+ * gap that a lower-precedence rule fills.
+ */
+function bestRule(
+  attacker: EvidenceClaim,
+  target: EvidenceClaim,
+  ruleset: Ruleset,
+): { byRule: DefeatRuleId; rationale: string } | null {
+  for (const id of ruleset.precedenceOrder) {
+    if (!rule(ruleset, id)) continue;
+    const hit = RULE_PREDICATES[id](attacker, target);
+    if (hit) return { byRule: id, ...hit };
+  }
   return null;
 }
 
-const RATIONALES: Record<RuleId, (a: EvidenceClaim, t: EvidenceClaim) => string> = {
-  R1: (_a, t) => `Human-relevant evidence outranks ${t.system} evidence for a human endpoint.`,
-  R2: (a) => `Direct measurement of key event ${a.measuresKeyEvent} outranks structural correlation.`,
-  R3: () => "A positive at clinically relevant exposure outranks a negative whose margin was never tested at that range.",
-  R5: (a, t) => `Klimisch ${a.klimisch} outranks Klimisch ${t.klimisch} at equal mechanistic relevance.`,
-  R4: () => "",
-  R6: () => "",
-};
+/**
+ * Rank of a rule in the preference ordering; lower outranks higher.
+ *
+ * Accepts any RuleId, not just a DefeatRuleId: R4 and R6 are legitimately absent
+ * from `precedenceOrder` (R4 downweights, R6 is a set property) and both rank
+ * last, which is the correct answer rather than an error. Exported because
+ * argue.ts needs the same ordering to pick which of several surviving attackers
+ * to report, and two copies of a ranking function is how the two drift apart.
+ */
+export function precedenceRank(id: RuleId, ruleset: Ruleset): number {
+  const idx = (ruleset.precedenceOrder as RuleId[]).indexOf(id);
+  return idx === -1 ? Number.POSITIVE_INFINITY : idx;
+}
 
 /**
  * Does `attacker` defeat `target`? Returns the deciding rule, or null.
  *
- * ANTISYMMETRIC BY CONSTRUCTION. A defeat is awarded only when the attacker's
- * best rule STRICTLY outranks the target's best counter-rule. A tie yields no
- * attack, which is the honest outcome: neither claim wins, both survive into
- * fusion, and the disagreement surfaces as conflict mass.
+ * Each rule's predicate is individually asymmetric, but two different rules
+ * can each license an attack in opposite directions on the same pair (e.g.
+ * a human-relevant claim outranks an animal claim by R1, while the animal
+ * claim simultaneously outranks the human claim by R3). `defeats` resolves
+ * this by precedence: it computes the best rule in both directions and
+ * lets the higher-precedence one win. A tie — including when the reverse
+ * direction is licensed by a rule that is equal-or-better in precedence —
+ * yields NO defeat, so both claims survive into fusion and the disagreement
+ * shows up as conflict mass rather than an arbitrary winner.
  *
- * Checking only the forward direction - as an earlier version did - produces
- * MUTUAL DEFEATS whenever a pair licenses different rules each way. That shipped
- * a 2-cycle on the motivating case: human in-vitro (safe, exposure unstated) and
- * an in-vivo positive at clinical dose each defeated the other, by R1 and R3
- * respectively. Grounded semantics leaves both undecided, so the verdict silently
- * became an abstention. Do not reintroduce a single-direction check.
+ * `ruleset.precedenceOrder` (R3 before R1 before R2 before R5, pre-registered)
+ * is the preference ordering a toxicologist edits. R4 is not a defeat rule
+ * (it downweights) and R6 is not pairwise (it is a set property), so neither
+ * participates in precedence.
  */
 export function defeats(
   attacker: EvidenceClaim,
@@ -1695,22 +2170,38 @@ export function defeats(
   ruleset: Ruleset,
 ): { byRule: RuleId; rationale: string } | null {
   if (attacker.id === target.id) return null;
-  if (attacker.compoundId !== target.compoundId) return null;
   if (!conflictsWith(attacker, target)) return null;
 
   const forward = bestRule(attacker, target, ruleset);
-  if (forward === null) return null;
+  if (!forward) return null;
 
   const reverse = bestRule(target, attacker, ruleset);
-  if (reverse !== null) {
-    const rank = (id: RuleId) => ruleset.precedenceOrder.indexOf(id);
-    if (rank(reverse) <= rank(forward)) return null; // tie or stronger counter
+  if (reverse && precedenceRank(reverse.byRule, ruleset) <= precedenceRank(forward.byRule, ruleset)) {
+    return null;
   }
 
-  return { byRule: forward, rationale: RATIONALES[forward](attacker, target) };
+  return forward;
 }
 
-/** R4: reduce the weight of an out-of-domain prediction rather than defeating it. */
+/**
+ * R4: reduce the weight of an out-of-domain prediction rather than defeating it.
+ *
+ * WHY `=== false` HERE AND `!== true` IN R3. The two rules treat `null` in
+ * opposite directions, and that asymmetry is deliberate rather than an oversight:
+ *
+ *   R3 (`exposureRelevant !== true`): null IS a weakness. "We never established
+ *   the margin" and "we established it and the margin was bad" both mean a
+ *   negative result licenses nothing about clinical safety. Absence of the
+ *   measurement is itself the problem.
+ *
+ *   R4 (`inApplicabilityDomain === false`): null is BENIGN. "We could not assess
+ *   the applicability domain" is not evidence the model was operating outside it.
+ *   Penalising unassessed predictions would punish every source that simply does
+ *   not report a domain check, which is most of them.
+ *
+ * The distinction is what the missing value is missing ABOUT: R3's null is a gap
+ * in the evidence's own support, R4's is a gap in our knowledge of the tool.
+ */
 export function downweightFactor(
   claim: EvidenceClaim,
   ruleset: Ruleset,
@@ -1725,46 +2216,149 @@ export function downweightFactor(
   };
 }
 
+export interface Discount {
+  /** Multiplier in (0,1] applied to the claim's committed mass. */
+  factor: number;
+  /** Which principles reduced it, for the trace. Empty when factor is 1. */
+  reasons: { byRule: RuleId; rationale: string }[];
+}
+
 /**
- * R6: agreement across DISTINCT streams, and WHICH side it supports.
+ * How much does this claim's committed mass survive, absent any conflict?
+ *
+ * R1-R6 are tie-breakers when evidence collides. They are ALSO statements about
+ * evidence quality, and quality matters even when nothing disagrees. A clean
+ * rodent study is weak evidence about a human endpoint whether or not anything
+ * contradicts it; a margin never measured at clinical exposure does not become
+ * informative just because no one challenged it.
+ *
+ * Discounted mass moves to Theta - uncommitted - because that is precisely what
+ * it is: mass this source cannot commit anywhere. It does NOT move to the
+ * opposing side. Weak evidence for safety is not evidence of toxicity.
+ *
+ * Multiplicative, so several weaknesses compound: a rodent study whose exposure
+ * was never established is weaker than either flaw alone.
+ *
+ * Each factor is 1 - rule.strength, so a toxicologist tunes discounting by
+ * editing the same pre-registered, hashed strengths that govern defeats. One
+ * number per principle, one meaning, two mechanisms.
+ */
+export function relevanceDiscount(claim: EvidenceClaim, ruleset: Ruleset): Discount {
+  const reasons: Discount["reasons"] = [];
+  let factor = 1;
+
+  const apply = (id: RuleId, rationale: string) => {
+    const r = rule(ruleset, id);
+    if (!r) return;
+    // Clamped for the same reason claimToMass clamps: a schema-invalid ruleset
+    // must not be able to produce a negative belief, and reason() does not
+    // validate its ruleset on every call (it is invoked thousands of times in
+    // robustness sampling).
+    factor *= Math.min(1, Math.max(0, 1 - r.strength));
+    reasons.push({ byRule: id, rationale });
+  };
+
+  // R1: non-human evidence about a human endpoint.
+  if (claim.system === "rodent" || claim.system === "nonrodent") {
+    apply("R1", `${claim.system} evidence is indirect for a human endpoint.`);
+  }
+  // R2: structural correlation rather than a measured key event. isStructuralOnly
+  // already requires measuresKeyEvent === null, so no second key-event test is
+  // needed - an earlier draft had one and it could never be false.
+  if (isStructuralOnly(claim)) {
+    apply("R2", "Correlates with chemical structure; measures no key event directly.");
+  }
+  // R3: a NEGATIVE finding whose exposure margin was never established.
+  //
+  // R3 is the ONLY directional rule, and it is directional in its own
+  // pre-registered statement: "A positive finding at clinically relevant
+  // exposure defeats A NEGATIVE FINDING whose exposure margin is unstated or
+  // untested at that range." R1, R2, R4 and R5 describe what KIND of evidence
+  // this is, so they apply whichever way the claim points. R3 describes what a
+  // result can LICENSE, and that is asymmetric: a positive hit is informative
+  // whatever the margin - you go and establish the margin next - whereas an
+  // absence of signal at an unknown concentration licenses nothing about
+  // safety. Applying R3 to positives as well would have crushed every hazard
+  // finding in the automated streams, where the margin is almost never
+  // recorded, and abstained on essentially the whole evaluation set.
+  if (claim.assertion === "safe" && claim.exposureRelevant !== true) {
+    apply("R3", claim.exposureRelevant === false
+      ? "A negative result from testing outside the clinically relevant exposure range."
+      : "A negative result whose exposure margin relative to the clinical range was never established.");
+  }
+  // R4: outside the model's applicability domain. Already the existing behaviour.
+  if (claim.inApplicabilityDomain === false) {
+    apply("R4", "Model was operating outside its applicability domain.");
+  }
+  // R5: low study reliability. Klimisch 1 and 2 are reliable; 3 and 4 are not.
+  if (claim.klimisch !== null && claim.klimisch >= 3) {
+    apply("R5", `Klimisch ${claim.klimisch} indicates limited study reliability.`);
+  }
+
+  return { factor, reasons };
+}
+
+/**
+ * R6: a multiplier rewarding agreement across DISTINCT streams, attenuated
+ * by dissent.
  *
  * Counting claims would reward a chatty source; counting distinct streams
- * rewards genuine independence, which is what weight-of-evidence means.
- *
- * Returns the supported side alongside the magnitude. An earlier version
- * returned a bare number and took its side from `committed[0]`, which made the
- * result depend on array order AND left the caller to guess which conclusion the
- * boost supported - so a boost earned by the safe cluster could sharpen a toxic
- * verdict. Both are corrected here.
- *
- * A split ATTENUATES: opposition cancels support stream-for-stream, so a near-even
- * split earns nothing. Rewarding maximal discordance as if it were concordance
- * would invert the rule's meaning.
+ * rewards genuine independence, which is what weight-of-evidence means. But
+ * counting only the majority's streams (as if the minority didn't exist)
+ * would let a 2-2 split score as high as unanimity — so the boost is scaled
+ * down by how close the split is, reaching no boost at all (1) at an exact
+ * tie. `supports` reports which side the concordance favors, so a caller
+ * can't accidentally apply a boost computed from one cluster to the other
+ * cluster's belief.
  *
  * DIAGNOSTIC ONLY - this is deliberately NOT applied to any mass. Concordance is
  * already realised by Dempster's rule of combination in fuse(); applying a second
  * multiplicative boost on top double-counted it and could invert a verdict. Kept
  * because "how many independent streams concur, and on which side" is worth
  * REPORTING to a reviewer. If you are about to multiply a mass by this, don't.
+ *
+ * ON THE 0.25. It was previously flagged that this coefficient sits in source
+ * rather than in the pre-registered, hashed ruleset, so "where did 0.25 come
+ * from?" had no answer. That objection is DISCHARGED BY THE DEMOTION rather than
+ * by registering a number: an unregistered constant matters when it can move a
+ * verdict, and this one no longer touches a verdict, a mass or a metric. It scales
+ * a reported diagnostic only. Registering it would imply the ruleset governs it,
+ * which would be the opposite of true - and it cannot be added anyway without
+ * invalidating the pre-registration hash.
+ *
+ * KNOWN LIMITATION, carried to Task 12: independence is proxied by `stream`, and
+ * Tox21 supplies BOTH the cytotox and transporter streams. Two readouts from one
+ * assay platform therefore count as two independent sources here. Since this
+ * function is diagnostic-only the mis-count cannot reach a verdict, but a reviewer
+ * reading the reported concordance should know it overstates independence for
+ * Tox21-derived claims.
  */
 export function concordanceBoost(
   claims: EvidenceClaim[],
   ruleset: Ruleset,
 ): { supports: Assertion | null; boost: number } {
-  const NONE = { supports: null, boost: 1 } as const;
   const r = rule(ruleset, "R6");
-  if (!r) return NONE;
+  if (!r || claims.length === 0) return { supports: null, boost: 1 };
 
-  const streamsFor = (a: Assertion) =>
-    new Set(claims.filter((c) => c.assertion === a).map((c) => c.stream)).size;
-  const toxic = streamsFor("toxic");
-  const safe = streamsFor("safe");
-  if (toxic === safe) return NONE; // includes the no-evidence case
+  const committed = claims.filter((c) => c.assertion !== "ambiguous");
+  if (committed.length === 0) return { supports: null, boost: 1 };
 
-  const supports: Assertion = toxic > safe ? "toxic" : "safe";
-  // Net independent support: the majority's streams less the opposition's.
-  const net = Math.max(toxic, safe) - Math.min(toxic, safe);
-  return { supports, boost: 1 + r.strength * Math.max(0, net - 1) * 0.25 };
+  const distinctStreams = (assertion: Assertion) =>
+    new Set(committed.filter((c) => c.assertion === assertion).map((c) => c.stream)).size;
+
+  const toxicStreams = distinctStreams("toxic");
+  const safeStreams = distinctStreams("safe");
+
+  if (toxicStreams === safeStreams) return { supports: null, boost: 1 };
+
+  const supports: Assertion = toxicStreams > safeStreams ? "toxic" : "safe";
+  const majorityStreams = Math.max(toxicStreams, safeStreams);
+  const minorityStreams = Math.min(toxicStreams, safeStreams);
+
+  const rawBoost = 1 + r.strength * Math.max(0, majorityStreams - 1) * 0.25;
+  const dominance = (majorityStreams - minorityStreams) / (majorityStreams + minorityStreams);
+
+  return { supports, boost: 1 + (rawBoost - 1) * dominance };
 }
 ```
 
@@ -1922,13 +2516,14 @@ describe("argue", () => {
   });
 
   it("REINSTATEMENT: A defeats B, C defeats A, therefore B is reinstated", () => {
-    // A: human cytotox, toxic, no key event, Klimisch 1  -> defeats B by R1
+    // A: human cytotox, toxic, no key event, Klimisch 3  -> defeats B by R1
     // B: rat in vivo, safe, no key event, Klimisch 2
-    // C: human toxicogenomics, safe, measures KE:1       -> defeats A by R2
+    // C: human toxicogenomics, safe, no key event, Klimisch 1 -> defeats A by R5
+    //    (same null key event as A, strictly better reliability).
     // C does not conflict with B (both safe), so B's only attacker is A.
-    const A = claim({ id: "A", assertion: "toxic", system: "human", stream: "cytotox", measuresKeyEvent: null, klimisch: 1 });
+    const A = claim({ id: "A", assertion: "toxic", system: "human", stream: "cytotox", measuresKeyEvent: null, klimisch: 3 });
     const B = claim({ id: "B", assertion: "safe", system: "rodent", stream: "invivo_rodent", measuresKeyEvent: null, klimisch: 2 });
-    const C = claim({ id: "C", assertion: "safe", system: "human", stream: "toxicogenomics", measuresKeyEvent: "KE:1", klimisch: 2 });
+    const C = claim({ id: "C", assertion: "safe", system: "human", stream: "toxicogenomics", measuresKeyEvent: null, klimisch: 1 });
 
     const r = argue([A, B, C], RS);
 
@@ -1996,33 +2591,42 @@ describe("argue", () => {
     }
   });
 
-  it("terminates and leaves cycle members UNDECIDED rather than looping", () => {
-    // 2-cycles are impossible (above), but the attack graph is BIPARTITE -
-    // attacks only ever cross the toxic/safe divide - so every cycle has even
-    // length, and a 4-cycle is not excluded by antisymmetry alone: four claims
-    // can each strictly outrank the next without any pair outranking each other.
+  it("terminates and leaves a genuine 4-cycle's members UNDECIDED rather than looping", () => {
+    // 2-cycles are impossible (see the antisymmetry test above), but the attack
+    // graph is BIPARTITE - attacks only ever cross the toxic/safe divide, since
+    // conflictsWith() requires opposite assertions - so every cycle has even
+    // length, and a 4-cycle is NOT excluded by antisymmetry alone: antisymmetry
+    // only forbids a and b each defeating the other directly, it says nothing
+    // about a -> b -> c -> d -> a.
+    //
+    // This is a REAL cycle against the actual R1-R6 ruleset (RS), constructed
+    // by hand-tracing defeats() with precedenceOrder = ["R3","R1","R2","R5"]:
+    //   a (toxic, human,    klimisch 4) --R1--> b (safe, rodent,    klimisch 1)
+    //   b (safe,  rodent,   klimisch 1) --R5--> c (toxic, nonrodent, klimisch 2)
+    //   c (toxic, nonrodent,klimisch 2) --R5--> d (safe, in_silico, klimisch 3)
+    //   d (safe,  in_silico,klimisch 3) --R5--> a (toxic, human,    klimisch 4)
+    // a beats b via R1 (human outranks animal) regardless of Klimisch, because
+    // R1 outranks R5 in precedence - so b's much-better Klimisch never gets a
+    // chance to reverse it. The other three edges are plain R5 (better Klimisch
+    // wins at equal - here, matching null - key event), each one-directional
+    // because the target's Klimisch is never better than its attacker's. No
+    // other pair among these four conflicts (a/c are both toxic, b/d are both
+    // safe), so this is exactly a 4-cycle with no extra edges.
     //
     // Grounded semantics leaves every member of such a cycle UNDECIDED, which
-    // reason() maps to uncommitted mass. This test exists to prove that branch is
-    // live code and that the fixpoint terminates, because an unbounded loop here
-    // would hang the demo rather than fail it.
-    //
-    // Constructed with a synthetic single-rule ruleset so the cycle is explicit
-    // rather than an accident of R1-R6 interactions.
-    const r = argue(
-      [
-        claim({ id: "a", assertion: "toxic", klimisch: 1 }),
-        claim({ id: "b", assertion: "safe", klimisch: 2 }),
-        claim({ id: "c", assertion: "toxic", klimisch: 3 }),
-        claim({ id: "d", assertion: "safe", klimisch: 4 }),
-      ],
-      RS,
-    );
-    // Whatever the statuses, the call must RETURN - and every claim must carry
-    // exactly one status. A missing entry means the fixpoint exited early.
+    // reason() maps to uncommitted mass. This test proves that branch is live
+    // code reachable from the real ruleset, and that the fixpoint terminates
+    // instead of looping forever on it.
+    const a = claim({ id: "a", assertion: "toxic", system: "human", klimisch: 4 });
+    const b = claim({ id: "b", assertion: "safe", system: "rodent", stream: "invivo_rodent", klimisch: 1 });
+    const c = claim({ id: "c", assertion: "toxic", system: "nonrodent", stream: "invivo_nonrodent", klimisch: 2 });
+    const d = claim({ id: "d", assertion: "safe", system: "in_silico", stream: "qsar", klimisch: 3 });
+
+    const r = argue([a, b, c, d], RS);
+
     expect(r.trace).toHaveLength(4);
     for (const id of ["a", "b", "c", "d"]) {
-      expect(["admitted", "defeated", "downweighted", "undecided"]).toContain(r.statuses.get(id));
+      expect(r.statuses.get(id)).toBe("undecided");
     }
   });
 
@@ -2059,6 +2663,39 @@ describe("argue", () => {
     expect(fwd.statuses.get("A")).toBe(rev.statuses.get("A"));
     expect(fwd.statuses.get("B")).toBe(rev.statuses.get("B"));
   });
+
+  it("attributes a defeat to the STRONGEST surviving attacker, independent of input order", () => {
+    // X is attacked by two claims that both survive (neither Y nor Z is itself
+    // defeated), via two different rules of different precedence:
+    //   Y: human vs. X's rodent system -> beats X by R1 (precedence rank 1).
+    //   Z: far better Klimisch, same (null) key event -> beats X by R5 (rank 3).
+    // R1 outranks R5, so X's trace must always credit Y, never Z - regardless
+    // of which order Y and Z appear in the input array. A naive
+    // `incoming.find(...)` would instead credit whichever of Y/Z happened to
+    // be pushed into the attacker list first, which tracks input order, not
+    // rule strength - exactly the bug this test exists to catch.
+    const X = claim({ id: "X", assertion: "toxic", system: "rodent", stream: "invivo_rodent", klimisch: 4 });
+    const Y = claim({ id: "Y", assertion: "safe", system: "human", klimisch: 4 });
+    const Z = claim({ id: "Z", assertion: "safe", system: "nonrodent", stream: "invivo_nonrodent", klimisch: 1 });
+
+    const sortByClaimId = (r: ReturnType<typeof argue>) => [...r.trace].sort((a, b) => a.claimId.localeCompare(b.claimId));
+
+    const orderA = argue([X, Y, Z], RS);
+    const orderB = argue([Z, Y, X], RS);
+    const orderC = argue([Y, X, Z], RS);
+
+    // Sanity: this is actually the scenario intended - X defeated, credited to Y by R1.
+    expect(orderA.statuses.get("X")).toBe("defeated");
+    expect(orderA.statuses.get("Y")).toBe("admitted");
+    expect(orderA.statuses.get("Z")).toBe("admitted");
+    const xStep = orderA.trace.find((s) => s.claimId === "X")!;
+    expect(xStep.byRule).toBe("R1");
+    expect(xStep.defeatedBy).toBe("Y");
+
+    // Content, not emission order, must be identical across input orderings.
+    expect(sortByClaimId(orderB)).toEqual(sortByClaimId(orderA));
+    expect(sortByClaimId(orderC)).toEqual(sortByClaimId(orderA));
+  });
 });
 ```
 
@@ -2075,7 +2712,7 @@ Expected: FAIL — `Cannot find module '../src/argue.js'`
 Create `packages/engine/src/argue.ts`:
 
 ```ts
-import { defeats, downweightFactor } from "./rules.js";
+import { defeats, downweightFactor, precedenceRank } from "./rules.js";
 import type { ClaimStatus, EvidenceClaim, RuleId, Ruleset, TraceStep } from "./types.js";
 
 export interface Attack {
@@ -2118,6 +2755,28 @@ export function argue(claims: EvidenceClaim[], ruleset: Ruleset): Argumentation 
   for (const c of claims) attackersOf.set(c.id, []);
   for (const a of attacks) attackersOf.get(a.targetId)!.push(a);
 
+  /** Bind the shared ranking to this ruleset. Imported from rules.ts rather than
+   * re-implemented: the two copies were identical, and an ordering that exists
+   * twice is an ordering that eventually disagrees with itself. */
+  const rank = (byRule: RuleId): number => precedenceRank(byRule, ruleset);
+
+  /**
+   * Among several surviving attackers of a defeated claim, pick the one to
+   * report as "the" defeater deterministically - by strength of defeat
+   * (highest-precedence rule), not by array/input position. Ties break on
+   * attackerId. This is more than tie-breaking for its own sake: the most
+   * informative thing to show a toxicologist is the STRONGEST reason a claim
+   * fell, and that must not depend on the order evidence happened to load in.
+   */
+  function strongestKiller(survivors: Attack[]): Attack {
+    return survivors.reduce((best, cand) => {
+      const bestRank = rank(best.byRule);
+      const candRank = rank(cand.byRule);
+      if (candRank !== bestRank) return candRank < bestRank ? cand : best;
+      return cand.attackerId < best.attackerId ? cand : best;
+    });
+  }
+
   const IN = new Set<string>();
   const OUT = new Set<string>();
   const settled = (id: string) => IN.has(id) || OUT.has(id);
@@ -2145,7 +2804,7 @@ export function argue(claims: EvidenceClaim[], ruleset: Ruleset): Argumentation 
     const incoming = attackersOf.get(c.id)!;
 
     if (OUT.has(c.id)) {
-      const killer = incoming.find((a) => IN.has(a.attackerId))!;
+      const killer = strongestKiller(incoming.filter((a) => IN.has(a.attackerId)));
       statuses.set(c.id, "defeated");
       trace.push({
         claimId: c.id,
@@ -2162,7 +2821,11 @@ export function argue(claims: EvidenceClaim[], ruleset: Ruleset): Argumentation 
       trace.push({
         claimId: c.id,
         status: "undecided",
-        rationale: "Opposed by evidence of equal standing; no rule separates them. Contributes uncommitted mass only.",
+        rationale:
+          "Caught in a cycle of mutual defeats: this claim is attacked, and every " +
+          "attacker is itself attacked from within the same cycle, so grounded " +
+          "semantics never settles whether any of them stands. Not 'outranked' - no " +
+          "rule ever wins the comparison. Contributes uncommitted mass only.",
       });
       continue;
     }
@@ -2973,6 +3636,11 @@ So the same six principles apply as **discounts** absent conflict, with the disc
 This was measured, not assumed. With R3 applied in both directions, a lone human hepatotoxicity hit whose margin was never recorded yields belief 0.135 against plausibility 1.0 — a gap of 0.87, so **abstain** — and it takes **eight** concordant sources before anything escapes abstention. Since `exposureRelevant` will be `null` for nearly every claim the QSAR (Task 11) and Tox21 (Task 12) streams produce, that would have abstained on essentially the entire evaluation set and taken the Task 15 metrics with it. Scoped to negatives, all six of this task's verdict expectations hold, including Task 7's own `do_not_advance` case.
 
 Add to `packages/engine/src/rules.ts`:
+
+> **This is an excerpt, shown here because it is what Task 7 contributes.** The Task 4
+> listing of `rules.ts` above is the authoritative copy and already contains this code —
+> it is kept byte-identical to the shipped source by the plan-sync check, so if the two
+> ever disagree, believe Task 4's.
 
 ```ts
 export interface Discount {

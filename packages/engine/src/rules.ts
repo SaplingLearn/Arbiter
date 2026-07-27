@@ -17,8 +17,19 @@ function isStructuralOnly(claim: EvidenceClaim): boolean {
   return claim.measuresKeyEvent === null && (claim.stream === "qsar" || claim.system === "in_silico");
 }
 
-/** Two claims conflict only when both commit to opposite conclusions. */
+/**
+ * Two claims conflict only when both commit to opposite conclusions ABOUT THE
+ * SAME COMPOUND.
+ *
+ * The compoundId guard is not decoration. Every caller today groups claims by
+ * compound before calling `reason`, so it cannot fire - but nothing in the type
+ * system says so, and the failure it prevents is silent and severe: a "toxic"
+ * finding on compound A defeating a "safe" finding on compound B would delete a
+ * live argument from an unrelated compound's verdict and the trace would read
+ * perfectly plausible. Cheap guard, unbounded downside.
+ */
 export function conflictsWith(a: EvidenceClaim, b: EvidenceClaim): boolean {
+  if (a.compoundId !== b.compoundId) return false;
   if (a.assertion === "ambiguous" || b.assertion === "ambiguous") return false;
   return a.assertion !== b.assertion;
 }
@@ -32,9 +43,17 @@ type RuleHit = { rationale: string };
  * would apply, is `ruleset.precedenceOrder` (see `bestRule`/`defeats` below).
  */
 const RULE_PREDICATES: Record<DefeatRuleId, (attacker: EvidenceClaim, target: EvidenceClaim) => RuleHit | null> = {
+  // Says "evidence" and not "in vivo evidence" deliberately. R1's registered
+  // statement is phrased about animal in vivo evidence, but the predicate reads
+  // `system`, which is orthogonal to in vivo/in vitro - a rodent hepatocyte assay
+  // is system: "rodent", stream: "cytotox". Claiming "in vivo" in the rationale
+  // would put a false statement about the study design into the trace a
+  // toxicologist reads. Narrowing the PREDICATE to in vivo streams instead would
+  // be a change to the registered rule, not a correction toward it, so the
+  // rationale is what gets fixed.
   R1: (attacker, target) =>
     attacker.system === "human" && ANIMAL_SYSTEMS.has(target.system)
-      ? { rationale: `Human-relevant evidence outranks ${target.system} in vivo for a human endpoint.` }
+      ? { rationale: `Human-relevant evidence outranks ${target.system} evidence for a human endpoint.` }
       : null,
 
   R2: (attacker, target) =>
@@ -83,8 +102,17 @@ function bestRule(
   return null;
 }
 
-function precedenceRank(id: DefeatRuleId, ruleset: Ruleset): number {
-  const idx = ruleset.precedenceOrder.indexOf(id);
+/**
+ * Rank of a rule in the preference ordering; lower outranks higher.
+ *
+ * Accepts any RuleId, not just a DefeatRuleId: R4 and R6 are legitimately absent
+ * from `precedenceOrder` (R4 downweights, R6 is a set property) and both rank
+ * last, which is the correct answer rather than an error. Exported because
+ * argue.ts needs the same ordering to pick which of several surviving attackers
+ * to report, and two copies of a ranking function is how the two drift apart.
+ */
+export function precedenceRank(id: RuleId, ruleset: Ruleset): number {
+  const idx = (ruleset.precedenceOrder as RuleId[]).indexOf(id);
   return idx === -1 ? Number.POSITIVE_INFINITY : idx;
 }
 
@@ -125,7 +153,25 @@ export function defeats(
   return forward;
 }
 
-/** R4: reduce the weight of an out-of-domain prediction rather than defeating it. */
+/**
+ * R4: reduce the weight of an out-of-domain prediction rather than defeating it.
+ *
+ * WHY `=== false` HERE AND `!== true` IN R3. The two rules treat `null` in
+ * opposite directions, and that asymmetry is deliberate rather than an oversight:
+ *
+ *   R3 (`exposureRelevant !== true`): null IS a weakness. "We never established
+ *   the margin" and "we established it and the margin was bad" both mean a
+ *   negative result licenses nothing about clinical safety. Absence of the
+ *   measurement is itself the problem.
+ *
+ *   R4 (`inApplicabilityDomain === false`): null is BENIGN. "We could not assess
+ *   the applicability domain" is not evidence the model was operating outside it.
+ *   Penalising unassessed predictions would punish every source that simply does
+ *   not report a domain check, which is most of them.
+ *
+ * The distinction is what the missing value is missing ABOUT: R3's null is a gap
+ * in the evidence's own support, R4's is a gap in our knowledge of the tool.
+ */
 export function downweightFactor(
   claim: EvidenceClaim,
   ruleset: Ruleset,
@@ -240,6 +286,22 @@ export function relevanceDiscount(claim: EvidenceClaim, ruleset: Ruleset): Disco
  * multiplicative boost on top double-counted it and could invert a verdict. Kept
  * because "how many independent streams concur, and on which side" is worth
  * REPORTING to a reviewer. If you are about to multiply a mass by this, don't.
+ *
+ * ON THE 0.25. It was previously flagged that this coefficient sits in source
+ * rather than in the pre-registered, hashed ruleset, so "where did 0.25 come
+ * from?" had no answer. That objection is DISCHARGED BY THE DEMOTION rather than
+ * by registering a number: an unregistered constant matters when it can move a
+ * verdict, and this one no longer touches a verdict, a mass or a metric. It scales
+ * a reported diagnostic only. Registering it would imply the ruleset governs it,
+ * which would be the opposite of true - and it cannot be added anyway without
+ * invalidating the pre-registration hash.
+ *
+ * KNOWN LIMITATION, carried to Task 12: independence is proxied by `stream`, and
+ * Tox21 supplies BOTH the cytotox and transporter streams. Two readouts from one
+ * assay platform therefore count as two independent sources here. Since this
+ * function is diagnostic-only the mis-count cannot reach a verdict, but a reviewer
+ * reading the reported concordance should know it overstates independence for
+ * Tox21-derived claims.
  */
 export function concordanceBoost(
   claims: EvidenceClaim[],

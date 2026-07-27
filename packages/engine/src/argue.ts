@@ -1,4 +1,4 @@
-import { defeats, downweightFactor } from "./rules.js";
+import { defeats, downweightFactor, precedenceRank } from "./rules.js";
 import type { ClaimStatus, EvidenceClaim, RuleId, Ruleset, TraceStep } from "./types.js";
 
 export interface Attack {
@@ -41,13 +41,10 @@ export function argue(claims: EvidenceClaim[], ruleset: Ruleset): Argumentation 
   for (const c of claims) attackersOf.set(c.id, []);
   for (const a of attacks) attackersOf.get(a.targetId)!.push(a);
 
-  // Rank of a rule in the precedence order (lower is stronger); rules absent
-  // from precedenceOrder (there are none among defeat rules, but be defensive)
-  // rank last.
-  function precedenceRank(byRule: RuleId): number {
-    const idx = ruleset.precedenceOrder.findIndex((r) => r === byRule);
-    return idx === -1 ? Number.POSITIVE_INFINITY : idx;
-  }
+  /** Bind the shared ranking to this ruleset. Imported from rules.ts rather than
+   * re-implemented: the two copies were identical, and an ordering that exists
+   * twice is an ordering that eventually disagrees with itself. */
+  const rank = (byRule: RuleId): number => precedenceRank(byRule, ruleset);
 
   /**
    * Among several surviving attackers of a defeated claim, pick the one to
@@ -59,8 +56,8 @@ export function argue(claims: EvidenceClaim[], ruleset: Ruleset): Argumentation 
    */
   function strongestKiller(survivors: Attack[]): Attack {
     return survivors.reduce((best, cand) => {
-      const bestRank = precedenceRank(best.byRule);
-      const candRank = precedenceRank(cand.byRule);
+      const bestRank = rank(best.byRule);
+      const candRank = rank(cand.byRule);
       if (candRank !== bestRank) return candRank < bestRank ? cand : best;
       return cand.attackerId < best.attackerId ? cand : best;
     });
@@ -111,9 +108,10 @@ export function argue(claims: EvidenceClaim[], ruleset: Ruleset): Argumentation 
         claimId: c.id,
         status: "undecided",
         rationale:
-          "Caught in a cycle of mutual defeats: each attacker in the chain is itself " +
-          "outranked by another, so no single rule ever settles which one stands. " +
-          "Contributes uncommitted mass only.",
+          "Caught in a cycle of mutual defeats: this claim is attacked, and every " +
+          "attacker is itself attacked from within the same cycle, so grounded " +
+          "semantics never settles whether any of them stands. Not 'outranked' - no " +
+          "rule ever wins the comparison. Contributes uncommitted mass only.",
       });
       continue;
     }

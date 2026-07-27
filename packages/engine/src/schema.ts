@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { EvidenceClaim, EvidenceFile, Ruleset } from "./types.js";
 
 export const ProvenanceSchema = z.object({
   kind: z.enum(["database", "literature"]),
@@ -66,3 +67,36 @@ export const EvidenceFileSchema = z.object({
   generatedAt: z.string(),
   claims: z.array(EvidenceClaimSchema),
 });
+
+/* ------------------------------------------------------------------------- *
+ * Drift guards: the hand-written interfaces in types.ts and the zod schemas
+ * here declare the same field lists twice, and nothing forced them to agree.
+ *
+ * The obvious fix - derive the interfaces via `z.infer` - is WRONG HERE, and
+ * that is why this was deferred rather than done. types.ts is the leaf module
+ * every other engine module imports; making it depend on schema.ts would make it
+ * depend on zod and invert the dependency direction the whole package rests on.
+ *
+ * So the assertion points the other way. These types are erased at build time
+ * and cost nothing at runtime, but any field added, removed or retyped on
+ * EITHER side fails the typecheck with a message naming the offending property.
+ * Bidirectional on purpose: a one-way `extends` check passes happily when one
+ * side gains an extra field.
+ * ------------------------------------------------------------------------- */
+
+/** Resolves to `true` only when A and B are mutually assignable. */
+type MutuallyAssignable<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
+
+export type ClaimShapeMatchesInterface = MutuallyAssignable<z.infer<typeof EvidenceClaimSchema>, EvidenceClaim>;
+export type RulesetShapeMatchesInterface = MutuallyAssignable<z.infer<typeof RulesetSchema>, Ruleset>;
+export type EvidenceFileShapeMatchesInterface = MutuallyAssignable<z.infer<typeof EvidenceFileSchema>, EvidenceFile>;
+
+/**
+ * Forces the three checks above to be evaluated. Without a value site TypeScript
+ * would leave them as unused aliases and never report the `never`.
+ */
+export const SCHEMAS_MATCH_TYPES: [
+  ClaimShapeMatchesInterface,
+  RulesetShapeMatchesInterface,
+  EvidenceFileShapeMatchesInterface,
+] = [true, true, true];

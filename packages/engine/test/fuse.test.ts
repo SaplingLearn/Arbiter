@@ -91,5 +91,38 @@ describe("fuse", () => {
 
     // Expected cumulative conflict is 0.504, strictly greater than max(K₁, K₂) = 0.36
     near(r.conflictMass, 0.504);
+    // Strictly greater than max() is the whole point of the fix this test came
+    // from, so assert it rather than leaving it to the comment.
+    expect(r.conflictMass).toBeGreaterThan(0.36);
+  });
+
+  it("produces the hand-derived MASS for an ordinary partial conflict, not just the right shape", () => {
+    // The suite validated structure (sums to 1, belief <= plausibility) and the
+    // conflict scalar, but never an absolute mass for a partial conflict - so an
+    // implementation that normalised correctly while distributing mass wrongly
+    // would have passed everything.
+    //
+    // Two sources, toxic 0.6 against safe 0.6. Unnormalised:
+    //   toxic = 0.6*0.4 = 0.24,  safe = 0.4*0.6 = 0.24,  Theta = 0.4*0.4 = 0.16
+    //   K = 0.6*0.6 = 0.36,  norm = 0.64
+    // Normalised: 0.24/0.64 = 0.375, 0.375, 0.16/0.64 = 0.25.
+    const two = fuse([claimToMass("toxic", 0.6), claimToMass("safe", 0.6)]);
+    near(two.mass.toxic, 0.375);
+    near(two.mass.safe, 0.375);
+    near(two.mass.uncommitted, 0.25);
+
+    // Adding a third source, toxic 0.6, against that accumulator:
+    //   toxic = 0.375*0.6 + 0.375*0.4 + 0.25*0.6 = 0.525
+    //   safe  = 0.375*0.4                        = 0.15
+    //   Theta = 0.25*0.4                         = 0.10
+    //   K = 0.375*0.6 = 0.225,  norm = 0.775
+    // which lands on exact thirty-firsts: 21/31, 6/31, 4/31 (summing to 31/31).
+    const three = fuse([claimToMass("toxic", 0.6), claimToMass("safe", 0.6), claimToMass("toxic", 0.6)]);
+    near(three.mass.toxic, 21 / 31);
+    near(three.mass.safe, 6 / 31);
+    near(three.mass.uncommitted, 4 / 31);
+    // The two agreeing toxic sources must outweigh the lone safe one, and the
+    // surviving belief must exceed what either toxic source carried alone.
+    expect(three.mass.toxic).toBeGreaterThan(0.6);
   });
 });

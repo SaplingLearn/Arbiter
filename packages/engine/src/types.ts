@@ -20,7 +20,15 @@ export interface Provenance {
   source: string;
   /** ISO date the prep run fetched it. Set by Python, never by the engine. */
   retrieved: string;
-  url?: string;
+  /**
+   * `| undefined` is explicit, not redundant. The repo runs
+   * `exactOptionalPropertyTypes`, under which `url?: string` means "may be absent
+   * but never explicitly undefined" - and zod's `.optional()` infers
+   * `string | undefined`, which permits both. Writing the narrower form made the
+   * schema's inferred type NOT assignable to this interface, so the drift guard in
+   * schema.ts could never pass. This form says what parsing actually produces.
+   */
+  url?: string | undefined;
 }
 
 /**
@@ -50,6 +58,17 @@ export interface EvidenceClaim {
   provenance: Provenance;
 }
 
+/**
+ * The on-disk evidence file the Python prep layer writes and the harness reads.
+ * Mirrors `EvidenceFileSchema`; schema.ts asserts at compile time that the two
+ * cannot drift apart.
+ */
+export interface EvidenceFile {
+  /** ISO timestamp. Set by the Python prep run, never by the engine. */
+  generatedAt: string;
+  claims: EvidenceClaim[];
+}
+
 export type RuleId = "R1" | "R2" | "R3" | "R4" | "R5" | "R6";
 
 /**
@@ -63,8 +82,12 @@ export interface Rule {
   id: RuleId;
   name: string;
   statement: string;
-  /** The published framework the rule rests on. No rule may cite TAK-994. */
-  framework: { name: string; date: string; note?: string };
+  /**
+   * The published framework the rule rests on. No rule may cite TAK-994.
+   * `note?: string | undefined` for the same exactOptionalPropertyTypes reason as
+   * `Provenance.url` - see the note there.
+   */
+  framework: { name: string; date: string; note?: string | undefined };
   enabled: boolean;
   /** How strongly this rule defeats, 0..1. Editable by a toxicologist. */
   strength: number;
