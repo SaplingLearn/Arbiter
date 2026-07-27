@@ -23,6 +23,17 @@ data/out/*
 !data/out/spike-report*.json
 !data/out/smiles-cache.json
 
+# compounds.json and splits.json are NOT incidental build output.
+#
+# The validity of every reported number rests on the three-way split having been
+# fixed BEFORE any model was fitted (spec section 8). That is only a real claim if
+# the split artifact is in git history with a timestamp earlier than the first
+# fitting commit. Left ignored, `git add data/out/splits.json` adds nothing, no
+# error is printed, and the strongest methodological claim in the project quietly
+# becomes unverifiable.
+!data/out/compounds.json
+!data/out/splits.json
+
 # Node
 node_modules/
 dist/
