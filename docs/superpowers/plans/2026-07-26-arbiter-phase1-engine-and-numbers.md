@@ -1301,25 +1301,1360 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Remaining Phase 1 tasks — OUTLINE ONLY, NOT YET WRITTEN
+## Task 5: Defeasible argumentation with reinstatement
 
-> ⚠️ **Tasks 1–4 above are complete and executable. Tasks 5–16 below are an outline, not a plan.** They do not yet contain test code, implementation code, or commands, and **must not be handed to an implementer in this state.** They are listed here so the shape and ordering of Phase 1 is agreed before the detail is written. Write them out in full — same structure as tasks 1–4 — before executing past task 4.
+**This task is what earns the word "argumentation."** A flat decision table cannot express reinstatement — A defeats B, C defeats A, therefore B comes back. If this is not implemented, calling the system defeasible argumentation is overselling and a technical judge would be right to call it a lookup table with extra steps.
 
-Each will follow the same structure: failing test, verify red, minimal implementation, verify green, commit.
+**Files:**
+- Create: `packages/engine/src/argue.ts`
+- Test: `packages/engine/test/argue.test.ts`
+
+**Interfaces:**
+- Consumes: `defeats`, `downweightFactor` from `rules.ts`; `EvidenceClaim`, `Ruleset`, `ClaimStatus`, `TraceStep`, `RuleId`
+- Produces:
+  - `interface Attack { attackerId: string; targetId: string; byRule: RuleId; rationale: string }`
+  - `interface Argumentation { statuses: Map<string, ClaimStatus>; attacks: Attack[]; trace: TraceStep[] }`
+  - `argue(claims: EvidenceClaim[], ruleset: Ruleset): Argumentation`
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `packages/engine/test/argue.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { argue } from "../src/argue.js";
+import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
+import type { EvidenceClaim, Ruleset } from "../src/types.js";
+
+const RS = ruleset as Ruleset;
+
+function claim(over: Partial<EvidenceClaim> & { id: string }): EvidenceClaim {
+  return {
+    compoundId: "X", stream: "cytotox", assertion: "safe", strength: 0.8,
+    system: "human", measuresKeyEvent: null, exposureRelevant: null,
+    inApplicabilityDomain: true, klimisch: 2, availableFrom: "2020-01-01",
+    provenance: { kind: "database", source: "test", retrieved: "2026-07-26" },
+    ...over,
+  };
+}
+
+describe("argue", () => {
+  it("admits an unopposed claim", () => {
+    const r = argue([claim({ id: "a", assertion: "toxic" })], RS);
+    expect(r.statuses.get("a")).toBe("admitted");
+    expect(r.attacks).toHaveLength(0);
+  });
+
+  it("defeats the loser of a one-way attack", () => {
+    // Human toxic defeats rodent safe by R1. Rodent cannot attack back.
+    const human = claim({ id: "h", assertion: "toxic", system: "human", klimisch: 1 });
+    const rat = claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", klimisch: 2 });
+    const r = argue([human, rat], RS);
+    expect(r.statuses.get("h")).toBe("admitted");
+    expect(r.statuses.get("r")).toBe("defeated");
+    expect(r.attacks).toEqual([
+      expect.objectContaining({ attackerId: "h", targetId: "r", byRule: "R1" }),
+    ]);
+  });
+
+  it("REINSTATEMENT: A defeats B, C defeats A, therefore B is reinstated", () => {
+    // A: human cytotox, toxic, no key event, Klimisch 1  -> defeats B by R1
+    // B: rat in vivo, safe, no key event, Klimisch 2
+    // C: human toxicogenomics, safe, measures KE:1       -> defeats A by R2
+    // C does not conflict with B (both safe), so B's only attacker is A.
+    const A = claim({ id: "A", assertion: "toxic", system: "human", stream: "cytotox", measuresKeyEvent: null, klimisch: 1 });
+    const B = claim({ id: "B", assertion: "safe", system: "rodent", stream: "invivo_rodent", measuresKeyEvent: null, klimisch: 2 });
+    const C = claim({ id: "C", assertion: "safe", system: "human", stream: "toxicogenomics", measuresKeyEvent: "KE:1", klimisch: 2 });
+
+    const r = argue([A, B, C], RS);
+
+    expect(r.statuses.get("C")).toBe("admitted");
+    expect(r.statuses.get("A")).toBe("defeated");
+    // The whole point: B was defeated by A, but A fell, so B comes back.
+    expect(r.statuses.get("B")).toBe("admitted");
+
+    const bStep = r.trace.find((s) => s.claimId === "B")!;
+    expect(bStep.rationale).toMatch(/reinstat/i);
+  });
+
+  it("leaves both claims undecided under mutual attack", () => {
+    // Equal Klimisch, same system, same key-event status: no rule can separate
+    // them, so neither is defeated and neither is admitted.
+    const a = claim({ id: "a", assertion: "toxic", klimisch: 2 });
+    const b = claim({ id: "b", assertion: "safe", klimisch: 2 });
+    const r = argue([a, b], RS);
+    expect(r.statuses.get("a")).toBe("undecided");
+    expect(r.statuses.get("b")).toBe("undecided");
+  });
+
+  it("marks an out-of-domain claim downweighted, not defeated", () => {
+    const r = argue([claim({ id: "q", stream: "qsar", system: "in_silico", inApplicabilityDomain: false })], RS);
+    expect(r.statuses.get("q")).toBe("downweighted");
+    expect(r.trace.find((s) => s.claimId === "q")?.byRule).toBe("R4");
+  });
+
+  it("emits exactly one trace step per claim", () => {
+    const claims = ["a", "b", "c"].map((id) => claim({ id, assertion: id === "a" ? "toxic" : "safe" }));
+    const r = argue(claims, RS);
+    expect(r.trace.map((s) => s.claimId).sort()).toEqual(["a", "b", "c"]);
+  });
+
+  it("is order-independent", () => {
+    const A = claim({ id: "A", assertion: "toxic", system: "human", klimisch: 1 });
+    const B = claim({ id: "B", assertion: "safe", system: "rodent", stream: "invivo_rodent", klimisch: 2 });
+    const fwd = argue([A, B], RS);
+    const rev = argue([B, A], RS);
+    expect(fwd.statuses.get("A")).toBe(rev.statuses.get("A"));
+    expect(fwd.statuses.get("B")).toBe(rev.statuses.get("B"));
+  });
+});
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/argue.test.ts
+```
+
+Expected: FAIL — `Cannot find module '../src/argue.js'`
+
+- [ ] **Step 3: Write the implementation**
+
+Create `packages/engine/src/argue.ts`:
+
+```ts
+import { defeats, downweightFactor } from "./rules.js";
+import type { ClaimStatus, EvidenceClaim, RuleId, Ruleset, TraceStep } from "./types.js";
+
+export interface Attack {
+  attackerId: string;
+  targetId: string;
+  byRule: RuleId;
+  rationale: string;
+}
+
+export interface Argumentation {
+  statuses: Map<string, ClaimStatus>;
+  attacks: Attack[];
+  trace: TraceStep[];
+}
+
+/**
+ * Defeasible argumentation under grounded semantics.
+ *
+ * The attack graph is induced by the preference ordering in rules.ts. We then
+ * compute the grounded extension by the standard characteristic-function
+ * fixpoint: a claim is IN when every one of its attackers is OUT, and OUT when
+ * some IN claim attacks it. Iterating to a fixpoint is what produces
+ * REINSTATEMENT for free - if A defeats B and C defeats A, then C goes IN, A
+ * goes OUT, and on the next pass B's only attacker is OUT so B goes back IN.
+ *
+ * Claims that never settle are UNDECIDED. That is a real state, not a bug: two
+ * equally-ranked opposed sources is genuine conflict, and the honest answer is
+ * that neither wins.
+ */
+export function argue(claims: EvidenceClaim[], ruleset: Ruleset): Argumentation {
+  const attacks: Attack[] = [];
+  for (const attacker of claims) {
+    for (const target of claims) {
+      const d = defeats(attacker, target, ruleset);
+      if (d) attacks.push({ attackerId: attacker.id, targetId: target.id, byRule: d.byRule, rationale: d.rationale });
+    }
+  }
+
+  const attackersOf = new Map<string, Attack[]>();
+  for (const c of claims) attackersOf.set(c.id, []);
+  for (const a of attacks) attackersOf.get(a.targetId)!.push(a);
+
+  const IN = new Set<string>();
+  const OUT = new Set<string>();
+  const settled = (id: string) => IN.has(id) || OUT.has(id);
+
+  // Fixpoint. Bounded by claims.length iterations - each pass settles at least
+  // one claim or we stop, so this cannot loop forever.
+  for (let pass = 0; pass <= claims.length; pass++) {
+    const newlyIn = claims
+      .filter((c) => !settled(c.id))
+      .filter((c) => attackersOf.get(c.id)!.every((a) => OUT.has(a.attackerId)))
+      .map((c) => c.id);
+    if (newlyIn.length === 0) break;
+    for (const id of newlyIn) IN.add(id);
+
+    for (const c of claims) {
+      if (settled(c.id)) continue;
+      if (attackersOf.get(c.id)!.some((a) => IN.has(a.attackerId))) OUT.add(c.id);
+    }
+  }
+
+  const statuses = new Map<string, ClaimStatus>();
+  const trace: TraceStep[] = [];
+
+  for (const c of claims) {
+    const incoming = attackersOf.get(c.id)!;
+
+    if (OUT.has(c.id)) {
+      const killer = incoming.find((a) => IN.has(a.attackerId))!;
+      statuses.set(c.id, "defeated");
+      trace.push({
+        claimId: c.id,
+        status: "defeated",
+        byRule: killer.byRule,
+        defeatedBy: killer.attackerId,
+        rationale: killer.rationale,
+      });
+      continue;
+    }
+
+    if (!IN.has(c.id)) {
+      statuses.set(c.id, "undecided");
+      trace.push({
+        claimId: c.id,
+        status: "undecided",
+        rationale: "Opposed by evidence of equal standing; no rule separates them. Contributes uncommitted mass only.",
+      });
+      continue;
+    }
+
+    // IN. Two sub-cases: R4 downweighting, and reinstatement.
+    const dw = downweightFactor(c, ruleset);
+    if (dw) {
+      statuses.set(c.id, "downweighted");
+      trace.push({ claimId: c.id, status: "downweighted", byRule: dw.byRule, rationale: dw.rationale });
+      continue;
+    }
+
+    statuses.set(c.id, "admitted");
+    const wasAttacked = incoming.length > 0;
+    trace.push({
+      claimId: c.id,
+      status: "admitted",
+      rationale: wasAttacked
+        ? `Reinstated: attacked by ${incoming.map((a) => a.attackerId).join(", ")}, but every attacker was itself defeated.`
+        : "Admitted; unchallenged.",
+    });
+  }
+
+  return { statuses, attacks, trace };
+}
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/argue.test.ts && npm run lint
+```
+
+Expected: PASS (7 tests), lint clean.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add packages/engine && git commit -m "Add defeasible argumentation with reinstatement
+
+Grounded semantics over the attack graph induced by R1-R6, computed as a
+characteristic-function fixpoint. Reinstatement falls out of the iteration
+rather than being special-cased: if A defeats B and C defeats A, then C goes
+IN, A goes OUT, and on the next pass B's only attacker is OUT so B returns.
+There is an explicit test for exactly that chain, because reinstatement is
+what distinguishes argumentation from a decision table.
+
+UNDECIDED is a real status, not an error path - two equally-ranked opposed
+sources is genuine conflict, and the honest output is that neither wins. Those
+claims contribute uncommitted mass only.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task 6: Abstention, conflict detection, and enforced determinism
+
+**Files:**
+- Create: `packages/engine/src/abstain.ts`, `packages/engine/src/conflict.ts`
+- Test: `packages/engine/test/abstain.test.ts`, `packages/engine/test/conflict.test.ts`
+
+**Interfaces:**
+- Consumes: `EvidenceClaim`, `Ruleset`, `ClaimStatus`
+- Produces:
+  - `shouldAbstain(input: { belief: number; plausibility: number; conflictMass: number; statuses: Map<string, ClaimStatus>; claims: EvidenceClaim[]; ruleset: Ruleset }): { abstain: boolean; reason: string | null }`
+  - `detectConflict(claims: EvidenceClaim[]): { conflicting: boolean; opposedStreams: string[] }`
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `packages/engine/test/abstain.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { shouldAbstain } from "../src/abstain.js";
+import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
+import type { ClaimStatus, EvidenceClaim, Ruleset } from "../src/types.js";
+
+const RS = ruleset as Ruleset;
+const base = { statuses: new Map<string, ClaimStatus>(), claims: [] as EvidenceClaim[], ruleset: RS };
+
+describe("shouldAbstain", () => {
+  it("abstains when the gap exceeds the pre-registered threshold", () => {
+    // threshold is 0.50; gap here is 0.70
+    const r = shouldAbstain({ ...base, belief: 0.1, plausibility: 0.8, conflictMass: 0 });
+    expect(r.abstain).toBe(true);
+    expect(r.reason).toMatch(/gap/i);
+  });
+
+  it("does NOT abstain one step below the threshold", () => {
+    const r = shouldAbstain({ ...base, belief: 0.2, plausibility: 0.69, conflictMass: 0 });
+    expect(r.abstain).toBe(false);
+    expect(r.reason).toBeNull();
+  });
+
+  it("uses the threshold from the ruleset, not a hard-coded constant", () => {
+    const strict: Ruleset = { ...RS, abstentionGapThreshold: 0.05 };
+    const r = shouldAbstain({ ...base, belief: 0.4, plausibility: 0.5, conflictMass: 0, ruleset: strict });
+    expect(r.abstain).toBe(true);
+  });
+
+  it("abstains on total conflict", () => {
+    const r = shouldAbstain({ ...base, belief: 0, plausibility: 1, conflictMass: 1 });
+    expect(r.abstain).toBe(true);
+    expect(r.reason).toMatch(/conflict/i);
+  });
+
+  it("abstains when every committed claim is out of its applicability domain", () => {
+    const claims: EvidenceClaim[] = [{
+      id: "q", compoundId: "X", stream: "qsar", assertion: "toxic", strength: 0.9,
+      system: "in_silico", measuresKeyEvent: null, exposureRelevant: null,
+      inApplicabilityDomain: false, klimisch: null, availableFrom: "2020-01-01",
+      provenance: { kind: "database", source: "t", retrieved: "2026-07-26" },
+    }];
+    const statuses = new Map<string, ClaimStatus>([["q", "downweighted"]]);
+    const r = shouldAbstain({ belief: 0.3, plausibility: 0.4, conflictMass: 0, statuses, claims, ruleset: RS });
+    expect(r.abstain).toBe(true);
+    expect(r.reason).toMatch(/applicability domain/i);
+  });
+});
+```
+
+Create `packages/engine/test/conflict.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { detectConflict } from "../src/conflict.js";
+import type { EvidenceClaim } from "../src/types.js";
+
+function claim(id: string, assertion: EvidenceClaim["assertion"], stream: EvidenceClaim["stream"]): EvidenceClaim {
+  return {
+    id, compoundId: "X", stream, assertion, strength: 0.8, system: "human",
+    measuresKeyEvent: null, exposureRelevant: null, inApplicabilityDomain: true,
+    klimisch: 2, availableFrom: "2020-01-01",
+    provenance: { kind: "database", source: "t", retrieved: "2026-07-26" },
+  };
+}
+
+describe("detectConflict", () => {
+  it("is a conflict only when two DIFFERENT streams commit to opposite verdicts", () => {
+    const r = detectConflict([claim("a", "toxic", "cytotox"), claim("b", "safe", "transporter")]);
+    expect(r.conflicting).toBe(true);
+    expect(r.opposedStreams.sort()).toEqual(["cytotox", "transporter"]);
+  });
+
+  it("is not a conflict within a single stream", () => {
+    expect(detectConflict([claim("a", "toxic", "cytotox"), claim("b", "safe", "cytotox")]).conflicting).toBe(false);
+  });
+
+  it("ignores ambiguous claims", () => {
+    expect(detectConflict([claim("a", "toxic", "cytotox"), claim("b", "ambiguous", "qsar")]).conflicting).toBe(false);
+  });
+
+  it("is not a conflict when all streams agree", () => {
+    expect(detectConflict([claim("a", "toxic", "cytotox"), claim("b", "toxic", "qsar")]).conflicting).toBe(false);
+  });
+});
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/abstain.test.ts packages/engine/test/conflict.test.ts
+```
+
+Expected: FAIL — both modules missing.
+
+- [ ] **Step 3: Write the implementations**
+
+Create `packages/engine/src/abstain.ts`:
+
+```ts
+import type { ClaimStatus, EvidenceClaim, Ruleset } from "./types.js";
+
+/**
+ * Decide whether to decline a verdict.
+ *
+ * Abstention is a first-class output, not a failure. On a compound where the
+ * evidence cannot settle the question, "I cannot vouch for this yet" is the
+ * correct answer and a confident guess would be dangerous.
+ *
+ * The gap threshold comes from the PRE-REGISTERED ruleset, never a constant in
+ * this file - so it cannot be tuned after seeing results.
+ */
+export function shouldAbstain(input: {
+  belief: number;
+  plausibility: number;
+  conflictMass: number;
+  statuses: Map<string, ClaimStatus>;
+  claims: EvidenceClaim[];
+  ruleset: Ruleset;
+}): { abstain: boolean; reason: string | null } {
+  const { belief, plausibility, conflictMass, claims, ruleset } = input;
+
+  if (conflictMass >= 1 - 1e-9) {
+    return { abstain: true, reason: "Total conflict between sources; no conclusion survives combination." };
+  }
+
+  const committed = claims.filter((c) => c.assertion !== "ambiguous");
+  if (committed.length > 0 && committed.every((c) => c.inApplicabilityDomain === false)) {
+    return {
+      abstain: true,
+      reason: "Every committed source lies outside its applicability domain; this compound is off the map.",
+    };
+  }
+
+  const gap = plausibility - belief;
+  if (gap > ruleset.abstentionGapThreshold) {
+    return {
+      abstain: true,
+      reason: `Belief-to-plausibility gap ${gap.toFixed(2)} exceeds the pre-registered threshold ${ruleset.abstentionGapThreshold.toFixed(2)}.`,
+    };
+  }
+
+  return { abstain: false, reason: null };
+}
+```
+
+Create `packages/engine/src/conflict.ts`:
+
+```ts
+import type { EvidenceClaim } from "./types.js";
+
+/**
+ * A compound is in the conflict subset when two DIFFERENT streams commit to
+ * opposite conclusions.
+ *
+ * Stream-level rather than claim-level on purpose: two disagreeing readouts
+ * from one assay is measurement noise, whereas a hepatocyte assay disagreeing
+ * with a transporter assay is the situation ARBITER exists for. Ambiguous
+ * claims never create a conflict - they commit to nothing.
+ */
+export function detectConflict(claims: EvidenceClaim[]): { conflicting: boolean; opposedStreams: string[] } {
+  const committed = claims.filter((c) => c.assertion !== "ambiguous");
+  const toxicStreams = new Set(committed.filter((c) => c.assertion === "toxic").map((c) => c.stream));
+  const safeStreams = new Set(committed.filter((c) => c.assertion === "safe").map((c) => c.stream));
+
+  const opposed: string[] = [];
+  for (const s of toxicStreams) if (!safeStreams.has(s)) opposed.push(s);
+  for (const s of safeStreams) if (!toxicStreams.has(s)) opposed.push(s);
+
+  const conflicting = toxicStreams.size > 0 && safeStreams.size > 0 && opposed.length >= 2;
+  return { conflicting, opposedStreams: conflicting ? opposed.sort() : [] };
+}
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/abstain.test.ts packages/engine/test/conflict.test.ts && npm run lint
+```
+
+Expected: PASS (9 tests), lint clean.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add packages/engine && git commit -m "Add abstention and stream-level conflict detection
+
+Abstention fires on total conflict, on every committed source being outside
+its applicability domain, or on the belief-plausibility gap exceeding the
+threshold - and the threshold is read from the pre-registered ruleset rather
+than hard-coded here, so it cannot be tuned after seeing results.
+
+Conflict is defined at STREAM level, not claim level: two disagreeing readouts
+from one assay is measurement noise, while a hepatocyte assay disagreeing with
+a transporter assay is the situation the product exists for.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task 7: `reason()` — the public entry point, and the determinism guarantee
+
+**Files:**
+- Create: `packages/engine/src/index.ts`
+- Modify: `packages/engine/src/fuse.ts` — additively extend `fuse`'s return with `mass`
+- Test: `packages/engine/test/reason.test.ts`, `packages/engine/test/determinism.test.ts`
+
+**Interfaces:**
+- Consumes: `argue`, `fuse`, `claimToMass`, `shouldAbstain`, `concordanceBoost`
+- Produces:
+  - `reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash?: string): Reasoning`
+  - Re-exports every public type and the sub-module functions
+  - `fuse` now also returns `mass: Mass` (additive — Task 3's tests are unaffected)
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `packages/engine/test/reason.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { reason } from "../src/index.js";
+import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
+import type { EvidenceClaim, Ruleset } from "../src/types.js";
+
+const RS = ruleset as Ruleset;
+
+function claim(over: Partial<EvidenceClaim> & { id: string }): EvidenceClaim {
+  return {
+    compoundId: "X", stream: "cytotox", assertion: "safe", strength: 0.8,
+    system: "human", measuresKeyEvent: null, exposureRelevant: null,
+    inApplicabilityDomain: true, klimisch: 2, availableFrom: "2020-01-01",
+    provenance: { kind: "database", source: "t", retrieved: "2026-07-26" },
+    ...over,
+  };
+}
+
+describe("reason", () => {
+  it("abstains on no evidence at all, with a maximally wide range", () => {
+    const r = reason([], RS);
+    expect(r.verdict).toBe("abstain");
+    expect(r.belief).toBeCloseTo(0, 10);
+    expect(r.plausibility).toBeCloseTo(1, 10);
+  });
+
+  it("advances on unanimous strong safe evidence across streams", () => {
+    const r = reason([
+      claim({ id: "a", assertion: "safe", strength: 0.9, stream: "cytotox" }),
+      claim({ id: "b", assertion: "safe", strength: 0.9, stream: "transporter" }),
+    ], RS);
+    expect(r.verdict).toBe("advance");
+    expect(r.contested).toBe(false);
+  });
+
+  it("does not advance when the surviving evidence says toxic", () => {
+    const r = reason([
+      claim({ id: "h", assertion: "toxic", strength: 0.9, system: "human", klimisch: 1 }),
+      claim({ id: "r", assertion: "safe", strength: 0.9, system: "rodent", stream: "invivo_rodent", klimisch: 2 }),
+    ], RS);
+    expect(r.verdict).toBe("do_not_advance");
+    // The defeated rodent claim is still in the trace - nothing is hidden.
+    expect(r.trace.find((s) => s.claimId === "r")?.status).toBe("defeated");
+    expect(r.trace.find((s) => s.claimId === "r")?.byRule).toBe("R1");
+  });
+
+  it("excludes defeated claims from fusion but keeps them in the trace", () => {
+    const withDefeat = reason([
+      claim({ id: "h", assertion: "toxic", strength: 0.9, system: "human", klimisch: 1 }),
+      claim({ id: "r", assertion: "safe", strength: 0.99, system: "rodent", stream: "invivo_rodent", klimisch: 2 }),
+    ], RS);
+    const alone = reason([claim({ id: "h", assertion: "toxic", strength: 0.9, system: "human", klimisch: 1 })], RS);
+    // The very strong defeated claim must not drag belief down.
+    expect(withDefeat.belief).toBeCloseTo(alone.belief, 10);
+    expect(withDefeat.trace).toHaveLength(2);
+  });
+
+  it("marks a case contested when both sides survive", () => {
+    const r = reason([
+      claim({ id: "a", assertion: "toxic", klimisch: 2, stream: "cytotox" }),
+      claim({ id: "b", assertion: "safe", klimisch: 2, stream: "transporter" }),
+    ], RS);
+    expect(r.contested).toBe(true);
+  });
+
+  it("carries the ruleset hash through to the output", () => {
+    expect(reason([], RS, "deadbeef").rulesetHash).toBe("deadbeef");
+  });
+
+  it("emits belief <= plausibility always", () => {
+    const r = reason([claim({ id: "a", assertion: "toxic", strength: 0.5 })], RS);
+    expect(r.belief).toBeLessThanOrEqual(r.plausibility);
+  });
+});
+```
+
+Create `packages/engine/test/determinism.test.ts`:
+
+```ts
+import { createHash } from "node:crypto";
+import { describe, expect, it } from "vitest";
+import { reason } from "../src/index.js";
+import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
+import type { EvidenceClaim, Ruleset } from "../src/types.js";
+
+const RS = ruleset as Ruleset;
+
+const CLAIMS: EvidenceClaim[] = [
+  { id: "a", compoundId: "X", stream: "qsar", assertion: "ambiguous", strength: 0.5, system: "in_silico", measuresKeyEvent: null, exposureRelevant: null, inApplicabilityDomain: true, klimisch: null, availableFrom: "2020-01", provenance: { kind: "database", source: "t", retrieved: "2026-07-26" } },
+  { id: "b", compoundId: "X", stream: "cytotox", assertion: "safe", strength: 0.8, system: "human", measuresKeyEvent: null, exposureRelevant: true, inApplicabilityDomain: true, klimisch: 1, availableFrom: "2020-01", provenance: { kind: "database", source: "t", retrieved: "2026-07-26" } },
+  { id: "c", compoundId: "X", stream: "toxicogenomics", assertion: "toxic", strength: 0.7, system: "rodent", measuresKeyEvent: "KE:1", exposureRelevant: true, inApplicabilityDomain: true, klimisch: 2, availableFrom: "2022-01", provenance: { kind: "literature", source: "PMID:1", retrieved: "2026-07-26" } },
+  { id: "d", compoundId: "X", stream: "transporter", assertion: "safe", strength: 0.6, system: "human", measuresKeyEvent: "KE:2", exposureRelevant: null, inApplicabilityDomain: true, klimisch: 2, availableFrom: "2020-01", provenance: { kind: "database", source: "t", retrieved: "2026-07-26" } },
+];
+
+describe("determinism", () => {
+  it("produces exactly ONE output hash across 1000 runs", () => {
+    const hashes = new Set<string>();
+    for (let i = 0; i < 1000; i++) {
+      hashes.add(createHash("sha256").update(JSON.stringify(reason(CLAIMS, RS, "h"))).digest("hex"));
+    }
+    expect(hashes.size).toBe(1);
+  });
+
+  it("does not mutate its inputs", () => {
+    const before = JSON.stringify({ CLAIMS, RS });
+    reason(CLAIMS, RS, "h");
+    expect(JSON.stringify({ CLAIMS, RS })).toBe(before);
+  });
+});
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/reason.test.ts packages/engine/test/determinism.test.ts
+```
+
+Expected: FAIL — `Cannot find module '../src/index.js'`
+
+- [ ] **Step 3: Extend `fuse` additively to expose the full mass**
+
+`reason()` needs `mass.safe` to compare the two beliefs, which Task 3's return type does not carry. Add it — a purely additive change, so every Task 3 test still passes.
+
+In `packages/engine/src/fuse.ts`, change the `fuse` signature and its return statement only:
+
+```ts
+export function fuse(masses: Mass[]): { belief: number; plausibility: number; conflictMass: number; mass: Mass } {
+  let acc: Mass = { ...VACUOUS };
+  let maxConflict = 0;
+  for (const m of masses) {
+    const { mass, conflict } = combine(acc, m);
+    acc = mass;
+    if (conflict > maxConflict) maxConflict = conflict;
+  }
+  return { belief: acc.toxic, plausibility: acc.toxic + acc.uncommitted, conflictMass: maxConflict, mass: acc };
+}
+```
+
+- [ ] **Step 4: Write `index.ts`**
+
+Create `packages/engine/src/index.ts`:
+
+```ts
+import { shouldAbstain } from "./abstain.js";
+import { argue } from "./argue.js";
+import { detectConflict } from "./conflict.js";
+import { VACUOUS, claimToMass, fuse, type Mass } from "./fuse.js";
+import { concordanceBoost } from "./rules.js";
+import type { EvidenceClaim, Reasoning, Ruleset, Verdict } from "./types.js";
+
+export * from "./types.js";
+export { EvidenceClaimSchema, EvidenceFileSchema, RulesetSchema } from "./schema.js";
+export { VACUOUS, claimToMass, combine, fuse } from "./fuse.js";
+export { concordanceBoost, conflictsWith, defeats, downweightFactor } from "./rules.js";
+export { argue } from "./argue.js";
+export { detectConflict } from "./conflict.js";
+export { shouldAbstain } from "./abstain.js";
+
+/** Shift a claim's committed mass toward Theta by `factor`. Used for R4 and UNDECIDED. */
+function soften(m: Mass, factor: number): Mass {
+  const toxic = m.toxic * factor;
+  const safe = m.safe * factor;
+  return { toxic, safe, uncommitted: 1 - toxic - safe };
+}
+
+/**
+ * ARBITER's only public entry point.
+ *
+ * PURE: no I/O, no clock, no randomness. Filtering claims by `availableFrom`
+ * for as-of replay is the CALLER's job - the engine cannot read a clock, which
+ * is exactly why the as-of control is a change of input rather than a change
+ * of behaviour.
+ */
+export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = ""): Reasoning {
+  const { statuses, trace } = argue(claims, ruleset);
+
+  const masses: Mass[] = [];
+  for (const c of claims) {
+    switch (statuses.get(c.id)) {
+      case "admitted":
+        masses.push(claimToMass(c.assertion, c.strength));
+        break;
+      case "downweighted": {
+        // R4: admitted with reduced weight rather than excluded.
+        const r4 = ruleset.rules.find((x) => x.id === "R4");
+        masses.push(soften(claimToMass(c.assertion, c.strength), r4?.enabled ? 1 - r4.strength : 1));
+        break;
+      }
+      case "undecided":
+        // Contributes ignorance, not a vote. This is the fusion-vs-averaging
+        // distinction applied to the argumentation layer.
+        masses.push({ ...VACUOUS });
+        break;
+      default:
+        break; // defeated: excluded from fusion, retained in the trace
+    }
+  }
+
+  const admitted = claims.filter((c) => statuses.get(c.id) === "admitted");
+  const boost = concordanceBoost(admitted, ruleset);
+  const fused = fuse(masses);
+
+  // R6 sharpens a concordant conclusion by moving uncommitted mass onto the
+  // side the independent streams agree on. It cannot exceed total mass.
+  const lean: "toxic" | "safe" | null =
+    fused.mass.toxic > fused.mass.safe ? "toxic" : fused.mass.safe > fused.mass.toxic ? "safe" : null;
+  let mass = fused.mass;
+  if (lean && boost > 1) {
+    const move = Math.min(mass.uncommitted, mass[lean] * (boost - 1));
+    mass = lean === "toxic"
+      ? { toxic: mass.toxic + move, safe: mass.safe, uncommitted: mass.uncommitted - move }
+      : { toxic: mass.toxic, safe: mass.safe + move, uncommitted: mass.uncommitted - move };
+  }
+
+  const belief = mass.toxic;
+  const plausibility = mass.toxic + mass.uncommitted;
+
+  const abst = shouldAbstain({ belief, plausibility, conflictMass: fused.conflictMass, statuses, claims, ruleset });
+
+  let verdict: Verdict;
+  if (abst.abstain) verdict = "abstain";
+  else if (mass.toxic > mass.safe) verdict = "do_not_advance";
+  else if (mass.safe > mass.toxic) verdict = "advance";
+  else verdict = "abstain"; // exactly balanced: declining is the honest answer
+
+  const survivors = claims.filter((c) => {
+    const s = statuses.get(c.id);
+    return s === "admitted" || s === "downweighted";
+  });
+  const contested = detectConflict(survivors).conflicting || fused.conflictMass > 0;
+
+  const withReason = abst.reason
+    ? [...trace, { claimId: "__verdict__", status: "undecided" as const, rationale: abst.reason }]
+    : trace;
+
+  return {
+    verdict,
+    contested,
+    belief,
+    plausibility,
+    conflictMass: fused.conflictMass,
+    trace: withReason,
+    counterfactual: null, // Task 8
+    nextExperiment: null, // Task 9
+    rulesetHash,
+  };
+}
+```
+
+- [ ] **Step 5: Run the full engine suite to verify everything passes**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine && npm run lint && npm run typecheck
+```
+
+Expected: PASS — all engine tests including Task 3's fusion tests (the `fuse` change was additive), 1000-run determinism gives exactly one hash, lint and typecheck clean.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add packages/engine && git commit -m "Add reason() and the enforced determinism guarantee
+
+Wires argue -> fuse -> abstain into a Reasoning result. Status decides how a
+claim reaches fusion: admitted contributes full mass, R4-downweighted
+contributes softened mass, UNDECIDED contributes pure ignorance rather than a
+vote, and defeated is excluded from fusion but RETAINED IN THE TRACE - a test
+asserts a very strong defeated claim cannot drag belief, and that it still
+appears in the output.
+
+Determinism is now a measured property, not a claim: one case, 1000 runs, one
+output hash. A second test asserts reason() does not mutate its inputs.
+
+fuse() gained a `mass` field additively so reason() can compare belief in
+toxic against belief in safe; Task 3's tests are unaffected.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task 8: Exhaustive counterfactual
+
+**Files:**
+- Create: `packages/engine/src/counterfactual.ts`
+- Modify: `packages/engine/src/index.ts` — populate `counterfactual`
+- Test: `packages/engine/test/counterfactual.test.ts`
+
+**Interfaces:**
+- Consumes: `reason` (injected to avoid a circular import), `EvidenceClaim`, `Ruleset`, `Counterfactual`
+- Produces: `findCounterfactual(claims, ruleset, currentVerdict, reasonFn): Counterfactual | null`
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `packages/engine/test/counterfactual.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { reason } from "../src/index.js";
+import { findCounterfactual } from "../src/counterfactual.js";
+import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
+import type { Assertion, EvidenceClaim, Ruleset } from "../src/types.js";
+
+const RS = ruleset as Ruleset;
+
+function claim(over: Partial<EvidenceClaim> & { id: string }): EvidenceClaim {
+  return {
+    compoundId: "X", stream: "cytotox", assertion: "safe", strength: 0.8,
+    system: "human", measuresKeyEvent: null, exposureRelevant: null,
+    inApplicabilityDomain: true, klimisch: 2, availableFrom: "2020-01-01",
+    provenance: { kind: "database", source: "t", retrieved: "2026-07-26" },
+    ...over,
+  };
+}
+
+/** Brute-force oracle: try every subset up to size 2 and every target assertion. */
+function oracle(claims: EvidenceClaim[], rs: Ruleset): { size: number } | null {
+  const current = reason(claims, rs).verdict;
+  const targets: Assertion[] = ["toxic", "safe", "ambiguous"];
+  for (const size of [1, 2]) {
+    const subsets = size === 1
+      ? claims.map((c) => [c])
+      : claims.flatMap((a, i) => claims.slice(i + 1).map((b) => [a, b]));
+    for (const subset of subsets) {
+      for (const t of targets) {
+        const flipped = claims.map((c) =>
+          subset.some((s) => s.id === c.id) ? { ...c, assertion: t } : c,
+        );
+        if (reason(flipped, rs).verdict !== current) return { size };
+      }
+    }
+  }
+  return null;
+}
+
+describe("findCounterfactual", () => {
+  it("finds a single-claim flip when one exists", () => {
+    const claims = [
+      claim({ id: "a", assertion: "safe", strength: 0.9, stream: "cytotox" }),
+      claim({ id: "b", assertion: "safe", strength: 0.9, stream: "transporter" }),
+    ];
+    const cf = findCounterfactual(claims, RS, reason(claims, RS).verdict, reason);
+    expect(cf).not.toBeNull();
+    expect(cf!.claimIds).toHaveLength(1);
+    expect(cf!.newVerdict).not.toBe(reason(claims, RS).verdict);
+  });
+
+  it("prefers the smallest flip - never reports a pair when a single works", () => {
+    const claims = [
+      claim({ id: "a", assertion: "safe", strength: 0.95, stream: "cytotox" }),
+      claim({ id: "b", assertion: "safe", strength: 0.95, stream: "transporter" }),
+      claim({ id: "c", assertion: "safe", strength: 0.95, stream: "qsar", system: "in_silico" }),
+    ];
+    const cf = findCounterfactual(claims, RS, reason(claims, RS).verdict, reason);
+    if (cf) expect(cf.claimIds).toHaveLength(1);
+  });
+
+  it("returns null when nothing within two flips changes the verdict", () => {
+    const cf = findCounterfactual([], RS, reason([], RS).verdict, reason);
+    expect(cf).toBeNull();
+  });
+
+  it("AGREES WITH THE BRUTE-FORCE ORACLE on deterministic random cases", () => {
+    let s = 987654;
+    const next = () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648);
+    const streams = ["qsar", "cytotox", "toxicogenomics", "transporter"] as const;
+    const assertions: Assertion[] = ["toxic", "safe", "ambiguous"];
+
+    for (let trial = 0; trial < 120; trial++) {
+      const n = 1 + Math.floor(next() * 4);
+      const claims = Array.from({ length: n }, (_, i) =>
+        claim({
+          id: `c${i}`,
+          stream: streams[Math.floor(next() * streams.length)]!,
+          assertion: assertions[Math.floor(next() * assertions.length)]!,
+          strength: 0.4 + next() * 0.6,
+          klimisch: (1 + Math.floor(next() * 4)) as 1 | 2 | 3 | 4,
+        }),
+      );
+      const found = findCounterfactual(claims, RS, reason(claims, RS).verdict, reason);
+      const expected = oracle(claims, RS);
+      expect(found === null).toBe(expected === null);
+      if (found && expected) expect(found.claimIds.length).toBe(expected.size);
+    }
+  });
+});
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/counterfactual.test.ts
+```
+
+Expected: FAIL — `Cannot find module '../src/counterfactual.js'`
+
+- [ ] **Step 3: Write the implementation**
+
+Create `packages/engine/src/counterfactual.ts`:
+
+```ts
+import type { Assertion, Counterfactual, EvidenceClaim, Reasoning, Ruleset, Verdict } from "./types.js";
+
+const TARGETS: Assertion[] = ["toxic", "safe", "ambiguous"];
+
+/**
+ * "What would have to change for this verdict to flip?"
+ *
+ * EXHAUSTIVE, not heuristic. With at most six claims per compound the search
+ * space is 6 single flips plus 15 pairs, times three target assertions - well
+ * under 100 evaluations of a pure microsecond-scale function. So we search
+ * singles first, then pairs, and return the smallest set. There is no
+ * approximation to defend in Q&A.
+ *
+ * `reasonFn` is injected rather than imported to keep index.ts -> here a
+ * one-way dependency.
+ */
+export function findCounterfactual(
+  claims: EvidenceClaim[],
+  ruleset: Ruleset,
+  currentVerdict: Verdict,
+  reasonFn: (claims: EvidenceClaim[], ruleset: Ruleset) => Reasoning,
+): Counterfactual | null {
+  const flip = (ids: Set<string>, to: Assertion) =>
+    claims.map((c) => (ids.has(c.id) ? { ...c, assertion: to } : c));
+
+  // Singles.
+  for (const c of claims) {
+    for (const to of TARGETS) {
+      if (c.assertion === to) continue;
+      const v = reasonFn(flip(new Set([c.id]), to), ruleset).verdict;
+      if (v !== currentVerdict) return { claimIds: [c.id], flipTo: to, newVerdict: v };
+    }
+  }
+
+  // Pairs.
+  for (let i = 0; i < claims.length; i++) {
+    for (let j = i + 1; j < claims.length; j++) {
+      const ids = new Set([claims[i]!.id, claims[j]!.id]);
+      for (const to of TARGETS) {
+        const v = reasonFn(flip(ids, to), ruleset).verdict;
+        if (v !== currentVerdict) return { claimIds: [...ids], flipTo: to, newVerdict: v };
+      }
+    }
+  }
+
+  return null;
+}
+```
+
+- [ ] **Step 4: Wire it into `reason()`**
+
+In `packages/engine/src/index.ts`, add the import and replace the `counterfactual: null` line.
+
+```ts
+import { findCounterfactual } from "./counterfactual.js";
+export { findCounterfactual } from "./counterfactual.js";
+```
+
+Replace the `return { ... }` block's counterfactual field. Because the search calls `reason` recursively, guard against infinite recursion with an internal flag: extract the body of `reason` into `reasonCore(claims, ruleset, rulesetHash, withExtras)` and have `reason` call it with `withExtras = true`, while the counterfactual search passes a bound `reasonCore(..., false)`.
+
+```ts
+export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = ""): Reasoning {
+  return reasonCore(claims, ruleset, rulesetHash, true);
+}
+
+const bare = (c: EvidenceClaim[], rs: Ruleset) => reasonCore(c, rs, "", false);
+
+function reasonCore(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash: string, withExtras: boolean): Reasoning {
+  /* ...everything from Task 7, unchanged, down to the return... */
+  return {
+    verdict, contested, belief, plausibility,
+    conflictMass: fused.conflictMass,
+    trace: withReason,
+    counterfactual: withExtras ? findCounterfactual(claims, ruleset, verdict, bare) : null,
+    nextExperiment: null, // Task 9
+    rulesetHash,
+  };
+}
+```
+
+- [ ] **Step 5: Run the tests to verify they pass**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine && npm run lint && npm run typecheck
+```
+
+Expected: PASS — including the 120-trial oracle agreement test and the still-green 1000-run determinism test.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add packages/engine && git commit -m "Add exhaustive counterfactual search
+
+Searches single flips then pairs across all three target assertions and
+returns the smallest set that changes the verdict. Exhaustive rather than
+heuristic: at most six claims per compound means under 100 evaluations of a
+pure microsecond function, so there is no approximation to defend.
+
+Correctness is established against a brute-force oracle over 120 deterministic
+random cases, asserting both the same null/non-null answer and the same
+minimal flip size.
+
+reason() is split into a public wrapper and reasonCore with a withExtras flag,
+so the counterfactual search recurses into the bare engine and cannot loop.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task 9: Argument-structure-driven value-of-information planner
+
+**This is the mechanism the spec names as genuinely novel (§2a).** The planner does not ask "which assay is generally informative?" It asks *"which rule is doing the defeating, and what evidence would overturn that specific rule?"*
+
+**Files:**
+- Create: `packages/engine/src/plan.ts`
+- Create: `data/out/assays.json`
+- Modify: `packages/engine/src/index.ts` — populate `nextExperiment`
+- Test: `packages/engine/test/plan.test.ts`
+
+**Interfaces:**
+- Consumes: `EvidenceClaim`, `Ruleset`, `RuleId`, `NextExperiment`, injected `reasonFn`
+- Produces:
+  - `interface AssayOperator { id: string; name: string; cost: number; produces: Pick<EvidenceClaim, "stream" | "system" | "measuresKeyEvent" | "exposureRelevant" | "inApplicabilityDomain" | "klimisch">; priorToxic: number }`
+  - `pivotalRules(claims, ruleset, reasonFn): RuleId[]`
+  - `planNextExperiment(claims, ruleset, assays, reasonFn): NextExperiment | null`
+
+- [ ] **Step 1: Write the assay operator catalogue**
+
+Create `data/out/assays.json`. `priorToxic` is **expert-elicited, not learned** — the spec discloses this and Task 15 measures its sensitivity.
+
+```json
+{
+  "note": "Candidate confirmatory assays as planner operators. priorToxic values are expert-elicited from literature, NOT learned from data - see spec 5 and the sensitivity analysis in metrics.",
+  "assays": [
+    {
+      "id": "murine-cyp-induction",
+      "name": "Murine CYP-induction study at clinically relevant dose",
+      "cost": 40,
+      "produces": { "stream": "toxicogenomics", "system": "rodent", "measuresKeyEvent": "KE:CYP-INDUCTION", "exposureRelevant": true, "inApplicabilityDomain": true, "klimisch": 1 },
+      "priorToxic": 0.35
+    },
+    {
+      "id": "human-hepatocyte-spheroid",
+      "name": "3D human hepatocyte spheroid cytotoxicity, clinical exposure range",
+      "cost": 25,
+      "produces": { "stream": "cytotox", "system": "human", "measuresKeyEvent": "KE:HEPATOCYTE-DEATH", "exposureRelevant": true, "inApplicabilityDomain": true, "klimisch": 1 },
+      "priorToxic": 0.3
+    },
+    {
+      "id": "bsep-inhibition",
+      "name": "BSEP inhibition assay with exposure-matched margin",
+      "cost": 12,
+      "produces": { "stream": "transporter", "system": "human", "measuresKeyEvent": "KE:BSEP-INHIBITION", "exposureRelevant": true, "inApplicabilityDomain": true, "klimisch": 1 },
+      "priorToxic": 0.25
+    },
+    {
+      "id": "mito-tox-panel",
+      "name": "Mitochondrial toxicity panel, human hepatocytes",
+      "cost": 15,
+      "produces": { "stream": "cytotox", "system": "human", "measuresKeyEvent": "KE:MITO-DYSFUNCTION", "exposureRelevant": true, "inApplicabilityDomain": true, "klimisch": 2 },
+      "priorToxic": 0.22
+    },
+    {
+      "id": "readacross-refinement",
+      "name": "Structural read-across refinement against an expanded analogue set",
+      "cost": 4,
+      "produces": { "stream": "qsar", "system": "in_silico", "measuresKeyEvent": null, "exposureRelevant": null, "inApplicabilityDomain": true, "klimisch": 3 },
+      "priorToxic": 0.2
+    }
+  ]
+}
+```
+
+- [ ] **Step 2: Write the failing tests**
+
+Create `packages/engine/test/plan.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { reason } from "../src/index.js";
+import { pivotalRules, planNextExperiment, type AssayOperator } from "../src/plan.js";
+import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
+import assayFile from "../../../data/out/assays.json" with { type: "json" };
+import type { EvidenceClaim, Ruleset } from "../src/types.js";
+
+const RS = ruleset as Ruleset;
+const ASSAYS = (assayFile as { assays: AssayOperator[] }).assays;
+const bare = (c: EvidenceClaim[], rs: Ruleset) => reason(c, rs);
+
+function claim(over: Partial<EvidenceClaim> & { id: string }): EvidenceClaim {
+  return {
+    compoundId: "X", stream: "cytotox", assertion: "safe", strength: 0.8,
+    system: "human", measuresKeyEvent: null, exposureRelevant: null,
+    inApplicabilityDomain: true, klimisch: 2, availableFrom: "2020-01-01",
+    provenance: { kind: "database", source: "t", retrieved: "2026-07-26" },
+    ...over,
+  };
+}
+
+describe("pivotalRules", () => {
+  it("identifies R1 as pivotal when R1 is what defeated the opposing claim", () => {
+    const claims = [
+      claim({ id: "h", assertion: "toxic", system: "human", klimisch: 1, strength: 0.9 }),
+      claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", klimisch: 2, strength: 0.9 }),
+    ];
+    expect(pivotalRules(claims, RS, bare)).toContain("R1");
+  });
+
+  it("returns no pivotal rule when no rule fired", () => {
+    const claims = [claim({ id: "a", assertion: "toxic" })];
+    expect(pivotalRules(claims, RS, bare)).toHaveLength(0);
+  });
+});
+
+describe("planNextExperiment", () => {
+  it("recommends nothing when the case is already settled with a narrow gap", () => {
+    const claims = [
+      claim({ id: "a", assertion: "safe", strength: 0.98, stream: "cytotox" }),
+      claim({ id: "b", assertion: "safe", strength: 0.98, stream: "transporter" }),
+      claim({ id: "c", assertion: "safe", strength: 0.98, stream: "toxicogenomics" }),
+    ];
+    const r = reason(claims, RS);
+    if (r.verdict !== "abstain" && r.plausibility - r.belief < 0.2) {
+      expect(planNextExperiment(claims, RS, ASSAYS, bare)).toBeNull();
+    }
+  });
+
+  it("recommends an assay when the case abstains, and names what it resolves", () => {
+    // Two clean animal studies with untested margins: nothing human-relevant.
+    const claims = [
+      claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", exposureRelevant: null, strength: 0.6 }),
+      claim({ id: "p", assertion: "safe", system: "nonrodent", stream: "invivo_nonrodent", exposureRelevant: null, strength: 0.6 }),
+    ];
+    const rec = planNextExperiment(claims, RS, ASSAYS, bare);
+    expect(rec).not.toBeNull();
+    expect(rec!.assay).toBeTruthy();
+    expect(rec!.expectedGapReduction).toBeGreaterThan(0);
+    expect(rec!.score).toBeGreaterThan(0);
+    expect(rec!.rationale.length).toBeGreaterThan(10);
+  });
+
+  it("scores by information gain PER UNIT COST, not raw gain", () => {
+    const claims = [claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", exposureRelevant: null, strength: 0.5 })];
+    const cheap: AssayOperator[] = [{ ...ASSAYS[2]!, id: "cheap", cost: 1 }];
+    const same: AssayOperator[] = [{ ...ASSAYS[2]!, id: "pricey", cost: 1000 }];
+    const a = planNextExperiment(claims, RS, cheap, bare);
+    const b = planNextExperiment(claims, RS, same, bare);
+    if (a && b) expect(a.score).toBeGreaterThan(b.score);
+  });
+
+  it("is deterministic across repeated calls", () => {
+    const claims = [claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", exposureRelevant: null })];
+    const runs = Array.from({ length: 25 }, () => JSON.stringify(planNextExperiment(claims, RS, ASSAYS, bare)));
+    expect(new Set(runs).size).toBe(1);
+  });
+});
+```
+
+- [ ] **Step 3: Run the tests to verify they fail**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/plan.test.ts
+```
+
+Expected: FAIL — `Cannot find module '../src/plan.js'`
+
+- [ ] **Step 4: Write the implementation**
+
+Create `packages/engine/src/plan.ts`:
+
+```ts
+import { argue } from "./argue.js";
+import type { EvidenceClaim, NextExperiment, Reasoning, RuleId, Ruleset } from "./types.js";
+
+export interface AssayOperator {
+  id: string;
+  name: string;
+  /** Relative cost. Units are arbitrary but must be consistent across the catalogue. */
+  cost: number;
+  produces: Pick<
+    EvidenceClaim,
+    "stream" | "system" | "measuresKeyEvent" | "exposureRelevant" | "inApplicabilityDomain" | "klimisch"
+  >;
+  /** EXPERT-ELICITED prior that this assay returns a toxic result. Not learned. */
+  priorToxic: number;
+}
+
+type ReasonFn = (claims: EvidenceClaim[], ruleset: Ruleset) => Reasoning;
+
+/**
+ * Which rules is the verdict actually resting on?
+ *
+ * A rule is pivotal when disabling it changes the verdict. This is the
+ * mechanism the spec calls novel: the planner is driven by the ARGUMENT
+ * STRUCTURE, not by which assay is generally informative.
+ */
+export function pivotalRules(claims: EvidenceClaim[], ruleset: Ruleset, reasonFn: ReasonFn): RuleId[] {
+  const baseline = reasonFn(claims, ruleset).verdict;
+  const fired = new Set(argue(claims, ruleset).attacks.map((a) => a.byRule));
+  const pivotal: RuleId[] = [];
+  for (const id of fired) {
+    const without: Ruleset = { ...ruleset, rules: ruleset.rules.map((r) => (r.id === id ? { ...r, enabled: false } : r)) };
+    if (reasonFn(claims, without).verdict !== baseline) pivotal.push(id);
+  }
+  return pivotal.sort();
+}
+
+/**
+ * Pick the single assay that most reduces the belief-plausibility gap per unit
+ * cost.
+ *
+ * For each candidate we simulate both possible outcomes weighted by the
+ * expert-elicited prior, take the expected post-assay gap, and score
+ * (gap reduction) / cost. Ties break on assay id so the result is stable.
+ */
+export function planNextExperiment(
+  claims: EvidenceClaim[],
+  ruleset: Ruleset,
+  assays: AssayOperator[],
+  reasonFn: ReasonFn,
+): NextExperiment | null {
+  const before = reasonFn(claims, ruleset);
+  const gapBefore = before.plausibility - before.belief;
+
+  // Nothing to resolve: a settled verdict with a narrow range needs no assay.
+  if (before.verdict !== "abstain" && gapBefore < 0.2) return null;
+
+  const pivotal = pivotalRules(claims, ruleset, reasonFn);
+  let best: NextExperiment | null = null;
+
+  for (const assay of [...assays].sort((a, b) => (a.id < b.id ? -1 : 1))) {
+    let expectedGapAfter = 0;
+    for (const [assertion, p] of [["toxic", assay.priorToxic], ["safe", 1 - assay.priorToxic]] as const) {
+      const hypothetical: EvidenceClaim = {
+        id: `__hypothetical__${assay.id}`,
+        compoundId: claims[0]?.compoundId ?? "X",
+        assertion,
+        strength: 0.85,
+        availableFrom: "0000-01-01",
+        provenance: { kind: "database", source: `planned:${assay.id}`, retrieved: "0000-01-01" },
+        ...assay.produces,
+      };
+      const after = reasonFn([...claims, hypothetical], ruleset);
+      expectedGapAfter += p * (after.plausibility - after.belief);
+    }
+
+    const reduction = gapBefore - expectedGapAfter;
+    if (reduction <= 0) continue;
+    const score = reduction / assay.cost;
+    if (best && score <= best.score) continue;
+
+    const resolves = pivotal.find((id) => resolvesRule(id, assay)) ?? null;
+    best = {
+      assay: assay.name,
+      resolvesRule: resolves,
+      expectedGapReduction: reduction,
+      cost: assay.cost,
+      score,
+      rationale: resolves
+        ? `${assay.name} produces evidence that would overturn ${resolves}, the rule the current verdict rests on. Expected gap reduction ${reduction.toFixed(2)} at cost ${assay.cost}.`
+        : `${assay.name} narrows the belief-plausibility gap by an expected ${reduction.toFixed(2)} at cost ${assay.cost}.`,
+    };
+  }
+
+  return best;
+}
+
+/** Would this assay produce evidence capable of overturning the given rule? */
+function resolvesRule(id: RuleId, assay: AssayOperator): boolean {
+  switch (id) {
+    case "R1": return assay.produces.system === "human";
+    case "R2": return assay.produces.measuresKeyEvent !== null;
+    case "R3": return assay.produces.exposureRelevant === true;
+    case "R4": return assay.produces.inApplicabilityDomain === true;
+    case "R5": return assay.produces.klimisch === 1;
+    case "R6": return true;
+    default: return false;
+  }
+}
+```
+
+- [ ] **Step 5: Wire it into `reason()`**
+
+In `packages/engine/src/index.ts`:
+
+```ts
+import { planNextExperiment, type AssayOperator } from "./plan.js";
+export { pivotalRules, planNextExperiment, type AssayOperator } from "./plan.js";
+```
+
+Add an optional fourth parameter and populate the field:
+
+```ts
+export function reason(
+  claims: EvidenceClaim[],
+  ruleset: Ruleset,
+  rulesetHash = "",
+  assays: AssayOperator[] = [],
+): Reasoning {
+  return reasonCore(claims, ruleset, rulesetHash, true, assays);
+}
+```
+
+…and in `reasonCore`'s return:
+
+```ts
+    nextExperiment: withExtras && assays.length > 0 ? planNextExperiment(claims, ruleset, assays, bare) : null,
+```
+
+- [ ] **Step 6: Run the full suite to verify everything passes**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine && npm run lint && npm run typecheck
+```
+
+Expected: PASS across all engine tests. Determinism still yields one hash.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add packages/engine data/out/assays.json && git commit -m "Add argument-structure-driven value-of-information planner
+
+This is the mechanism the spec claims as genuinely novel. The planner does not
+ask which assay is generally informative - it identifies the PIVOTAL RULES by
+disabling each fired rule and checking whether the verdict changes, then
+prefers assays producing evidence capable of overturning those specific rules.
+
+Scoring is expected belief-plausibility gap reduction per unit cost, with both
+possible assay outcomes weighted by an expert-elicited prior. The priors are
+labelled as elicited rather than learned in data/out/assays.json, and Task 15
+quantifies how much the recommendation depends on them.
+
+Deterministic: candidates are evaluated in sorted id order and a 25-run test
+asserts a single output.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Remaining Phase 1 tasks — OUTLINE, NOT YET WRITTEN
+
+> ⚠️ **Tasks 1–9 above are complete and executable. Tasks 10–16 below are an outline.** They contain no test code, implementation, or commands and **must not be handed to an implementer in this state.**
 
 | # | Task | Key deliverable |
 |---|---|---|
-| 5 | Defeasible argumentation with reinstatement | `argue(claims, ruleset)` → grounded extension. **Must include a test where A defeats B, C defeats A, and B is reinstated** — this is what earns the word "argumentation" |
-| 6 | Abstention, conflict detection, determinism enforcement | `abstain()`, `detectConflict()`, plus the 1000-run single-hash determinism test |
-| 7 | `reason()` — the public entry point | Wires argue → fuse → abstain into `Reasoning`; trace is a first-class output, not a log |
-| 8 | Exhaustive counterfactual | Single flips then pairs, checked against a brute-force oracle |
-| 9 | Argument-structure-driven VOI planner | Identifies the pivotal rule, scores candidate assays by expected gap reduction per unit cost |
 | 10 | Python data layer + three-way split | DILIrank ingest, InChIKey crosswalk, seeded train/calibration/test split committed **before** any fitting |
 | 11 | QSAR stream with split conformal | Leakage-safe training (TDC minus calibration/test by InChIKey), conformal prediction sets → `assertion` + `inApplicabilityDomain` |
 | 12 | Tox21 in-vitro stream + TAK-994 fixture | PubChem PUG-REST pulls with provenance badges; TAK-994 two-pass fixture with `availableFrom` dates |
 | 13 | Harness: engine run + three deterministic baselines | `results.json`; majority vote, weighted average, best single source |
 | 14 | Harness: LLM ablation via Batches API | 25 runs/compound, structured outputs, refusal handling, prompt caching, **no temperature parameter** |
-| 15 | Metrics suite | Five metrics with Wilson intervals; accuracy and coverage reported inseparably |
+| 15 | Metrics suite | Five metrics with Wilson intervals; accuracy and coverage reported inseparably; planner sensitivity |
 | 16 | Golden files + CI | Any change moving a benchmark number fails the build |
 
 ---
