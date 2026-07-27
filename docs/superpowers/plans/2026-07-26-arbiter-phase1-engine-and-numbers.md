@@ -3866,6 +3866,7 @@ import { argue } from "./argue.js";
 import { detectConflict } from "./conflict.js";
 import { findCounterfactual } from "./counterfactual.js";
 import { VACUOUS, claimToMass, fuse, type Mass } from "./fuse.js";
+import { planNextExperiment, type AssayOperator } from "./plan.js";
 import { relevanceDiscount } from "./rules.js";
 import type { EvidenceClaim, Reasoning, Ruleset, TraceStep, Verdict } from "./types.js";
 
@@ -3879,6 +3880,8 @@ export { argue } from "./argue.js";
 export { detectConflict } from "./conflict.js";
 export { shouldAbstain } from "./abstain.js";
 export { findCounterfactual } from "./counterfactual.js";
+export { pivotalRules, planNextExperiment, resolvesRule } from "./plan.js";
+export type { AssayOperator } from "./plan.js";
 
 /**
  * Shift a claim's committed mass toward Theta by `factor`, leaving the rest
@@ -3901,8 +3904,13 @@ function soften(m: Mass, factor: number): Mass {
  * is exactly why the as-of control is a change of input rather than a change
  * of behaviour.
  */
-export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = ""): Reasoning {
-  return reasonCore(claims, ruleset, rulesetHash, true);
+export function reason(
+  claims: EvidenceClaim[],
+  ruleset: Ruleset,
+  rulesetHash = "",
+  assays: AssayOperator[] = [],
+): Reasoning {
+  return reasonCore(claims, ruleset, rulesetHash, true, assays);
 }
 
 /**
@@ -3916,20 +3924,21 @@ export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = 
  * Identical verdict logic by construction: same function, one flag.
  */
 export function reasonVerdictOnly(claims: EvidenceClaim[], ruleset: Ruleset): Reasoning {
-  return reasonCore(claims, ruleset, "", false);
+  return reasonCore(claims, ruleset, "", false, []);
 }
 
 /**
  * The extras-free recursion target handed to the counterfactual search, so the
  * search cannot re-enter itself. Bound once rather than allocated per call.
  */
-const bare = (c: EvidenceClaim[], rs: Ruleset): Reasoning => reasonCore(c, rs, "", false);
+const bare = (c: EvidenceClaim[], rs: Ruleset): Reasoning => reasonCore(c, rs, "", false, []);
 
 function reasonCore(
   claims: EvidenceClaim[],
   ruleset: Ruleset,
   rulesetHash: string,
   withExtras: boolean,
+  assays: AssayOperator[],
 ): Reasoning {
   const { statuses, trace } = argue(claims, ruleset);
 
@@ -4051,7 +4060,7 @@ function reasonCore(
     conflictMass: fused.conflictMass,
     trace: withReason,
     counterfactual: withExtras ? findCounterfactual(claims, ruleset, verdict, bare) : null,
-    nextExperiment: null, // Task 9
+    nextExperiment: withExtras && assays.length > 0 ? planNextExperiment(claims, ruleset, assays, bare) : null,
     rulesetHash,
   };
 }
@@ -4593,6 +4602,18 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **This is the mechanism the spec names as genuinely novel (§2a).** The planner does not ask "which assay is generally informative?" It asks *"which rule is doing the defeating, and what evidence would overturn that specific rule?"*
 
+**Three corrections to this task's original design, all found by measuring rather than reading:**
+
+1. **The coupling has to reach the CHOICE.** The first draft computed the pivotal rules and then ranked candidates purely on expected gap reduction per unit cost, using pivotality only to phrase the rationale string — which is precisely the generic-informativeness planner §2a disclaims, wearing the right label. Selection is now lexicographic: resolves-a-pivotal-rule first, value per cost second. Lexicographic and not weighted, because a weight is one more unregistered coefficient to defend and this project has already had to delete one.
+
+2. **Pivotal rules must be sought across all six rules, not just those that produced an attack.** Since Task 7 R1–R5 also act as evidence-quality discounts, which apply with no conflict present at all. The TAK-994 pass-1 case has zero attacks, so an `argue().attacks`-derived candidate set is **empty** — the planner would have had no argument structure to work with in exactly the scenario beat 5 is built on. Measured: on that shape R3 *is* pivotal, and the planner names it.
+
+3. **`resolvesRule` was wrong for R5 and dangerous for R6.** R5 discounts Klimisch 3 and 4, so Klimisch 1 *or* 2 escapes it; requiring exactly 1 discarded a reliable Klimisch 2 assay. R6 returned `true` for every assay, which would have made every candidate claim to resolve it — R6 has no verdict-path mechanism since the concordance boost was removed, so it can never be pivotal and now returns `false`.
+
+**Also removed: the `gap < 0.2` gate.** A bare constant outside the pre-registered ruleset decided whether advice was offered at all. The planner now speaks when the engine is undecided *or* the case is contested — both engine-computed, no invented threshold.
+
+> **FLAGGED FOR TASK 12 AND THE DEMO SCRIPT.** Measured on the pass-1 shape, the murine CYP-induction study has a **negative** expected gap reduction: R1 discounts rodent evidence to 10% of stated strength, so the assay adds little mass while its toxic branch adds conflict, and the range comes out *wider*. It is therefore filtered out, and the planner recommends a **human** assay (BSEP inhibition on the current catalogue). Spec beat 5 names the murine study as the recommendation, so the script and the mechanism disagree — and the mechanism is being self-consistent with its own ruleset. This is **not** resolved by tuning the catalogue or the priors, which would be fitting data to a desired demo outcome. Owner decision, since reconciling it touches a factual claim about what was historically run.
+
 **Files:**
 - Create: `packages/engine/src/plan.ts`
 - Create: `data/out/assays.json`
@@ -4608,46 +4629,57 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Write the assay operator catalogue**
 
-Create `data/out/assays.json`. `priorToxic` is **expert-elicited, not learned** — the spec discloses this and Task 15 measures its sensitivity.
+Create `data/assays.json` — **not** `data/out/assays.json`. `data/out/` is gitignored because it holds generated artifacts, and this catalogue is hand-authored input; the plan's original path meant `git add data/out/assays.json` would have silently added nothing and the operator set would exist on one machine only. `priorToxic` and `resultStrength` are **expert-elicited, not learned** — the spec discloses this and Task 15 measures its sensitivity.
 
 ```json
 {
-  "note": "Candidate confirmatory assays as planner operators. priorToxic values are expert-elicited from literature, NOT learned from data - see spec 5 and the sensitivity analysis in metrics.",
+  "note": "Candidate confirmatory assays as planner operators. `priorToxic` and `resultStrength` are EXPERT-ELICITED from literature, NOT learned from data - see spec section 5, and the planner-sensitivity metric in Task 15 which quantifies how much the recommendation depends on them.",
+  "location": "data/assays.json and NOT data/out/. data/out is gitignored because it holds generated artifacts; this catalogue is hand-authored input, and an operator set that only exists on one machine cannot be reviewed or contested.",
+  "statedLimitations": [
+    "Two outcomes per assay, toxic or safe, weighted by priorToxic. An equivocal result is not modelled, so the expected gap reduction is computed over a coarser outcome space than reality. Disclosed rather than hidden: adding a third outcome would require eliciting a third prior per assay.",
+    "resultStrength is the confidence a completed assay's result would carry. It is per-assay rather than a single constant because a Klimisch 1 in vivo study and a read-across refinement do not produce equally strong evidence.",
+    "Costs are relative, not currency. Only their ratios enter the score."
+  ],
   "assays": [
     {
       "id": "murine-cyp-induction",
       "name": "Murine CYP-induction study at clinically relevant dose",
       "cost": 40,
       "produces": { "stream": "toxicogenomics", "system": "rodent", "measuresKeyEvent": "KE:CYP-INDUCTION", "exposureRelevant": true, "inApplicabilityDomain": true, "klimisch": 1 },
-      "priorToxic": 0.35
+      "priorToxic": 0.35,
+      "resultStrength": 0.85
     },
     {
       "id": "human-hepatocyte-spheroid",
       "name": "3D human hepatocyte spheroid cytotoxicity, clinical exposure range",
       "cost": 25,
       "produces": { "stream": "cytotox", "system": "human", "measuresKeyEvent": "KE:HEPATOCYTE-DEATH", "exposureRelevant": true, "inApplicabilityDomain": true, "klimisch": 1 },
-      "priorToxic": 0.3
+      "priorToxic": 0.3,
+      "resultStrength": 0.85
     },
     {
       "id": "bsep-inhibition",
       "name": "BSEP inhibition assay with exposure-matched margin",
       "cost": 12,
       "produces": { "stream": "transporter", "system": "human", "measuresKeyEvent": "KE:BSEP-INHIBITION", "exposureRelevant": true, "inApplicabilityDomain": true, "klimisch": 1 },
-      "priorToxic": 0.25
+      "priorToxic": 0.25,
+      "resultStrength": 0.8
     },
     {
       "id": "mito-tox-panel",
       "name": "Mitochondrial toxicity panel, human hepatocytes",
       "cost": 15,
       "produces": { "stream": "cytotox", "system": "human", "measuresKeyEvent": "KE:MITO-DYSFUNCTION", "exposureRelevant": true, "inApplicabilityDomain": true, "klimisch": 2 },
-      "priorToxic": 0.22
+      "priorToxic": 0.22,
+      "resultStrength": 0.75
     },
     {
       "id": "readacross-refinement",
       "name": "Structural read-across refinement against an expanded analogue set",
       "cost": 4,
       "produces": { "stream": "qsar", "system": "in_silico", "measuresKeyEvent": null, "exposureRelevant": null, "inApplicabilityDomain": true, "klimisch": 3 },
-      "priorToxic": 0.2
+      "priorToxic": 0.2,
+      "resultStrength": 0.6
     }
   ]
 }
@@ -4659,15 +4691,17 @@ Create `packages/engine/test/plan.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { reason } from "../src/index.js";
-import { pivotalRules, planNextExperiment, type AssayOperator } from "../src/plan.js";
+import { reason, reasonVerdictOnly } from "../src/index.js";
+import { argue } from "../src/argue.js";
+import { pivotalRules, planNextExperiment, resolvesRule, type AssayOperator } from "../src/plan.js";
 import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
-import assayFile from "../../../data/out/assays.json" with { type: "json" };
+import assayFile from "../../../data/assays.json" with { type: "json" };
 import type { EvidenceClaim, Ruleset } from "../src/types.js";
 
 const RS = ruleset as Ruleset;
 const ASSAYS = (assayFile as { assays: AssayOperator[] }).assays;
-const bare = (c: EvidenceClaim[], rs: Ruleset) => reason(c, rs);
+/** Extras-free, so the planner's own probes cannot recurse through the counterfactual. */
+const bare = reasonVerdictOnly;
 
 function claim(over: Partial<EvidenceClaim> & { id: string }): EvidenceClaim {
   return {
@@ -4679,61 +4713,274 @@ function claim(over: Partial<EvidenceClaim> & { id: string }): EvidenceClaim {
   };
 }
 
+const byId = (id: string) => ASSAYS.find((a) => a.id === id)!;
+
+/**
+ * The TAK-994 pass-1 SHAPE: four non-contradicting safe claims, two non-human and
+ * two human, none with an established exposure margin. Abstains because nothing
+ * licenses a safety conclusion, and R3 is the pivotal rule. Used wherever a test
+ * needs a case with real argument structure rather than a bare abstention.
+ */
+const PASS_ONE: EvidenceClaim[] = [
+  claim({ id: "rat", assertion: "safe", strength: 0.85, system: "rodent", stream: "invivo_rodent" }),
+  claim({ id: "primate", assertion: "safe", strength: 0.85, system: "nonrodent", stream: "invivo_nonrodent" }),
+  claim({ id: "invitro", assertion: "safe", strength: 0.8, system: "human", stream: "cytotox", measuresKeyEvent: "KE:HEPATOCYTE-DEATH" }),
+  claim({ id: "bsep", assertion: "safe", strength: 0.75, system: "human", stream: "transporter", measuresKeyEvent: "KE:BSEP" }),
+];
+
 describe("pivotalRules", () => {
   it("identifies R1 as pivotal when R1 is what defeated the opposing claim", () => {
+    // Klimisch EQUAL and exposure established on both sides, deliberately. The
+    // plan's fixture used Klimisch 1 against 2, where turning R1 off simply lets R5
+    // defeat the same claim for a different reason and the verdict never moves - so
+    // R1 was not pivotal there and the assertion failed. Measured, not assumed:
+    // with the margins equalised, `without R1` flips do_not_advance -> abstain.
     const claims = [
-      claim({ id: "h", assertion: "toxic", system: "human", klimisch: 1, strength: 0.9 }),
-      claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", klimisch: 2, strength: 0.9 }),
+      claim({ id: "h", assertion: "toxic", system: "human", klimisch: 2, strength: 0.9, exposureRelevant: true }),
+      claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", klimisch: 2, strength: 0.9, exposureRelevant: true }),
     ];
+    expect(reasonVerdictOnly(claims, RS).verdict).toBe("do_not_advance");
     expect(pivotalRules(claims, RS, bare)).toContain("R1");
   });
 
-  it("returns no pivotal rule when no rule fired", () => {
+  it("FINDS PIVOTAL RULES WHEN NO ATTACK OCCURRED - the pass-1 shape", () => {
+    // The load-bearing test for this task. Four safe claims, none contradicting any
+    // other, so `argue()` produces ZERO attacks - asserted below so the premise
+    // cannot rot. Since Task 7, R1-R5 also act as evidence-quality discounts that
+    // apply without any conflict, and it is those discounts that drive this
+    // abstention.
+    //
+    // The plan's version took its candidate rules from `argue().attacks`, so on
+    // this input it returned an EMPTY list, and the planner had no argument
+    // structure to reason about in precisely the scenario spec beat 5 is built on.
+    const passOne = PASS_ONE;
+    expect(argue(passOne, RS).attacks).toHaveLength(0);
+    expect(reasonVerdictOnly(passOne, RS).verdict).toBe("abstain");
+
+    const pivotal = pivotalRules(passOne, RS, bare);
+    expect(pivotal.length).toBeGreaterThan(0);
+    // R3 is the one doing the work here: every claim asserts safe with an
+    // unestablished exposure margin, so R3 discounts all four. Turning it off is
+    // what lets a conclusion be licensed.
+    expect(pivotal).toContain("R3");
+  });
+
+  it("returns no pivotal rule when the verdict does not rest on any rule", () => {
+    // A single human, in-domain, Klimisch 2, positive claim: no discount clause
+    // applies and there is nothing to defeat, so disabling any rule leaves the
+    // verdict untouched.
     const claims = [claim({ id: "a", assertion: "toxic" })];
+    expect(reasonVerdictOnly(claims, RS).verdict).toBe("do_not_advance");
     expect(pivotalRules(claims, RS, bare)).toHaveLength(0);
+  });
+
+  it("never reports an already-disabled rule as pivotal", () => {
+    const off: Ruleset = { ...RS, rules: RS.rules.map((r) => (r.id === "R3" ? { ...r, enabled: false } : r)) };
+    expect(pivotalRules([
+      claim({ id: "rat", assertion: "safe", strength: 0.85, system: "rodent", stream: "invivo_rodent" }),
+    ], off, bare)).not.toContain("R3");
+  });
+
+  it("is order-stable, returning rules in R1..R6 order", () => {
+    const claims = [
+      claim({ id: "rat", assertion: "safe", strength: 0.9, system: "rodent", stream: "invivo_rodent", klimisch: 4 }),
+    ];
+    const p = pivotalRules(claims, RS, bare);
+    expect([...p]).toEqual([...p].sort());
+  });
+});
+
+describe("resolvesRule", () => {
+  it("accepts Klimisch 2 for R5, not only Klimisch 1", () => {
+    // R5 discounts Klimisch 3 and 4, so a Klimisch 2 assay escapes it and also
+    // out-defeats any Klimisch 3 or 4 study. Requiring exactly 1 wrongly discarded
+    // the mitochondrial panel as a way to resolve R5.
+    expect(resolvesRule("R5", byId("mito-tox-panel"))).toBe(true);
+    expect(byId("mito-tox-panel").produces.klimisch).toBe(2);
+    expect(resolvesRule("R5", byId("readacross-refinement"))).toBe(false);
+  });
+
+  it("never claims to resolve R6, which has no verdict-path mechanism", () => {
+    for (const a of ASSAYS) expect(resolvesRule("R6", a)).toBe(false);
+  });
+
+  it("maps each remaining rule to the property that escapes its discount", () => {
+    expect(resolvesRule("R1", byId("human-hepatocyte-spheroid"))).toBe(true);
+    expect(resolvesRule("R1", byId("murine-cyp-induction"))).toBe(false);
+    expect(resolvesRule("R2", byId("bsep-inhibition"))).toBe(true);
+    expect(resolvesRule("R2", byId("readacross-refinement"))).toBe(false);
+    expect(resolvesRule("R3", byId("bsep-inhibition"))).toBe(true);
+    expect(resolvesRule("R3", byId("readacross-refinement"))).toBe(false);
   });
 });
 
 describe("planNextExperiment", () => {
-  it("recommends nothing when the case is already settled with a narrow gap", () => {
-    const claims = [
-      claim({ id: "a", assertion: "safe", strength: 0.98, stream: "cytotox" }),
-      claim({ id: "b", assertion: "safe", strength: 0.98, stream: "transporter" }),
-      claim({ id: "c", assertion: "safe", strength: 0.98, stream: "toxicogenomics" }),
+  it("recommends nothing when the verdict is committed over unanimous evidence", () => {
+    const settled = [
+      claim({ id: "a", assertion: "safe", strength: 0.95, stream: "cytotox", exposureRelevant: true, measuresKeyEvent: "KE:1" }),
+      claim({ id: "b", assertion: "safe", strength: 0.95, stream: "transporter", exposureRelevant: true, measuresKeyEvent: "KE:2" }),
     ];
-    const r = reason(claims, RS);
-    if (r.verdict !== "abstain" && r.plausibility - r.belief < 0.2) {
-      expect(planNextExperiment(claims, RS, ASSAYS, bare)).toBeNull();
-    }
+    // The preconditions are ASSERTED, not used as an `if` guard. The plan wrapped
+    // this expectation in `if (verdict !== "abstain" && gap < 0.2)`, and on its own
+    // fixture that condition was false - so the test asserted nothing at all.
+    const r = reasonVerdictOnly(settled, RS);
+    expect(r.verdict).not.toBe("abstain");
+    expect(r.contested).toBe(false);
+    expect(planNextExperiment(settled, RS, ASSAYS, bare)).toBeNull();
   });
 
-  it("recommends an assay when the case abstains, and names what it resolves", () => {
-    // Two clean animal studies with untested margins: nothing human-relevant.
-    const claims = [
-      claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", exposureRelevant: null, strength: 0.6 }),
-      claim({ id: "p", assertion: "safe", system: "nonrodent", stream: "invivo_nonrodent", exposureRelevant: null, strength: 0.6 }),
-    ];
-    const rec = planNextExperiment(claims, RS, ASSAYS, bare);
+  it("recommends an assay when the case abstains, and names the rule it would settle", () => {
+    const rec = planNextExperiment(PASS_ONE, RS, ASSAYS, bare);
     expect(rec).not.toBeNull();
     expect(rec!.assay).toBeTruthy();
     expect(rec!.expectedGapReduction).toBeGreaterThan(0);
     expect(rec!.score).toBeGreaterThan(0);
     expect(rec!.rationale.length).toBeGreaterThan(10);
+    // The whole point of the mechanism: it must name a rule, not just an assay.
+    expect(rec!.resolvesRule).not.toBeNull();
+    expect(rec!.rationale).toContain(rec!.resolvesRule!);
   });
 
-  it("scores by information gain PER UNIT COST, not raw gain", () => {
-    const claims = [claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", exposureRelevant: null, strength: 0.5 })];
-    const cheap: AssayOperator[] = [{ ...ASSAYS[2]!, id: "cheap", cost: 1 }];
-    const same: AssayOperator[] = [{ ...ASSAYS[2]!, id: "pricey", cost: 1000 }];
+  it("ARGUMENT STRUCTURE OUTRANKS RAW VALUE PER COST", () => {
+    // The test that separates this planner from a generic value-of-information
+    // planner wearing the right label. The plan computed the pivotal rules and then
+    // ranked purely on gap reduction per cost, using pivotality only to phrase the
+    // rationale - so it would pick `cheap-rodent` here.
+    //
+    // Two animal claims with unestablished margins: R1 is pivotal (non-human
+    // evidence is discounted). One candidate is human but expensive; the other is
+    // rodent and almost free, so it wins on score by a wide margin and resolves
+    // nothing.
+    expect(pivotalRules(PASS_ONE, RS, bare)).toContain("R3");
+
+    const pricey: AssayOperator = {
+      ...byId("bsep-inhibition"), id: "pricey-resolver", name: "Pricey resolving assay", cost: 1000,
+    };
+    const cheap: AssayOperator = {
+      ...byId("readacross-refinement"), id: "cheap-nonresolver", name: "Cheap non-resolving assay", cost: 1,
+    };
+    expect(resolvesRule("R3", pricey)).toBe(true);
+    expect(resolvesRule("R3", cheap)).toBe(false);
+
+    const rec = planNextExperiment(PASS_ONE, RS, [pricey, cheap], bare)!;
+    expect(rec).not.toBeNull();
+    expect(rec.assay).toBe("Pricey resolving assay");
+    expect(rec.resolvesRule).toBe("R3");
+
+    // Prove the cheap one really would have won on score alone, so this is a
+    // genuine reordering and not an assay that happened to be best anyway.
+    const cheapAlone = planNextExperiment(PASS_ONE, RS, [cheap], bare)!;
+    const priceyAlone = planNextExperiment(PASS_ONE, RS, [pricey], bare)!;
+    expect(cheapAlone.score).toBeGreaterThan(priceyAlone.score);
+  });
+
+  it("scores by information gain PER UNIT COST among equals", () => {
+    const claims = [claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", strength: 0.5 })];
+    const cheap: AssayOperator[] = [{ ...byId("bsep-inhibition"), id: "cheap", cost: 1 }];
+    const pricey: AssayOperator[] = [{ ...byId("bsep-inhibition"), id: "pricey", cost: 1000 }];
     const a = planNextExperiment(claims, RS, cheap, bare);
-    const b = planNextExperiment(claims, RS, same, bare);
-    if (a && b) expect(a.score).toBeGreaterThan(b.score);
+    const b = planNextExperiment(claims, RS, pricey, bare);
+    // Unconditional. The plan guarded this with `if (a && b)`, which passes when
+    // either is null - including when the planner is broken and returns null always.
+    expect(a).not.toBeNull();
+    expect(b).not.toBeNull();
+    expect(a!.score).toBeGreaterThan(b!.score);
+    // Same assay, same expected gain: only the cost differs, by exactly 1000x.
+    expect(a!.expectedGapReduction).toBeCloseTo(b!.expectedGapReduction, 12);
+    expect(a!.score / b!.score).toBeCloseTo(1000, 6);
   });
 
-  it("is deterministic across repeated calls", () => {
-    const claims = [claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", exposureRelevant: null })];
+  it("is deterministic across repeated calls and independent of catalogue order", () => {
+    const claims = [claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent" })];
     const runs = Array.from({ length: 25 }, () => JSON.stringify(planNextExperiment(claims, RS, ASSAYS, bare)));
     expect(new Set(runs).size).toBe(1);
+    // Catalogue order must not decide the answer either.
+    const reversed = JSON.stringify(planNextExperiment(claims, RS, [...ASSAYS].reverse(), bare));
+    expect(reversed).toBe(runs[0]);
+  });
+
+  it("THROWS on an assay operator that would build an invalid claim, rather than mis-weighting it", () => {
+    // The carried-forward trap: the schema forbids an in_silico or qsar claim from
+    // asserting it MEASURED a key event, because such a claim escapes every
+    // discount clause and gets weighted like human clinical evidence. The planner
+    // constructs claims itself, so it is exactly the "built outside the validated
+    // path" case - it must validate rather than trust the catalogue.
+    const bogus: AssayOperator = {
+      ...byId("readacross-refinement"),
+      id: "bogus-qsar",
+      produces: { ...byId("readacross-refinement").produces, measuresKeyEvent: "KE:INVENTED" },
+    };
+    const claims = [claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent" })];
+    expect(() => planNextExperiment(claims, RS, [bogus], bare)).toThrow(/bogus-qsar/);
+    expect(() => planNextExperiment(claims, RS, [bogus], bare)).toThrow(/cannot MEASURE/);
+  });
+
+  it("degrades HONESTLY to value alone when no single rule is individually pivotal", () => {
+    // Measured behaviour worth pinning, because it is a real limitation of defining
+    // pivotal as "disabling this one rule changes the verdict". Two animal claims
+    // with unestablished margins are discounted by BOTH R1 (x0.1) and R3 (x0.15),
+    // and either discount alone is enough to force abstention - so neither rule is
+    // individually pivotal and the set comes back empty.
+    //
+    // The planner must then say so rather than inventing a rule it is resolving.
+    const twoAnimals = [
+      claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent", strength: 0.6 }),
+      claim({ id: "p", assertion: "safe", system: "nonrodent", stream: "invivo_nonrodent", strength: 0.6 }),
+    ];
+    expect(reasonVerdictOnly(twoAnimals, RS).verdict).toBe("abstain");
+    expect(pivotalRules(twoAnimals, RS, bare)).toHaveLength(0);
+
+    const rec = planNextExperiment(twoAnimals, RS, ASSAYS, bare)!;
+    expect(rec).not.toBeNull();
+    expect(rec.resolvesRule).toBeNull();
+    expect(rec.rationale).toMatch(/best available on value alone/);
+  });
+
+  it("EXCLUDES an assay whose expected result would WIDEN the range", () => {
+    // The murine CYP-induction study has a NEGATIVE expected gap reduction on the
+    // pass-1 shape: R1 discounts rodent evidence to 10% of its stated strength, so
+    // the assay adds little mass while its toxic branch adds conflict, and the
+    // range comes out wider than before. Recommending it would be incoherent with
+    // the same ruleset's own discounting, so it is filtered out.
+    //
+    // NOTE FOR TASK 12 AND THE DEMO SCRIPT: spec beat 5 names this exact study as
+    // the planner's recommendation. It cannot be, while R1 discounts rodent
+    // evidence - the mechanism and the script disagree, and the mechanism is being
+    // self-consistent. Flagged in the ledger; not resolved by tuning the catalogue,
+    // which would be fitting data to a desired demo outcome.
+    const murine = byId("murine-cyp-induction");
+    const soloRun = planNextExperiment(PASS_ONE, RS, [murine], bare);
+    expect(soloRun).toBeNull();
+
+    const chosen = planNextExperiment(PASS_ONE, RS, ASSAYS, bare)!;
+    expect(chosen.assay).not.toBe(murine.name);
+    expect(chosen.expectedGapReduction).toBeGreaterThan(0);
+  });
+
+  it("returns null when no candidate assay would narrow the gap", () => {
+    const claims = [claim({ id: "r", assertion: "safe", system: "rodent", stream: "invivo_rodent" })];
+    expect(planNextExperiment(claims, RS, [], bare)).toBeNull();
+  });
+});
+
+describe("reason() integration", () => {
+  it("populates nextExperiment only when a catalogue is supplied", () => {
+    const claims = PASS_ONE;
+    expect(reason(claims, RS).nextExperiment).toBeNull();
+    const withAssays = reason(claims, RS, "h", ASSAYS);
+    expect(withAssays.nextExperiment).not.toBeNull();
+    expect(withAssays.nextExperiment!.resolvesRule).not.toBeNull();
+    // The extras-free path never runs the planner, whatever is passed.
+    expect(reasonVerdictOnly(claims, RS).nextExperiment).toBeNull();
+  });
+
+  it("keeps the verdict identical whether or not the planner ran", () => {
+    const claims = PASS_ONE;
+    const withAssays = reason(claims, RS, "h", ASSAYS);
+    const without = reason(claims, RS, "h");
+    expect(withAssays.verdict).toBe(without.verdict);
+    expect(withAssays.mass).toEqual(without.mass);
+    expect(withAssays.trace).toEqual(without.trace);
   });
 });
 ```
@@ -4751,7 +4998,11 @@ Expected: FAIL — `Cannot find module '../src/plan.js'`
 Create `packages/engine/src/plan.ts`:
 
 ```ts
-import { argue } from "./argue.js";
+// NOTE: `argue` is deliberately NOT imported. An earlier draft derived the
+// candidate rules from `argue().attacks`, which is exactly the defect this module
+// documents below - the attack list only contains defeat rules that fired, and
+// misses every rule acting through the discount path.
+import { EvidenceClaimSchema } from "./schema.js";
 import type { EvidenceClaim, NextExperiment, Reasoning, RuleId, Ruleset } from "./types.js";
 
 export interface AssayOperator {
@@ -4765,35 +5016,117 @@ export interface AssayOperator {
   >;
   /** EXPERT-ELICITED prior that this assay returns a toxic result. Not learned. */
   priorToxic: number;
+  /**
+   * EXPERT-ELICITED confidence a completed result would carry. Per-assay rather
+   * than one shared constant: a Klimisch 1 in vivo study and a read-across
+   * refinement do not produce equally strong evidence, and an earlier draft hard-
+   * coded 0.85 for both inside the engine, which put an undisclosed number in
+   * source instead of in the reviewable catalogue.
+   */
+  resultStrength: number;
 }
 
 type ReasonFn = (claims: EvidenceClaim[], ruleset: Ruleset) => Reasoning;
 
+/** Every rule id, in a fixed order so `pivotalRules` output is stable. */
+const ALL_RULES: readonly RuleId[] = ["R1", "R2", "R3", "R4", "R5", "R6"] as const;
+
 /**
  * Which rules is the verdict actually resting on?
  *
- * A rule is pivotal when disabling it changes the verdict. This is the
- * mechanism the spec calls novel: the planner is driven by the ARGUMENT
- * STRUCTURE, not by which assay is generally informative.
+ * A rule is pivotal when disabling it changes the verdict. That is the whole
+ * definition, and it is deliberately applied to ALL SIX RULES rather than only to
+ * the rules that produced an attack.
+ *
+ * WHY THAT DISTINCTION IS LOAD-BEARING. An earlier draft took the candidate set
+ * from `argue().attacks`, which only ever contains the four pairwise defeat rules
+ * that actually fired. But since Task 7, R1-R5 also act as evidence-quality
+ * DISCOUNTS at mass-construction time, and those apply whether or not anything
+ * conflicts. The demonstration case is precisely that shape: TAK-994 pass 1 has
+ * four non-contradicting safe claims, so NO attack occurs, so an attacks-derived
+ * candidate set is EMPTY - and the planner would have had no argument structure
+ * to work with in exactly the scenario the spec's beat 5 is built on. Disabling
+ * R1 there changes the verdict via the discount path, so R1 is genuinely pivotal
+ * and this version finds it.
+ *
+ * Costs six extra engine evaluations. `reasonFn` must therefore be an
+ * extras-free entry point, or this recurses through the counterfactual search.
  */
 export function pivotalRules(claims: EvidenceClaim[], ruleset: Ruleset, reasonFn: ReasonFn): RuleId[] {
   const baseline = reasonFn(claims, ruleset).verdict;
-  const fired = new Set(argue(claims, ruleset).attacks.map((a) => a.byRule));
   const pivotal: RuleId[] = [];
-  for (const id of fired) {
-    const without: Ruleset = { ...ruleset, rules: ruleset.rules.map((r) => (r.id === id ? { ...r, enabled: false } : r)) };
+  for (const id of ALL_RULES) {
+    const rule = ruleset.rules.find((r) => r.id === id);
+    // A rule already disabled cannot be what the verdict rests on.
+    if (!rule || !rule.enabled) continue;
+    const without: Ruleset = {
+      ...ruleset,
+      rules: ruleset.rules.map((r) => (r.id === id ? { ...r, enabled: false } : r)),
+    };
     if (reasonFn(claims, without).verdict !== baseline) pivotal.push(id);
   }
-  return pivotal.sort();
+  return pivotal;
 }
 
 /**
- * Pick the single assay that most reduces the belief-plausibility gap per unit
- * cost.
+ * Would this assay produce evidence capable of overturning the given rule?
  *
- * For each candidate we simulate both possible outcomes weighted by the
- * expert-elicited prior, take the expected post-assay gap, and score
- * (gap reduction) / cost. Ties break on assay id so the result is stable.
+ * Read against each rule's DISCOUNT condition, since that is the form in which a
+ * rule most often decides an abstention: an assay "resolves" a rule when the
+ * evidence it produces would not be discounted by it.
+ */
+export function resolvesRule(id: RuleId, assay: AssayOperator): boolean {
+  const p = assay.produces;
+  switch (id) {
+    // R1 discounts non-human systems. Human evidence escapes it.
+    case "R1": return p.system === "human";
+    // R2 discounts structural-correlation-only evidence. A measured key event escapes it.
+    case "R2": return p.measuresKeyEvent !== null;
+    // R3 discounts negatives whose exposure margin was never established.
+    case "R3": return p.exposureRelevant === true;
+    // R4 discounts out-of-domain predictions. Positive evidence of being IN domain
+    // resolves it; merely unassessed (null) does not, which is why this is
+    // `=== true` and not `!== false`.
+    case "R4": return p.inApplicabilityDomain === true;
+    // R5 discounts Klimisch 3 and 4. Klimisch 1 OR 2 escapes it - an earlier draft
+    // required exactly 1, which wrongly excluded a reliable Klimisch 2 assay that
+    // also out-defeats any Klimisch 3 or 4 study.
+    case "R5": return p.klimisch !== null && p.klimisch <= 2;
+    // R6 has no verdict-path mechanism of its own: concordance is realised by
+    // Dempster's rule inside fuse(), so disabling R6 changes no verdict and it can
+    // never be pivotal. Returning `true` here (as an earlier draft did) would have
+    // made EVERY assay claim to resolve it the moment that changed.
+    case "R6": return false;
+    default: return false;
+  }
+}
+
+/**
+ * Pick the single assay that best advances the case.
+ *
+ * ARGUMENT STRUCTURE IS PRIMARY, VALUE-OF-INFORMATION BREAKS THE TIE. Candidates
+ * that would overturn a rule the verdict actually rests on are preferred outright;
+ * only among equals does expected gap reduction per unit cost decide.
+ *
+ * This ordering is the point of the whole task. Spec section 2a claims the planner
+ * "does not ask 'which assay is usually informative?'" but asks "which rule is
+ * doing the defeating, and what evidence would overturn that specific rule?". An
+ * earlier draft computed the pivotal rules and then ranked purely on gap reduction
+ * per cost, using pivotality only to phrase the rationale string - which is
+ * exactly the generic-informativeness planner the spec disclaims, wearing the
+ * right label. The coupling has to reach the CHOICE or the novelty claim is
+ * decorative.
+ *
+ * Lexicographic rather than weighted on purpose: a weight would be one more
+ * unregistered coefficient to defend, and this project has already had to delete
+ * one of those. "Prefer evidence that would overturn the deciding rule; among
+ * those, take the best value per unit cost" needs no number.
+ *
+ * WHEN THE PLANNER SPEAKS. Only when the engine is undecided or looking at live
+ * disagreement. A committed verdict over unanimous evidence has nothing for an
+ * experiment to resolve. Both conditions are engine-computed, so no threshold is
+ * invented here - an earlier draft used `gap < 0.2`, a bare constant outside the
+ * pre-registered ruleset that decided whether advice was offered at all.
  */
 export function planNextExperiment(
   claims: EvidenceClaim[],
@@ -4804,60 +5137,88 @@ export function planNextExperiment(
   const before = reasonFn(claims, ruleset);
   const gapBefore = before.plausibility - before.belief;
 
-  // Nothing to resolve: a settled verdict with a narrow range needs no assay.
-  if (before.verdict !== "abstain" && gapBefore < 0.2) return null;
+  if (before.verdict !== "abstain" && !before.contested) return null;
 
   const pivotal = pivotalRules(claims, ruleset, reasonFn);
-  let best: NextExperiment | null = null;
 
-  for (const assay of [...assays].sort((a, b) => (a.id < b.id ? -1 : 1))) {
+  type Candidate = {
+    assay: AssayOperator;
+    reduction: number;
+    score: number;
+    resolves: RuleId | null;
+  };
+  const candidates: Candidate[] = [];
+
+  for (const assay of assays) {
     let expectedGapAfter = 0;
     for (const [assertion, p] of [["toxic", assay.priorToxic], ["safe", 1 - assay.priorToxic]] as const) {
       const hypothetical: EvidenceClaim = {
         id: `__hypothetical__${assay.id}`,
         compoundId: claims[0]?.compoundId ?? "X",
         assertion,
-        strength: 0.85,
-        availableFrom: "0000-01-01",
-        provenance: { kind: "database", source: `planned:${assay.id}`, retrieved: "0000-01-01" },
+        strength: assay.resultStrength,
+        // Inert: the engine never reads availableFrom, callers filter on it. Kept
+        // obviously synthetic so a hypothetical can never be mistaken for real
+        // evidence if one leaks into a trace.
+        availableFrom: "0001-01-01",
+        provenance: { kind: "database", source: `planned:${assay.id}`, retrieved: "0001-01-01" },
         ...assay.produces,
       };
+
+      // Validated, not merely constructed. The schema forbids an in_silico or qsar
+      // claim from asserting a MEASURED key event, and a claim built outside the
+      // validated path escapes every discount clause and gets weighted like human
+      // clinical evidence. This is a hand-authored catalogue, so a malformed
+      // operator must fail loudly here rather than quietly produce a
+      // recommendation computed from a mis-weighted claim.
+      const parsed = EvidenceClaimSchema.safeParse(hypothetical);
+      if (!parsed.success) {
+        throw new Error(
+          `Assay operator "${assay.id}" produces an invalid EvidenceClaim: `
+          + parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
+        );
+      }
+
       const after = reasonFn([...claims, hypothetical], ruleset);
       expectedGapAfter += p * (after.plausibility - after.belief);
     }
 
     const reduction = gapBefore - expectedGapAfter;
     if (reduction <= 0) continue;
-    const score = reduction / assay.cost;
-    if (best && score <= best.score) continue;
-
-    const resolves = pivotal.find((id) => resolvesRule(id, assay)) ?? null;
-    best = {
-      assay: assay.name,
-      resolvesRule: resolves,
-      expectedGapReduction: reduction,
-      cost: assay.cost,
-      score,
-      rationale: resolves
-        ? `${assay.name} produces evidence that would overturn ${resolves}, the rule the current verdict rests on. Expected gap reduction ${reduction.toFixed(2)} at cost ${assay.cost}.`
-        : `${assay.name} narrows the belief-plausibility gap by an expected ${reduction.toFixed(2)} at cost ${assay.cost}.`,
-    };
+    candidates.push({
+      assay,
+      reduction,
+      score: reduction / assay.cost,
+      resolves: pivotal.find((id) => resolvesRule(id, assay)) ?? null,
+    });
   }
 
-  return best;
-}
+  if (candidates.length === 0) return null;
 
-/** Would this assay produce evidence capable of overturning the given rule? */
-function resolvesRule(id: RuleId, assay: AssayOperator): boolean {
-  switch (id) {
-    case "R1": return assay.produces.system === "human";
-    case "R2": return assay.produces.measuresKeyEvent !== null;
-    case "R3": return assay.produces.exposureRelevant === true;
-    case "R4": return assay.produces.inApplicabilityDomain === true;
-    case "R5": return assay.produces.klimisch === 1;
-    case "R6": return true;
-    default: return false;
-  }
+  candidates.sort((a, b) => {
+    // 1. Resolves a pivotal rule.
+    const ap = a.resolves === null ? 1 : 0;
+    const bp = b.resolves === null ? 1 : 0;
+    if (ap !== bp) return ap - bp;
+    // 2. Higher information gain per unit cost.
+    if (a.score !== b.score) return b.score - a.score;
+    // 3. Assay id, so the output is stable rather than dependent on catalogue order.
+    return a.assay.id < b.assay.id ? -1 : a.assay.id > b.assay.id ? 1 : 0;
+  });
+
+  const best = candidates[0]!;
+  return {
+    assay: best.assay.name,
+    resolvesRule: best.resolves,
+    expectedGapReduction: best.reduction,
+    cost: best.assay.cost,
+    score: best.score,
+    rationale: best.resolves
+      ? `${best.assay.name} produces evidence that would overturn ${best.resolves}, the rule the current verdict rests on. `
+        + `Expected belief-plausibility gap reduction ${best.reduction.toFixed(2)} at cost ${best.assay.cost}.`
+      : `No candidate assay would overturn a rule this verdict rests on, so this is the best available on value alone: `
+        + `${best.assay.name} narrows the belief-plausibility gap by an expected ${best.reduction.toFixed(2)} at cost ${best.assay.cost}.`,
+  };
 }
 ```
 
@@ -4900,7 +5261,7 @@ Expected: PASS across all engine tests. Determinism still yields one hash.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add packages/engine data/out/assays.json && git commit -m "Add argument-structure-driven value-of-information planner
+git add packages/engine data/assays.json && git commit -m "Add argument-structure-driven value-of-information planner
 
 This is the mechanism the spec claims as genuinely novel. The planner does not
 ask which assay is generally informative - it identifies the PIVOTAL RULES by

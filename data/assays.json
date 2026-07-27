@@ -1,0 +1,51 @@
+{
+  "note": "Candidate confirmatory assays as planner operators. `priorToxic` and `resultStrength` are EXPERT-ELICITED from literature, NOT learned from data - see spec section 5, and the planner-sensitivity metric in Task 15 which quantifies how much the recommendation depends on them.",
+  "location": "data/assays.json and NOT data/out/. data/out is gitignored because it holds generated artifacts; this catalogue is hand-authored input, and an operator set that only exists on one machine cannot be reviewed or contested.",
+  "statedLimitations": [
+    "Two outcomes per assay, toxic or safe, weighted by priorToxic. An equivocal result is not modelled, so the expected gap reduction is computed over a coarser outcome space than reality. Disclosed rather than hidden: adding a third outcome would require eliciting a third prior per assay.",
+    "resultStrength is the confidence a completed assay's result would carry. It is per-assay rather than a single constant because a Klimisch 1 in vivo study and a read-across refinement do not produce equally strong evidence.",
+    "Costs are relative, not currency. Only their ratios enter the score."
+  ],
+  "assays": [
+    {
+      "id": "murine-cyp-induction",
+      "name": "Murine CYP-induction study at clinically relevant dose",
+      "cost": 40,
+      "produces": { "stream": "toxicogenomics", "system": "rodent", "measuresKeyEvent": "KE:CYP-INDUCTION", "exposureRelevant": true, "inApplicabilityDomain": true, "klimisch": 1 },
+      "priorToxic": 0.35,
+      "resultStrength": 0.85
+    },
+    {
+      "id": "human-hepatocyte-spheroid",
+      "name": "3D human hepatocyte spheroid cytotoxicity, clinical exposure range",
+      "cost": 25,
+      "produces": { "stream": "cytotox", "system": "human", "measuresKeyEvent": "KE:HEPATOCYTE-DEATH", "exposureRelevant": true, "inApplicabilityDomain": true, "klimisch": 1 },
+      "priorToxic": 0.3,
+      "resultStrength": 0.85
+    },
+    {
+      "id": "bsep-inhibition",
+      "name": "BSEP inhibition assay with exposure-matched margin",
+      "cost": 12,
+      "produces": { "stream": "transporter", "system": "human", "measuresKeyEvent": "KE:BSEP-INHIBITION", "exposureRelevant": true, "inApplicabilityDomain": true, "klimisch": 1 },
+      "priorToxic": 0.25,
+      "resultStrength": 0.8
+    },
+    {
+      "id": "mito-tox-panel",
+      "name": "Mitochondrial toxicity panel, human hepatocytes",
+      "cost": 15,
+      "produces": { "stream": "cytotox", "system": "human", "measuresKeyEvent": "KE:MITO-DYSFUNCTION", "exposureRelevant": true, "inApplicabilityDomain": true, "klimisch": 2 },
+      "priorToxic": 0.22,
+      "resultStrength": 0.75
+    },
+    {
+      "id": "readacross-refinement",
+      "name": "Structural read-across refinement against an expanded analogue set",
+      "cost": 4,
+      "produces": { "stream": "qsar", "system": "in_silico", "measuresKeyEvent": null, "exposureRelevant": null, "inApplicabilityDomain": true, "klimisch": 3 },
+      "priorToxic": 0.2,
+      "resultStrength": 0.6
+    }
+  ]
+}

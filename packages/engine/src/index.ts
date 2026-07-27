@@ -3,6 +3,7 @@ import { argue } from "./argue.js";
 import { detectConflict } from "./conflict.js";
 import { findCounterfactual } from "./counterfactual.js";
 import { VACUOUS, claimToMass, fuse, type Mass } from "./fuse.js";
+import { planNextExperiment, type AssayOperator } from "./plan.js";
 import { relevanceDiscount } from "./rules.js";
 import type { EvidenceClaim, Reasoning, Ruleset, TraceStep, Verdict } from "./types.js";
 
@@ -16,6 +17,8 @@ export { argue } from "./argue.js";
 export { detectConflict } from "./conflict.js";
 export { shouldAbstain } from "./abstain.js";
 export { findCounterfactual } from "./counterfactual.js";
+export { pivotalRules, planNextExperiment, resolvesRule } from "./plan.js";
+export type { AssayOperator } from "./plan.js";
 
 /**
  * Shift a claim's committed mass toward Theta by `factor`, leaving the rest
@@ -38,8 +41,13 @@ function soften(m: Mass, factor: number): Mass {
  * is exactly why the as-of control is a change of input rather than a change
  * of behaviour.
  */
-export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = ""): Reasoning {
-  return reasonCore(claims, ruleset, rulesetHash, true);
+export function reason(
+  claims: EvidenceClaim[],
+  ruleset: Ruleset,
+  rulesetHash = "",
+  assays: AssayOperator[] = [],
+): Reasoning {
+  return reasonCore(claims, ruleset, rulesetHash, true, assays);
 }
 
 /**
@@ -53,20 +61,21 @@ export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = 
  * Identical verdict logic by construction: same function, one flag.
  */
 export function reasonVerdictOnly(claims: EvidenceClaim[], ruleset: Ruleset): Reasoning {
-  return reasonCore(claims, ruleset, "", false);
+  return reasonCore(claims, ruleset, "", false, []);
 }
 
 /**
  * The extras-free recursion target handed to the counterfactual search, so the
  * search cannot re-enter itself. Bound once rather than allocated per call.
  */
-const bare = (c: EvidenceClaim[], rs: Ruleset): Reasoning => reasonCore(c, rs, "", false);
+const bare = (c: EvidenceClaim[], rs: Ruleset): Reasoning => reasonCore(c, rs, "", false, []);
 
 function reasonCore(
   claims: EvidenceClaim[],
   ruleset: Ruleset,
   rulesetHash: string,
   withExtras: boolean,
+  assays: AssayOperator[],
 ): Reasoning {
   const { statuses, trace } = argue(claims, ruleset);
 
@@ -188,7 +197,7 @@ function reasonCore(
     conflictMass: fused.conflictMass,
     trace: withReason,
     counterfactual: withExtras ? findCounterfactual(claims, ruleset, verdict, bare) : null,
-    nextExperiment: null, // Task 9
+    nextExperiment: withExtras && assays.length > 0 ? planNextExperiment(claims, ruleset, assays, bare) : null,
     rulesetHash,
   };
 }
