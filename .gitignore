@@ -34,6 +34,12 @@ data/out/*
 !data/out/compounds.json
 !data/out/splits.json
 
+# The evidence streams themselves: the inputs every reported number is computed
+# from. Same reasoning as the split - a benchmark whose inputs exist on one
+# machine is not reproducible.
+!data/out/stream-*.json
+!data/out/evidence.json
+
 # Node
 node_modules/
 dist/
