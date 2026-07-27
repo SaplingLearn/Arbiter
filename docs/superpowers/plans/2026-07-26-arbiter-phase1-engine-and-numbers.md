@@ -485,6 +485,9 @@ export interface Provenance {
 export interface EvidenceClaim {
   id: string;
   compoundId: string;
+  /** → R6. Stream identity is how concordance judges INDEPENDENCE: agreement
+   *  across distinct streams counts for more than one source agreeing with
+   *  itself. Also the unit at which conflict is detected. */
   stream: Stream;
   assertion: Assertion;
   /** Source-reported confidence, 0..1. */
