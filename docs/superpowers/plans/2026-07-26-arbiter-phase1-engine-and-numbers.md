@@ -1809,6 +1809,20 @@ import type { ClaimStatus, EvidenceClaim, Ruleset } from "../src/types.js";
 const RS = ruleset as Ruleset;
 const base = { statuses: new Map<string, ClaimStatus>(), claims: [] as EvidenceClaim[], ruleset: RS };
 
+function cl(
+  id: string,
+  stream: EvidenceClaim["stream"],
+  assertion: EvidenceClaim["assertion"],
+  inApplicabilityDomain: boolean | null,
+): EvidenceClaim {
+  return {
+    id, compoundId: "X", stream, assertion, strength: 0.8, system: "human",
+    measuresKeyEvent: null, exposureRelevant: null, inApplicabilityDomain,
+    klimisch: 2, availableFrom: "2020-01-01",
+    provenance: { kind: "database", source: "t", retrieved: "2026-07-26" },
+  };
+}
+
 describe("shouldAbstain", () => {
   it("abstains when the gap exceeds the pre-registered threshold", () => {
     // threshold is 0.50; gap here is 0.70
@@ -1847,6 +1861,49 @@ describe("shouldAbstain", () => {
     expect(r.abstain).toBe(true);
     expect(r.reason).toMatch(/applicability domain/i);
   });
+
+  it("does not let a DEFEATED in-domain claim suppress the applicability abstention", () => {
+    // The only claim still carrying mass is out of its applicability domain. The
+    // in-domain claim was defeated, so it contributes nothing and must not vouch
+    // for a verdict it no longer supports. Before the Task 6 fix this returned
+    // abstain:false - the dangerous direction.
+    const claims: EvidenceClaim[] = [
+      cl("live", "qsar", "toxic", false),
+      cl("dead", "cytotox", "safe", true),
+    ];
+    const statuses = new Map<string, ClaimStatus>([["live", "admitted"], ["dead", "defeated"]]);
+    const r = shouldAbstain({ belief: 0.3, plausibility: 0.4, conflictMass: 0, statuses, claims, ruleset: RS });
+    expect(r.abstain).toBe(true);
+    expect(r.reason).toMatch(/applicability domain/i);
+  });
+
+  it("treats an UNDECIDED claim as not live either", () => {
+    const claims: EvidenceClaim[] = [
+      cl("live", "qsar", "toxic", false),
+      cl("limbo", "cytotox", "safe", true),
+    ];
+    const statuses = new Map<string, ClaimStatus>([["live", "admitted"], ["limbo", "undecided"]]);
+    expect(shouldAbstain({ belief: 0.3, plausibility: 0.4, conflictMass: 0, statuses, claims, ruleset: RS }).abstain)
+      .toBe(true);
+  });
+
+  it("does NOT abstain at exactly the threshold - the comparison is strict", () => {
+    // 1 - 0.5 is exactly 0.5 in binary floating point, so this really does sit
+    // on the boundary. (0.7 - 0.2 would not - it lands at 0.49999999999999994.)
+    const r = shouldAbstain({ ...base, belief: 0.5, plausibility: 1, conflictMass: 0 });
+    expect(1 - 0.5).toBe(RS.abstentionGapThreshold);
+    expect(r.abstain).toBe(false);
+  });
+
+  it("does not conflate an UNKNOWN applicability domain with an out-of-domain one", () => {
+    const claims: EvidenceClaim[] = [
+      cl("known-bad", "qsar", "toxic", false),
+      cl("unknown", "cytotox", "toxic", null),
+    ];
+    const statuses = new Map<string, ClaimStatus>([["known-bad", "admitted"], ["unknown", "admitted"]]);
+    const r = shouldAbstain({ belief: 0.3, plausibility: 0.4, conflictMass: 0, statuses, claims, ruleset: RS });
+    expect(r.abstain).toBe(false);
+  });
 });
 ```
 
@@ -1884,6 +1941,30 @@ describe("detectConflict", () => {
   it("is not a conflict when all streams agree", () => {
     expect(detectConflict([claim("a", "toxic", "cytotox"), claim("b", "toxic", "qsar")]).conflicting).toBe(false);
   });
+
+  it("IS a conflict when a self-split stream is also opposed by a third stream", () => {
+    // cytotox disagrees with itself (noise on its own), but its toxic reading
+    // still stands against transporter's safe reading - a real cross-stream
+    // conflict. The original symmetric-difference test missed this because
+    // cytotox cancelled out of both sides.
+    const r = detectConflict([
+      claim("a", "toxic", "cytotox"),
+      claim("b", "safe", "cytotox"),
+      claim("c", "safe", "transporter"),
+    ]);
+    expect(r.conflicting).toBe(true);
+    expect(r.opposedStreams).toEqual(["cytotox", "transporter"]);
+  });
+
+  it("reports each opposed stream exactly once", () => {
+    const r = detectConflict([
+      claim("a", "toxic", "cytotox"),
+      claim("b", "toxic", "cytotox"),
+      claim("c", "safe", "transporter"),
+      claim("d", "safe", "transporter"),
+    ]);
+    expect(r.opposedStreams).toEqual(["cytotox", "transporter"]);
+  });
 });
 ```
 
@@ -1920,13 +2001,21 @@ export function shouldAbstain(input: {
   claims: EvidenceClaim[];
   ruleset: Ruleset;
 }): { abstain: boolean; reason: string | null } {
-  const { belief, plausibility, conflictMass, claims, ruleset } = input;
+  const { belief, plausibility, conflictMass, statuses, claims, ruleset } = input;
 
   if (conflictMass >= 1 - 1e-9) {
     return { abstain: true, reason: "Total conflict between sources; no conclusion survives combination." };
   }
 
-  const committed = claims.filter((c) => c.assertion !== "ambiguous");
+  // Only LIVE claims may vouch for the applicability of the verdict. A defeated
+  // claim contributes zero mass and an undecided one contributes vacuous mass,
+  // so neither can rescue a conclusion that rests entirely on survivors sitting
+  // outside their applicability domain.
+  const live = claims.filter((c) => {
+    const s = statuses.get(c.id);
+    return s === "admitted" || s === "downweighted";
+  });
+  const committed = live.filter((c) => c.assertion !== "ambiguous");
   if (committed.length > 0 && committed.every((c) => c.inApplicabilityDomain === false)) {
     return {
       abstain: true,
@@ -1959,18 +2048,33 @@ import type { EvidenceClaim } from "./types.js";
  * from one assay is measurement noise, whereas a hepatocyte assay disagreeing
  * with a transporter assay is the situation ARBITER exists for. Ambiguous
  * claims never create a conflict - they commit to nothing.
+ *
+ * The predicate is existential: SOME toxic-committed stream differs from SOME
+ * safe-committed stream. A stream that disagrees with itself is not excluded
+ * from the comparison - it just cannot supply both halves of the pair. So a
+ * cytotox assay split against itself PLUS a transporter assay reading safe is a
+ * genuine cross-stream conflict, while the split cytotox assay alone is not.
  */
 export function detectConflict(claims: EvidenceClaim[]): { conflicting: boolean; opposedStreams: string[] } {
   const committed = claims.filter((c) => c.assertion !== "ambiguous");
   const toxicStreams = new Set(committed.filter((c) => c.assertion === "toxic").map((c) => c.stream));
   const safeStreams = new Set(committed.filter((c) => c.assertion === "safe").map((c) => c.stream));
 
-  const opposed: string[] = [];
-  for (const s of toxicStreams) if (!safeStreams.has(s)) opposed.push(s);
-  for (const s of safeStreams) if (!toxicStreams.has(s)) opposed.push(s);
+  // Exists t in toxicStreams, s in safeStreams with t !== s. This fails only
+  // when every toxic stream equals every safe stream, i.e. both sides are the
+  // same lone stream - the measurement-noise case.
+  let conflicting = false;
+  for (const t of toxicStreams) {
+    for (const s of safeStreams) {
+      if (t !== s) { conflicting = true; break; }
+    }
+    if (conflicting) break;
+  }
 
-  const conflicting = toxicStreams.size > 0 && safeStreams.size > 0 && opposed.length >= 2;
-  return { conflicting, opposedStreams: conflicting ? opposed.sort() : [] };
+  // Every stream committing on either side is party to the disagreement,
+  // including one that straddles both.
+  const opposed = conflicting ? [...new Set([...toxicStreams, ...safeStreams])].sort() : [];
+  return { conflicting, opposedStreams: opposed };
 }
 ```
 
@@ -1980,7 +2084,7 @@ export function detectConflict(claims: EvidenceClaim[]): { conflicting: boolean;
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/abstain.test.ts packages/engine/test/conflict.test.ts && npm run lint
 ```
 
-Expected: PASS (9 tests), lint clean.
+Expected: PASS (15 tests), lint clean.
 
 - [ ] **Step 5: Commit**
 

@@ -6,6 +6,20 @@ import type { ClaimStatus, EvidenceClaim, Ruleset } from "../src/types.js";
 const RS = ruleset as Ruleset;
 const base = { statuses: new Map<string, ClaimStatus>(), claims: [] as EvidenceClaim[], ruleset: RS };
 
+function cl(
+  id: string,
+  stream: EvidenceClaim["stream"],
+  assertion: EvidenceClaim["assertion"],
+  inApplicabilityDomain: boolean | null,
+): EvidenceClaim {
+  return {
+    id, compoundId: "X", stream, assertion, strength: 0.8, system: "human",
+    measuresKeyEvent: null, exposureRelevant: null, inApplicabilityDomain,
+    klimisch: 2, availableFrom: "2020-01-01",
+    provenance: { kind: "database", source: "t", retrieved: "2026-07-26" },
+  };
+}
+
 describe("shouldAbstain", () => {
   it("abstains when the gap exceeds the pre-registered threshold", () => {
     // threshold is 0.50; gap here is 0.70
@@ -43,5 +57,48 @@ describe("shouldAbstain", () => {
     const r = shouldAbstain({ belief: 0.3, plausibility: 0.4, conflictMass: 0, statuses, claims, ruleset: RS });
     expect(r.abstain).toBe(true);
     expect(r.reason).toMatch(/applicability domain/i);
+  });
+
+  it("does not let a DEFEATED in-domain claim suppress the applicability abstention", () => {
+    // The only claim still carrying mass is out of its applicability domain. The
+    // in-domain claim was defeated, so it contributes nothing and must not vouch
+    // for a verdict it no longer supports. Before the Task 6 fix this returned
+    // abstain:false - the dangerous direction.
+    const claims: EvidenceClaim[] = [
+      cl("live", "qsar", "toxic", false),
+      cl("dead", "cytotox", "safe", true),
+    ];
+    const statuses = new Map<string, ClaimStatus>([["live", "admitted"], ["dead", "defeated"]]);
+    const r = shouldAbstain({ belief: 0.3, plausibility: 0.4, conflictMass: 0, statuses, claims, ruleset: RS });
+    expect(r.abstain).toBe(true);
+    expect(r.reason).toMatch(/applicability domain/i);
+  });
+
+  it("treats an UNDECIDED claim as not live either", () => {
+    const claims: EvidenceClaim[] = [
+      cl("live", "qsar", "toxic", false),
+      cl("limbo", "cytotox", "safe", true),
+    ];
+    const statuses = new Map<string, ClaimStatus>([["live", "admitted"], ["limbo", "undecided"]]);
+    expect(shouldAbstain({ belief: 0.3, plausibility: 0.4, conflictMass: 0, statuses, claims, ruleset: RS }).abstain)
+      .toBe(true);
+  });
+
+  it("does NOT abstain at exactly the threshold - the comparison is strict", () => {
+    // 1 - 0.5 is exactly 0.5 in binary floating point, so this really does sit
+    // on the boundary. (0.7 - 0.2 would not - it lands at 0.49999999999999994.)
+    const r = shouldAbstain({ ...base, belief: 0.5, plausibility: 1, conflictMass: 0 });
+    expect(1 - 0.5).toBe(RS.abstentionGapThreshold);
+    expect(r.abstain).toBe(false);
+  });
+
+  it("does not conflate an UNKNOWN applicability domain with an out-of-domain one", () => {
+    const claims: EvidenceClaim[] = [
+      cl("known-bad", "qsar", "toxic", false),
+      cl("unknown", "cytotox", "toxic", null),
+    ];
+    const statuses = new Map<string, ClaimStatus>([["known-bad", "admitted"], ["unknown", "admitted"]]);
+    const r = shouldAbstain({ belief: 0.3, plausibility: 0.4, conflictMass: 0, statuses, claims, ruleset: RS });
+    expect(r.abstain).toBe(false);
   });
 });

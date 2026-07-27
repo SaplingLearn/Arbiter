@@ -29,4 +29,28 @@ describe("detectConflict", () => {
   it("is not a conflict when all streams agree", () => {
     expect(detectConflict([claim("a", "toxic", "cytotox"), claim("b", "toxic", "qsar")]).conflicting).toBe(false);
   });
+
+  it("IS a conflict when a self-split stream is also opposed by a third stream", () => {
+    // cytotox disagrees with itself (noise on its own), but its toxic reading
+    // still stands against transporter's safe reading - a real cross-stream
+    // conflict. The original symmetric-difference test missed this because
+    // cytotox cancelled out of both sides.
+    const r = detectConflict([
+      claim("a", "toxic", "cytotox"),
+      claim("b", "safe", "cytotox"),
+      claim("c", "safe", "transporter"),
+    ]);
+    expect(r.conflicting).toBe(true);
+    expect(r.opposedStreams).toEqual(["cytotox", "transporter"]);
+  });
+
+  it("reports each opposed stream exactly once", () => {
+    const r = detectConflict([
+      claim("a", "toxic", "cytotox"),
+      claim("b", "toxic", "cytotox"),
+      claim("c", "safe", "transporter"),
+      claim("d", "safe", "transporter"),
+    ]);
+    expect(r.opposedStreams).toEqual(["cytotox", "transporter"]);
+  });
 });

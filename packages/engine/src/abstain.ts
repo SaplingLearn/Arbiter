@@ -18,13 +18,21 @@ export function shouldAbstain(input: {
   claims: EvidenceClaim[];
   ruleset: Ruleset;
 }): { abstain: boolean; reason: string | null } {
-  const { belief, plausibility, conflictMass, claims, ruleset } = input;
+  const { belief, plausibility, conflictMass, statuses, claims, ruleset } = input;
 
   if (conflictMass >= 1 - 1e-9) {
     return { abstain: true, reason: "Total conflict between sources; no conclusion survives combination." };
   }
 
-  const committed = claims.filter((c) => c.assertion !== "ambiguous");
+  // Only LIVE claims may vouch for the applicability of the verdict. A defeated
+  // claim contributes zero mass and an undecided one contributes vacuous mass,
+  // so neither can rescue a conclusion that rests entirely on survivors sitting
+  // outside their applicability domain.
+  const live = claims.filter((c) => {
+    const s = statuses.get(c.id);
+    return s === "admitted" || s === "downweighted";
+  });
+  const committed = live.filter((c) => c.assertion !== "ambiguous");
   if (committed.length > 0 && committed.every((c) => c.inApplicabilityDomain === false)) {
     return {
       abstain: true,
