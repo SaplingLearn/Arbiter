@@ -4653,13 +4653,665 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Remaining Phase 1 tasks — OUTLINE, NOT YET WRITTEN
+## Task 15: The metrics suite
 
-> ⚠️ **Tasks 1–14 above are complete and executable. Tasks 15–16 below are an outline.** They contain no test code, implementation, or commands and **must not be handed to an implementer in this state.**
+**One design decision needs stating up front, because it changes what metric 3 means.**
+
+The spec asks for "how often the true label falls within the belief-to-plausibility interval." Read literally against a binary truth label, that requires `belief ≤ y ≤ plausibility` — so covering `y = 1` demands plausibility of exactly 1, meaning zero mass assigned to safe. That is a demanding bar and it will read low. We report it anyway, and we report **the number that actually tests the honesty claim**: is the interval **wider on the cases ARBITER got wrong** than on the ones it got right? If the answer is yes, the uncertainty is doing its job. That is more meaningful than coverage against a binary label, and it is the calibration number worth putting on a slide.
+
+**Files:**
+- Create: `apps/harness/src/stats.ts`, `apps/harness/src/metrics.ts`, `apps/harness/src/run-metrics.ts`
+- Modify: `packages/engine/src/index.ts` — export `reasonVerdictOnly`
+- Modify: `package.json` — add a `metrics` script
+- Test: `apps/harness/test/stats.test.ts`, `apps/harness/test/metrics.test.ts`
+
+**Interfaces:**
+- Consumes: `results/results.json`, `results/ablation.json`, `loadInputs`, `mulberry32`, `jitter01`
+- Produces:
+  - `wilson(successes: number, n: number, z?: number): { lo: number; hi: number }`
+  - `balancedAccuracy(pairs: { y: number; predicted: number }[]): number`
+  - `confusion(pairs): { tp: number; fp: number; tn: number; fn: number }`
+  - `reasonVerdictOnly(claims, ruleset): Reasoning` — skips counterfactual and planner
+  - `results/metrics.json`
+
+- [ ] **Step 1: Write the failing stats tests**
+
+Create `apps/harness/test/stats.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { balancedAccuracy, confusion, wilson } from "../src/stats.js";
+
+describe("wilson", () => {
+  it("brackets the point estimate", () => {
+    const { lo, hi } = wilson(7, 10);
+    expect(lo).toBeLessThan(0.7);
+    expect(hi).toBeGreaterThan(0.7);
+  });
+
+  it("narrows as n grows - the whole reason we report intervals", () => {
+    const small = wilson(70, 100);
+    const large = wilson(700, 1000);
+    expect(large.hi - large.lo).toBeLessThan(small.hi - small.lo);
+  });
+
+  it("stays inside [0,1] at the extremes, unlike a normal approximation", () => {
+    for (const [s, n] of [[0, 10], [10, 10], [0, 1], [1, 1]] as const) {
+      const { lo, hi } = wilson(s, n);
+      expect(lo).toBeGreaterThanOrEqual(0);
+      expect(hi).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("returns the full interval for n = 0 rather than NaN", () => {
+    expect(wilson(0, 0)).toEqual({ lo: 0, hi: 1 });
+  });
+});
+
+describe("confusion and balancedAccuracy", () => {
+  it("counts the four cells correctly", () => {
+    const c = confusion([
+      { y: 1, predicted: 1 }, { y: 1, predicted: 0 },
+      { y: 0, predicted: 0 }, { y: 0, predicted: 1 },
+    ]);
+    expect(c).toEqual({ tp: 1, fn: 1, tn: 1, fp: 1 });
+  });
+
+  it("gives 0.5 for a coin flip on balanced data", () => {
+    expect(balancedAccuracy([
+      { y: 1, predicted: 1 }, { y: 1, predicted: 0 },
+      { y: 0, predicted: 0 }, { y: 0, predicted: 1 },
+    ])).toBeCloseTo(0.5, 10);
+  });
+
+  it("IS NOT FOOLED BY CLASS IMBALANCE - this is why we use it over accuracy", () => {
+    // 90 negatives, 10 positives, predict all negative.
+    // Plain accuracy would be 0.90; balanced accuracy is 0.50.
+    const pairs = [
+      ...Array.from({ length: 90 }, () => ({ y: 0, predicted: 0 })),
+      ...Array.from({ length: 10 }, () => ({ y: 1, predicted: 0 })),
+    ];
+    expect(balancedAccuracy(pairs)).toBeCloseTo(0.5, 10);
+  });
+
+  it("returns 0.5 when a class is absent rather than dividing by zero", () => {
+    expect(balancedAccuracy([{ y: 1, predicted: 1 }])).toBeCloseTo(0.5, 10);
+  });
+});
+```
+
+- [ ] **Step 2: Write the failing metrics tests**
+
+Create `apps/harness/test/metrics.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { abstentionQuality, calibration, conflictSubsetAccuracy, robustness } from "../src/metrics.js";
+import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
+import type { EvidenceClaim, Ruleset } from "@arbiter/engine";
+import type { ResultRow } from "../src/main.js";
+
+const RS = ruleset as Ruleset;
+
+function row(over: Partial<ResultRow> & { compoundId: string; y: number }): ResultRow {
+  return {
+    conflicting: true,
+    arbiter: {
+      verdict: "do_not_advance", contested: true, belief: 0.4, plausibility: 0.6,
+      conflictMass: 0.1, trace: [], counterfactual: null, nextExperiment: null, rulesetHash: "h",
+    },
+    baselines: { majorityVote: { verdict: "advance", score: 0.3 } },
+    ...over,
+  } as ResultRow;
+}
+
+describe("conflictSubsetAccuracy", () => {
+  it("scores ONLY the conflict subset - unanimous cases inflate the number", () => {
+    const rows = [
+      row({ compoundId: "a", y: 1, conflicting: true }),
+      row({ compoundId: "b", y: 0, conflicting: false }), // must be ignored
+    ];
+    const r = conflictSubsetAccuracy(rows);
+    expect(r.n).toBe(1);
+  });
+
+  it("EXCLUDES abstentions from accuracy and reports coverage alongside", () => {
+    const rows = [
+      row({ compoundId: "a", y: 1 }),
+      row({ compoundId: "b", y: 1, arbiter: { ...row({ compoundId: "b", y: 1 }).arbiter, verdict: "abstain" } }),
+    ];
+    const r = conflictSubsetAccuracy(rows);
+    expect(r.arbiter.nCommitted).toBe(1);
+    expect(r.arbiter.coverage).toBeCloseTo(0.5, 10);
+    // 85% accuracy while abstaining on 60% is meaningless - the pair must travel together.
+    expect(r.arbiter).toHaveProperty("balancedAccuracy");
+    expect(r.arbiter).toHaveProperty("coverage");
+  });
+
+  it("returns a Wilson interval alongside every point estimate", () => {
+    const r = conflictSubsetAccuracy([row({ compoundId: "a", y: 1 })]);
+    expect(r.arbiter.ci).toHaveProperty("lo");
+    expect(r.arbiter.ci).toHaveProperty("hi");
+  });
+
+  it("scores every baseline on the same subset", () => {
+    const r = conflictSubsetAccuracy([row({ compoundId: "a", y: 1 })]);
+    expect(Object.keys(r.baselines)).toContain("majorityVote");
+  });
+});
+
+describe("calibration", () => {
+  it("reports strict coverage AND mean width - a wide always-right interval is worthless", () => {
+    const r = calibration([row({ compoundId: "a", y: 1 })]);
+    expect(r).toHaveProperty("strictCoverage");
+    expect(r).toHaveProperty("meanWidth");
+  });
+
+  it("THE HONESTY TEST: reports width split by whether ARBITER was right", () => {
+    const correct = row({ compoundId: "a", y: 1 });
+    correct.arbiter = { ...correct.arbiter, verdict: "do_not_advance", belief: 0.45, plausibility: 0.5 };
+    const wrong = row({ compoundId: "b", y: 0 });
+    wrong.arbiter = { ...wrong.arbiter, verdict: "do_not_advance", belief: 0.2, plausibility: 0.9 };
+
+    const r = calibration([correct, wrong]);
+    // Uncertainty is doing its job when the interval is wider where we were wrong.
+    expect(r.meanWidthOnIncorrect).toBeGreaterThan(r.meanWidthOnCorrect);
+    expect(r.widthDiscriminates).toBe(true);
+  });
+});
+
+describe("abstentionQuality", () => {
+  it("reports accuracy on committed cases, the decline rate, and both together", () => {
+    const rows = [
+      row({ compoundId: "a", y: 1 }),
+      row({ compoundId: "b", y: 0, arbiter: { ...row({ compoundId: "b", y: 0 }).arbiter, verdict: "abstain" } }),
+    ];
+    const r = abstentionQuality(rows);
+    expect(r.declineRate).toBeCloseTo(0.5, 10);
+    expect(r).toHaveProperty("balancedAccuracyOnCommitted");
+  });
+});
+
+describe("robustness", () => {
+  const claims: EvidenceClaim[] = [{
+    id: "a", compoundId: "X", stream: "cytotox", assertion: "toxic", strength: 0.9,
+    system: "human", measuresKeyEvent: null, exposureRelevant: true,
+    inApplicabilityDomain: true, klimisch: 1, availableFrom: "2020-01-01",
+    provenance: { kind: "database", source: "t", retrieved: "2026-07-26" },
+  }];
+
+  it("is reproducible from the seed - it is golden-filed, so it must be", () => {
+    const a = robustness(claims, RS, 200, 12345);
+    const b = robustness(claims, RS, 200, 12345);
+    expect(a).toEqual(b);
+  });
+
+  it("reports near-total stability for evidence that is not near a boundary", () => {
+    expect(robustness(claims, RS, 500, 999).heldFraction).toBeGreaterThan(0.9);
+  });
+
+  it("distinguishes determinism from robustness - they are different claims", () => {
+    const r = robustness(claims, RS, 100, 1);
+    expect(r.determinism).toBe(1); // trivially true; a pure function is a pure function
+    expect(r.heldFraction).toBeLessThanOrEqual(1);
+  });
+});
+```
+
+- [ ] **Step 3: Run the tests to verify they fail**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- apps/harness/test/stats.test.ts apps/harness/test/metrics.test.ts
+```
+
+Expected: FAIL — `Cannot find module '../src/stats.js'` and `'../src/metrics.js'`
+
+- [ ] **Step 4: Add a verdict-only engine entry point**
+
+Robustness needs ~2,000 engine evaluations per compound. `reason()` also runs the exhaustive counterfactual (≈21 recursive evaluations), which would multiply that by 21 for no benefit — perturbation only needs the verdict.
+
+In `packages/engine/src/index.ts`, add:
+
+```ts
+/**
+ * The verdict and range only - no counterfactual, no planner.
+ *
+ * For perturbation sampling, where the extras cost 20x and are never read.
+ * Identical verdict/belief/plausibility to reason() by construction, because it
+ * is the same reasonCore with withExtras = false.
+ */
+export function reasonVerdictOnly(claims: EvidenceClaim[], ruleset: Ruleset): Reasoning {
+  return reasonCore(claims, ruleset, "", false, []);
+}
+```
+
+- [ ] **Step 5: Write `stats.ts`**
+
+Create `apps/harness/src/stats.ts`:
+
+```ts
+export interface Interval { lo: number; hi: number }
+
+/**
+ * Wilson score interval for a binomial proportion.
+ *
+ * Chosen over the normal approximation because our n is small and Wilson stays
+ * inside [0,1] at the extremes, where the normal approximation produces
+ * intervals like [-0.06, 0.31] that make a deck look careless.
+ */
+export function wilson(successes: number, n: number, z = 1.96): Interval {
+  if (n === 0) return { lo: 0, hi: 1 };
+  const p = successes / n;
+  const z2 = z * z;
+  const denom = 1 + z2 / n;
+  const centre = (p + z2 / (2 * n)) / denom;
+  const half = (z * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / denom;
+  return { lo: Math.max(0, centre - half), hi: Math.min(1, centre + half) };
+}
+
+export interface Confusion { tp: number; fp: number; tn: number; fn: number }
+
+export function confusion(pairs: { y: number; predicted: number }[]): Confusion {
+  const c: Confusion = { tp: 0, fp: 0, tn: 0, fn: 0 };
+  for (const { y, predicted } of pairs) {
+    if (y === 1 && predicted === 1) c.tp++;
+    else if (y === 1) c.fn++;
+    else if (predicted === 1) c.fp++;
+    else c.tn++;
+  }
+  return c;
+}
+
+/**
+ * Balanced accuracy = (sensitivity + specificity) / 2.
+ *
+ * Plain accuracy is not reportable on DILIrank: predicting the majority class
+ * on a 90/10 split scores 0.90 while learning nothing. Returns 0.5 when a class
+ * is absent, rather than dividing by zero.
+ */
+export function balancedAccuracy(pairs: { y: number; predicted: number }[]): number {
+  const { tp, fp, tn, fn } = confusion(pairs);
+  const sens = tp + fn === 0 ? 0.5 : tp / (tp + fn);
+  const spec = tn + fp === 0 ? 0.5 : tn / (tn + fp);
+  return (sens + spec) / 2;
+}
+
+export function mean(xs: number[]): number {
+  return xs.length === 0 ? 0 : xs.reduce((s, v) => s + v, 0) / xs.length;
+}
+```
+
+- [ ] **Step 6: Write `metrics.ts`**
+
+Create `apps/harness/src/metrics.ts`:
+
+```ts
+import { reasonVerdictOnly, type AssayOperator, type EvidenceClaim, type Ruleset, type Verdict } from "@arbiter/engine";
+import { planNextExperiment } from "@arbiter/engine";
+import { jitter01, mulberry32, uniform } from "./prng.js";
+import { balancedAccuracy, confusion, mean, wilson, type Interval } from "./stats.js";
+import type { ResultRow } from "./main.js";
+
+/** do_not_advance means "predicted toxic" = 1. abstain is not a prediction. */
+const toBinary = (v: Verdict): number | null =>
+  v === "do_not_advance" ? 1 : v === "advance" ? 0 : null;
+
+export interface ScoredPipeline {
+  balancedAccuracy: number;
+  ci: Interval;
+  /** Fraction of the subset this pipeline committed to. Travels WITH accuracy, always. */
+  coverage: number;
+  nCommitted: number;
+  confusion: ReturnType<typeof confusion>;
+}
+
+function score(pairs: { y: number; predicted: number | null }[]): ScoredPipeline {
+  const committed = pairs.filter((p) => p.predicted !== null) as { y: number; predicted: number }[];
+  const acc = balancedAccuracy(committed);
+  const correct = committed.filter((p) => p.y === p.predicted).length;
+  return {
+    balancedAccuracy: acc,
+    ci: wilson(correct, committed.length),
+    coverage: pairs.length === 0 ? 0 : committed.length / pairs.length,
+    nCommitted: committed.length,
+    confusion: confusion(committed),
+  };
+}
+
+/**
+ * METRIC 1 (headline): balanced accuracy on the CONFLICT SUBSET only.
+ *
+ * Overall accuracy is inflated by easy unanimous cases. The conflict subset is
+ * where the product lives, so it is the only subset reported as the headline.
+ *
+ * Accuracy is ALWAYS returned with coverage. 85% accuracy while abstaining on
+ * 60% of cases is not an 85% system, and reporting the pair together is the
+ * only way that number means what a reader will take it to mean.
+ */
+export function conflictSubsetAccuracy(rows: ResultRow[]): {
+  n: number;
+  arbiter: ScoredPipeline;
+  baselines: Record<string, ScoredPipeline>;
+} {
+  const subset = rows.filter((r) => r.conflicting);
+  const arbiter = score(subset.map((r) => ({ y: r.y, predicted: toBinary(r.arbiter.verdict) })));
+
+  const names = new Set<string>();
+  for (const r of subset) for (const k of Object.keys(r.baselines)) names.add(k);
+
+  const baselines: Record<string, ScoredPipeline> = {};
+  for (const name of [...names].sort()) {
+    baselines[name] = score(subset.map((r) => ({
+      y: r.y,
+      predicted: r.baselines[name] ? toBinary(r.baselines[name]!.verdict) : null,
+    })));
+  }
+
+  return { n: subset.length, arbiter, baselines };
+}
+
+/**
+ * METRIC 3: uncertainty calibration.
+ *
+ * strictCoverage applies the literal Dempster-Shafer reading - the interval
+ * covers y when belief <= y <= plausibility. Against a binary label that is
+ * demanding: covering y=1 requires plausibility of exactly 1, i.e. zero mass on
+ * safe. We report it because it is the honest literal answer, and we expect it
+ * to be low.
+ *
+ * The number that actually TESTS THE HONESTY CLAIM is the width split: is the
+ * interval wider where ARBITER was wrong than where it was right? If yes, the
+ * uncertainty is doing its job, which is what "honest range" is supposed to
+ * mean. meanWidth is reported alongside because a wide always-right interval is
+ * worthless.
+ */
+export function calibration(rows: ResultRow[]): {
+  strictCoverage: number;
+  meanWidth: number;
+  meanWidthOnCorrect: number;
+  meanWidthOnIncorrect: number;
+  widthDiscriminates: boolean;
+  nCorrect: number;
+  nIncorrect: number;
+} {
+  const width = (r: ResultRow) => r.arbiter.plausibility - r.arbiter.belief;
+  const committed = rows.filter((r) => toBinary(r.arbiter.verdict) !== null);
+  const correct = committed.filter((r) => toBinary(r.arbiter.verdict) === r.y);
+  const incorrect = committed.filter((r) => toBinary(r.arbiter.verdict) !== r.y);
+
+  const strict = rows.filter((r) => r.arbiter.belief <= r.y && r.y <= r.arbiter.plausibility).length;
+  const wCorrect = mean(correct.map(width));
+  const wIncorrect = mean(incorrect.map(width));
+
+  return {
+    strictCoverage: rows.length === 0 ? 0 : strict / rows.length,
+    meanWidth: mean(rows.map(width)),
+    meanWidthOnCorrect: wCorrect,
+    meanWidthOnIncorrect: wIncorrect,
+    widthDiscriminates: incorrect.length > 0 && wIncorrect > wCorrect,
+    nCorrect: correct.length,
+    nIncorrect: incorrect.length,
+  };
+}
+
+/**
+ * METRIC 4: abstention quality.
+ *
+ * The safety behaviour: ARBITER should be MORE accurate on what it commits to
+ * than on the set as a whole, and should route the rest to a human. Decline rate
+ * is reported inseparably from accuracy.
+ */
+export function abstentionQuality(rows: ResultRow[]): {
+  declineRate: number;
+  balancedAccuracyOnCommitted: number;
+  ciOnCommitted: Interval;
+  nDeclined: number;
+  nCommitted: number;
+} {
+  const declined = rows.filter((r) => r.arbiter.verdict === "abstain");
+  const pairs = rows
+    .map((r) => ({ y: r.y, predicted: toBinary(r.arbiter.verdict) }))
+    .filter((p) => p.predicted !== null) as { y: number; predicted: number }[];
+  const correct = pairs.filter((p) => p.y === p.predicted).length;
+
+  return {
+    declineRate: rows.length === 0 ? 0 : declined.length / rows.length,
+    balancedAccuracyOnCommitted: balancedAccuracy(pairs),
+    ciOnCommitted: wilson(correct, pairs.length),
+    nDeclined: declined.length,
+    nCommitted: pairs.length,
+  };
+}
+
+/**
+ * METRIC 2b: robustness under perturbation.
+ *
+ * Determinism on its own is close to tautological - a pure function is a pure
+ * function, and a judge is right to say "you proved your calculator does not
+ * change its mind." The claim that matters is STABILITY: a deterministic system
+ * that sits on a knife edge is not consistent in any useful sense.
+ *
+ * Evidence strength is jittered +/-10% and rule strength +/-25%. All randomness
+ * comes from the seeded PRNG, and the seed is committed, because this figure is
+ * golden-filed.
+ */
+export function robustness(
+  claims: EvidenceClaim[],
+  ruleset: Ruleset,
+  samples: number,
+  seed: number,
+): { determinism: 1; heldFraction: number; samples: number; seed: number } {
+  const baseline = reasonVerdictOnly(claims, ruleset).verdict;
+  const next = mulberry32(seed);
+  let held = 0;
+
+  for (let i = 0; i < samples; i++) {
+    const perturbedClaims = claims.map((c) => ({ ...c, strength: jitter01(next, c.strength, 0.10) }));
+    const perturbedRules: Ruleset = {
+      ...ruleset,
+      rules: ruleset.rules.map((r) => ({ ...r, strength: jitter01(next, r.strength, 0.25) })),
+    };
+    if (reasonVerdictOnly(perturbedClaims, perturbedRules).verdict === baseline) held++;
+  }
+
+  return { determinism: 1, heldFraction: samples === 0 ? 1 : held / samples, samples, seed };
+}
+
+/**
+ * METRIC 5: planner sensitivity.
+ *
+ * The planner's outcome priors are expert-elicited, not learned - the spec
+ * discloses this. Rather than apologising for it, measure it: perturb every
+ * prior by +/-50% and report how often the top recommendation is unchanged. If
+ * the recommendation is driven by argument structure rather than by the priors,
+ * this number is high, and the disclosed limitation becomes a result.
+ */
+export function plannerSensitivity(
+  claims: EvidenceClaim[],
+  ruleset: Ruleset,
+  assays: AssayOperator[],
+  samples: number,
+  seed: number,
+): { baselineAssay: string | null; unchangedFraction: number; samples: number; seed: number } {
+  const bare = (c: EvidenceClaim[], rs: Ruleset) => reasonVerdictOnly(c, rs);
+  const baseline = planNextExperiment(claims, ruleset, assays, bare);
+  if (!baseline) return { baselineAssay: null, unchangedFraction: 1, samples: 0, seed };
+
+  const next = mulberry32(seed);
+  let unchanged = 0;
+  for (let i = 0; i < samples; i++) {
+    const perturbed = assays.map((a) => ({
+      ...a,
+      priorToxic: Math.max(0.01, Math.min(0.99, a.priorToxic * uniform(next, 0.5, 1.5))),
+    }));
+    if (planNextExperiment(claims, ruleset, perturbed, bare)?.assay === baseline.assay) unchanged++;
+  }
+
+  return {
+    baselineAssay: baseline.assay,
+    unchangedFraction: samples === 0 ? 1 : unchanged / samples,
+    samples,
+    seed,
+  };
+}
+```
+
+- [ ] **Step 7: Write the metrics runner**
+
+Create `apps/harness/src/run-metrics.ts`:
+
+```ts
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { abstentionQuality, calibration, conflictSubsetAccuracy, plannerSensitivity, robustness } from "./metrics.js";
+import { loadInputs } from "./load.js";
+import { mean } from "./stats.js";
+import type { ResultRow } from "./main.js";
+
+const ROBUSTNESS_SAMPLES = 2000;
+const SENSITIVITY_SAMPLES = 2000;
+const SEED = 20260726;
+
+function main(): void {
+  const results = JSON.parse(readFileSync("results/results.json", "utf8")) as {
+    rulesetVersion: string; rulesetHash: string; splitSeed: number; rows: ResultRow[];
+  };
+  const { claimsByCompound, ruleset, assays } = loadInputs();
+  const rows = results.rows;
+  const conflictRows = rows.filter((r) => r.conflicting);
+
+  // Metric 2b + 5, per compound on the conflict subset.
+  const rob = conflictRows.map((r) =>
+    robustness(claimsByCompound.get(r.compoundId) ?? [], ruleset, ROBUSTNESS_SAMPLES, SEED));
+  const sens = conflictRows
+    .map((r) => plannerSensitivity(claimsByCompound.get(r.compoundId) ?? [], ruleset, assays, SENSITIVITY_SAMPLES, SEED))
+    .filter((s) => s.baselineAssay !== null);
+
+  // Metric 2a from the ablation, if it has been run.
+  let llm: unknown = { note: "results/ablation.json not present - run `npm run ablation`" };
+  if (existsSync("results/ablation.json")) {
+    const a = JSON.parse(readFileSync("results/ablation.json", "utf8")) as {
+      config: unknown;
+      totals: { refusalRate: number; refused: number; requests: number };
+      byCompound: Record<string, { agreementRate: number; confidenceStdDev: number; nScored: number }>;
+    };
+    const scored = Object.values(a.byCompound).filter((s) => s.nScored > 0);
+    llm = {
+      config: a.config,
+      refusals: a.totals,
+      meanAgreementRate: mean(scored.map((s) => s.agreementRate)),
+      meanConfidenceStdDev: mean(scored.map((s) => s.confidenceStdDev)),
+      nCompoundsFullyRefused: Object.values(a.byCompound).filter((s) => s.nScored === 0).length,
+    };
+  }
+
+  const metrics = {
+    provenance: {
+      rulesetVersion: results.rulesetVersion,
+      rulesetHash: results.rulesetHash,
+      splitSeed: results.splitSeed,
+      perturbationSeed: SEED,
+      scoredSplit: "test",
+      note: "Reliability priors and the QSAR model were fitted on the train split only; conformal thresholds on calibration. These numbers come from test, which neither touched.",
+    },
+    sampleSizes: { scored: rows.length, conflictSubset: conflictRows.length },
+    metric1_conflictSubsetAccuracy: conflictSubsetAccuracy(rows),
+    metric2a_llmConsistency: llm,
+    metric2b_arbiterRobustness: {
+      determinism: 1,
+      determinismNote: "Trivially 1 - the engine is a pure function, verified by a 1000-run single-hash test. Reported for completeness; robustness below is the claim that carries weight.",
+      meanHeldFraction: mean(rob.map((r) => r.heldFraction)),
+      worstHeldFraction: rob.length === 0 ? 1 : Math.min(...rob.map((r) => r.heldFraction)),
+      samplesPerCompound: ROBUSTNESS_SAMPLES,
+      seed: SEED,
+    },
+    metric3_calibration: calibration(rows),
+    metric4_abstentionQuality: abstentionQuality(rows),
+    metric5_plannerSensitivity: {
+      nCompoundsWithRecommendation: sens.length,
+      meanUnchangedFraction: mean(sens.map((s) => s.unchangedFraction)),
+      perturbation: "+/-50% on every expert-elicited priorToxic",
+      samplesPerCompound: SENSITIVITY_SAMPLES,
+      seed: SEED,
+    },
+  };
+
+  writeFileSync("results/metrics.json", JSON.stringify(metrics, null, 2));
+  console.log(JSON.stringify({
+    conflictSubsetN: metrics.sampleSizes.conflictSubset,
+    arbiter: metrics.metric1_conflictSubsetAccuracy.arbiter,
+    bestBaseline: Object.entries(metrics.metric1_conflictSubsetAccuracy.baselines)
+      .sort((a, b) => b[1].balancedAccuracy - a[1].balancedAccuracy)[0],
+    widthDiscriminates: metrics.metric3_calibration.widthDiscriminates,
+    meanRobustness: metrics.metric2b_arbiterRobustness.meanHeldFraction,
+    plannerUnchanged: metrics.metric5_plannerSensitivity.meanUnchangedFraction,
+  }, null, 2));
+}
+
+main();
+```
+
+Add to root `package.json` scripts:
+
+```json
+    "metrics": "tsx apps/harness/src/run-metrics.ts",
+```
+
+- [ ] **Step 8: Run everything and verify it passes**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test && npm run lint && npm run typecheck && npm run harness && npm run metrics
+```
+
+Expected: PASS across the whole suite, then `results/metrics.json` written and a summary printed.
+
+**Record these five numbers — they are the presentation:** conflict-subset n, ARBITER's balanced accuracy with its Wilson interval and coverage, the best baseline's, whether `widthDiscriminates` is true, and mean robustness.
+
+**If ARBITER does not beat the best baseline, report it.** The spec says to prepare for a mixed result: if the LLM matches on accuracy, the advantage is consistency, traceability and calibration — which were likely the real advantages anyway. An honest mixed result with a clear interpretation is more credible than a suspiciously clean sweep.
+
+- [ ] **Step 9: Commit**
+
+```bash
+cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && git add package.json packages/engine apps/harness && git commit -m "Add the metrics suite
+
+Five metrics, each with the reporting discipline the spec requires:
+
+- Metric 1, headline: balanced accuracy on the CONFLICT SUBSET only, since
+  overall accuracy is inflated by easy unanimous cases. Balanced rather than
+  plain accuracy because predicting the majority class on DILIrank's imbalance
+  scores 0.90 while learning nothing - there is a test asserting exactly that.
+  Accuracy is structurally inseparable from coverage in the return type, because
+  85% accuracy while abstaining on 60% is not an 85% system
+- Metric 2b: robustness under perturbation, not just determinism. Determinism
+  alone is close to tautological and a judge is right to say we proved our
+  calculator does not change its mind. Evidence strength jittered +/-10%, rule
+  strength +/-25%, 2000 seeded samples
+- Metric 3: strict Dempster-Shafer coverage is reported because it is the honest
+  literal reading, and it will be low. The number that actually tests the
+  honesty claim is the width split - is the interval WIDER where ARBITER was
+  wrong? If yes the uncertainty is doing its job
+- Metric 4: decline rate reported inseparably from accuracy on committed cases
+- Metric 5: planner sensitivity turns a disclosed limitation into a result.
+  Perturb every expert-elicited prior +/-50% and report how often the top
+  recommendation survives
+
+Wilson intervals rather than the normal approximation: n is small, and Wilson
+stays inside [0,1] at the extremes where the normal approximation produces
+intervals like [-0.06, 0.31].
+
+Adds reasonVerdictOnly to the engine so perturbation sampling skips the
+counterfactual, which costs 20x and is never read during sampling.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Remaining Phase 1 task — OUTLINE, NOT YET WRITTEN
+
+> ⚠️ **Tasks 1–15 above are complete and executable. Task 16 below is an outline.**
 
 | # | Task | Key deliverable |
 |---|---|---|
-| 15 | Metrics suite | Five metrics with Wilson intervals; accuracy and coverage reported inseparably; planner sensitivity |
 | 16 | Golden files + CI | Any change moving a benchmark number fails the build |
 
 ---
