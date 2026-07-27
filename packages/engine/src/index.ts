@@ -129,11 +129,20 @@ export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = 
     verdictReason = "Evidence for and against is exactly balanced; no side can be preferred.";
   }
 
-  const survivors = claims.filter((c) => {
-    const s = statuses.get(c.id);
-    return s === "admitted" || s === "downweighted";
-  });
-  const contested = detectConflict(survivors).conflicting || fused.conflictMass > 0;
+  // An argument survives when nothing DEFEATED it - which includes `undecided`.
+  // Undecided is the state of being locked in a mutual-defeat cycle, so a case
+  // where four claims deadlock two-against-two is maximally contested, not
+  // uncontested. Filtering to admitted|downweighted here (as an earlier draft did)
+  // reported `contested: false` on exactly that input, because vacuous masses also
+  // generate no conflict mass - four visibly deadlocked claims with the field
+  // beside them saying there was no disagreement.
+  //
+  // NOTE: this is deliberately NOT the pre-registered conflict-subset definition
+  // used for the Task 15 headline. That one is fixed in spec §11 as a property of
+  // the RAW claims, evaluated by the harness before any rule runs, so it cannot
+  // move when rule behaviour changes. `contested` is the per-result display field.
+  const undefeated = claims.filter((c) => statuses.get(c.id) !== "defeated");
+  const contested = detectConflict(undefeated).conflicting || fused.conflictMass > 0;
 
   const withReason: TraceStep[] = verdictReason
     ? [...enrichedTrace, { claimId: "__verdict__", status: "undecided" as const, kind: "verdict" as const, rationale: verdictReason }]

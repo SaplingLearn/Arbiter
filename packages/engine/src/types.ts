@@ -127,7 +127,12 @@ export interface NextExperiment {
 
 export interface Reasoning {
   verdict: Verdict;
-  /** True when both assertions survive as live arguments. */
+  /**
+   * True when opposed assertions both survive, i.e. neither was defeated.
+   * `undecided` counts as surviving — a mutual-defeat cycle is the most contested
+   * state there is. Not the pre-registered Task 15 conflict subset, which is a
+   * property of the raw claims; this is the per-result display field.
+   */
   contested: boolean;
   belief: number;
   plausibility: number;
@@ -136,6 +141,10 @@ export interface Reasoning {
    * reviewer can reconcile the verdict against the numbers: `belief` alone is the
    * mass on TOXIC, which cannot explain an "advance". Structurally identical to
    * `Mass` in fuse.ts.
+   *
+   * Written as an inline structural type ON PURPOSE. Do NOT `import` `Mass` from
+   * fuse.ts here - types.ts is the leaf every other module depends on, and making
+   * it depend on an implementation module inverts that.
    */
   mass: { toxic: number; safe: number; uncommitted: number };
   /** Dempster conflict mass. Surfaced, never normalised away. */

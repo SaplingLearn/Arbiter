@@ -103,7 +103,9 @@ describe("reason", () => {
     // The very strong defeated claim must not drag belief down.
     expect(withDefeat.belief).toBeCloseTo(alone.belief, 10);
     // One step per claim. Counted over real claim steps only, so this does not
-    // silently double as an assertion that the case never abstains.
+    // silently double as an assertion that the case never abstains - a bare
+    // toHaveLength(2) breaks the day this case starts abstaining for an unrelated
+    // reason and appends a verdict step.
     expect(withDefeat.trace.filter((s) => s.kind !== "verdict")).toHaveLength(2);
   });
 
@@ -113,6 +115,40 @@ describe("reason", () => {
       claim({ id: "b", assertion: "safe", klimisch: 2, stream: "transporter" }),
     ], RS);
     expect(r.contested).toBe(true);
+  });
+
+  it("marks a mutual-defeat cycle contested - undecided is surviving, not resolved", () => {
+    // The 4-cycle from argue.test.ts: two toxic, two safe, every claim UNDECIDED
+    // because each attacker is itself outranked. Nothing was settled, so this is
+    // the most contested input the engine can represent.
+    //
+    // It previously reported contested: FALSE. `contested` was computed over
+    // admitted|downweighted claims only, and undecided claims contribute vacuous
+    // mass, which generates no conflict mass either - so both halves of the test
+    // missed it, and the UI would have rendered four visibly deadlocked claims
+    // beside a field saying nothing disagreed.
+    const r = reason([
+      claim({ id: "a", assertion: "toxic", system: "human", klimisch: 4 }),
+      claim({ id: "b", assertion: "safe", system: "rodent", stream: "invivo_rodent", klimisch: 1 }),
+      claim({ id: "c", assertion: "toxic", system: "nonrodent", stream: "invivo_nonrodent", klimisch: 2 }),
+      claim({ id: "d", assertion: "safe", system: "in_silico", stream: "qsar", klimisch: 3 }),
+    ], RS);
+    expect(r.trace.filter((s) => s.status === "undecided" && s.kind !== "verdict")).toHaveLength(4);
+    expect(r.conflictMass).toBe(0); // vacuous masses cannot conflict - hence the miss
+    expect(r.contested).toBe(true);
+  });
+
+  it("does not mark a RESOLVED conflict contested - a defeated claim is not surviving", () => {
+    // The other side of the same predicate, so the fix above cannot be satisfied
+    // by simply returning true whenever any two claims ever opposed each other.
+    // Here R1 defeats the rodent claim outright: the disagreement was settled, and
+    // only one side is left standing.
+    const r = reason([
+      claim({ id: "h", assertion: "toxic", strength: 0.9, system: "human", klimisch: 1 }),
+      claim({ id: "rat", assertion: "safe", strength: 0.9, system: "rodent", stream: "invivo_rodent", klimisch: 2 }),
+    ], RS);
+    expect(r.trace.find((s) => s.claimId === "rat")?.status).toBe("defeated");
+    expect(r.contested).toBe(false);
   });
 
   it("carries the ruleset hash through to the output", () => {
@@ -176,6 +212,79 @@ describe("reason", () => {
       expect(r.belief, name).toBeCloseTo(r.mass.toxic, 12);
       expect(r.plausibility, name).toBeCloseTo(r.mass.toxic + r.mass.uncommitted, 12);
     }
+  });
+
+  it("reads the verdict off the fused mass itself, with nothing applied on top", () => {
+    // REGRESSION PIN for the removal of R6's explicit concordance boost.
+    //
+    // The boost multiplied one side of the fused mass by a stream-count factor
+    // before the verdict was read, so a STREAM-COUNT majority could invert a
+    // DEMPSTER-SHAFER MASS majority. Removing it changed verdicts deliberately -
+    // and until this test existed, nothing detected putting it back. The
+    // sum-to-1 check above only catches a boost applied WITHOUT renormalising;
+    // a renormalised one (the alternative that was considered and rejected)
+    // left the entire suite green while flipping this very case.
+    //
+    // Hand-derived rather than copied from an observed run. Two safe claims at
+    // 0.5 fuse to m(safe) = 1 - 0.5^2 = 0.75, m(Theta) = 0.25. Combining the
+    // toxic claim at b = 0.753 gives, before normalisation,
+    //   toxic = 0.25 * b, safe = 0.75 * (1 - b), Theta = 0.25 * (1 - b),
+    // with conflict K = 0.75 * b, so norm = 1 - K.
+    const b = 0.753;
+    const S = 1 - 0.5 * 0.5;
+    const U = 0.5 * 0.5;
+    const norm = 1 - S * b;
+
+    const r = reason([
+      claim({ id: "s1", assertion: "safe", strength: 0.5, stream: "cytotox", exposureRelevant: true, measuresKeyEvent: "KE:1" }),
+      claim({ id: "s2", assertion: "safe", strength: 0.5, stream: "transporter", exposureRelevant: true, measuresKeyEvent: "KE:2" }),
+      claim({ id: "t1", assertion: "toxic", strength: b, stream: "toxicogenomics", exposureRelevant: true, measuresKeyEvent: "KE:3" }),
+    ], RS);
+
+    expect(r.mass.toxic).toBeCloseTo((U * b) / norm, 12);
+    expect(r.mass.safe).toBeCloseTo((S * (1 - b)) / norm, 12);
+    expect(r.mass.uncommitted).toBeCloseTo((U * (1 - b)) / norm, 12);
+
+    // Mass leans TOXIC by roughly 0.007 - inside the 0.5 gap threshold, so the
+    // verdict is committed rather than abstained, which is what makes the flip
+    // observable at all.
+    expect(r.mass.toxic).toBeGreaterThan(r.mass.safe);
+    expect(r.plausibility - r.belief).toBeLessThan(RS.abstentionGapThreshold);
+    // Two independent streams concur on "safe" and are outvoted anyway, because
+    // Dempster's rule has already priced their agreement in. A 1.0333x boost on
+    // the safe side would return "advance" here.
+    expect(r.verdict).toBe("do_not_advance");
+  });
+
+  it("cannot let a stream RELABELLING change the verdict, only the rules that read stream", () => {
+    // The companion property to the test above, and the more general statement:
+    // outside R2's structural-only check (stream === "qsar" || system ===
+    // "in_silico"), `stream` must not reach the mass at all. Fusion is blind to
+    // source labels; concordance is realised by combining masses, not by counting
+    // names. So moving both safe claims onto ONE stream - which changes nothing
+    // about what any source measured or how strongly - must leave the mass and the
+    // verdict bit-for-bit identical.
+    //
+    // Under the removed boost these two inputs disagreed: 2-vs-1 streams boosted
+    // safe by 1.0333 and returned "advance", while 1-vs-1 boosted nothing and
+    // returned "do_not_advance". Same evidence, different answer, decided by a
+    // label. `contested` is deliberately NOT asserted - detectConflict reads
+    // stream by design, and it legitimately differs between these two inputs.
+    const twoStreams = reason([
+      claim({ id: "s1", assertion: "safe", strength: 0.5, stream: "cytotox", exposureRelevant: true, measuresKeyEvent: "KE:1" }),
+      claim({ id: "s2", assertion: "safe", strength: 0.5, stream: "transporter", exposureRelevant: true, measuresKeyEvent: "KE:2" }),
+      claim({ id: "t1", assertion: "toxic", strength: 0.753, stream: "toxicogenomics", exposureRelevant: true, measuresKeyEvent: "KE:3" }),
+    ], RS);
+    const oneStream = reason([
+      claim({ id: "s1", assertion: "safe", strength: 0.5, stream: "cytotox", exposureRelevant: true, measuresKeyEvent: "KE:1" }),
+      claim({ id: "s2", assertion: "safe", strength: 0.5, stream: "cytotox", exposureRelevant: true, measuresKeyEvent: "KE:2" }),
+      claim({ id: "t1", assertion: "toxic", strength: 0.753, stream: "toxicogenomics", exposureRelevant: true, measuresKeyEvent: "KE:3" }),
+    ], RS);
+
+    expect(oneStream.mass).toEqual(twoStreams.mass);
+    expect(oneStream.verdict).toBe(twoStreams.verdict);
+    expect(oneStream.belief).toBe(twoStreams.belief);
+    expect(oneStream.conflictMass).toBe(twoStreams.conflictMass);
   });
 
   it("explains an exactly-balanced abstention in the trace instead of going silent", () => {
