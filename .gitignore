@@ -1,6 +1,12 @@
 # Visual brainstorming companion session files
 .superpowers/
 
+# Generated data artifacts. data/raw/ is deliberately NOT ignored: the DILIrank
+# workbook is 110KB of US-government public-domain data, and committing it pins
+# the exact dataset version a result was produced from. DILIrank 2.0 reclassified
+# 49 drugs from 1.0, so "which version" is part of the result.
+data/out/
+
 # Node
 node_modules/
 dist/

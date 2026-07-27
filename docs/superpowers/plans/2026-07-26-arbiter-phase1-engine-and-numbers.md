@@ -3580,9 +3580,17 @@ free.
 
 Binarisation follows rules/ruleset-v1.0.json - the PRE-REGISTERED policy, not a
 choice made here.
+
+DATASET PROVENANCE, which must be reported wherever a number from it is shown:
+DILIrank **2.0** (1,336 FDA-approved drugs; sheet 1 of the FDA workbook), NOT the
+superseded 1.0 (1,036 drugs, sheet 2). 2.0 adds 300 drugs approved 2010-2021 and
+RECLASSIFIES 49 of the original ones, so the version is not an incidental detail -
+the same compound can carry a different label between versions and a result is not
+reproducible without it.
 """
 import json
 import pathlib
+import re
 import time
 
 import pandas as pd
@@ -3602,15 +3610,74 @@ def binarisation_policy() -> dict:
     return json.loads(RULESET.read_text())["dilirankBinarisation"]
 
 
+def norm_label(s: str) -> str:
+    """Lowercase and strip every non-letter.
+
+    MANDATORY, not cosmetic. The real file's category values are internally
+    inconsistent in case, prefix and punctuation, and the pre-registered strings
+    in ruleset-v1.0.json match almost none of them literally. Measured on the
+    actual FDA workbook:
+
+      pre-registered "vMost-DILI-Concern"  vs  file "vMost-DILI-concern" (215)
+                                           and "vMOST-DILI-concern" (2)   -> 0 rows
+      pre-registered "vLess-DILI-Concern"  vs  file "vLess-DILI-concern" (351) -> 0 rows
+      pre-registered "vNo-DILI-Concern"    vs  file "vNo-DILI-concern" (413)
+                                           and "vNo-DILI-Concern" (1)     -> 1 row
+
+    An exact-match ingest therefore yields an evaluation set of ONE compound and
+    raises nothing. Normalising both sides is what makes the pre-registered
+    policy mean what it says; it does not change the policy, so
+    ruleset-v1.0.json stays untouched and its hash stands.
+
+    Version 1.0 of the dataset (sheet 2) differs again - no "v" prefix, and
+    "Ambiguous DILI-concern" with a SPACE - which is why this must not be a
+    hand-written alias table.
+    """
+    return re.sub(r"[^a-z]", "", str(s).lower())
+
+
+# Published DILIrank 2.0 distribution. Asserted so a parsing or matching change
+# fails the build instead of quietly shrinking the evaluation set.
+EXPECTED_2_0 = {
+    "vmostdiliconcern": 217,
+    "vlessdiliconcern": 351,
+    "vnodiliconcern": 414,
+    "ambiguousdiliconcern": 354,
+}
+
+
 def read_raw() -> pd.DataFrame:
     if not RAW.exists():
         raise SystemExit(f"Missing {RAW}. See data/prep/README.md.")
-    df = pd.read_excel(RAW)
+
+    # sheet_name=0 is DILIrank 2.0 (1,336 drugs); sheet 1 is the superseded 1.0
+    # (1,036). header=1 because row 0 is a title banner, not column names -
+    # reading with the default header=0 makes every column "Unnamed: N" and the
+    # column lookups below fail.
+    df = pd.read_excel(RAW, sheet_name=0, header=1)
+
     name_col = next(c for c in df.columns if "compound" in c.lower() or "drug" in c.lower())
-    label_col = next(c for c in df.columns if "concern" in c.lower() or "severity" in c.lower())
+    # Must test "concern" FIRST and on its own. The columns are LTKBID,
+    # CompoundName, SeverityClass, LabelSection, vDILI-Concern, Comment - so an
+    # `or "severity"` clause matches SeverityClass (an integer grade) before it
+    # ever reaches the label column, and binarisation would then run on integers.
+    label_col = next(c for c in df.columns if "concern" in c.lower())
+
     out = df[[name_col, label_col]].rename(columns={name_col: "name", label_col: "dilirankLabel"})
     out["name"] = out["name"].astype(str).str.strip()
     out["dilirankLabel"] = out["dilirankLabel"].astype(str).str.strip()
+    out["labelNorm"] = out["dilirankLabel"].map(norm_label)
+
+    counts = out["labelNorm"].value_counts().to_dict()
+    if counts != EXPECTED_2_0:
+        raise SystemExit(
+            "DILIrank 2.0 category distribution does not match the published one.\n"
+            f"  expected: {EXPECTED_2_0}\n  got:      {counts}\n"
+            "Either the wrong sheet/header was read or the file changed. Do not "
+            "proceed - every downstream metric is computed over this set."
+        )
+    print(f"DILIrank 2.0 category counts verified against publication: {counts}")
+
     return out.drop_duplicates(subset="name")
 
 
@@ -3638,14 +3705,26 @@ def resolve_structures(names: list[str]) -> dict[str, dict[str, str]]:
 
 def main() -> None:
     policy = binarisation_policy()
-    positive, negative = set(policy["positive"]), set(policy["negative"])
+    # Both sides normalised through the SAME function - see norm_label.
+    positive = {norm_label(s) for s in policy["positive"]}
+    negative = {norm_label(s) for s in policy["negative"]}
 
     df = read_raw()
     print(f"DILIrank rows: {len(df)}")
 
-    excluded = df[~df["dilirankLabel"].isin(positive | negative)]
-    df = df[df["dilirankLabel"].isin(positive | negative)].copy()
+    keep = df["labelNorm"].isin(positive | negative)
+    excluded = df[~keep]
+    df = df[keep].copy()
     print(f"Binary-labelled: {len(df)}  (excluded by policy: {len(excluded)})")
+
+    # Expected on DILIrank 2.0: 568 positive (217 + 351), 414 negative, 354
+    # excluded as Ambiguous -> 982 usable, 57.8% positive. A near-empty set here
+    # is the signature of the exact-match bug norm_label exists to prevent.
+    if len(df) < 900:
+        raise SystemExit(
+            f"Only {len(df)} binary-labelled compounds; expected ~982. The "
+            "binarisation policy is not matching the file's category values."
+        )
 
     df["y"] = df["dilirankLabel"].isin(positive).astype(int)
 
