@@ -306,6 +306,31 @@ Combination is Dempster's rule. `belief(toxic) = m({toxic})`;
 `plausibility(toxic) = m({toxic}) + m(Θ)`. Conflict mass **K** is tracked and surfaced rather than
 normalised away — high K means the sources genuinely disagree, and it widens the reported range.
 
+**The full fused mass is reported, not just `belief`.** `belief` is the mass on *toxic* alone, so it cannot
+by itself explain an `advance` verdict — a reviewer seeing `belief: 0.25` next to `advance` has no way to
+check the two against each other. All three components (`toxic`, `safe`, `uncommitted`) are in the output.
+
+### Dempster's rule *is* R6 — there is no separate concordance bonus
+
+R6 needs no mechanism of its own, because fusion already is one. Two independent sources each putting 0.18
+on *safe* combine to 0.3276 — strictly more than either alone, while a source repeating itself adds nothing.
+That is R6's registered statement discharged by the arithmetic, and the ruleset's own framework note says as
+much: *"Formalised by the evidence fusion layer; independence is at the stream level."*
+
+An earlier draft **also** applied an explicit multiplicative boost keyed to the number of concurring streams.
+It was removed, and the reason is worth stating because it is the kind of thing a judge should ask about:
+
+1. **It could invert the verdict.** A stream-count majority overrode a mass majority. `safe 0.18` +
+   `safe 0.18` + `toxic 0.33` fuses to *toxic* 0.2488 against *safe* 0.2461, yet the boost lifted safe to
+   0.2543 and the engine returned **advance** while still reporting `belief` 0.2488. The output contradicted
+   itself, and nothing in it explained why.
+2. **It double-counted.** Fusion had already rewarded the concordance; the boost rewarded it again.
+3. **Its coefficient was not pre-registered.** A `0.25` scaling factor lived in source rather than in the
+   hashed ruleset, so *"where did 0.25 come from?"* had no defensible answer.
+
+`concordanceBoost` survives as a **reported diagnostic** — how many independent streams concur, and on which
+side, is worth showing a reviewer — and is explicitly documented as never being applied to a mass.
+
 ### Conformal prediction on the QSAR stream
 
 The Pitch Bible specifies conformal prediction (§06, §17) and earlier drafts of this spec dropped it. It is
@@ -842,6 +867,7 @@ The hardest questions, with the answer each design decision produces. Rehearse t
 | **Isn't the discounting just a fudge factor to force the answer you wanted?** | The discounts are the same six pre-registered strengths as the defeats — one number per principle, hashed before any evaluation ran, with no separate knob. Disagree with a weight and you edit one value; both mechanisms move together. What we did *not* do is touch the abstention threshold, which is pre-registered precisely so the abstention rate cannot be tuned. |
 | **Why does R3 only apply to negative findings? That looks convenient.** | It is R3's registered wording, written before we implemented it: *"defeats a negative finding whose margin is unstated or untested at that range."* A hazard signal at an unrecorded concentration is still a signal — you go and measure the margin next. An absence of signal at an unrecorded concentration tells you nothing about safety. The other five rules describe what *kind* of evidence a claim is and apply in both directions. |
 | **Doesn't discounting make you abstain on everything?** | It nearly did, and we measured it rather than assumed it: applying R3 in both directions gave a lone hepatotoxicity finding a gap of 0.87 and would have abstained on essentially the whole evaluation set. The reported abstention rate is a headline metric for exactly this reason — a system that abstains on everything is useless, and we show the number rather than hide it. |
+| **If R6 has no code of its own, is it really a rule?** | It has no *separate* code because Dempster's rule already is its mechanism — two independent sources at 0.18 fuse to 0.3276, one source repeating itself adds nothing. R6 is the reason we fuse rather than average. We did build an explicit concordance bonus on top and then deleted it: it double-counted, its coefficient was not pre-registered, and it could invert a verdict against the mass it was reported alongside. See §5. |
 | **What is your biggest weakness?** | The preference ordering has not been reviewed by a practising toxicologist. It is drawn from published frameworks, but expert validation is the next thing we need. |
 
 ---
