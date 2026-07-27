@@ -38,6 +38,8 @@ qualification ecosystem. Offer those as possibilities, never as a plan.
 | consistent, defensible | fast |
 | ARBITER's position | ARBITER's decision |
 | the committee decides | the system decides |
+| positions, sign-off, decision owner | voting, vote, tally, majority |
+| hash-chained audit log | blockchain |
 
 ### Branding
 
@@ -59,8 +61,14 @@ harness with four baselines.
 ### Out of scope
 
 Cardiac, mutagenicity, or any second endpoint. Proprietary data. Live integration with lab systems.
-Authentication or real accounts — other reviewers are seeded personas. Runtime data pulls. Live AOP-Wiki
-SPARQL queries.
+Authentication, real accounts, or multi-user shared state. Runtime data pulls. Live AOP-Wiki SPARQL queries.
+
+**On accounts specifically — a persona switcher is better here, not merely cheaper.** The guidelines-derived
+constraint is that the demo must open from a link with no login; a judge who has to sign in cannot explore
+during Q&A. But beyond that, one presenter switching persona can become the tox lead and challenge R3, become
+DMPK and dissent, and become the safety lead and sign — three perspectives in forty seconds, faster than a
+single real login. Real accounts would make beat 6 slower and less legible. See §7a for how the record model
+is nonetheless built as though authenticated.
 
 ### Mechanistic grounding decision
 
@@ -83,7 +91,7 @@ later.
 | 3 | ARBITER's argument | 55s | Rat and primate defeated by R1. In-vitro margin defeated by R3. QSAR downweighted by R4. Little survives as evidence either way. Verdict: **ABSTAIN**. |
 | 4 | The honest gap, and what would flip it | 30s | Belief–plausibility gap opens from centre — the widest in the set. Then the exhaustive counterfactual. |
 | 5 | The experiment it asks for | 50s | Planner names the murine CYP-induction study at clinically relevant dose. Reveal: that is the study Takeda ran, during Phase 2, after three participants met Hy's Law. Then the result is fed in and the verdict flips live to **DO NOT ADVANCE**. |
-| 6 | The table | 35s | Challenge in plain English → interpreted → proposed change shown → applied → re-run → delta. Two agree, one dissents, all recorded. ARBITER did not vote. |
+| 6 | The table | 35s | Challenge in plain English → interpreted → proposed change shown → applied → re-run → delta. Positions recorded including one dissent; the named decision owner signs. ARBITER holds no position. |
 | 7 | What the numbers say | 20s | Determinism *and* robustness. LLM variance. Conflict-subset accuracy vs four baselines with n, intervals, and coverage. |
 
 ### Why the two-pass structure is mandatory, not stylistic
@@ -355,6 +363,59 @@ Fallback: cached question→anchor map → local keyword match over anchor label
 
 ---
 
+## 7a. The consensus record — positions, not votes
+
+### Positions recorded, one accountable owner signs
+
+**This is a correction to earlier drafts, which displayed "2 agree · 1 dissent" beside a RECORD CONSENSUS
+button.** That reads as a vote tally producing the outcome, and it quietly contradicts the accountability
+story: if a tally decides, then a judge asks *"what happens at 2–1 the other way?"* and the answer is that the
+group outvotes the accountable owner. The decision would have been handed back to a mechanism — a
+human-shaped one, but a mechanism.
+
+Real pharma governance is not majority rule. **A committee advises; one accountable individual decides.**
+
+So: **positions are recorded, dissent is preserved, and one named decision owner signs.** Counts are context
+for a later reader, never the thing that determines the outcome. **The word "voting" is dropped from the
+product, the UI, and the deck** — *positions* and *sign-off* are more accurate and stronger.
+
+### The record model — built as though authenticated
+
+A consensus record is theatre unless it binds to what was actually reviewed. The model therefore carries
+everything an authenticated signature needs, with the identity source as the only stub:
+
+```ts
+{ reviewerId, displayName, role,
+  position: 'agree' | 'dissent' | 'abstain',
+  rationale: string | null,
+  signedAt: ISODateTime,
+  rulesetHash: string,            // which rules were in force
+  evidenceSnapshotHash: string,   // exactly what was on screen
+  asOfDate: ISODate,              // which replay state
+  signatureMethod: 'demo-persona' | 'sso',   // the seam, made explicit
+  prevRecordHash: string }        // hash-chained, append-only
+```
+
+Two fields earn their keep. **`evidenceSnapshotHash`** binds the signature to the precise evidence and verdict
+reviewed — without it, "I agree" attaches to nothing and a later data change silently rewrites what someone
+endorsed. **`prevRecordHash`** makes the log tamper-evident in a few lines: this is a standard hash-chained
+audit log and must be described as exactly that, **never as a blockchain.**
+
+### Why this matters for the Q&A
+
+It converts *"do you have accounts?"* from a weak answer into a strong one: **the record already carries what
+a 21 CFR Part 11 electronic signature requires — unique signer identity, binding to the signed content, and a
+tamper-evident trail. In deployment the identity comes from Pfizer SSO instead of a demo persona, and
+`signatureMethod` is the only field that changes.**
+
+Part 11 is the actual regulation behind the playbook's claim that a full audit trail supports
+electronic-records expectations. This is what makes that line defensible rather than aspirational.
+
+**Honest limit, consistent with §12:** the demo does not prove authentication or Part 11 compliance. That is a
+design commitment, in the same category as the security architecture.
+
+---
+
 ## 8. Validation
 
 ### Four baselines
@@ -433,15 +494,46 @@ interpretation is more credible than a suspiciously clean sweep.
 
 Exact Pfizer hexes are sampled from pfizer.com during build; the values above are approximations.
 
-### Shell — workbench with an enlarging spotlight
+### Navigation — five tabs at the concern boundary
 
-Three regions (evidence · trace · table) plus top bar and tour footer, laid out with CSS grid. The spotlight
-is a `grid-template-columns` transition: the focused region grows to presentation size and the others
-collapse to 56px rails that still show every evidence verdict and reviewer state as coloured dots — so a
-judge can see nothing was hidden from them.
+The app has five top-level destinations. The split is at the **concern** boundary, never inside the reasoning.
 
-**Tour state is `{ beat: 0..6, focus: 'evidence' | 'trace' | 'table' | null }`** — presentational only and
-structurally unable to touch data, so the two modes cannot disagree with each other.
+| Tab | Contains | Why separate |
+|---|---|---|
+| **Compounds** | The library, conflict rate across the whole set, each compound tagged agree / conflict / abstain | The screen that proves the hero case was not cherry-picked |
+| **Case** | Evidence · argument trace · uncertainty · the table · consensus. Beats 1–6 happen here. | **Does not split — see below** |
+| **Ruleset** | R1–R6 in full with statement, framework citation, editable strength; version hash and an edit changelog | Makes "expert-governed, not algorithm-invented" touchable rather than asserted |
+| **Validation** | Four baselines, the five metrics, ablation runs, sensitivity, ruleset hash and pre-registration date. Beat 7. | A different concern with a different audience-moment |
+| **Record** | The review-ready evidence package and the signed decision log | An output artifact, not a workspace |
+
+**Routing uses a hash router** (`#/case`, `#/validation`), not a history router — because the static offline
+build must work opened from `index.html` over `file://`, where a history router breaks.
+
+The guided tour drives *across* tabs: advancing a beat switches tab when the beat requires it, so the
+presenter never has to click the right thing under pressure.
+
+### Why the Case tab does not split
+
+ARBITER's thesis is **integration** — that the value lies in seeing the conflict and its resolution together.
+Concretely: the challenge to R3 sits in the right column, the rule it attacks fires in the middle column, and
+the belief gap it moves is directly beneath. Split across tabs, that causal chain becomes invisible, and the
+`belief 0.34 → 0.41` moment — the entire point of the Deliberation Room — stops existing. An interface that
+separates evidence from argument is arguing against the product.
+
+The **as-of control lives in the case header**, not in global settings: it is an input to this case. The
+evidence panel states how many streams are hidden by the current as-of date, so the two-pass replay is
+legible rather than mysterious.
+
+### Shell within the Case tab — workbench with an enlarging spotlight
+
+Three regions (evidence · trace · table) plus the case header and tour footer, laid out with CSS grid. The
+spotlight is a `grid-template-columns` transition: the focused region grows to presentation size and the
+others collapse to 56px rails that still show every evidence verdict and reviewer position as coloured dots —
+so a judge can see nothing was hidden from them.
+
+**Tour state is `{ beat: 0..6, tab: TabId, focus: 'evidence' | 'trace' | 'table' | null }`** — presentational
+only and structurally unable to touch data, so the guided and free-navigation modes cannot disagree with each
+other.
 
 ### Sizing for a compressed share
 
@@ -635,7 +727,10 @@ is exactly the audience that will catch an error about Pfizer.
 | Data strategy | Real-data-first with provenance badges as the safety net; 2 August freeze |
 | Engine location | Pure TypeScript, runs in both Node harness and browser — one source of truth |
 | Hosting | Railway (static app plus API in one service), with a fully static build as backup |
-| Interface shell | Workbench with an enlarging spotlight |
+| Navigation | Five tabs at the concern boundary (Compounds · Case · Ruleset · Validation · Record), hash router so the static build works over `file://`. The Case tab does not split. |
+| Interface shell | Within the Case tab: workbench with an enlarging spotlight |
+| Identity | No accounts. Persona switcher — better for the demo, not merely cheaper. Record model built as though authenticated; `signatureMethod` is the only field deployment changes. |
+| Decision model | Positions recorded, dissent preserved, one named owner signs. **Not voting.** Counts never determine the outcome. |
 | Visual identity | Editorial discipline on Pfizer's palette |
 | Motion | Level 2 staged, with kill switch |
 | Build ownership | Claude builds; team owns science review, validation, deck, rehearsal |
