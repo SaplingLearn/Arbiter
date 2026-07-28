@@ -216,17 +216,29 @@ That is a deliberate owner decision, not an oversight, but it means the usual
 last-line check did not run. Worth doing on the most capable model available before
 submission. Nothing is blocking it.
 
-### 3.6 CI is slow, and it is one step's fault
+### 3.6 CI has one step that can stall for ten minutes, unpredictably
 
-`npx playwright install --with-deps chromium` took **12m24s** against the ~2m the rest
-of the job needs — `--with-deps` apt-installs system libraries on a cold runner. This
-was introduced in Phase 2 Task 13 and not measured at the time.
+`npx playwright install --with-deps chromium`, added in Phase 2 Task 13, apt-installs
+system libraries. Measured on two runs of the **identical command, both cache misses**:
 
-Fixed by caching `~/.cache/ms-playwright` keyed on `package-lock.json`, with
-`install-deps` still run on a cache hit because the OS libraries are not cached and the
-e2e run fails on a fresh runner image without them. **Verify the cache is actually
-hitting** — a mis-keyed cache silently degrades to the slow path and looks identical to
-working.
+| run | duration |
+|---|---|
+| `30404690149` | **10m35s** |
+| `30405621001` | **25s** |
+
+So the ten minutes was **transient** - a slow apt mirror or a degraded runner - not the
+step's steady-state cost. An earlier draft of this document claimed the step "costs
+12m24s"; that was one observation generalised into a property, and it was wrong.
+
+`~/.cache/ms-playwright` is now cached anyway, keyed on `package-lock.json`. Stated
+honestly, that is **cheap insurance against the stall recurring**, worth ~25s on the
+happy path - not a ten-minute win. `install-deps` still runs on a cache hit, because the
+browser binary is cached but the OS libraries are not, and omitting them fails on a
+fresh runner image as what presents as a flaky test.
+
+If CI stalls on this step again, suspect the mirror rather than the config. **Verify the
+cache is actually hitting** - a mis-keyed cache silently degrades to the slow path and
+looks identical to working.
 
 ---
 
