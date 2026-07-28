@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAppState, useDispatch, visibleClaims } from "../state/store.js";
 import { useCaseReasoning } from "../engine/useCaseReasoning.js";
-import { evidenceSnapshot, sha256Hex } from "../record/chain.js";
+import { evidenceSnapshot, recordHash, sha256Hex } from "../record/chain.js";
 
 const GENESIS = "0".repeat(64);
 
@@ -19,7 +19,8 @@ export function RecordTab() {
 
   async function sign() {
     const snapshot = await sha256Hex(evidenceSnapshot(visibleClaims(all, asOf), r));
-    const prev = positions.length ? positions[positions.length - 1]!.evidenceSnapshotHash : GENESIS;
+    const last = positions[positions.length - 1];
+    const prev = last ? await recordHash(last) : GENESIS;
     dispatch({
       type: "addPosition",
       position: {
