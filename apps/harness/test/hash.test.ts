@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rulesetHash } from "../src/hash.js";
+import { PRE_REGISTERED_HASH, projectForHash, rulesetHash } from "../src/hash.js";
 import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
 
 /**
@@ -8,14 +8,8 @@ import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
  * and `precedenceRationale` (prose, not a decision) - see hash.ts's doc
  * comment for why the projection is the caller's job, not rulesetHash's.
  */
-function projectForHash(rs: typeof ruleset) {
-  return {
-    rules: rs.rules,
-    abstentionGapThreshold: rs.abstentionGapThreshold,
-    dilirankBinarisation: rs.dilirankBinarisation,
-    precedenceOrder: rs.precedenceOrder,
-  };
-}
+// Imported, not redefined. This function used to be duplicated here, and the
+// harness loader's copy silently omitted precedenceOrder.
 
 describe("rulesetHash", () => {
   it("is stable against key reordering, at any nesting depth", () => {
@@ -51,5 +45,8 @@ describe("rulesetHash", () => {
     // is exactly what this hash exists to make visible. See the pre-
     // registration commit and the Phase 2 report for the recorded value.
     expect(hash).toBe("ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136");
+    // And the constant the harness gates on is the same value, so the two cannot
+    // drift into disagreeing about what was registered.
+    expect(hash).toBe(PRE_REGISTERED_HASH);
   });
 });

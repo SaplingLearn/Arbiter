@@ -42,6 +42,12 @@ data/out/*
 !data/out/tak994.json
 !data/out/cid-cache.json
 
+# results/results.json IS the deliverable, not build output: it is the artifact a
+# reviewer re-derives the reported numbers from. 676KB.
+results/*
+!results/results.json
+!results/metrics.json
+
 # Node
 node_modules/
 dist/

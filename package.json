@@ -2,12 +2,16 @@
   "name": "arbiter",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "test": "vitest run",
     "lint": "eslint packages apps --ext .ts",
     "typecheck": "tsc -b packages/engine apps/harness",
-    "harness": "tsx apps/harness/src/main.ts"
+    "harness": "tsx apps/harness/src/main.ts",
+    "validate:evidence": "tsx apps/harness/src/validate-evidence.ts"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",
