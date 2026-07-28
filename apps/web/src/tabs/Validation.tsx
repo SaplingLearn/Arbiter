@@ -1,0 +1,84 @@
+import { useAppState } from "../state/store.js";
+
+interface Pipeline {
+  balancedAccuracy: number; coverage: number; nCommitted: number;
+  ci: { lo: number; hi: number }; singleClass: boolean;
+}
+
+/**
+ * Coverage before accuracy, deliberately.
+ *
+ * ARBITER commits on 4 of 61 conflict-subset compounds and the best baseline on
+ * 3. A balanced accuracy computed over four same-label compounds is half a
+ * substituted 0.5, and putting it first would invite it to be read as a result.
+ */
+export function ValidationTab() {
+  const { data } = useAppState();
+  const m = data.metrics as Record<string, any>;
+  const acc = m["metric1_conflictSubsetAccuracy"];
+  const arbiter = acc.arbiter as Pipeline;
+  const baselines = Object.entries(acc.baselines as Record<string, Pipeline>)
+    .filter(([, b]) => b.nCommitted > 0)
+    .sort((a, b) => b[1].balancedAccuracy - a[1].balancedAccuracy);
+
+  return (
+    <section style={{ padding: 20 }}>
+      <h2 style={{ fontFamily: "var(--serif)" }}>Validation</h2>
+
+      <p data-testid="provenance" style={{ color: "var(--muted)", fontSize: 13 }}>
+        ruleset {String(m["provenance"].rulesetHash).slice(0, 8)}… · split seed {m["provenance"].splitSeed} ·
+        perturbation seed {m["provenance"].perturbationSeed} · scored on the {m["provenance"].scoredSplit} split
+      </p>
+
+      <p data-testid="headline">
+        Conflict subset n = <strong>{acc.n}</strong>. ARBITER coverage{" "}
+        <strong>{(arbiter.coverage * 100).toFixed(1)}%</strong> ({arbiter.nCommitted} committed).
+        {" "}balanced accuracy {arbiter.balancedAccuracy.toFixed(2)}{" "}
+        (95% CI {arbiter.ci.lo.toFixed(2)}–{arbiter.ci.hi.toFixed(2)}).
+      </p>
+
+      {arbiter.singleClass && (
+        <p data-testid="single-class-warning" style={{ color: "var(--toxic)" }}>
+          <strong>Single-class:</strong> ARBITER committed on only one label, so this balanced accuracy is
+          half a substituted 0.5. It must not be quoted as an accuracy. Coverage is the finding — no compound
+          in this set carries exposure-relevant evidence, so R3 discounts every safe claim.
+        </p>
+      )}
+
+      <h3>Baselines</h3>
+      <table style={{ borderCollapse: "collapse" }}>
+        <thead>
+          <tr style={{ textAlign: "left" }}>
+            <th>Pipeline</th><th>n committed</th><th>coverage</th><th>balanced accuracy</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {baselines.map(([name, b]) => (
+            <tr key={name}>
+              <td>{name}</td>
+              <td>{b.nCommitted}</td>
+              <td>{(b.coverage * 100).toFixed(1)}%</td>
+              <td>{b.balancedAccuracy.toFixed(2)}</td>
+              <td style={{ color: "var(--toxic)" }}>{b.singleClass ? "single-class" : ""}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h3>What is reportable</h3>
+      <p data-testid="planner-stability">
+        Planner recommendation unchanged under ±50% perturbation of every expert-elicited prior:{" "}
+        <strong>{Number(m["metric5_plannerSensitivity"].meanUnchangedFraction).toFixed(3)}</strong>.
+        The recommendation is driven by argument structure, not by the priors.
+      </p>
+      <p>
+        Robustness on committed compounds:{" "}
+        {Number(m["metric2b_arbiterRobustness"].meanHeldFractionOnCommitted).toFixed(3)} ·{" "}
+        determinism verified by a 1000-run single-hash test.
+      </p>
+      <p data-testid="llm-ablation" style={{ color: "var(--muted)" }}>
+        LLM ablation: {JSON.stringify(m["metric2a_llmConsistency"])}
+      </p>
+    </section>
+  );
+}
