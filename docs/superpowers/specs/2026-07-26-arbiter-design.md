@@ -128,20 +128,47 @@ later.
 | 2 | What happens today | 30s | Majority vote → advance. Weighted average → advance. Best single source → advance. LLM given identical evidence → advance, with a confident number. |
 | 3 | ARBITER's argument | 55s | **Nothing is defeated — nothing contradicts anything.** Each source is instead discounted for what it cannot license: rat and primate are non-human (R1); none of the four established an exposure margin at the clinical range (R3); the QSAR read is ambiguous and commits nothing either way. Most of the weight lands on *uncommitted*. Verdict: **ABSTAIN**. |
 | 4 | The honest gap, and what would flip it | 30s | Belief–plausibility gap opens from centre — the widest in the set. Then the exhaustive counterfactual. |
-| 5 | The experiment it asks for | 50s | Planner names the murine CYP-induction study at clinically relevant dose. Reveal: that is the study Takeda ran, during Phase 2, after three participants met Hy's Law. Then the result is fed in and the verdict flips live to **DO NOT ADVANCE**. |
+| 5 | The experiment it asks for | 50s | Planner asks for a **human BSEP assay at matched exposure** — cost 12, resolving R3, the rule the verdict rests on. Reveal: Takeda ran a **murine** CYP-induction study instead, during Phase 2, after three participants met Hy's Law. Feed that study in: belief in toxicity moves **0.000 → 0.090** and ARBITER **still declines** — because it is a mouse. It was still asking for the human assay. |
 | 6 | The table | 35s | Challenge in plain English → interpreted → proposed change shown → applied → re-run → delta. Positions recorded including one dissent; the named decision owner signs. ARBITER holds no position. |
-| 7 | What the numbers say | 20s | Determinism *and* robustness. LLM variance. Conflict-subset accuracy vs four baselines with n, intervals, and coverage. |
+| 7 | What the numbers say | 20s | Determinism *and* robustness. LLM variance. Planner recommendation unchanged under ±50% prior perturbation: **0.992**. Conflict-subset accuracy vs four baselines with n, intervals, and coverage — **and coverage is currently the finding**: see §8. |
 
 ### Why the two-pass structure is mandatory, not stylistic
 
 The murine toxicogenomic study was initiated **during** the Phase 2 trial. Presenting it as input to a
 pre-first-in-human decision is hindsight, and it is the single most attackable thing in the demo. The
-two-pass replay removes that vulnerability and produces a stronger result: in pass 1 ARBITER abstains and
-*requests the very study that history proves was the right one*. That is a forecast, not a retrodiction.
+two-pass replay removes that vulnerability: pass 1 sees only what existed before first-in-human.
 
 The `availableFrom` field plus the "as of" control generalises — any compound can be replayed as of any
 date — so this is a real capability being exercised, not a scripted special case. A judge can move the
 control themselves.
+
+#### What the replay actually produces — measured 2026-07-27, and it is not what this section first claimed
+
+An earlier draft said pass 1 "requests the very study that history proves was the right one", and that beat 5
+ends with the verdict flipping to DO NOT ADVANCE. **Both were wrong, and the engine is right.**
+
+| | measured |
+|---|---|
+| Pass 1 verdict | ABSTAIN — mass on safe 0.239, **uncommitted 0.761**, nothing defeated |
+| Pass 1 counterfactual | flip the in-vitro cytotox read to toxic → `do_not_advance` (a single claim) |
+| Pass 1 planner | **BSEP inhibition at matched exposure**, cost 12, resolving **R3** |
+| Pass 2 verdict | **ABSTAIN** — belief 0.000 → 0.090, gap 0.910 |
+
+R1 discounts `system: "rodent"` to 10%, so the murine study's stated strength of 0.9 reaches fusion as 0.090.
+The rule that says animal evidence is indirect for a human endpoint applies to the murine study too. The
+engine is being consistent with its own pre-registered rules, and consistent against the script.
+
+**We rewrote the beat rather than the ruleset.** Amending R1 would rescue this beat and do nothing for the
+validation problem in §8 — R1 touches exactly two claims in the entire 890-compound benchmark, both in this
+fixture — so the amendment would buy a demo moment at the cost of the one asset that is hard to attack,
+which is that nothing here was tuned after seeing a result. See the open question in §5 for the argument on
+its merits, recorded but not acted on.
+
+The honest beat is also the stronger one. "ARBITER would have said no" is a smaller claim than: *it declined,
+it asked for a cheap human assay that would have settled the question, Takeda ran a mouse study instead, and
+even that study does not license a conclusion on its own.* The belief track spreading from 0.000 to 0.090
+with the range still open is a better visual for the belief–plausibility gap than a label swap, because the
+audience watches the range move rather than a word change.
 
 ### Speaker lines that belong on screen
 
@@ -404,6 +431,34 @@ is committed **before** any evaluation runs. Its SHA-256 is printed in the app c
 *"Ruleset v1.0 · locked."* The defence against *"you tuned the rules to fit DILIrank"* stops being a verbal
 claim and becomes a hash checkable against git history.
 
+The harness enforces it rather than trusting it: `loadInputs()` recomputes the hash over the projected
+surface and **refuses to run** if it differs from `ed073a8a…`. A results file cannot be produced under a
+silently-edited ruleset.
+
+### Recorded open question for a v1.1 re-registration — should R1 discount, or only defeat?
+
+**Not acted on. Recorded because the argument is real and because recording it before the pitch is worth
+more than winning a beat with it.**
+
+R1's registered statement is *"Human-cell evidence **defeats** animal in vivo evidence…"* — the language of
+conflict resolution — and its framework note calls human NAMs the *"preferred"* source, which is comparative.
+The design decision in §5 generalised all six rules into evidence-quality discounts applied at
+mass-construction time, so that quality matters when nothing conflicts. That generalisation is what makes
+pass 1 abstain, and it is right for R2–R5, which describe intrinsic weaknesses: structural correlation only,
+an unestablished exposure margin, out-of-domain, low reliability. Those are weaknesses whether or not anything
+disagrees.
+
+R1 may be different in kind. A rodent study is not intrinsically weak evidence; it is weaker **than a human
+study of the same thing**. Applying a 90% discount with no human comparator present asserts something the
+registered text does not say. The measured consequence is that the murine TAK-994 study reaches fusion at
+0.090 and pass 2 abstains.
+
+**Why we did not act on it.** The argument arrived immediately after discovering it would rescue a demo beat.
+That is exactly the circumstance in which a textual argument is least trustworthy, and a judge is entitled to
+ask whether we would have made it had the demo worked. It also fixes almost nothing measurable: R1 applies to
+two claims in the whole 890-compound benchmark. If it is right, it is right in v1.1, argued on doctrine, with
+the demo consequence disclosed up front.
+
 ---
 
 ## 6. Data layer
@@ -642,6 +697,44 @@ reproducible — which they must be, since they are golden-filed.
 If the LLM baseline matches on accuracy, the advantage becomes consistency, traceability and calibration —
 which are likely the real advantages regardless. Report what is found. An honest mixed result with a clear
 interpretation is more credible than a suspiciously clean sweep.
+
+### The mixed result arrived — measured 2026-07-27, on the test split
+
+| | value |
+|---|---|
+| scored (test split) | 267 |
+| conflict subset | 61 (22.8%), positive rate 0.902 |
+| ARBITER | balanced accuracy 0.75, **coverage 6.6%**, n committed **4**, single-class |
+| best baseline (majority vote) | balanced accuracy 0.75, **coverage 4.9%**, n committed **3**, single-class |
+| planner unchanged under ±50% prior perturbation | **0.992** |
+| robustness on committed compounds | 1.00 |
+
+**Coverage is the finding, and the headline is not reportable as accuracy.** ARBITER abstains on 260 of 267
+compounds. Every one of those abstentions is the belief–plausibility gap rule; none is applicability domain
+and none is total conflict. The median compound musters 0.060 of committed mass against a threshold that
+needs more than 0.5.
+
+The cause is measurable and structural: **no benchmark compound carries exposure-relevant evidence.** The
+only `exposureRelevant: true` claim in the corpus is the TAK-994 murine study, which is excluded from the
+benchmark by design. QSAR has no exposure axis; Tox21 qHTS concentrations are not clinical. R3 therefore
+fires on 100% of safe claims and 0% of toxic ones — retained weight is 0.150 for cytotox/safe and 0.009 for
+qsar/safe against 1.000 for cytotox/toxic — so the engine **cannot license "advance" on this evidence base**,
+and returned zero advances.
+
+This is the engine being correct about weak evidence. An HTS "inactive" at an unknown multiple of clinical
+exposure genuinely licenses nothing. It is simultaneously a coverage problem, and the two facts are the same
+fact.
+
+**The baseline is degenerate in the same way**, which is itself a result: the conflict subset is by
+construction where the streams tie, and majority vote abstains on ties, so it commits on 3 of 61. Neither
+pipeline has a reportable accuracy on this subset. Reporting them side by side with n and coverage is the
+honest presentation, and `results/metrics.json` emits a `singleClass` flag plus explicit coverage and
+single-class warnings so the figure cannot be quoted as an accuracy by accident.
+
+**What would fix it is data, not rules.** A clinical Cmax source for even a few hundred compounds before the
+2 August freeze stops R3 firing unconditionally and makes the headline reportable. Tuning
+`abstentionGapThreshold` would also "fix" it and is forbidden: the threshold is pre-registered precisely so
+it cannot be moved after an abstention rate is seen, and that was already considered and rejected once.
 
 ---
 
