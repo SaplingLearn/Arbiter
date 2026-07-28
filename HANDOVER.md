@@ -281,6 +281,9 @@ So the ten minutes was **transient** - a slow apt mirror or a degraded runner - 
 step's steady-state cost. An earlier draft of this document claimed the step "costs
 12m24s"; that was one observation generalised into a property, and it was wrong.
 
+**Cache verified hitting** on run `30407611266`: `install --with-deps` was skipped and
+`install-deps` took 18s, so the whole Playwright cost is now ~21s.
+
 `~/.cache/ms-playwright` is now cached anyway, keyed on `package-lock.json`. Stated
 honestly, that is **cheap insurance against the stall recurring**, worth ~25s on the
 happy path - not a ten-minute win. `install-deps` still runs on a cache hit, because the
