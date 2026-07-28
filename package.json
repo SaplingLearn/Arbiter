@@ -9,7 +9,7 @@
   "scripts": {
     "test": "vitest run",
     "lint": "eslint packages apps --ext .ts",
-    "typecheck": "tsc -b packages/engine apps/harness",
+    "typecheck": "tsc -b packages/engine apps/harness && tsc -p apps/web --noEmit",
     "harness": "tsx apps/harness/src/main.ts",
     "validate:evidence": "tsx apps/harness/src/validate-evidence.ts",
     "metrics": "tsx apps/harness/src/run-metrics.ts",
