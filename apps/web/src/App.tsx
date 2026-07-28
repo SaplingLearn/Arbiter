@@ -4,6 +4,7 @@ import { loadData } from "./data/load.js";
 import { StoreProvider } from "./state/store.js";
 import { CaseTab } from "./tabs/Case/index.js";
 import { CompoundsTab } from "./tabs/Compounds.js";
+import { RulesetTab } from "./tabs/Ruleset.js";
 
 const data = loadData();
 
@@ -27,6 +28,7 @@ export function App() {
       </nav>
       {tab === "case" ? <CaseTab />
         : tab === "compounds" ? <CompoundsTab />
+        : tab === "ruleset" ? <RulesetTab />
         : <p style={{ padding: 20 }}>{tab} tab arrives in a later task.</p>}
     </StoreProvider>
   );
