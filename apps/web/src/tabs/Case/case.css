@@ -1,0 +1,16 @@
+/* The spotlight is a grid-template-columns transition: the focused region grows
+   to presentation size and the others collapse to 56px rails that still show
+   every evidence verdict as a coloured dot, so a judge can see nothing was
+   hidden from them. */
+.case-grid {
+  display: grid;
+  gap: 1px;
+  background: var(--hairline-soft);
+  transition: grid-template-columns 600ms ease;
+  grid-template-columns: 1fr 1fr 1fr;
+  min-height: 60vh;
+}
+.case-grid[data-focus="evidence"] { grid-template-columns: 1fr 56px 56px; }
+.case-grid[data-focus="trace"]    { grid-template-columns: 56px 1fr 56px; }
+.case-grid[data-focus="table"]    { grid-template-columns: 56px 56px 1fr; }
+.case-region { background: var(--canvas); padding: 16px; overflow: auto; }

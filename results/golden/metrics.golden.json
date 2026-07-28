@@ -1,0 +1,98 @@
+{
+  "rulesetHash": "ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136",
+  "splitSeed": 20260726,
+  "perturbationSeed": 20260726,
+  "nScored": 267,
+  "nConflictSubset": 61,
+  "arbiterBalancedAccuracy": 0.75,
+  "arbiterCoverage": 0.06557377049180328,
+  "arbiterNCommitted": 4,
+  "arbiterCi": {
+    "lo": 0.5100999795960008,
+    "hi": 1
+  },
+  "baselines": {
+    "majorityVote": {
+      "balancedAccuracy": 0.75,
+      "coverage": 0.04918032786885246,
+      "nCommitted": 3,
+      "ci": {
+        "lo": 0.43849391955098227,
+        "hi": 1
+      }
+    },
+    "single:cytotox": {
+      "balancedAccuracy": 0.5,
+      "coverage": 1,
+      "nCommitted": 61,
+      "ci": {
+        "lo": 0.045863951367309724,
+        "hi": 0.1984483419752358
+      }
+    },
+    "single:invivo_nonrodent": {
+      "balancedAccuracy": 0.5,
+      "coverage": 0,
+      "nCommitted": 0,
+      "ci": {
+        "lo": 0,
+        "hi": 1
+      }
+    },
+    "single:invivo_rodent": {
+      "balancedAccuracy": 0.5,
+      "coverage": 0,
+      "nCommitted": 0,
+      "ci": {
+        "lo": 0,
+        "hi": 1
+      }
+    },
+    "single:qsar": {
+      "balancedAccuracy": 0.5,
+      "coverage": 0.9836065573770492,
+      "nCommitted": 60,
+      "ci": {
+        "lo": 0.7985030550748896,
+        "hi": 0.9533578005427642
+      }
+    },
+    "single:toxicogenomics": {
+      "balancedAccuracy": 0.5,
+      "coverage": 0,
+      "nCommitted": 0,
+      "ci": {
+        "lo": 0,
+        "hi": 1
+      }
+    },
+    "single:transporter": {
+      "balancedAccuracy": 0.75,
+      "coverage": 0.06557377049180328,
+      "nCommitted": 4,
+      "ci": {
+        "lo": 0.5100999795960008,
+        "hi": 1
+      }
+    },
+    "weightedAverage": {
+      "balancedAccuracy": 0.546969696969697,
+      "coverage": 1,
+      "nCommitted": 61,
+      "ci": {
+        "lo": 0.7427653049810489,
+        "hi": 0.920389213106105
+      }
+    }
+  },
+  "meanHeldFraction": 1,
+  "worstHeldFraction": 1,
+  "strictCoverage": 0.5355805243445693,
+  "meanWidth": 0.8995055583175798,
+  "meanWidthOnCorrect": 0.09756239411334248,
+  "meanWidthOnIncorrect": 0,
+  "widthDiscriminates": false,
+  "declineRate": 0.9737827715355806,
+  "balancedAccuracyOnCommitted": 0.75,
+  "plannerMeanUnchangedFraction": 0.9917704918032786
+}

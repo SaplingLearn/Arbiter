@@ -1,0 +1,57 @@
+{
+  "root": true,
+  "ignorePatterns": ["**/dist/**"],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "extends": ["eslint:recommended"],
+  "env": { "es2022": true, "node": true },
+  "rules": {
+    // Repo-wide ON PURPOSE, not a leftover from one task. The base eslint rule
+    // does not understand TypeScript and reports false positives on type-only
+    // imports, interface method parameters and declaration merging; the
+    // @typescript-eslint version is the same check with type awareness. Disabling
+    // the base rule and enabling the plugin's is the required pairing, not a
+    // relaxation - turning both on double-reports, and turning both off loses the
+    // check entirely.
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": "error"
+  },
+  "overrides": [
+    {
+      // The web app targets the browser, so window and document are exactly the
+      // globals to reach for. This also covers the Playwright specs: they run in
+      // node, but their page.evaluate callbacks are serialised and executed
+      // inside the page.
+      "files": ["apps/web/**/*.ts", "apps/web/**/*.tsx"],
+      "env": { "browser": true }
+    },
+    {
+      "files": ["packages/engine/src/**/*.ts"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          { "name": "Date", "message": "The engine must be deterministic. Callers filter by availableFrom." },
+          { "name": "performance", "message": "The engine must be deterministic. performance.now() is a clock. Callers filter by availableFrom." },
+          { "name": "process", "message": "The engine must be pure. Reading process.env or process.hrtime makes the same input produce different output." },
+          { "name": "crypto", "message": "The engine must be deterministic. crypto.randomUUID/getRandomValues are randomness; all randomness lives in apps/harness with a committed seed." },
+          { "name": "globalThis", "message": "globalThis re-exposes every banned global (globalThis.Date.now(), globalThis.Math.random()). Name what you need directly so the other rules can see it." }
+        ],
+        "no-restricted-properties": [
+          "error",
+          { "object": "Math", "property": "random", "message": "All randomness lives in apps/harness with a committed seed." }
+        ],
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["../*", "node:*", "fs", "path", "crypto"] }
+        ],
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "ImportExpression",
+            "message": "Dynamic import() bypasses no-restricted-imports. The engine is pure and imports nothing at runtime."
+          }
+        ]
+      }
+    }
+  ]
+}

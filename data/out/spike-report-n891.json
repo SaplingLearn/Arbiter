@@ -1,0 +1,18 @@
+{
+  "nCompounds": 982,
+  "nWithBothStreams": 891,
+  "nConflicting": 260,
+  "conflictRate": 0.2918,
+  "nCrossStreamConflict": 258,
+  "crossStreamConflictRate": 0.2896,
+  "streamAWinRateWhenStreamsSplit": 0.5736,
+  "accuracyStreamA": 0.7082,
+  "accuracyStreamB": 0.6655,
+  "majorityClassBaseline": 0.6016,
+  "streamsBeatMajorityBaseline": true,
+  "positiveRateSample": 0.6016,
+  "seed": 20260726,
+  "dilirankVersion": "2.0 (sheet 0)",
+  "note": "nConflicting is stream-A-vs-LABEL disagreement, i.e. model error - retained because the plan pre-registered a threshold against it. nCrossStreamConflict is stream-A-vs-stream-B, a source-versus-source disagreement, which is the shape the pre-registered conflict subset actually has. Both are proxies; the authoritative count comes from Task 13 over the real four streams.",
+  "requestedSampleN": "all"
+}

@@ -1,0 +1,206 @@
+{
+  "provenance": {
+    "rulesetVersion": "1.0",
+    "rulesetHash": "ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136",
+    "splitSeed": 20260726,
+    "perturbationSeed": 20260726,
+    "scoredSplit": "test",
+    "note": "The QSAR model was fitted on the train split only; conformal thresholds on calibration. These numbers come from test, which neither touched."
+  },
+  "sampleSizes": {
+    "scored": 267,
+    "conflictSubset": 61
+  },
+  "metric1_conflictSubsetAccuracy": {
+    "n": 61,
+    "positiveRate": 0.9016393442622951,
+    "arbiter": {
+      "balancedAccuracy": 0.75,
+      "ci": {
+        "lo": 0.5100999795960008,
+        "hi": 1
+      },
+      "coverage": 0.06557377049180328,
+      "nCommitted": 4,
+      "confusion": {
+        "tp": 4,
+        "fp": 0,
+        "tn": 0,
+        "fn": 0
+      },
+      "singleClass": true
+    },
+    "baselines": {
+      "majorityVote": {
+        "balancedAccuracy": 0.75,
+        "ci": {
+          "lo": 0.43849391955098227,
+          "hi": 1
+        },
+        "coverage": 0.04918032786885246,
+        "nCommitted": 3,
+        "confusion": {
+          "tp": 3,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0
+        },
+        "singleClass": true
+      },
+      "single:cytotox": {
+        "balancedAccuracy": 0.5,
+        "ci": {
+          "lo": 0.045863951367309724,
+          "hi": 0.1984483419752358
+        },
+        "coverage": 1,
+        "nCommitted": 61,
+        "confusion": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 6,
+          "fn": 55
+        },
+        "singleClass": false
+      },
+      "single:invivo_nonrodent": {
+        "balancedAccuracy": 0.5,
+        "ci": {
+          "lo": 0,
+          "hi": 1
+        },
+        "coverage": 0,
+        "nCommitted": 0,
+        "confusion": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0
+        },
+        "singleClass": true
+      },
+      "single:invivo_rodent": {
+        "balancedAccuracy": 0.5,
+        "ci": {
+          "lo": 0,
+          "hi": 1
+        },
+        "coverage": 0,
+        "nCommitted": 0,
+        "confusion": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0
+        },
+        "singleClass": true
+      },
+      "single:qsar": {
+        "balancedAccuracy": 0.5,
+        "ci": {
+          "lo": 0.7985030550748896,
+          "hi": 0.9533578005427642
+        },
+        "coverage": 0.9836065573770492,
+        "nCommitted": 60,
+        "confusion": {
+          "tp": 54,
+          "fp": 6,
+          "tn": 0,
+          "fn": 0
+        },
+        "singleClass": false
+      },
+      "single:toxicogenomics": {
+        "balancedAccuracy": 0.5,
+        "ci": {
+          "lo": 0,
+          "hi": 1
+        },
+        "coverage": 0,
+        "nCommitted": 0,
+        "confusion": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0
+        },
+        "singleClass": true
+      },
+      "single:transporter": {
+        "balancedAccuracy": 0.75,
+        "ci": {
+          "lo": 0.5100999795960008,
+          "hi": 1
+        },
+        "coverage": 0.06557377049180328,
+        "nCommitted": 4,
+        "confusion": {
+          "tp": 4,
+          "fp": 0,
+          "tn": 0,
+          "fn": 0
+        },
+        "singleClass": true
+      },
+      "weightedAverage": {
+        "balancedAccuracy": 0.546969696969697,
+        "ci": {
+          "lo": 0.7427653049810489,
+          "hi": 0.920389213106105
+        },
+        "coverage": 1,
+        "nCommitted": 61,
+        "confusion": {
+          "tp": 51,
+          "fp": 5,
+          "tn": 1,
+          "fn": 4
+        },
+        "singleClass": false
+      }
+    }
+  },
+  "metric2a_llmConsistency": {
+    "note": "results/ablation.json not present - run `npm run ablation` (Task 14, needs ANTHROPIC_API_KEY)"
+  },
+  "metric2b_arbiterRobustness": {
+    "determinism": 1,
+    "determinismNote": "Trivially 1 - the engine is a pure function, verified by a 1000-run single-hash test. Reported for completeness; robustness below is the claim that carries weight.",
+    "meanHeldFraction": 1,
+    "worstHeldFraction": 1,
+    "meanHeldFractionOnCommitted": 1,
+    "nCommittedCompounds": 4,
+    "heldFractionCaveat": "A compound that abstains far from any threshold holds at 1.0 under any perturbation. meanHeldFractionOnCommitted is the figure that carries information; the corpus mean is dominated by cases that were never close to deciding.",
+    "samplesPerCompound": 2000,
+    "seed": 20260726
+  },
+  "metric3_calibration": {
+    "strictCoverage": 0.5355805243445693,
+    "meanWidth": 0.8995055583175798,
+    "meanWidthOnCorrect": 0.09756239411334248,
+    "meanWidthOnIncorrect": 0,
+    "widthDiscriminates": false,
+    "widthDiscriminatesIsMeaningful": false,
+    "nCorrect": 7,
+    "nIncorrect": 0
+  },
+  "metric4_abstentionQuality": {
+    "declineRate": 0.9737827715355806,
+    "balancedAccuracyOnCommitted": 0.75,
+    "ciOnCommitted": {
+      "lo": 0.6456611570247934,
+      "hi": 1
+    },
+    "singleClassOnCommitted": true,
+    "nDeclined": 260,
+    "nCommitted": 7
+  },
+  "metric5_plannerSensitivity": {
+    "nCompoundsWithRecommendation": 61,
+    "meanUnchangedFraction": 0.9917704918032786,
+    "perturbation": "+/-50% on every expert-elicited priorToxic",
+    "samplesPerCompound": 2000,
+    "seed": 20260726
+  }
+}

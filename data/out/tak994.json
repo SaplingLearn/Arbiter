@@ -1,0 +1,131 @@
+{
+  "generatedAt": "2026-07-27",
+  "compoundId": "TAK-994",
+  "name": "TAK-994",
+  "indication": "Narcolepsy type 1",
+  "citationStatus": "UNVERIFIED",
+  "citationNote": "Sources are written from summary knowledge and have NOT been checked against the primary literature. Any surface that renders these claims must show this status alongside them.",
+  "excludedFromBenchmark": true,
+  "excludedBecause": "Terminated in Phase 2 and never approved, so absent from DILIrank. It is the motivating case, not evidence.",
+  "outcome": {
+    "summary": "Phase 2 stopped; programme terminated.",
+    "nPatients": 73,
+    "nOverEnzymeThreshold": 8,
+    "nHysLaw": 3,
+    "source": "NEJM 2023 Phase 2 TAK-994 (UNVERIFIED - confirm before citing)"
+  },
+  "asOfMilestones": {
+    "preFirstInHuman": "2021-06-01",
+    "postMurineStudy": "2023-01-01"
+  },
+  "claims": [
+    {
+      "compoundId": "TAK-994",
+      "measuresKeyEvent": null,
+      "exposureRelevant": null,
+      "inApplicabilityDomain": true,
+      "klimisch": 1,
+      "id": "TAK-994:invivo_rodent",
+      "stream": "invivo_rodent",
+      "assertion": "safe",
+      "strength": 0.85,
+      "system": "rodent",
+      "availableFrom": "2020-06-01",
+      "provenance": {
+        "kind": "literature",
+        "source": "Rat repeat-dose: no hepatotoxicity. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)",
+        "retrieved": "2026-07-26"
+      }
+    },
+    {
+      "compoundId": "TAK-994",
+      "measuresKeyEvent": null,
+      "exposureRelevant": null,
+      "inApplicabilityDomain": true,
+      "klimisch": 1,
+      "id": "TAK-994:invivo_nonrodent",
+      "stream": "invivo_nonrodent",
+      "assertion": "safe",
+      "strength": 0.85,
+      "system": "nonrodent",
+      "availableFrom": "2020-09-01",
+      "provenance": {
+        "kind": "literature",
+        "source": "Non-human primate repeat-dose: no hepatotoxicity. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)",
+        "retrieved": "2026-07-26"
+      }
+    },
+    {
+      "compoundId": "TAK-994",
+      "measuresKeyEvent": "KE:HEPATOCYTE-DEATH",
+      "exposureRelevant": null,
+      "inApplicabilityDomain": true,
+      "klimisch": 1,
+      "id": "TAK-994:cytotox",
+      "stream": "cytotox",
+      "assertion": "safe",
+      "strength": 0.8,
+      "system": "human",
+      "availableFrom": "2020-03-01",
+      "provenance": {
+        "kind": "literature",
+        "source": "In-vitro DILI panel, margins >100x (cytotoxicity, mitochondrial, BSEP). Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)",
+        "retrieved": "2026-07-26"
+      }
+    },
+    {
+      "compoundId": "TAK-994",
+      "measuresKeyEvent": "KE:BSEP-INHIBITION",
+      "exposureRelevant": null,
+      "inApplicabilityDomain": true,
+      "klimisch": 1,
+      "id": "TAK-994:transporter",
+      "stream": "transporter",
+      "assertion": "safe",
+      "strength": 0.75,
+      "system": "human",
+      "availableFrom": "2020-03-01",
+      "provenance": {
+        "kind": "literature",
+        "source": "BSEP inhibition: wide margin. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)",
+        "retrieved": "2026-07-26"
+      }
+    },
+    {
+      "compoundId": "TAK-994",
+      "measuresKeyEvent": null,
+      "exposureRelevant": null,
+      "inApplicabilityDomain": true,
+      "klimisch": 3,
+      "id": "TAK-994:qsar",
+      "stream": "qsar",
+      "assertion": "ambiguous",
+      "strength": 0.0,
+      "system": "in_silico",
+      "availableFrom": "2020-01-01",
+      "provenance": {
+        "kind": "literature",
+        "source": "First-in-class orexin receptor 2 agonist; no informative structural precedent.",
+        "retrieved": "2026-07-26"
+      }
+    },
+    {
+      "compoundId": "TAK-994",
+      "measuresKeyEvent": "KE:CYP-INDUCTION",
+      "exposureRelevant": true,
+      "inApplicabilityDomain": true,
+      "klimisch": 1,
+      "id": "TAK-994:toxicogenomics-murine",
+      "stream": "toxicogenomics",
+      "assertion": "toxic",
+      "strength": 0.9,
+      "system": "rodent",
+      "availableFrom": "2022-03-01",
+      "provenance": {
+        "kind": "literature",
+        "source": "Murine hepatic single-cell necrosis after CYP450 induction at clinically relevant doses. Study initiated DURING the Phase 2 trial. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)",
+        "retrieved": "2026-07-26"
+      }
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+# Visual brainstorming companion session files
+.superpowers/
+
+# Generated data artifacts. data/raw/ is deliberately NOT ignored: the DILIrank
+# workbook is 110KB of US-government public-domain data, and committing it pins
+# the exact dataset version a result was produced from. DILIrank 2.0 reclassified
+# 49 drugs from 1.0, so "which version" is part of the result.
+# `data/out/*` and not `data/out/` on purpose: git cannot re-include a file whose
+# PARENT DIRECTORY is excluded, so the trailing-slash form would make the two
+# negations below silently dead.
+data/out/*
+
+# Two deliberate exceptions, on the same reasoning that keeps data/raw/ tracked.
+#
+# spike-report*.json is the record of Task 1's decision gate - the measurement
+# that licensed continuing with the conflict-subset thesis. A gate result that
+# only ever existed on one machine is not a gate result.
+#
+# smiles-cache.json pins PubChem's name -> SMILES resolution, which is an input
+# to every QSAR number downstream. PubChem is a live service: it can re-resolve a
+# name or change a canonicalisation, and then a "reproduction" would silently be
+# a different experiment. 94KB to make the resolution part of the provenance.
+!data/out/spike-report*.json
+!data/out/smiles-cache.json
+
+# compounds.json and splits.json are NOT incidental build output.
+#
+# The validity of every reported number rests on the three-way split having been
+# fixed BEFORE any model was fitted (spec section 8). That is only a real claim if
+# the split artifact is in git history with a timestamp earlier than the first
+# fitting commit. Left ignored, `git add data/out/splits.json` adds nothing, no
+# error is printed, and the strongest methodological claim in the project quietly
+# becomes unverifiable.
+!data/out/compounds.json
+!data/out/splits.json
+
+# The evidence streams themselves: the inputs every reported number is computed
+# from. Same reasoning as the split - a benchmark whose inputs exist on one
+# machine is not reproducible.
+!data/out/stream-*.json
+!data/out/evidence.json
+!data/out/tak994.json
+!data/out/cid-cache.json
+
+# results/results.json IS the deliverable, not build output: it is the artifact a
+# reviewer re-derives the reported numbers from. 676KB.
+results/*
+!results/results.json
+!results/metrics.json
+!results/verdict-manifest.json
+!results/golden/
+!results/golden/metrics.golden.json
+
+# Playwright output. The e2e run's traces and screenshots are diagnostics for a
+# single run, not artifacts anyone re-derives a number from.
+test-results/
+playwright-report/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# LibreOffice / Office transient lock files
+.~lock.*#
+~$*
