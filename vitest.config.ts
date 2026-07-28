@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
@@ -7,5 +7,10 @@ export default defineConfig({
     // browser globals the engine is forbidden to use.
     environmentMatchGlobs: [["apps/web/**", "jsdom"]],
     setupFiles: ["apps/web/test/setup.ts"],
+    // apps/web/e2e holds Playwright specs, driven by `npm run e2e`, not vitest.
+    // Spread the defaults rather than replacing them: writing the list out by
+    // hand would silently drop vitest's exclusions for dist/ and .idea/ and let
+    // a built copy of a test be collected twice.
+    exclude: [...configDefaults.exclude, "apps/web/e2e/**"],
   },
 });

@@ -1,26 +1,21 @@
 import { useEffect, useState } from "react";
 import { parseHash, TAB_IDS, type TabId } from "./router.js";
 import { loadData } from "./data/load.js";
-import { StoreProvider } from "./state/store.js";
+import { StoreProvider, useAppState } from "./state/store.js";
 import { CaseTab } from "./tabs/Case/index.js";
 import { CompoundsTab } from "./tabs/Compounds.js";
 import { RulesetTab } from "./tabs/Ruleset.js";
 import { ValidationTab } from "./tabs/Validation.js";
 import { RecordTab } from "./tabs/Record.js";
 import { TourFooter } from "./tour/TourFooter.js";
+import "./ui/motion.css";
 
 const data = loadData();
 
-export function App() {
-  const [tab, setTab] = useState<TabId>(() => parseHash(window.location.hash));
-  useEffect(() => {
-    const onHash = () => setTab(parseHash(window.location.hash));
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
-
+function AppShell({ tab }: { tab: TabId }) {
+  const { motion } = useAppState();
   return (
-    <StoreProvider data={data}>
+    <div data-motion={motion ? "on" : "off"}>
       <nav style={{ background: "var(--deep)", padding: "10px 20px", display: "flex", gap: 18 }}>
         {TAB_IDS.map((t) => (
           <a key={t} href={`#/${t}`} aria-current={t === tab ? "page" : undefined}
@@ -35,6 +30,21 @@ export function App() {
         : tab === "validation" ? <ValidationTab />
         : <RecordTab />}
       <TourFooter />
+    </div>
+  );
+}
+
+export function App() {
+  const [tab, setTab] = useState<TabId>(() => parseHash(window.location.hash));
+  useEffect(() => {
+    const onHash = () => setTab(parseHash(window.location.hash));
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  return (
+    <StoreProvider data={data}>
+      <AppShell tab={tab} />
     </StoreProvider>
   );
 }

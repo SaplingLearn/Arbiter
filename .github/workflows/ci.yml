@@ -22,3 +22,6 @@ jobs:
       - run: npm run metrics
       - run: npm test -- apps/harness/test/golden.test.ts
       - run: git diff --exit-code results/verdict-manifest.json
+      - run: npm run web:build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e

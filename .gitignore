@@ -51,6 +51,11 @@ results/*
 !results/golden/
 !results/golden/metrics.golden.json
 
+# Playwright output. The e2e run's traces and screenshots are diagnostics for a
+# single run, not artifacts anyone re-derives a number from.
+test-results/
+playwright-report/
+
 # Node
 node_modules/
 dist/

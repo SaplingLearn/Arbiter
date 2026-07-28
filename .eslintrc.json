@@ -18,6 +18,14 @@
   },
   "overrides": [
     {
+      // The web app targets the browser, so window and document are exactly the
+      // globals to reach for. This also covers the Playwright specs: they run in
+      // node, but their page.evaluate callbacks are serialised and executed
+      // inside the page.
+      "files": ["apps/web/**/*.ts", "apps/web/**/*.tsx"],
+      "env": { "browser": true }
+    },
+    {
       "files": ["packages/engine/src/**/*.ts"],
       "rules": {
         "no-restricted-globals": [

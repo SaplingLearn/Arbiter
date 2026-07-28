@@ -236,8 +236,18 @@ Vite + React + TypeScript, sharing the repo's existing `tsconfig.base.json` and 
 from one codebase:
 
 1. **Served** — Railway, alongside the Phase 3 API.
-2. **Static** — `index.html` openable directly, submitted as a ZIP. Requires `base: './'` and the
-   build-time JSON imports above.
+2. **Static** — `index.html` openable directly, submitted as a ZIP. Requires `base: './'`, the
+   build-time JSON imports above, and **a single self-contained file with no subresources**.
+
+   `base: './'` alone is not sufficient, and the gap is not visible from a dev server. Vite tags its emitted
+   `<script>` and `<link>` with `crossorigin`, which makes Chrome treat them as CORS requests; a page opened
+   from the filesystem has origin `null`, and `file://` is not a scheme CORS can satisfy. Both the bundle and
+   the stylesheet failed with `ERR_FAILED` and the page rendered **completely blank** — measured, not
+   predicted. The `inlineEverything` plugin in `apps/web/vite.config.ts` folds the chunk and the stylesheet
+   into `index.html`, and fails the build if any asset survives uninlined. The regression guard is
+   `apps/web/e2e/static-file.spec.ts`, which opens `dist/index.html` over `file://`; with the plugin disabled
+   it fails while every `http://localhost` test still passes, which is exactly why the served build cannot be
+   the only thing tested.
 
 The engine is consumed as the existing `@arbiter/engine` workspace package. No duplication of rule logic in
 the app, ever — if the app needs a rule behaviour, it calls the engine.
@@ -246,7 +256,7 @@ the app, ever — if the app needs a rule behaviour, it calls the engine.
 
 | Risk | Mitigation |
 |---|---|
-| Bundle size hurts first paint over a Teams share | ~1.2MB of JSON, gzipped on the served build; `results.json` deliberately excluded; measure before Aug 14 |
+| Bundle size hurts first paint over a Teams share | **Measured 2026-07-28: `dist/index.html` is 1,077 kB raw, 177 kB gzipped — one file, zero subresources.** Comfortably inside the 3MB raw budget, so the planned trim of `metrics.json` prose and unused `compounds.json` SMILES is not needed. `results.json` deliberately excluded. Re-measure if a Cmax source lands. |
 | Full `reason()` too slow for interactive slider dragging | Only the selected compound runs full `reason()`; debounce slider input; measure early, and fall back to `reasonVerdictOnly` during drag with a full run on release |
 | Five tabs is a lot of surface for the time available | Build in beat order — shell + Case first, so a runnable demo exists from day one rather than five half-tabs at Aug 14 |
 | A Cmax source lands before 2 August and changes every number | Nothing in this app hard-codes a metric; Validation renders `metrics.json`. Re-running the harness updates the app with no code change. |
