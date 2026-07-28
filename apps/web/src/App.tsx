@@ -3,6 +3,7 @@ import { parseHash, TAB_IDS, type TabId } from "./router.js";
 import { loadData } from "./data/load.js";
 import { StoreProvider } from "./state/store.js";
 import { CaseTab } from "./tabs/Case/index.js";
+import { CompoundsTab } from "./tabs/Compounds.js";
 
 const data = loadData();
 
@@ -24,7 +25,9 @@ export function App() {
           </a>
         ))}
       </nav>
-      {tab === "case" ? <CaseTab /> : <p style={{ padding: 20 }}>{tab} tab arrives in a later task.</p>}
+      {tab === "case" ? <CaseTab />
+        : tab === "compounds" ? <CompoundsTab />
+        : <p style={{ padding: 20 }}>{tab} tab arrives in a later task.</p>}
     </StoreProvider>
   );
 }
