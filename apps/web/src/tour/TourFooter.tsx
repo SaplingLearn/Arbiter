@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useAppState, useDispatch } from "../state/store.js";
+import { isTypingTarget } from "../ui/isTypingTarget.js";
 import { BEATS } from "./beats.js";
 
 /**
@@ -19,10 +20,14 @@ export function TourFooter() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Escape is exempt on purpose: clearing the focused region is harmless from
+      // anywhere, and it is what someone stuck in a field will reach for.
+      if (e.key === "Escape") { dispatch({ type: "setFocus", focus: null }); return; }
+      if (isTypingTarget(e.target)) return;
+
       if (e.key === "ArrowRight") go(tour.beat + 1);
       else if (e.key === "ArrowLeft") go(tour.beat - 1);
       else if (e.key.toLowerCase() === "m") dispatch({ type: "toggleMotion" });
-      else if (e.key === "Escape") dispatch({ type: "setFocus", focus: null });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

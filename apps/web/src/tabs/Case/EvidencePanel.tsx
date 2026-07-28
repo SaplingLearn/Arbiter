@@ -24,8 +24,11 @@ export function EvidencePanel({ collapsed, onExpand }: { collapsed: boolean; onE
   return (
     <div>
       <h3 style={{ fontFamily: "var(--serif)", marginTop: 0 }}>Evidence</h3>
+      {/* 14px below, not the 13px used for incidental captions. UNVERIFIED citations
+          is a disclosure, and it was measured as the smallest text on the Case tab -
+          the caveat least likely to survive a compressed share. */}
       {isFixture && (
-        <p data-testid="citation-status" style={{ color: "var(--ambiguous)", fontSize: 13 }}>
+        <p data-testid="citation-status" style={{ color: "var(--ambiguous)", fontSize: 14, fontWeight: 600 }}>
           Literature fixture · citations {data.fixture.citationStatus}
         </p>
       )}

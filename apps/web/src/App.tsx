@@ -8,12 +8,27 @@ import { RulesetTab } from "./tabs/Ruleset.js";
 import { ValidationTab } from "./tabs/Validation.js";
 import { RecordTab } from "./tabs/Record.js";
 import { TourFooter } from "./tour/TourFooter.js";
+import { Preflight } from "./ui/Preflight.js";
+import { isTypingTarget } from "./ui/isTypingTarget.js";
 import "./ui/motion.css";
 
 const data = loadData();
 
 function AppShell({ tab }: { tab: TabId }) {
   const { motion } = useAppState();
+  const [preflight, setPreflight] = useState(false);
+
+  // `?` rather than a visible button: it is for the presenter in the ninety
+  // seconds before going live, not part of the story a judge is shown.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "?" || isTypingTarget(e.target)) return;
+      setPreflight((open) => !open);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <div data-motion={motion ? "on" : "off"}>
       <nav style={{ background: "var(--deep)", padding: "10px 20px", display: "flex", gap: 18 }}>
@@ -29,6 +44,7 @@ function AppShell({ tab }: { tab: TabId }) {
         : tab === "ruleset" ? <RulesetTab />
         : tab === "validation" ? <ValidationTab />
         : <RecordTab />}
+      {preflight ? <Preflight /> : null}
       <TourFooter />
     </div>
   );

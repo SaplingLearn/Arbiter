@@ -37,8 +37,14 @@ export function ValidationTab() {
         (95% CI {arbiter.ci.lo.toFixed(2)}–{arbiter.ci.hi.toFixed(2)}).
       </p>
 
+      {/* The style below was measured at 14px/400 and raised deliberately. This is
+          the one line in the app that must survive screen-share compression: the
+          balanced accuracy beside it is half a substituted 0.5, and a judge who
+          reads the number but not the caveat has been misled by us. The most
+          important caveat should not render at the same weight as body copy. */}
       {arbiter.singleClass && (
-        <p data-testid="single-class-warning" style={{ color: "var(--toxic)" }}>
+        <p data-testid="single-class-warning"
+           style={{ color: "var(--toxic)", fontSize: 15, fontWeight: 600 }}>
           <strong>Single-class:</strong> ARBITER committed on only one label, so this balanced accuracy is
           half a substituted 0.5. It must not be quoted as an accuracy. Coverage is the finding — no compound
           in this set carries exposure-relevant evidence, so R3 discounts every safe claim.

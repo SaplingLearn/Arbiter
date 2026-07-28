@@ -42,6 +42,59 @@ test("the built artifact works opened from the filesystem, with no server", asyn
   expect(failures).toEqual([]);
 });
 
+test("Web Crypto works over file://, so the audit log and the hash check are real", async ({ page }) => {
+  // Two headline claims run on crypto.subtle: the hash-chained audit log, and the
+  // pre-flight ruleset check. crypto.subtle is gated on a secure context, and
+  // whether file:// counts as one is a browser policy decision rather than
+  // something the code controls - so it gets measured on the actual artifact
+  // rather than assumed from the localhost run.
+  const failures: string[] = [];
+  page.on("pageerror", (e) => failures.push(`pageerror: ${String(e)}`));
+
+  await page.goto(`${artifact}#/record`);
+  await page.getByRole("button", { name: "Sign" }).click();
+
+  // A signed entry proves the digest resolved. If crypto.subtle were missing, sign()
+  // would reject and no row would ever appear.
+  const row = page.getByTestId("position-row").first();
+  await expect(row).toBeVisible();
+  await expect(row).toContainText(/snapshot [0-9a-f]{12}…/);
+
+  // The second entry must chain to the first rather than to the genesis zeros.
+  await page.getByRole("button", { name: "Sign" }).click();
+  await expect(page.getByTestId("position-row").nth(1)).not.toContainText("prev 000000000000");
+
+  // And the pre-flight hash check, which recomputes the pre-registered hash in the
+  // browser and compares it rather than printing a constant.
+  await page.keyboard.press("?");
+  await expect(page.getByTestId("check-ruleset")).toHaveAttribute("data-ok", "true");
+  await expect(page.getByTestId("check-manifest")).toHaveAttribute("data-ok", "true");
+
+  expect(failures).toEqual([]);
+});
+
+test("the honesty caveats are not the least legible text on screen", async ({ page }) => {
+  // Screen-share compression degrades silently: it looks fine locally while a judge
+  // cannot read the small print. The small print here is what stops us overclaiming,
+  // so it is the last thing that should be hard to read. Measured, because "it looked
+  // fine on my monitor" is how this goes wrong.
+  const measure = (id: string) =>
+    page.getByTestId(id).evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { size: parseFloat(cs.fontSize), weight: Number(cs.fontWeight) };
+    });
+
+  await page.goto(`${artifact}#/validation`);
+  const single = await measure("single-class-warning");
+  expect(single.size).toBeGreaterThanOrEqual(15);
+  expect(single.weight).toBeGreaterThanOrEqual(600);
+
+  await page.goto(`${artifact}#/case`);
+  const citation = await measure("citation-status");
+  expect(citation.size).toBeGreaterThanOrEqual(14);
+  expect(citation.weight).toBeGreaterThanOrEqual(600);
+});
+
 test("the artifact requests nothing over the network", async ({ page }) => {
   const external: string[] = [];
   page.on("request", (r) => {

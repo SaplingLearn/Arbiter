@@ -252,6 +252,28 @@ from one codebase:
 The engine is consumed as the existing `@arbiter/engine` workspace package. No duplication of rule logic in
 the app, ever — if the app needs a rule behaviour, it calls the engine.
 
+### 9a. Legibility
+
+Type sizes measured on the built artifact at 1920×1080, 2026-07-28, per tab:
+
+| what | measured | intended |
+|---|---|---|
+| body | 14px | 14px ✓ |
+| verdict | 27px | 24–27px ✓ |
+| tab heading | 21–22px | — |
+| smallest text with content | 13px | — |
+
+The finding was not a size but a **priority inversion**: the smallest and lightest text in the app was
+carrying the honesty caveats — `citations UNVERIFIED` at 13px, and the single-class warning at 14px/400, the
+same weight as body copy. The single-class warning is the one line that must not be missed, because the
+balanced accuracy beside it is half a substituted 0.5. Raised to 15px/600 and 14px/600 respectively, and
+guarded by a `file://` e2e assertion on the computed style so they cannot drift back to caption size.
+
+**Outstanding, and it needs a person:** the actual Teams-share read at the far end of a real call. Screen-share
+compression degrades silently — everything above was measured on a local display, which is precisely the
+condition under which this looks fine and still fails. Owner: whoever runs the first rehearsal. Record the
+date and any change here.
+
 ## 10. Risks
 
 | Risk | Mitigation |
