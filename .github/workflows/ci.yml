@@ -23,5 +23,20 @@ jobs:
       - run: npm test -- apps/harness/test/golden.test.ts
       - run: git diff --exit-code results/verdict-manifest.json
       - run: npm run web:build
-      - run: npx playwright install --with-deps chromium
+      # Cached because it is the slowest step in the job by an order of magnitude:
+      # --with-deps apt-installs system libraries on a cold runner, which took
+      # 12m24s against the ~2m the rest of the job needs. The key is pinned to the
+      # lockfile so a Playwright version bump invalidates it.
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      # The browser binary is cached but the OS libraries are not, so they are
+      # installed separately on a hit. Skipping this entirely makes the e2e run
+      # fail on a fresh runner image with a missing shared library.
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
       - run: npm run e2e

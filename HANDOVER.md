@@ -205,11 +205,28 @@ fine and still fails.
 
 **Owner: whoever runs the first rehearsal.** Record the date and any change in spec §9a.
 
-### 3.5 Final whole-branch review
+### 3.5 Final whole-branch review — NOT DONE, and the branch was merged anyway
 
-Phase 2 closed with a per-task review loop, but the branch has never been reviewed
-end-to-end as a whole. ~72 commits. Worth doing on the most capable model available
-before submission.
+Phase 2 closed with a per-task review loop: every task got a review package and a
+reviewer, and defects were fixed before the task closed. But **the branch has never
+been reviewed end-to-end as a whole**, and it was merged to `main` at the owner's
+direction before that review happened. ~72 commits.
+
+That is a deliberate owner decision, not an oversight, but it means the usual
+last-line check did not run. Worth doing on the most capable model available before
+submission. Nothing is blocking it.
+
+### 3.6 CI is slow, and it is one step's fault
+
+`npx playwright install --with-deps chromium` took **12m24s** against the ~2m the rest
+of the job needs — `--with-deps` apt-installs system libraries on a cold runner. This
+was introduced in Phase 2 Task 13 and not measured at the time.
+
+Fixed by caching `~/.cache/ms-playwright` keyed on `package-lock.json`, with
+`install-deps` still run on a cache hit because the OS libraries are not cached and the
+e2e run fails on a fresh runner image without them. **Verify the cache is actually
+hitting** — a mis-keyed cache silently degrades to the slow path and looks identical to
+working.
 
 ---
 
