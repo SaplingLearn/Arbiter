@@ -1,0 +1,31 @@
+:root {
+  --ink: #14172E;
+  --muted: #616784;
+  --canvas: #FFFFFF;
+  --surface: #F2F4FE;
+  --hairline: #DCE1F2;
+  --hairline-soft: #E9EBF5;
+  /* Reserved for exactly three jobs: the rule that fired, the primary action,
+     the belief fill. Scarcity is what makes it read as deliberate. */
+  --pfizer-blue: #0000C9;
+  --deep: #001A72;
+  --toxic: #C81E3C;
+  --clean: #0E8A5F;
+  --ambiguous: #B0700A;
+  --serif: Georgia, "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius: 4px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--canvas);
+}
+:focus-visible { outline: 2px solid var(--pfizer-blue); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
