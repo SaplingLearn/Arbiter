@@ -6,6 +6,7 @@ import { CaseTab } from "./tabs/Case/index.js";
 import { CompoundsTab } from "./tabs/Compounds.js";
 import { RulesetTab } from "./tabs/Ruleset.js";
 import { ValidationTab } from "./tabs/Validation.js";
+import { RecordTab } from "./tabs/Record.js";
 
 const data = loadData();
 
@@ -31,7 +32,7 @@ export function App() {
         : tab === "compounds" ? <CompoundsTab />
         : tab === "ruleset" ? <RulesetTab />
         : tab === "validation" ? <ValidationTab />
-        : <p style={{ padding: 20 }}>{tab} tab arrives in a later task.</p>}
+        : <RecordTab />}
     </StoreProvider>
   );
 }
