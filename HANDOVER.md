@@ -205,11 +205,40 @@ fine and still fails.
 
 **Owner: whoever runs the first rehearsal.** Record the date and any change in spec §9a.
 
-### 3.5 Final whole-branch review
+### 3.5 Final whole-branch review — NOT DONE, and the branch was merged anyway
 
-Phase 2 closed with a per-task review loop, but the branch has never been reviewed
-end-to-end as a whole. ~72 commits. Worth doing on the most capable model available
-before submission.
+Phase 2 closed with a per-task review loop: every task got a review package and a
+reviewer, and defects were fixed before the task closed. But **the branch has never
+been reviewed end-to-end as a whole**, and it was merged to `main` at the owner's
+direction before that review happened. ~72 commits.
+
+That is a deliberate owner decision, not an oversight, but it means the usual
+last-line check did not run. Worth doing on the most capable model available before
+submission. Nothing is blocking it.
+
+### 3.6 CI has one step that can stall for ten minutes, unpredictably
+
+`npx playwright install --with-deps chromium`, added in Phase 2 Task 13, apt-installs
+system libraries. Measured on two runs of the **identical command, both cache misses**:
+
+| run | duration |
+|---|---|
+| `30404690149` | **10m35s** |
+| `30405621001` | **25s** |
+
+So the ten minutes was **transient** - a slow apt mirror or a degraded runner - not the
+step's steady-state cost. An earlier draft of this document claimed the step "costs
+12m24s"; that was one observation generalised into a property, and it was wrong.
+
+`~/.cache/ms-playwright` is now cached anyway, keyed on `package-lock.json`. Stated
+honestly, that is **cheap insurance against the stall recurring**, worth ~25s on the
+happy path - not a ten-minute win. `install-deps` still runs on a cache hit, because the
+browser binary is cached but the OS libraries are not, and omitting them fails on a
+fresh runner image as what presents as a flaky test.
+
+If CI stalls on this step again, suspect the mirror rather than the config. **Verify the
+cache is actually hitting** - a mis-keyed cache silently degrades to the slow path and
+looks identical to working.
 
 ---
 

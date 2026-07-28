@@ -59,6 +59,9 @@ playwright-report/
 # Node
 node_modules/
 dist/
+# Vite's dev-server dependency cache. Written by `npm run web:dev`, not an input to
+# anything - `.vite/` and not `apps/web/.vite/` so it is ignored wherever it appears.
+.vite/
 *.tsbuildinfo
 .env
 .env.local
