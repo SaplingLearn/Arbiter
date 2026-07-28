@@ -657,6 +657,19 @@ an enhancement; it is the condition under which the numbers are valid at all.
 - Conflict subset reported separately from overall — overall accuracy is inflated by easy unanimous cases
 - Repeat runs for the stochastic pipeline; identical treatment applied to ARBITER
 - Wilson confidence intervals, explicit n, and confusion matrices rather than bare accuracy
+- **Each interval describes the statistic it is printed beside, and is absent when none exists.**
+  `metrics.json` reports `balancedAccuracyCi` and `rawAccuracyCi` as separate fields, because they are
+  different numbers and a single field called `ci` invited them to be confused. Found in the final review:
+  a single `ci` field carried the *raw*-accuracy Wilson interval while sitting next to *balanced* accuracy,
+  and the Validation tab rendered it as "balanced accuracy 0.75 (95% CI 0.51–1.00)" — an uncertainty claim
+  about a quantity that was not on screen. Three reported pipelines had intervals that did not contain
+  their own point estimate (`single:qsar` 0.500 in [0.799, 0.953]; `single:cytotox` 0.500 in [0.046, 0.198];
+  `weightedAverage` 0.547 in [0.743, 0.920]).
+  `balancedAccuracyCi` is **null** whenever a class is absent, including for ARBITER's own headline.
+  Balanced accuracy substitutes 0.5 for the missing half, a substitution carries no sampling uncertainty
+  because it is not an estimate, and borrowing an interval from elsewhere to fill the gap would put a
+  precision claim on a placeholder. Where both classes are present, sensitivity and specificity each get a
+  Wilson interval and the bounds are averaged, mirroring the point estimate's own definition.
 
 **DILIrank binarisation, pre-registered:** vMost + vLess = positive; vNo = negative; Ambiguous reported
 separately rather than quietly dropped.

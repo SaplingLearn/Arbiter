@@ -1,8 +1,12 @@
 import { useAppState } from "../state/store.js";
 
+interface Interval { lo: number; hi: number }
+
 interface Pipeline {
   balancedAccuracy: number; coverage: number; nCommitted: number;
-  ci: { lo: number; hi: number }; singleClass: boolean;
+  /** Null when one class is absent - see the comment on the headline below. */
+  balancedAccuracyCi: Interval | null;
+  rawAccuracyCi: Interval; singleClass: boolean;
 }
 
 /**
@@ -30,11 +34,20 @@ export function ValidationTab() {
         perturbation seed {m["provenance"].perturbationSeed} · scored on the {m["provenance"].scoredSplit} split
       </p>
 
+      {/* The interval attached here must describe the number it sits beside.
+          This previously read "balanced accuracy 0.75 (95% CI 0.51-1.00)", where
+          the interval was really wilson(4,4) on RAW accuracy 4/4 = 1.0 - an
+          uncertainty claim about a different statistic. Where balanced accuracy
+          substitutes 0.5 for an absent class there is no interval to report,
+          because a substitution is not an estimate, so we say that instead of
+          borrowing one. */}
       <p data-testid="headline">
         Conflict subset n = <strong>{acc.n}</strong>. ARBITER coverage{" "}
         <strong>{(arbiter.coverage * 100).toFixed(1)}%</strong> ({arbiter.nCommitted} committed).
         {" "}balanced accuracy {arbiter.balancedAccuracy.toFixed(2)}{" "}
-        (95% CI {arbiter.ci.lo.toFixed(2)}–{arbiter.ci.hi.toFixed(2)}).
+        {arbiter.balancedAccuracyCi
+          ? `(95% CI ${arbiter.balancedAccuracyCi.lo.toFixed(2)}–${arbiter.balancedAccuracyCi.hi.toFixed(2)})`
+          : "(no confidence interval: one class is absent from the committed set, so half of this figure is a substituted 0.5 rather than an estimate)"}.
       </p>
 
       {/* The style below was measured at 14px/400 and raised deliberately. This is

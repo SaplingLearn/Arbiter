@@ -46,8 +46,14 @@ export function Preflight() {
            style={{ padding: 16, borderTop: "1px solid var(--hairline)", background: "var(--surface)" }}>
       <h3 style={{ fontFamily: "var(--serif)", marginTop: 0 }}>Pre-flight</h3>
       <ul style={{ fontSize: 13, lineHeight: 1.7 }}>
-        <li data-testid="check-ruleset" data-ok={hashError ? "error" : String(hashOk)}
-            style={hashOk ? undefined : bad}>
+        {/* "pending" while the digest is in flight, NOT "false". hashOk compares a
+            null hash before Web Crypto resolves, so String(hashOk) rendered
+            data-ok="false" on the very first paint - the panel reporting a FAILED
+            pre-registration check before it had run one, in red. Caught by CI as a
+            flaky test, which is how a real state bug usually presents. */}
+        <li data-testid="check-ruleset"
+            data-ok={hashError ? "error" : hash === null ? "pending" : String(hashOk)}
+            style={hash === null || hashOk ? undefined : bad}>
           {hashError !== null
             ? `Could not compute the ruleset hash: ${hashError}`
             : hash === null

@@ -7,7 +7,7 @@ import {
   type Verdict,
 } from "@arbiter/engine";
 import { jitter01, mulberry32, uniform } from "./prng.js";
-import { balancedAccuracy, confusion, mean, singleClass, wilson, type Interval } from "./stats.js";
+import { balancedAccuracy, balancedAccuracyInterval, confusion, mean, singleClass, wilson, type Interval } from "./stats.js";
 import type { ResultRow } from "./main.js";
 
 /** do_not_advance means "predicted toxic" = 1. abstain is not a prediction. */
@@ -16,7 +16,18 @@ const toBinary = (v: Verdict): number | null =>
 
 export interface ScoredPipeline {
   balancedAccuracy: number;
-  ci: Interval;
+  /**
+   * Interval for BALANCED accuracy, or null when one class is absent.
+   *
+   * Null is not missing data: balanced accuracy substitutes 0.5 for the absent
+   * half, and a substitution has no sampling uncertainty, so no honest interval
+   * exists. Named for the statistic it describes because the previous field was
+   * called plainly `ci` and carried the RAW-accuracy interval, which the
+   * Validation tab then printed as "balanced accuracy 0.75 (95% CI 0.51-1.00)".
+   */
+  balancedAccuracyCi: Interval | null;
+  /** Interval for RAW accuracy (correct/committed). A different statistic - see above. */
+  rawAccuracyCi: Interval;
   /** Fraction of the subset this pipeline committed to. Travels WITH accuracy, always. */
   coverage: number;
   nCommitted: number;
@@ -35,7 +46,8 @@ function score(pairs: { y: number; predicted: number | null }[]): ScoredPipeline
   const correct = committed.filter((p) => p.y === p.predicted).length;
   return {
     balancedAccuracy: acc,
-    ci: wilson(correct, committed.length),
+    balancedAccuracyCi: balancedAccuracyInterval(committed),
+    rawAccuracyCi: wilson(correct, committed.length),
     coverage: pairs.length === 0 ? 0 : committed.length / pairs.length,
     nCommitted: committed.length,
     confusion: confusion(committed),

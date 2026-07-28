@@ -7,7 +7,8 @@
   "arbiterBalancedAccuracy": 0.75,
   "arbiterCoverage": 0.06557377049180328,
   "arbiterNCommitted": 4,
-  "arbiterCi": {
+  "arbiterBalancedAccuracyCi": null,
+  "arbiterRawAccuracyCi": {
     "lo": 0.5100999795960008,
     "hi": 1
   },
@@ -16,7 +17,8 @@
       "balancedAccuracy": 0.75,
       "coverage": 0.04918032786885246,
       "nCommitted": 3,
-      "ci": {
+      "balancedAccuracyCi": null,
+      "rawAccuracyCi": {
         "lo": 0.43849391955098227,
         "hi": 1
       }
@@ -25,7 +27,11 @@
       "balancedAccuracy": 0.5,
       "coverage": 1,
       "nCommitted": 61,
-      "ci": {
+      "balancedAccuracyCi": {
+        "lo": 0.3048284831734677,
+        "hi": 0.5326435718947139
+      },
+      "rawAccuracyCi": {
         "lo": 0.045863951367309724,
         "hi": 0.1984483419752358
       }
@@ -34,7 +40,8 @@
       "balancedAccuracy": 0.5,
       "coverage": 0,
       "nCommitted": 0,
-      "ci": {
+      "balancedAccuracyCi": null,
+      "rawAccuracyCi": {
         "lo": 0,
         "hi": 1
       }
@@ -43,7 +50,8 @@
       "balancedAccuracy": 0.5,
       "coverage": 0,
       "nCommitted": 0,
-      "ci": {
+      "balancedAccuracyCi": null,
+      "rawAccuracyCi": {
         "lo": 0,
         "hi": 1
       }
@@ -52,7 +60,11 @@
       "balancedAccuracy": 0.5,
       "coverage": 0.9836065573770492,
       "nCommitted": 60,
-      "ci": {
+      "balancedAccuracyCi": {
+        "lo": 0.46679206660949907,
+        "hi": 0.6951715168265322
+      },
+      "rawAccuracyCi": {
         "lo": 0.7985030550748896,
         "hi": 0.9533578005427642
       }
@@ -61,7 +73,8 @@
       "balancedAccuracy": 0.5,
       "coverage": 0,
       "nCommitted": 0,
-      "ci": {
+      "balancedAccuracyCi": null,
+      "rawAccuracyCi": {
         "lo": 0,
         "hi": 1
       }
@@ -70,7 +83,8 @@
       "balancedAccuracy": 0.75,
       "coverage": 0.06557377049180328,
       "nCommitted": 4,
-      "ci": {
+      "balancedAccuracyCi": null,
+      "rawAccuracyCi": {
         "lo": 0.5100999795960008,
         "hi": 1
       }
@@ -79,7 +93,11 @@
       "balancedAccuracy": 0.546969696969697,
       "coverage": 1,
       "nCommitted": 61,
-      "ci": {
+      "balancedAccuracyCi": {
+        "lo": 0.42872540247768115,
+        "hi": 0.7674329200299788
+      },
+      "rawAccuracyCi": {
         "lo": 0.7427653049810489,
         "hi": 0.920389213106105
       }

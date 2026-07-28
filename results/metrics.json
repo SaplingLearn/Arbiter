@@ -16,7 +16,8 @@
     "positiveRate": 0.9016393442622951,
     "arbiter": {
       "balancedAccuracy": 0.75,
-      "ci": {
+      "balancedAccuracyCi": null,
+      "rawAccuracyCi": {
         "lo": 0.5100999795960008,
         "hi": 1
       },
@@ -33,7 +34,8 @@
     "baselines": {
       "majorityVote": {
         "balancedAccuracy": 0.75,
-        "ci": {
+        "balancedAccuracyCi": null,
+        "rawAccuracyCi": {
           "lo": 0.43849391955098227,
           "hi": 1
         },
@@ -49,7 +51,11 @@
       },
       "single:cytotox": {
         "balancedAccuracy": 0.5,
-        "ci": {
+        "balancedAccuracyCi": {
+          "lo": 0.3048284831734677,
+          "hi": 0.5326435718947139
+        },
+        "rawAccuracyCi": {
           "lo": 0.045863951367309724,
           "hi": 0.1984483419752358
         },
@@ -65,7 +71,8 @@
       },
       "single:invivo_nonrodent": {
         "balancedAccuracy": 0.5,
-        "ci": {
+        "balancedAccuracyCi": null,
+        "rawAccuracyCi": {
           "lo": 0,
           "hi": 1
         },
@@ -81,7 +88,8 @@
       },
       "single:invivo_rodent": {
         "balancedAccuracy": 0.5,
-        "ci": {
+        "balancedAccuracyCi": null,
+        "rawAccuracyCi": {
           "lo": 0,
           "hi": 1
         },
@@ -97,7 +105,11 @@
       },
       "single:qsar": {
         "balancedAccuracy": 0.5,
-        "ci": {
+        "balancedAccuracyCi": {
+          "lo": 0.46679206660949907,
+          "hi": 0.6951715168265322
+        },
+        "rawAccuracyCi": {
           "lo": 0.7985030550748896,
           "hi": 0.9533578005427642
         },
@@ -113,7 +125,8 @@
       },
       "single:toxicogenomics": {
         "balancedAccuracy": 0.5,
-        "ci": {
+        "balancedAccuracyCi": null,
+        "rawAccuracyCi": {
           "lo": 0,
           "hi": 1
         },
@@ -129,7 +142,8 @@
       },
       "single:transporter": {
         "balancedAccuracy": 0.75,
-        "ci": {
+        "balancedAccuracyCi": null,
+        "rawAccuracyCi": {
           "lo": 0.5100999795960008,
           "hi": 1
         },
@@ -145,7 +159,11 @@
       },
       "weightedAverage": {
         "balancedAccuracy": 0.546969696969697,
-        "ci": {
+        "balancedAccuracyCi": {
+          "lo": 0.42872540247768115,
+          "hi": 0.7674329200299788
+        },
+        "rawAccuracyCi": {
           "lo": 0.7427653049810489,
           "hi": 0.920389213106105
         },

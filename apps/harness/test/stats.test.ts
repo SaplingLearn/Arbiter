@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { balancedAccuracy, confusion, mean, singleClass, wilson } from "../src/stats.js";
+import { balancedAccuracy, balancedAccuracyInterval, confusion, mean, singleClass, wilson } from "../src/stats.js";
 
 describe("wilson", () => {
   it("brackets the point estimate", () => {
@@ -98,5 +98,65 @@ describe("mean", () => {
 
   it("averages", () => {
     expect(mean([1, 2, 3, 4])).toBe(2.5);
+  });
+});
+
+/** Build pairs with a given confusion shape, so the tests read as the shape they test. */
+function pairs(tp: number, fp: number, tn: number, fn: number): { y: number; predicted: number }[] {
+  return [
+    ...Array.from({ length: tp }, () => ({ y: 1, predicted: 1 })),
+    ...Array.from({ length: fn }, () => ({ y: 1, predicted: 0 })),
+    ...Array.from({ length: tn }, () => ({ y: 0, predicted: 0 })),
+    ...Array.from({ length: fp }, () => ({ y: 0, predicted: 1 })),
+  ];
+}
+
+describe("balancedAccuracyInterval", () => {
+  it("is NULL when a class is absent, because the substituted 0.5 is not an estimate", () => {
+    // The real ARBITER headline shape: 4 committed, all positive, all correct.
+    // The old code reported wilson(4,4) = [0.51, 1.00] beside a balanced accuracy
+    // of 0.75. That interval describes raw accuracy 1.0, not 0.75.
+    expect(balancedAccuracyInterval(pairs(4, 0, 0, 0))).toBeNull();
+    expect(balancedAccuracyInterval(pairs(0, 0, 6, 0))).toBeNull();
+  });
+
+  it("CONTAINS the point estimate where the raw-accuracy interval did not", () => {
+    // single:qsar's real shape, and the cleanest demonstration of the defect.
+    // BOTH classes are present here (54 positives, 6 negatives), so balanced
+    // accuracy 0.5 is a genuine estimate rather than a substitution - it scored
+    // sensitivity 1.0 and specificity 0.0 by calling all six negatives positive.
+    // Raw accuracy is 54/60 = 0.9, and wilson(54,60) = [0.799, 0.953], which was
+    // printed beside 0.500 and does not contain it.
+    const qsar = pairs(54, 6, 0, 0);
+    const raw = wilson(54, 60);
+    const ba = balancedAccuracy(qsar);
+    expect(ba).toBeCloseTo(0.5, 10);
+    expect(raw.lo).toBeGreaterThan(ba); // the defect, pinned
+
+    const fixed = balancedAccuracyInterval(qsar)!;
+    expect(fixed).not.toBeNull();
+    expect(fixed.lo).toBeLessThanOrEqual(ba);
+    expect(fixed.hi).toBeGreaterThanOrEqual(ba);
+
+    // Other shapes with both classes present must bracket their estimate too.
+    for (const shape of [pairs(51, 5, 1, 4), pairs(10, 10, 10, 10), pairs(9, 1, 1, 9)]) {
+      const ba = balancedAccuracy(shape);
+      const ci = balancedAccuracyInterval(shape);
+      expect(ci).not.toBeNull();
+      expect(ci!.lo).toBeLessThanOrEqual(ba);
+      expect(ci!.hi).toBeGreaterThanOrEqual(ba);
+    }
+  });
+
+  it("stays inside [0,1] at the extremes", () => {
+    const ci = balancedAccuracyInterval(pairs(1, 0, 1, 0))!;
+    expect(ci.lo).toBeGreaterThanOrEqual(0);
+    expect(ci.hi).toBeLessThanOrEqual(1);
+  });
+
+  it("narrows as n grows on the same underlying rates", () => {
+    const small = balancedAccuracyInterval(pairs(8, 2, 8, 2))!;
+    const large = balancedAccuracyInterval(pairs(80, 20, 80, 20))!;
+    expect(large.hi - large.lo).toBeLessThan(small.hi - small.lo);
   });
 });
