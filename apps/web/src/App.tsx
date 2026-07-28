@@ -7,6 +7,7 @@ import { CompoundsTab } from "./tabs/Compounds.js";
 import { RulesetTab } from "./tabs/Ruleset.js";
 import { ValidationTab } from "./tabs/Validation.js";
 import { RecordTab } from "./tabs/Record.js";
+import { TourFooter } from "./tour/TourFooter.js";
 
 const data = loadData();
 
@@ -33,6 +34,7 @@ export function App() {
         : tab === "ruleset" ? <RulesetTab />
         : tab === "validation" ? <ValidationTab />
         : <RecordTab />}
+      <TourFooter />
     </StoreProvider>
   );
 }
