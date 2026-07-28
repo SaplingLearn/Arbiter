@@ -149,6 +149,28 @@ it, and the corpus mean is dominated by cases never close to deciding.
 
 ## 3. What is left, in the order I would do it
 
+**The whole path, at a glance.** Items marked *needs a person* cannot be done by an agent.
+
+| # | what | blocked by | § |
+|---|---|---|---|
+| 1 | **Cmax hunt** — before the 2 Aug freeze | *needs a person*; team-capacity call | 3.1 |
+| 2 | **LLM ablation** — a literal hole in `metrics.json` today | `ANTHROPIC_API_KEY` from Jack (~$20-40) | 3.2 |
+| 3 | **Type the metrics contract** — small, do it before Phase 3 adds readers | nothing | 3.5c |
+| 4 | **Phase 3 spec, then plan** — requirements already in master spec §7 | nothing | 3.3 |
+| 5 | **Phase 3 build** — Surface 1, then 3, then 2 | item 4 | 3.3 |
+| 6 | **Build and hand-check the ZIP** from a clean clone, on another machine | item 5 | 3.7 |
+| 7 | **Deck on real numbers** — pulled from `metrics.json`, never retyped | item 5 | 3.7 |
+| 8 | **Recorded walkthrough** — insurance against a live demo failing | item 5 | 3.7 |
+| 9 | **Rehearse + the Teams-share read** | *needs a person* | 3.4, 3.7 |
+| 10 | **Submit early** | items 6-9 | 3.7 |
+
+Items 1-4 are independent of each other and can run in parallel. **The nearest deadline
+is not 16 August** — it is the ambassador check-in, which expects the demo *and* the
+business presentation, and whose date is not recorded in this repo. See §3.7.
+
+If you are picking this up cold and want one instruction: **do item 3, then item 4.**
+They are the two that are unblocked, well-defined, and entirely in your hands.
+
 ### 3.1 BLOCKING AND TIME-CRITICAL — the Cmax hunt (before 2 Aug)
 
 This is the difference between "coverage is the finding" and a reportable headline.
@@ -184,13 +206,46 @@ shows a raw LLM giving inconsistent answers to the same evidence where ARBITER g
 — it is the "why not just ask a model" answer, and it is currently a hole in the metrics
 file. Unblock it early; it needs no new design work.
 
-### 3.3 Phase 3 — the three AI surfaces (not yet specified)
+### 3.3 Phase 3 — the three AI surfaces
 
-**The largest remaining unknown.** Deliberately deferred until the Phase 2 shell
-existed; it now does. Needs a spec via brainstorming, then a plan, then execution. The
-three surfaces plus the API service.
+**Correction to an earlier draft of this document, which said "nothing is written".
+That was wrong.** The three surfaces are specified in detail in **master spec §7** —
+endpoints, payload shapes, fallback ladders, and thresholds. What does not exist is a
+Phase 2-style *implementation plan*. Read §7 before writing a line.
 
-Nothing is written. Start with the spec, not with code.
+The governing discipline, and the answer to "why use an LLM while benchmarking against
+one": **models do language, never judgment.** Parsing a sentence and matching a question
+to an anchor are language tasks. Deciding is not.
+
+| surface | endpoint | returns | why it is safe |
+|---|---|---|---|
+| **1. Challenge interpreter** (live) | `POST /api/interpret` | a proposed rule change + `paraphrase` + `confidence` | **The change is displayed before it is applied.** A misinterpretation is visible and rejectable, never silent. Receives claim **ids and labels only**, never raw evidence values. |
+| **2. Live ablation spot check** | — | one extra run appended | The headline is pre-computed at **25 runs per compound**, so the live run is a spot check, not the evidence. A concordant live run contradicts nothing. |
+| **3. Navigator** | `POST /api/navigate` | `{ anchorIds: string[], noMatch: boolean }` — **ids only, never prose** | **Structurally unable to hallucinate.** The return type gives it nowhere to put an invented claim. The UI only spotlights text that already exists. |
+
+Surface 1's fallback ladder is five rungs (live 2.5s timeout → exact cached match →
+trigram Jaccard ≥ 0.55 → deterministic keyword mapping → a plain rule picker). **At
+every rung the change runs through the same engine — only the route from English to rule
+change differs.** The reasoning is never faked. Spec §11 requires each surface to be
+exercised against network-off, HTTP 500, malformed JSON, timeout, and missing key.
+
+Suggested order: **write the Phase 3 spec → plan → Surface 1 → Surface 3 → Surface 2**,
+because Surface 1 is the only one where responsiveness is visible to a judge (spec §6)
+and Surface 2 is the cheapest to cut.
+
+**The cut order is already decided (spec §14), so nobody argues about it at 11pm on 14
+August:**
+
+> navigator (surface 3) → live ablation garnish → evidence-package export → motion
+> Level 2 down to Level 1
+
+**Never cut:** engine determinism tests, the argument trace, the belief–plausibility
+track, the consensus record. *Those four are the product.*
+
+Note Phase 3 needs the API service, which is the first thing in this project that is not
+a static artifact. The static ZIP must keep working with every surface on cache — that
+is already asserted by `apps/web/e2e/static-file.spec.ts`, which fails if the app makes
+any network request. **Do not break that test to make a surface work.**
 
 ### 3.4 The Teams-share legibility check (needs a person)
 
@@ -267,6 +322,21 @@ in `index.ts` documenting why the R6 concordance boost was deleted are accurate.
 The branch was merged to `main` before this review ran, at the owner's direction. That
 turned out to matter: the fix above is a follow-up PR rather than part of the branch.
 
+### 3.5c Type the harness-to-app metrics contract
+
+Its own item because it is a live footgun rather than a note. `apps/web` reads
+`results/metrics.json` through a `Record<string, any>` cast, so **`npm run typecheck`
+cannot see a renamed or removed metric.** It stayed green while `Validation.tsx`
+referenced a field that no longer existed; the failure would have been a blank Validation
+tab in front of a judge.
+
+Close it with a shared type or a runtime schema. `zod` is already a dependency and
+already validates claims and the ruleset in `apps/web/src/data/load.ts` — the same
+pattern applied to `metrics.json` would make a drifted field fail at load with a message
+naming itself, which is how every other bundled artifact in this app already behaves.
+
+Small, contained, and worth doing before Phase 3 adds more surfaces reading more fields.
+
 ### 3.6 CI has one step that can stall for ten minutes, unpredictably
 
 `npx playwright install --with-deps chromium`, added in Phase 2 Task 13, apt-installs
@@ -295,6 +365,53 @@ cache is actually hitting** - a mis-keyed cache silently degrades to the slow pa
 looks identical to working.
 
 ---
+
+### 3.7 Getting it submitted — the part no code covers
+
+**This was missing from the first draft of this document entirely.** Everything above is
+engineering; none of it is the deliverable until it is packaged, rehearsed and sent.
+
+**A nearer deadline than 16 August:** the next **ambassador check-in expects the demo
+AND the business presentation** (spec §14). Whatever exists then is what gets feedback.
+A thin end-to-end slice beats a polished fragment. **The date is not recorded anywhere in
+this repo — find it and write it here.** Roughly 22 teams are in this round; the mentor
+guessed about half advance but was explicit that he did not know, so treat it as unknown.
+
+Spec §14's own schedule for the end:
+
+| window | work |
+|---|---|
+| Aug 10 – Aug 14 | three AI surfaces with fallback ladders, export, spotlight, tour, motion, Playwright walk, Teams-share test, static build |
+| Aug 15 – Aug 16 | **deck on real numbers, recorded walkthrough, rehearse to 14:00, submit early** |
+
+In dependency order:
+
+1. **Build and check the ZIP, from a clean clone.** `npm ci && npm run web:build`, then
+   zip `apps/web/dist/`. Open `index.html` **from the filesystem, on a machine that is not
+   yours**, with no server. §6.1 is why: this exact artifact rendered a blank page once,
+   and the failure is invisible over `http://localhost`. `npm run e2e` guards it, but
+   verify the actual ZIP a judge receives at least once by hand.
+2. **The deck on real numbers.** Pull them from `results/metrics.json`, never retype
+   them. §2 of this document is the honest framing, including that ARBITER ties
+   `single:transporter` exactly. If the deck's numbers and `metrics.json` disagree, the
+   deck is wrong.
+3. **The recorded walkthrough.** Insurance against a live demo failing. `→` drives all
+   seven beats, so it needs no mouse and no hidden knowledge — any of the three of you
+   can present it.
+4. **Rehearse, and do the Teams-share read (§3.4) during the first rehearsal.** That
+   check is still outstanding and needs a person on a real call.
+5. **Submit early.** Spec §14 says so explicitly. Do not spend the buffer on polish.
+
+**Q&A preparation is a work item, not a hope.** Master spec §13 already contains
+prepared answers to the hardest questions — the fudge-factor challenge, "is R6 really a
+rule", "why use an LLM while benchmarking one". Read them; they are better than what
+anyone will improvise. The two answers most likely to be needed:
+
+- **"Your system abstains on 97% of cases."** Correct, and it is the finding, not a
+  defect — no benchmark compound carries exposure-relevant evidence, so R3 fires on every
+  safe claim. §2 has the numbers.
+- **"You didn't beat the baseline."** Also correct. It ties `single:transporter` exactly.
+  Say it before a judge finds it.
 
 ## 4. Open questions deliberately left open
 
