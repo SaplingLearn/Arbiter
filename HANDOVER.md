@@ -42,7 +42,7 @@ Keys: `→`/`←` step the seven demo beats, `M` motion kill switch, `?` pre-fli
 ### Verify everything
 
 ```bash
-npm run lint && npm run typecheck && npm test      # 273 tests, 32 files
+npm run lint && npm run typecheck && npm test      # 275 tests, 32 files
 npm run web:build && npm run e2e                   # 8 Playwright tests
 npm run golden:update && git diff --exit-code results/   # must produce NO diff
 ```
@@ -235,7 +235,27 @@ through a `Record<string, any>` cast. `npm run typecheck` stayed green while
 between the harness and the app is untyped — that is a live gap.** Worth closing with a
 shared type or a runtime schema if you touch this area.
 
-### 3.5a The rest of the review
+### 3.5a A flake that was a real state bug, and a misdiagnosis of mine
+
+During Phase 2 Task 14 one test run failed and 12 subsequent runs did not reproduce it.
+I attributed it to `expect.poll` not wrapping in `act()` and switched to `waitFor`. **That
+diagnosis was wrong** and it only hid the symptom locally; CI failed on the same test
+again during this review.
+
+The actual cause was in `Preflight.tsx`. `hashOk` compares the computed hash to the
+registered one, but before Web Crypto resolves the hash is `null`, so `hashOk` was
+`false` and `String(hashOk)` put `data-ok="false"` on the **first paint of every
+render** — the panel reporting a FAILED pre-registration check, in red, before it had
+run one. The test raced against that initial state.
+
+Fixed in the component with an explicit `"pending"` state, not in the test. Verified by
+reverting: `expected 'false' to be 'pending'`. Stable across 6 consecutive runs.
+
+**The lesson worth carrying:** a flaky test is often a real state bug presenting badly.
+"Retry until green" and "swap the waiting primitive" both make the symptom go away
+without touching the defect.
+
+### 3.5b The rest of the review
 
 The engine came out clean. `fuse.ts` is correct Dempster combination (masses sum to 1
 by construction; total conflict returns vacuous with K=1 rather than fabricating a
@@ -472,7 +492,7 @@ docs/superpowers/plans/   Task-by-task plans with every code block synced to sou
 
 | | |
 |---|---|
-| Tests | 273 vitest across 32 files; 8 Playwright |
+| Tests | 275 vitest across 32 files; 8 Playwright |
 | Lint / typecheck / build | clean |
 | `golden:update` | produces no diff — the reported numbers have not moved |
 | CI | green, and now runs `web:build` + `playwright install` + `e2e` on every push |

@@ -21,11 +21,14 @@ describe("Preflight", () => {
   it("confirms the bundled ruleset hashes to the pre-registered value", async () => {
     renderWith(data);
     const line = await screen.findByTestId("check-ruleset");
-    // The hash is computed asynchronously via Web Crypto, so wait for the result
-    // rather than asserting on the "Hashing…" placeholder. waitFor rather than
-    // expect.poll: the resolving promise calls setState outside act(), and waitFor
-    // is the one that wraps the wait in act. With poll this test flaked once.
-    await waitFor(() => expect(line.getAttribute("data-ok")).toBe("true"));
+    // The hash is computed asynchronously via Web Crypto. Waiting for data-ok to
+    // leave "pending" is what makes this deterministic: an earlier version waited
+    // for a specific value, and because a null hash compares unequal to the
+    // registered one, data-ok was already "false" on first paint while the text
+    // still said "Hashing the ruleset…". That raced, and the component was fixed
+    // rather than the test - see the comment on the pending state in Preflight.
+    await waitFor(() => expect(line.getAttribute("data-ok")).not.toBe("pending"));
+    expect(line.getAttribute("data-ok")).toBe("true");
     expect(line.textContent).toContain("ed073a8a");
   });
 
@@ -41,8 +44,18 @@ describe("Preflight", () => {
     };
 
     const line = await renderWith(drifted).findByTestId("check-ruleset");
-    await waitFor(() => expect(line.getAttribute("data-ok")).toBe("false"));
+    await waitFor(() => expect(line.getAttribute("data-ok")).not.toBe("pending"));
+    expect(line.getAttribute("data-ok")).toBe("false");
     expect(line.textContent).toMatch(/do not present these numbers as pre-registered/);
+  });
+
+  it("does not claim a FAILED check while the hash is still being computed", () => {
+    // The bug this pins: hashOk compares a null hash before Web Crypto resolves,
+    // so String(hashOk) put data-ok="false" - a failed pre-registration check, in
+    // red - on the first paint of every render.
+    const line = renderWith(data).getByTestId("check-ruleset");
+    expect(line.getAttribute("data-ok")).toBe("pending");
+    expect(line.textContent).toMatch(/Hashing the ruleset/);
   });
 
   it("reports that live recomputation agrees with the committed manifest", () => {
