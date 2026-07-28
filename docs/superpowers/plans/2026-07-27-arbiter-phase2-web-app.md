@@ -3224,6 +3224,78 @@ test("the built artifact works opened from the filesystem, with no server", asyn
   expect(failures).toEqual([]);
 });
 
+test("all seven beats walk on the keyboard alone, from the filesystem", async ({ page }) => {
+  // The plan's acceptance criterion is the walk on the ARTIFACT, not on localhost.
+  // demo.spec.ts covers the served build; this is the one that matches the ZIP a
+  // judge opens.
+  await page.goto(`${artifact}#/case`);
+
+  const seen: string[] = [];
+  for (let beat = 1; beat <= 7; beat++) {
+    const footer = await page.getByText(/Beat \d of 7/).textContent();
+    seen.push(footer ?? "");
+    expect(footer).toContain(`Beat ${beat} of 7`);
+    if (beat < 7) await page.keyboard.press("ArrowRight");
+  }
+
+  // Seven DISTINCT beats, not the same one re-rendered seven times.
+  expect(new Set(seen).size).toBe(7);
+  await expect(page).toHaveURL(/#\/validation/);
+});
+
+test("Web Crypto works over file://, so the audit log and the hash check are real", async ({ page }) => {
+  // Two headline claims run on crypto.subtle: the hash-chained audit log, and the
+  // pre-flight ruleset check. crypto.subtle is gated on a secure context, and
+  // whether file:// counts as one is a browser policy decision rather than
+  // something the code controls - so it gets measured on the actual artifact
+  // rather than assumed from the localhost run.
+  const failures: string[] = [];
+  page.on("pageerror", (e) => failures.push(`pageerror: ${String(e)}`));
+
+  await page.goto(`${artifact}#/record`);
+  await page.getByRole("button", { name: "Sign" }).click();
+
+  // A signed entry proves the digest resolved. If crypto.subtle were missing, sign()
+  // would reject and no row would ever appear.
+  const row = page.getByTestId("position-row").first();
+  await expect(row).toBeVisible();
+  await expect(row).toContainText(/snapshot [0-9a-f]{12}…/);
+
+  // The second entry must chain to the first rather than to the genesis zeros.
+  await page.getByRole("button", { name: "Sign" }).click();
+  await expect(page.getByTestId("position-row").nth(1)).not.toContainText("prev 000000000000");
+
+  // And the pre-flight hash check, which recomputes the pre-registered hash in the
+  // browser and compares it rather than printing a constant.
+  await page.keyboard.press("?");
+  await expect(page.getByTestId("check-ruleset")).toHaveAttribute("data-ok", "true");
+  await expect(page.getByTestId("check-manifest")).toHaveAttribute("data-ok", "true");
+
+  expect(failures).toEqual([]);
+});
+
+test("the honesty caveats are not the least legible text on screen", async ({ page }) => {
+  // Screen-share compression degrades silently: it looks fine locally while a judge
+  // cannot read the small print. The small print here is what stops us overclaiming,
+  // so it is the last thing that should be hard to read. Measured, because "it looked
+  // fine on my monitor" is how this goes wrong.
+  const measure = (id: string) =>
+    page.getByTestId(id).evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { size: parseFloat(cs.fontSize), weight: Number(cs.fontWeight) };
+    });
+
+  await page.goto(`${artifact}#/validation`);
+  const single = await measure("single-class-warning");
+  expect(single.size).toBeGreaterThanOrEqual(15);
+  expect(single.weight).toBeGreaterThanOrEqual(600);
+
+  await page.goto(`${artifact}#/case`);
+  const citation = await measure("citation-status");
+  expect(citation.size).toBeGreaterThanOrEqual(14);
+  expect(citation.weight).toBeGreaterThanOrEqual(600);
+});
+
 test("the artifact requests nothing over the network", async ({ page }) => {
   const external: string[] = [];
   page.on("request", (r) => {
@@ -3243,6 +3315,11 @@ test("the artifact requests nothing over the network", async ({ page }) => {
 Verified failable: with `inlineEverything()` removed from the plugin list, both
 static-file tests fail while all three `http://localhost` tests still pass. That
 asymmetry is the reason this spec exists.
+
+Task 14 later extended this file with three more `file://` checks - the seven-beat
+keyboard walk on the artifact itself, Web Crypto availability, and the legibility of
+the honesty caveats - so the block above is the final content, not what Task 13 alone
+produced.
 
 Result after the fix — `dist/` is a single file, and over `file://`:
 
@@ -3283,132 +3360,608 @@ lint, typecheck, build and `git diff --exit-code results/verdict-manifest.json` 
 ## Task 14: Presentation hardening
 
 **Files:**
-- Create: `apps/web/src/ui/Preflight.tsx`
-- Modify: `apps/web/src/App.tsx`
-- Modify: `docs/superpowers/specs/2026-07-27-arbiter-phase2-web-app-design.md` (record the measured Teams-share result)
+- Create: `apps/web/src/ui/Preflight.tsx`, `apps/web/src/ui/isTypingTarget.ts`, `apps/web/src/data/rulesetHash.ts`, `apps/harness/src/preregistration.ts`
+- Create: `apps/web/test/preflight.test.tsx`, `apps/web/test/keyboard.test.tsx`, `apps/web/test/rulesetHash.test.ts`
+- Modify: `apps/web/src/App.tsx`, `apps/web/src/tour/TourFooter.tsx`, `apps/web/src/engine/useLibraryVerdicts.ts`, `apps/harness/src/hash.ts`
+- Modify: `apps/web/src/tabs/Validation.tsx`, `apps/web/src/tabs/Case/EvidencePanel.tsx`, `apps/web/e2e/static-file.spec.ts`
+- Modify: `docs/superpowers/specs/2026-07-27-arbiter-phase2-web-app-design.md` (§9a, the measured legibility result)
 
 **Interfaces:**
-- Produces: `<Preflight />` — a `?` panel listing what is live and what is on cache
+- Produces: `<Preflight />` — a `?` panel of CHECKS, not captions; `isTypingTarget` — the shared guard for every global shortcut
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Make the ruleset hash computable in the browser**
 
-Create `apps/web/test/preflight.test.tsx`:
+The plan had `Preflight` printing a hardcoded `REGISTERED_HASH` constant beside the
+words "as registered". That is a caption, not a check: it reads identically on a
+ruleset that has silently drifted, which is the exact failure it claims to rule out.
 
-```tsx
-import { render, screen } from "@testing-library/react";
+Making it a real check means hashing the bundled ruleset in the browser, and that
+means the projection and the canonicalisation have to be reachable from there.
+`apps/harness/src/hash.ts` imports `node:crypto`, which the web bundle cannot pull
+in, so the pure half moved to `apps/harness/src/preregistration.ts`:
+
+```ts
+/**
+ * The pre-registration surface and its canonicalisation, with NO crypto import.
+ *
+ * Split out from hash.ts so the browser can use it. hash.ts reaches for
+ * node:crypto, which the web bundle cannot pull in, and the alternative was a
+ * second copy of the projection in the web app. A second copy is exactly how the
+ * hash mismatch in Task 11 happened: the harness loader projected three of the
+ * four fields while the test projected all four, so every row in results.json
+ * carried a hash matching nothing. One definition, two consumers, different
+ * digest implementations - node:crypto here, Web Crypto in the browser.
+ */
+
+/**
+ * Canonical JSON: object keys sorted at every level, so the digest is stable
+ * against formatting - key order, whitespace, nesting reproduced identically.
+ */
+export function canonicalJson(v: unknown): string {
+  if (v === null || typeof v !== "object") return JSON.stringify(v) ?? "null";
+  if (Array.isArray(v)) return `[${v.map(canonicalJson).join(",")}]`;
+  const entries = Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1));
+  return `{${entries.map(([k, val]) => `${JSON.stringify(k)}:${canonicalJson(val)}`).join(",")}}`;
+}
+
+/**
+ * The PRE-REGISTRATION SURFACE. The one definition, exported so that every caller
+ * hashes the same thing.
+ *
+ * Excludes `version` and `registeredAt` (metadata, not decisions) and
+ * `precedenceRationale` (prose). Includes `precedenceOrder`, which IS a decision:
+ * it is the preference ordering a toxicologist edits.
+ */
+export function projectForHash(rs: {
+  rules: unknown;
+  abstentionGapThreshold: unknown;
+  dilirankBinarisation: unknown;
+  precedenceOrder: unknown;
+}): Record<string, unknown> {
+  return {
+    rules: rs.rules,
+    abstentionGapThreshold: rs.abstentionGapThreshold,
+    dilirankBinarisation: rs.dilirankBinarisation,
+    precedenceOrder: rs.precedenceOrder,
+  };
+}
+
+/**
+ * The hash committed at pre-registration (commit d397b59, 2026-07-26).
+ *
+ * The harness refuses to run when the computed hash differs. Editing the ruleset
+ * is allowed - contesting the rules is the product - but it must be a deliberate
+ * re-registration, not something that happens silently underneath a results file.
+ */
+export const PRE_REGISTERED_HASH =
+  "ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136";
+```
+
+`hash.ts` keeps `rulesetHash` (node:crypto) and re-exports the rest, so `load.ts`
+and `hash.test.ts` did not move. **The refactor is proven inert by the existing test
+that asserts the exact pre-registered constant** — the strongest available check that
+the canonicalisation is byte-identical.
+
+The browser side, `apps/web/src/data/rulesetHash.ts`:
+
+```ts
+import type { Ruleset } from "@arbiter/engine";
+import { canonicalJson, projectForHash } from "../../../harness/src/preregistration.js";
+import { sha256Hex } from "../record/chain.js";
+
+/**
+ * The pre-registration hash of a ruleset, computed IN THE BROWSER.
+ *
+ * The projection and the canonicalisation are imported from the harness rather
+ * than reimplemented, because a second copy of "what counts as the ruleset" is
+ * how a hash comes to match nothing at all. Only the digest differs by platform:
+ * node:crypto there, Web Crypto here.
+ *
+ * This is what makes the pre-flight panel a check rather than a caption. Printing
+ * a hardcoded constant next to the words "as registered" would read identically
+ * on a ruleset that had silently drifted.
+ */
+export async function browserRulesetHash(ruleset: Ruleset): Promise<string> {
+  return sha256Hex(canonicalJson(projectForHash(ruleset)));
+}
+
+export { PRE_REGISTERED_HASH } from "../../../harness/src/preregistration.js";
+```
+
+And the cross-platform test, which is the one that would catch a drift between the
+two implementations:
+
+```ts
 import { describe, expect, it } from "vitest";
-import { StoreProvider } from "../src/state/store.js";
-import { Preflight } from "../src/ui/Preflight.js";
 import { loadData } from "../src/data/load.js";
+import { browserRulesetHash, PRE_REGISTERED_HASH } from "../src/data/rulesetHash.js";
 
 const data = loadData();
 
-describe("Preflight", () => {
-  it("confirms the ruleset hash matches the pre-registered one", () => {
-    render(<StoreProvider data={data}><Preflight /></StoreProvider>);
-    expect(screen.getByTestId("check-ruleset").textContent).toMatch(/registered/i);
+describe("browserRulesetHash", () => {
+  it("reproduces the pre-registered hash from the bundled ruleset", async () => {
+    // The cross-platform check that matters: the harness computes this with
+    // node:crypto and refuses to run on a mismatch, the browser computes it with
+    // Web Crypto. Both must land on the constant committed at pre-registration.
+    // If the projection or the canonicalisation drifted between them, the
+    // pre-flight panel would confidently show a hash the audit trail never saw.
+    expect(await browserRulesetHash(data.ruleset)).toBe(PRE_REGISTERED_HASH);
   });
 
-  it("reports agreement with the committed verdict manifest", () => {
-    // The app recomputes rather than trusting results.json. If the two disagree
-    // that is a real finding and must be visible, not swallowed.
-    render(<StoreProvider data={data}><Preflight /></StoreProvider>);
-    expect(screen.getByTestId("check-manifest")).toBeTruthy();
+  it("changes when a rule's strength changes", async () => {
+    // Editing the ruleset is the product. It must be visible as a different hash,
+    // not absorbed silently, or the pre-flight check certifies nothing.
+    const edited = {
+      ...data.ruleset,
+      rules: data.ruleset.rules.map((r, i) => (i === 0 ? { ...r, strength: 0.123 } : r)),
+    };
+    expect(await browserRulesetHash(edited)).not.toBe(PRE_REGISTERED_HASH);
+  });
+
+  it("ignores version and registeredAt, which are metadata rather than decisions", async () => {
+    const relabelled = { ...data.ruleset, version: "9.9", registeredAt: "2099-01-01" };
+    expect(await browserRulesetHash(relabelled)).toBe(PRE_REGISTERED_HASH);
+  });
+
+  it("changes when precedenceOrder is reordered", async () => {
+    // precedenceOrder IS a decision - it is the preference ordering a toxicologist
+    // edits - and was the field a previous projection omitted.
+    const reordered = { ...data.ruleset, precedenceOrder: [...data.ruleset.precedenceOrder].reverse() };
+    expect(await browserRulesetHash(reordered)).not.toBe(PRE_REGISTERED_HASH);
   });
 });
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Stop the global keys stealing keystrokes from form fields**
 
-Run: `npm test -- apps/web/test/preflight.test.tsx`
-Expected: FAIL — cannot resolve `../src/ui/Preflight.js`
+Found while wiring the `?` key, and it was already broken for the existing keys. The
+tour keys are bound on `window`, so every keystroke in the app reached them:
 
-- [ ] **Step 3: Write the pre-flight panel**
+- Arrow keys nudging a focused ruleset slider — the natural way to nudge a range
+  input — also jumped the beat and switched tabs.
+- Typing `murine`, `malformed` or `metabolite` into the Record tab's Rationale field
+  silently stripped the motion out of the demo.
 
-Create `apps/web/src/ui/Preflight.tsx`:
+Both were demonstrated failing before the fix, and both look like a crash from the
+far end of a Teams call. The shared guard:
+
+```ts
+/**
+ * Is this keystroke meant for a form field rather than for a global shortcut?
+ *
+ * The presentation shortcuts are bound on `window`, so every keystroke in the app
+ * reaches them. Without this guard, arrow keys nudging a focused ruleset slider
+ * also jump the beat and switch tabs, typing "murine" or "malformed" into the
+ * Rationale field silently strips the motion out of the demo, and a "?" in a
+ * rationale opens the pre-flight panel over the top of it. Each of those looks
+ * like a crash from the far end of a Teams call.
+ *
+ * Range inputs and checkboxes are deliberately included: arrow keys are how you
+ * nudge a slider, and that is the caller's intent, not the tour's.
+ *
+ * Shared rather than duplicated per handler, because the failure mode of a second
+ * copy is one handler quietly keeping the old behaviour.
+ */
+export function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT";
+}
+```
+
+`Escape` stays exempt on purpose: clearing the focused region is harmless from
+anywhere, and it is what someone stuck in a field will reach for. The tests, which
+assert the guard does not disable the feature it protects:
 
 ```tsx
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { StoreProvider } from "../src/state/store.js";
+import { TourFooter } from "../src/tour/TourFooter.js";
+import { RulesetTab } from "../src/tabs/Ruleset.js";
+import { RecordTab } from "../src/tabs/Record.js";
+import { loadData } from "../src/data/load.js";
+
+const data = loadData();
+
+/**
+ * The global keys are the presentation surface, and they are bound on `window`,
+ * which means every keystroke anywhere in the app reaches them - including
+ * keystrokes meant for a text field.
+ */
+describe("global keys yield to form fields", () => {
+  it("does not advance the beat when the arrow key is nudging a slider", () => {
+    // Arrow keys are how you nudge a focused range input. Teleporting the
+    // presenter to another tab instead is indistinguishable from a crash from the
+    // far end of a Teams call.
+    render(<StoreProvider data={data}><RulesetTab /><TourFooter /></StoreProvider>);
+    const beatBefore = screen.getByText(/Beat 1 of/).textContent;
+
+    fireEvent.keyDown(screen.getByTestId("strength-R1"), { key: "ArrowRight" });
+
+    expect(screen.getByText(/Beat 1 of/).textContent).toBe(beatBefore);
+  });
+
+  it("does not toggle motion when 'm' is a letter being typed into a rationale", () => {
+    // "malformed", "murine", "metabolite" - a reviewer typing any of them would
+    // silently strip the motion from the demo.
+    render(<StoreProvider data={data}><RecordTab /><TourFooter /></StoreProvider>);
+    expect(screen.getByText(/motion on/)).toBeTruthy();
+
+    const rationale = screen.getByLabelText(/Rationale/);
+    fireEvent.keyDown(rationale, { key: "m" });
+
+    expect(screen.getByText(/motion on/)).toBeTruthy();
+  });
+
+  it("still drives the tour from the page body, which is where a presenter is", () => {
+    // The guard must not disable the feature it protects.
+    render(<StoreProvider data={data}><TourFooter /></StoreProvider>);
+    expect(screen.getByText(/Beat 1 of/)).toBeTruthy();
+
+    fireEvent.keyDown(document.body, { key: "ArrowRight" });
+
+    expect(screen.getByText(/Beat 2 of/)).toBeTruthy();
+  });
+
+  it("still toggles motion from the page body", () => {
+    render(<StoreProvider data={data}><TourFooter /></StoreProvider>);
+    fireEvent.keyDown(document.body, { key: "m" });
+    expect(screen.getByText(/motion off/)).toBeTruthy();
+  });
+});
+```
+
+- [x] **Step 3: Write the pre-flight panel**
+
+```tsx
+import { useEffect, useState } from "react";
 import { useAppState } from "../state/store.js";
 import { useLibraryVerdicts } from "../engine/useLibraryVerdicts.js";
-
-const REGISTERED_HASH = "ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136";
+import { browserRulesetHash, PRE_REGISTERED_HASH } from "../data/rulesetHash.js";
 
 /**
  * What a presenter needs to confirm ninety seconds before going live.
  *
- * The manifest check is the interesting one: the app recomputes every verdict in
- * the browser, so agreeing with the committed harness output is a property worth
- * showing rather than assuming. A disagreement is a real finding and appears in
- * red rather than being swallowed.
+ * Every line here is a CHECK, computed now, not a caption. The distinction is the
+ * whole point: printing the pre-registered hash next to the words "as registered"
+ * would read exactly the same on a ruleset that had silently drifted, which is the
+ * failure it claims to rule out. So the hash is recomputed in the browser from the
+ * bundled ruleset and compared, and the verdicts are recomputed and compared to
+ * the committed manifest. A failure appears in red and says what to do.
  */
 export function Preflight() {
-  const { data } = useAppState();
-  const live = useLibraryVerdicts();
+  const { data, ruleset } = useAppState();
+  // Deliberately the REGISTERED ruleset, not the working copy - see the override
+  // comment in useLibraryVerdicts.
+  const live = useLibraryVerdicts(data.ruleset);
 
+  const [hash, setHash] = useState<string | null>(null);
+  const [hashError, setHashError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    browserRulesetHash(data.ruleset)
+      .then((h) => { if (!cancelled) setHash(h); })
+      // Web Crypto is unavailable in an insecure context. Saying so beats an
+      // empty line that reads as a passing check.
+      .catch((e: Error) => { if (!cancelled) setHashError(e.message); });
+    return () => { cancelled = true; };
+  }, [data.ruleset]);
+
+  const hashOk = hash === PRE_REGISTERED_HASH;
   const mismatches = data.testSplit.filter(
     (id) => live.get(id)?.verdict !== data.manifest.get(id)?.verdict,
   );
+  const errored = data.testSplit.filter((id) => live.get(id)?.error !== undefined);
+  const edited = ruleset !== data.ruleset;
+
+  const bad = { color: "var(--toxic)", fontWeight: 600 };
 
   return (
-    <aside style={{ padding: 16, borderTop: "1px solid var(--hairline)" }}>
+    <aside data-testid="preflight"
+           style={{ padding: 16, borderTop: "1px solid var(--hairline)", background: "var(--surface)" }}>
       <h3 style={{ fontFamily: "var(--serif)", marginTop: 0 }}>Pre-flight</h3>
-      <ul style={{ fontSize: 13 }}>
-        <li data-testid="check-ruleset">
-          Ruleset {data.ruleset.version} — {REGISTERED_HASH.slice(0, 8)}… as registered
+      <ul style={{ fontSize: 13, lineHeight: 1.7 }}>
+        <li data-testid="check-ruleset" data-ok={hashError ? "error" : String(hashOk)}
+            style={hashOk ? undefined : bad}>
+          {hashError !== null
+            ? `Could not compute the ruleset hash: ${hashError}`
+            : hash === null
+              ? "Hashing the ruleset…"
+              : hashOk
+                ? `Ruleset ${data.ruleset.version} — ${hash.slice(0, 8)}… matches the pre-registered hash`
+                : `Ruleset ${data.ruleset.version} hashes to ${hash.slice(0, 8)}… but ${PRE_REGISTERED_HASH.slice(0, 8)}… was pre-registered — do not present these numbers as pre-registered`}
         </li>
-        <li data-testid="check-manifest" style={{ color: mismatches.length ? "var(--toxic)" : undefined }}>
+
+        <li data-testid="check-manifest" data-ok={String(mismatches.length === 0)}
+            style={mismatches.length === 0 ? undefined : bad}>
           {mismatches.length === 0
             ? `Live recomputation agrees with the committed manifest on all ${data.testSplit.length} compounds`
-            : `${mismatches.length} compounds disagree with the committed manifest — investigate before presenting`}
+            : `${mismatches.length} of ${data.testSplit.length} compounds disagree with the committed manifest (${mismatches.slice(0, 3).join(", ")}…) — investigate before presenting`}
         </li>
-        <li>Evidence: {data.claimsByCompound.size} compounds, fixture citations {data.fixture.citationStatus}</li>
-        <li>All data is bundled. No network call is made at any point.</li>
+
+        <li data-testid="check-errors" data-ok={String(errored.length === 0)}
+            style={errored.length === 0 ? undefined : bad}>
+          {errored.length === 0
+            ? "No compound threw during recomputation"
+            : `${errored.length} compounds threw and are being shown as abstain — ${errored.slice(0, 3).join(", ")}`}
+        </li>
+
+        {/* Not a failure. Editing the ruleset is the product - but saying so out
+            loud stops someone quoting a number that came from a dragged slider. */}
+        <li data-testid="check-edits" data-ok={String(!edited)}
+            style={edited ? { color: "var(--muted)", fontWeight: 600 } : undefined}>
+          {edited
+            ? "The ruleset on screen has live edits — press Reset on the Ruleset tab before quoting a metric"
+            : "No live edits: the ruleset on screen is the registered one"}
+        </li>
+
+        <li data-testid="check-evidence">
+          Evidence: {data.claimsByCompound.size} compounds with claims, {data.testSplit.length} scored;
+          fixture citations {data.fixture.citationStatus}
+        </li>
+
+        <li data-testid="check-network">
+          All data is bundled into this page. No network call is made at any point, so
+          losing the connection mid-demo changes nothing.
+        </li>
       </ul>
+      <p style={{ fontSize: 12, color: "var(--muted)", margin: 0 }}>? to close</p>
     </aside>
   );
 }
 ```
 
-Mount it behind a `?` key in `App.tsx`, alongside the existing tour key handling.
+The manifest check compares against the **registered** ruleset, not the working
+copy, via a new optional override on `useLibraryVerdicts`. The committed manifest was
+produced by the harness under the registered ruleset; comparing it to verdicts
+computed from a copy someone has been dragging sliders on would report a
+disagreement that is not one, and the entire value of the check is that a
+disagreement is real.
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Test both directions of every check**
 
-Run: `npm test && npm run lint && npm run typecheck && npm run web:build`
-Expected: PASS throughout.
+```tsx
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { App } from "../src/App.js";
+import { StoreProvider } from "../src/state/store.js";
+import { Preflight } from "../src/ui/Preflight.js";
+import { loadData, type LoadedData } from "../src/data/load.js";
+import type { Verdict } from "@arbiter/engine";
 
-- [ ] **Step 5: Do the Teams-share legibility check**
+const data = loadData();
 
-Share the built app in a real Teams call and read it at the far end. Body 14px, evidence names 15–16px focused, verdicts 24–27px. **Screen-share compression degrades silently — it will look fine locally while a judge cannot read the rule names.** Record the result in §9 of the Phase 2 spec, with the date and what was changed if anything.
+const renderWith = (d: LoadedData) => render(<StoreProvider data={d}><Preflight /></StoreProvider>);
 
-- [ ] **Step 6: Commit**
+/**
+ * These assertions read `data-ok` rather than matching the copy, and that is
+ * deliberate. The obvious test - textContent matching /registered/i - passes on
+ * BOTH branches, because the failure message also contains the word "registered".
+ * A test that cannot tell a passing check from a failing one is a caption with a
+ * test around it.
+ */
+describe("Preflight", () => {
+  it("confirms the bundled ruleset hashes to the pre-registered value", async () => {
+    renderWith(data);
+    const line = await screen.findByTestId("check-ruleset");
+    // The hash is computed asynchronously via Web Crypto, so wait for the result
+    // rather than asserting on the "Hashing…" placeholder. waitFor rather than
+    // expect.poll: the resolving promise calls setState outside act(), and waitFor
+    // is the one that wraps the wait in act. With poll this test flaked once.
+    await waitFor(() => expect(line.getAttribute("data-ok")).toBe("true"));
+    expect(line.textContent).toContain("ed073a8a");
+  });
 
-```bash
-git add apps/web docs
-git commit -m "Add the pre-flight panel and record the Teams-share check
+  it("REFUSES the ruleset when it does not hash to the pre-registered value", async () => {
+    // A silently drifted ruleset is the exact thing this line claims to rule out,
+    // so it has to be shown failing on one.
+    const drifted: LoadedData = {
+      ...data,
+      ruleset: {
+        ...data.ruleset,
+        rules: data.ruleset.rules.map((r, i) => (i === 0 ? { ...r, strength: 0.123 } : r)),
+      },
+    };
 
-The manifest check is the one that earns its place: the app recomputes every
-verdict in the browser, so agreeing with the committed harness output is a
-property worth showing rather than assuming, and a disagreement appears in red
-rather than being swallowed.
+    const line = await renderWith(drifted).findByTestId("check-ruleset");
+    await waitFor(() => expect(line.getAttribute("data-ok")).toBe("false"));
+    expect(line.textContent).toMatch(/do not present these numbers as pre-registered/);
+  });
 
-Also states plainly that no network call is made at any point, which is the answer
-to 'what happens if the wifi drops mid-demo'.
+  it("reports that live recomputation agrees with the committed manifest", () => {
+    // The app recomputes rather than trusting results.json, so agreement is a
+    // property worth showing rather than assuming.
+    const line = renderWith(data).getByTestId("check-manifest");
+    expect(line.getAttribute("data-ok")).toBe("true");
+    expect(line.textContent).toContain(`all ${data.testSplit.length} compounds`);
+  });
 
-Teams-share legibility verified on a real call and the result recorded in the
-spec, because screen-share compression degrades silently: it looks fine locally
-while a judge cannot read the rule names."
-git push origin arbiter-round1
+  it("REPORTS A DISAGREEMENT when the manifest and the engine differ", () => {
+    // The check has to be able to fail, or it certifies nothing. Corrupt one
+    // manifest row and the panel must say so, in red, naming the compound.
+    const victim = data.testSplit[0]!;
+    const wrong = data.manifest.get(victim)!.verdict === "advance" ? "do_not_advance" : "advance";
+    const corrupted: LoadedData = {
+      ...data,
+      manifest: new Map(data.manifest).set(victim, { verdict: wrong as Verdict, belief: 0 }),
+    };
+
+    const line = renderWith(corrupted).getByTestId("check-manifest");
+    expect(line.getAttribute("data-ok")).toBe("false");
+    expect(line.textContent).toContain(victim);
+    expect(line.textContent).toMatch(/investigate before presenting/);
+  });
+
+  it("says plainly that the ruleset on screen is unedited", () => {
+    expect(renderWith(data).getByTestId("check-edits").getAttribute("data-ok")).toBe("true");
+  });
+
+  it("states that no network call is made, which is the wifi-drop answer", () => {
+    expect(renderWith(data).getByTestId("check-network").textContent).toMatch(/no network call/i);
+  });
+});
+
+describe("the ? key", () => {
+  it("opens the panel and closes it again", () => {
+    render(<App />);
+    expect(screen.queryByTestId("preflight")).toBeNull();
+
+    fireEvent.keyDown(document.body, { key: "?" });
+    expect(screen.getByTestId("preflight")).toBeTruthy();
+
+    fireEvent.keyDown(document.body, { key: "?" });
+    expect(screen.queryByTestId("preflight")).toBeNull();
+  });
+
+  it("does not open when ? is a character being typed into a field", () => {
+    // A reviewer writing "safe at what exposure?" would otherwise have the
+    // pre-flight panel appear over their rationale mid-sentence.
+    window.location.hash = "#/record";
+    render(<App />);
+    fireEvent.keyDown(screen.getByLabelText(/Rationale/), { key: "?" });
+    expect(screen.queryByTestId("preflight")).toBeNull();
+    window.location.hash = "";
+  });
+});
 ```
+
+Note what these assert and why. `data-ok` rather than the copy, because the obvious
+test — `textContent` matching `/registered/i` — **passes on both branches**: the
+failure message also contains the word "registered". A test that cannot tell a
+passing check from a failing one is a caption with a test around it.
+
+`check-errors` is deliberately left untested. Asserting `errored.length === 0` on
+this fixture is asserting a value that is zero under every implementation, and there
+is no honest way to force a throw from outside the component.
+
+Mounted behind `?` in `App.tsx`:
+
+```tsx
+import { useEffect, useState } from "react";
+import { parseHash, TAB_IDS, type TabId } from "./router.js";
+import { loadData } from "./data/load.js";
+import { StoreProvider, useAppState } from "./state/store.js";
+import { CaseTab } from "./tabs/Case/index.js";
+import { CompoundsTab } from "./tabs/Compounds.js";
+import { RulesetTab } from "./tabs/Ruleset.js";
+import { ValidationTab } from "./tabs/Validation.js";
+import { RecordTab } from "./tabs/Record.js";
+import { TourFooter } from "./tour/TourFooter.js";
+import { Preflight } from "./ui/Preflight.js";
+import { isTypingTarget } from "./ui/isTypingTarget.js";
+import "./ui/motion.css";
+
+const data = loadData();
+
+function AppShell({ tab }: { tab: TabId }) {
+  const { motion } = useAppState();
+  const [preflight, setPreflight] = useState(false);
+
+  // `?` rather than a visible button: it is for the presenter in the ninety
+  // seconds before going live, not part of the story a judge is shown.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "?" || isTypingTarget(e.target)) return;
+      setPreflight((open) => !open);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return (
+    <div data-motion={motion ? "on" : "off"}>
+      <nav style={{ background: "var(--deep)", padding: "10px 20px", display: "flex", gap: 18 }}>
+        {TAB_IDS.map((t) => (
+          <a key={t} href={`#/${t}`} aria-current={t === tab ? "page" : undefined}
+             style={{ color: "#fff", textDecoration: t === tab ? "underline" : "none", textTransform: "capitalize" }}>
+            {t}
+          </a>
+        ))}
+      </nav>
+      {tab === "case" ? <CaseTab />
+        : tab === "compounds" ? <CompoundsTab />
+        : tab === "ruleset" ? <RulesetTab />
+        : tab === "validation" ? <ValidationTab />
+        : <RecordTab />}
+      {preflight ? <Preflight /> : null}
+      <TourFooter />
+    </div>
+  );
+}
+
+export function App() {
+  const [tab, setTab] = useState<TabId>(() => parseHash(window.location.hash));
+  useEffect(() => {
+    const onHash = () => setTab(parseHash(window.location.hash));
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  return (
+    <StoreProvider data={data}>
+      <AppShell tab={tab} />
+    </StoreProvider>
+  );
+}
+```
+
+- [x] **Step 5: Measure legibility, and be clear about what a machine cannot check**
+
+Measured on the built artifact at 1920×1080, per tab: body 14px, verdict 27px, tab
+headings 21–22px, smallest text with content 13px. Body and verdict match the
+intended 14px and 24–27px.
+
+The finding was not a size but a **priority inversion**: the smallest and lightest
+text in the app was carrying the honesty caveats — `citations UNVERIFIED` at 13px,
+and the single-class warning at **14px/400, the same weight as body copy**, when it
+is the one line that must not be missed, because the balanced accuracy beside it is
+half a substituted 0.5. Raised to 15px/600 and 14px/600, and guarded by a `file://`
+e2e assertion on computed style so they cannot drift back to caption size.
+
+Also verified over `file://` that **Web Crypto is available**, by signing two
+positions and asserting the second chains to the first rather than to the genesis
+zeros, and that the pre-flight hash check reports a match. `crypto.subtle` is gated
+on a secure context and whether `file://` qualifies is a browser policy decision, not
+something this code controls — so the hash-chained audit log and the hash check are
+measured on the actual artifact rather than assumed from the localhost run.
+
+**Still outstanding, and it needs a person: the Teams-share read at the far end of a
+real call.** Screen-share compression degrades silently, and everything above was
+measured on a local display — precisely the condition under which this looks fine and
+still fails. Recorded in spec §9a with an owner: whoever runs the first rehearsal.
+
+- [x] **Step 6: Commit**
+
+Commit `63a0925`. Suite at 269 vitest tests across 32 files plus 7 Playwright tests;
+lint, typecheck, build clean; `results/` unchanged.
 
 ---
 
 ## Done when
 
-- `npm test` green, `npm run lint` and `npm run typecheck` clean, `npm run e2e` green.
-- `npm run golden:update` produces no diff on a clean checkout — the reported numbers have not moved.
-- `apps/web/dist/index.html` opens from the filesystem with no server and walks all seven beats on the keyboard.
-- `python tools/sync_plan.py` reports `DRIFT-FREE`.
-- The seven-beat test passes against the real engine, and has been watched failing at least once.
+All met as of `2026-07-28`, each against measured evidence rather than inspection:
+
+- [x] `npm test` green — **269 tests across 32 files**, run 12 consecutive times to clear a
+  single unreproduced failure (traced to `expect.poll` not wrapping in `act()` around the
+  async Web Crypto `setState`; switched to `waitFor`). `npm run lint` and `npm run typecheck`
+  clean, `npm run e2e` green at **8 tests**.
+- [x] `npm run golden:update` produces no diff — the reported numbers have not moved.
+- [x] `apps/web/dist/index.html` opens from the filesystem with no server and walks all seven
+  beats on the keyboard — asserted on the ARTIFACT in `static-file.spec.ts`, including that the
+  seven beats are distinct rather than one beat re-rendered seven times. This criterion is the
+  one that found the build broken; see Task 13 Step 5.
+- [x] `python tools/sync_plan.py` reports `DRIFT-FREE` for the Phase 1 plan, and every code
+  block in THIS plan was spliced from its verified source and proven byte-identical by
+  extracting it back out and diffing. Nothing hand-retyped.
+- [x] The seven-beat test passes against the real engine, and was watched failing: the reviewer
+  emptied beat 4's `actions` array and observed the BEAT 5 case fail with
+  `expected 0 to be greater than 0`.
+
+**Not met, and it needs a person:** the Teams-share read at the far end of a real call
+(spec §9a). Everything measurable was measured on a local display, which is exactly the
+condition under which screen-share compression looks fine and still fails.
 
 ## Deliberately not in this plan
 

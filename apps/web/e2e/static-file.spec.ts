@@ -42,6 +42,25 @@ test("the built artifact works opened from the filesystem, with no server", asyn
   expect(failures).toEqual([]);
 });
 
+test("all seven beats walk on the keyboard alone, from the filesystem", async ({ page }) => {
+  // The plan's acceptance criterion is the walk on the ARTIFACT, not on localhost.
+  // demo.spec.ts covers the served build; this is the one that matches the ZIP a
+  // judge opens.
+  await page.goto(`${artifact}#/case`);
+
+  const seen: string[] = [];
+  for (let beat = 1; beat <= 7; beat++) {
+    const footer = await page.getByText(/Beat \d of 7/).textContent();
+    seen.push(footer ?? "");
+    expect(footer).toContain(`Beat ${beat} of 7`);
+    if (beat < 7) await page.keyboard.press("ArrowRight");
+  }
+
+  // Seven DISTINCT beats, not the same one re-rendered seven times.
+  expect(new Set(seen).size).toBe(7);
+  await expect(page).toHaveURL(/#\/validation/);
+});
+
 test("Web Crypto works over file://, so the audit log and the hash check are real", async ({ page }) => {
   // Two headline claims run on crypto.subtle: the hash-chained audit log, and the
   // pre-flight ruleset check. crypto.subtle is gated on a secure context, and
