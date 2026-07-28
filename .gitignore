@@ -47,6 +47,9 @@ data/out/*
 results/*
 !results/results.json
 !results/metrics.json
+!results/verdict-manifest.json
+!results/golden/
+!results/golden/metrics.golden.json
 
 # Node
 node_modules/

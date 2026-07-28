@@ -12,7 +12,9 @@
     "typecheck": "tsc -b packages/engine apps/harness",
     "harness": "tsx apps/harness/src/main.ts",
     "validate:evidence": "tsx apps/harness/src/validate-evidence.ts",
-    "metrics": "tsx apps/harness/src/run-metrics.ts"
+    "metrics": "tsx apps/harness/src/run-metrics.ts",
+    "golden:update": "tsx apps/harness/src/update-golden.ts",
+    "e2e": "playwright test"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",

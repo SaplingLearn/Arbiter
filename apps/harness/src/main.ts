@@ -51,6 +51,18 @@ function main(): void {
     rows,
   }, null, 2));
 
+  // A compact cross-check for the web app, which recomputes verdicts in the
+  // browser rather than trusting a precomputed file. Bundling all of
+  // results.json would add 676KB of almost entirely recomputable data.
+  writeFileSync("results/verdict-manifest.json", JSON.stringify({
+    rulesetHash: hash,
+    rows: rows.map((r) => ({
+      compoundId: r.compoundId,
+      verdict: r.arbiter.verdict,
+      belief: r.arbiter.belief,
+    })),
+  }, null, 2));
+
   const conflict = rows.filter((r) => r.conflicting);
   console.log(JSON.stringify({
     scored: rows.length,
