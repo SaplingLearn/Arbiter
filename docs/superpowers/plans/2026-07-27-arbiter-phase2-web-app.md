@@ -2819,15 +2819,15 @@ git push origin arbiter-round1
 ## Task 13: Motion, accessibility, and the static build
 
 **Files:**
-- Create: `apps/web/src/ui/motion.css`, `apps/web/e2e/demo.spec.ts`, `playwright.config.ts`
+- Create: `apps/web/src/ui/motion.css`, `apps/web/e2e/demo.spec.ts`, `apps/web/e2e/static-file.spec.ts`, `playwright.config.ts`
 - Create: `apps/web/test/a11y.test.tsx`
-- Modify: `apps/web/src/App.tsx`, root `package.json`, `.github/workflows/ci.yml`
+- Modify: `apps/web/src/App.tsx`, `apps/web/vite.config.ts`, `vitest.config.ts`, `.eslintrc.json`, root `package.json`, `.github/workflows/ci.yml`
 
 **Interfaces:**
 - Consumes: `AppState.motion`
-- Produces: a `data-motion` attribute on the app root; a Playwright walk of the demo path
+- Produces: a `data-motion` attribute on the app root; a single self-contained `dist/index.html`; a Playwright walk of the demo path
 
-- [ ] **Step 1: Write the failing accessibility test**
+- [x] **Step 1: Write the failing accessibility test**
 
 Create `apps/web/test/a11y.test.tsx`:
 
@@ -2857,12 +2857,13 @@ describe("accessibility basics", () => {
 });
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/a11y.test.tsx`
-Expected: FAIL — no `[data-motion]` node
+Expected: FAIL — no `[data-motion]` node.
+Observed: `AssertionError: expected null not to be null` at the `[data-motion]` assertion, 2 passed 1 failed.
 
-- [ ] **Step 3: Add the motion layer**
+- [x] **Step 3: Add the motion layer**
 
 Create `apps/web/src/ui/motion.css`:
 
@@ -2878,9 +2879,64 @@ Create `apps/web/src/ui/motion.css`:
 }
 ```
 
-In `App.tsx`, wrap the app in `<div data-motion={motion ? "on" : "off"}>` (reading `motion` from `useAppState`) and import `./ui/motion.css`.
+`App.tsx` reads `motion` from `useAppState`, which means the element carrying
+`data-motion` has to sit INSIDE `StoreProvider` rather than wrapping it. Hence the
+inner `AppShell` component:
 
-- [ ] **Step 4: Write the Playwright walk**
+```tsx
+import { useEffect, useState } from "react";
+import { parseHash, TAB_IDS, type TabId } from "./router.js";
+import { loadData } from "./data/load.js";
+import { StoreProvider, useAppState } from "./state/store.js";
+import { CaseTab } from "./tabs/Case/index.js";
+import { CompoundsTab } from "./tabs/Compounds.js";
+import { RulesetTab } from "./tabs/Ruleset.js";
+import { ValidationTab } from "./tabs/Validation.js";
+import { RecordTab } from "./tabs/Record.js";
+import { TourFooter } from "./tour/TourFooter.js";
+import "./ui/motion.css";
+
+const data = loadData();
+
+function AppShell({ tab }: { tab: TabId }) {
+  const { motion } = useAppState();
+  return (
+    <div data-motion={motion ? "on" : "off"}>
+      <nav style={{ background: "var(--deep)", padding: "10px 20px", display: "flex", gap: 18 }}>
+        {TAB_IDS.map((t) => (
+          <a key={t} href={`#/${t}`} aria-current={t === tab ? "page" : undefined}
+             style={{ color: "#fff", textDecoration: t === tab ? "underline" : "none", textTransform: "capitalize" }}>
+            {t}
+          </a>
+        ))}
+      </nav>
+      {tab === "case" ? <CaseTab />
+        : tab === "compounds" ? <CompoundsTab />
+        : tab === "ruleset" ? <RulesetTab />
+        : tab === "validation" ? <ValidationTab />
+        : <RecordTab />}
+      <TourFooter />
+    </div>
+  );
+}
+
+export function App() {
+  const [tab, setTab] = useState<TabId>(() => parseHash(window.location.hash));
+  useEffect(() => {
+    const onHash = () => setTab(parseHash(window.location.hash));
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  return (
+    <StoreProvider data={data}>
+      <AppShell tab={tab} />
+    </StoreProvider>
+  );
+}
+```
+
+- [x] **Step 4: Write the Playwright walk**
 
 Create `playwright.config.ts` at the repo root:
 
@@ -2891,7 +2947,7 @@ export default defineConfig({
   testDir: "apps/web/e2e",
   use: { baseURL: "http://localhost:4173" },
   webServer: {
-    command: "npm run web:build && npx vite preview --port 4173 --outDir apps/web/dist",
+    command: "npm run web:build && npm run -w @arbiter/web preview -- --port 4173",
     port: 4173,
     reuseExistingServer: true,
   },
@@ -2917,36 +2973,297 @@ test("the demo walks end to end on the keyboard alone", async ({ page }) => {
   await expect(page).toHaveURL(/#\/compounds/);
 });
 
+test("the M key actually stops the motion, not just flips an attribute", async ({ page }) => {
+  await page.goto("/#/case");
+  const fill = page.getByTestId("belief-fill");
+  const duration = () => fill.evaluate((el) => getComputedStyle(el).transitionDuration);
+
+  // BeliefTrack sets `transition: left 900ms ease, width 900ms ease` as an INLINE
+  // style, and inline styles lose only to `!important` in a stylesheet. That is
+  // the whole mechanism this asserts: an attribute that flips while the animation
+  // keeps running would be a kill switch in name only.
+  await expect(page.locator("[data-motion=on]")).toHaveCount(1);
+  expect(await duration()).toBe("0.9s, 0.9s");
+
+  await page.keyboard.press("m");
+  await expect(page.locator("[data-motion=off]")).toHaveCount(1);
+  // One value, not two: the !important 0.01ms replaces the whole shorthand
+  // rather than being applied per-property.
+  expect(await duration()).toBe("1e-05s");
+});
+
 test("the ruleset slider changes the verdict live", async ({ page }) => {
   await page.goto("/#/ruleset");
   const before = await page.getByTestId("live-belief").textContent();
-  await page.getByTestId("strength-R3").fill("0.05");
+  // R1, not R3: dropping R3's strength on the TAK-994 fixture changes nothing -
+  // see apps/web/test/ruleset.test.tsx and task-9-report.md. R1 is the rule
+  // that actually moves this fixture's belief, so R1 is what proves the live
+  // recompute rather than a stale render.
+  await page.getByTestId("strength-R1").fill("0.05");
   await expect(page.getByTestId("live-belief")).not.toHaveText(before ?? "");
   await expect(page.getByTestId("modified-badge")).toBeVisible();
 });
 ```
 
-- [ ] **Step 5: Verify the static build opens from the filesystem**
+Two things in that file are corrections to the original plan, both load-bearing:
 
-```bash
-cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm run web:build && npx playwright install --with-deps chromium && npm run e2e
+- **The slider test drives R1, not R3.** Dropping R3's strength changes nothing on
+  the TAK-994 fixture: the murine claim R3-*defeats* the four safe claims, and
+  defeat ignores `strength` entirely. A correct implementation would fail an
+  R3-based test. R1 is the rule that actually moves this fixture's belief
+  (0.090 → 0.855).
+- **The motion test asserts the computed `transition-duration` collapses**, from
+  `0.9s, 0.9s` to `1e-05s`, rather than only that the attribute flipped. `BeliefTrack`
+  sets its transition as an INLINE style, and inline styles lose only to
+  `!important` in a stylesheet, so this is the whole mechanism. Verified failable by
+  neutering `motion.css`, which yields `0.9s, 0.9s`.
+
+Also exclude the e2e directory from vitest, spreading `configDefaults.exclude`
+rather than replacing it, and give `apps/web` a browser env in eslint so `window`
+and `document` resolve. That second change exposed a real hole: `npm run lint` passed
+`--ext .ts`, so every `.tsx` file in the web app — the entire UI — was never linted.
+It is now `--ext .ts,.tsx`, verified by planting an unused variable in a `.tsx`.
+
+- [x] **Step 5: Verify the static build opens from the filesystem**
+
+**This step found the artifact broken.** Built, then opened `apps/web/dist/index.html`
+from the filesystem in Chrome. The page rendered **completely blank** — `#root`
+innerHTML length 0:
+
+```
+console: Access to script at 'file:///.../assets/index-CyyCQ3b7.js' from origin 'null'
+  has been blocked by CORS policy: Cross origin requests are only supported for
+  protocol schemes: chrome, chrome-untrusted, data, http, https.
+requestfailed: file:///.../assets/index-CyyCQ3b7.js net::ERR_FAILED
+requestfailed: file:///.../assets/index-DjsYs_Fu.css net::ERR_FAILED
 ```
 
-Then open `apps/web/dist/index.html` directly in a browser (no server) and confirm the Case tab renders TAK-994 abstaining. **This is the submitted artifact; if it only works when served, the ZIP is broken.**
+`base: './'` was necessary but nowhere near sufficient. Vite tags its emitted
+`<script>` and `<link>` with `crossorigin`, Chrome treats that as a CORS request, and
+a page opened from the filesystem has origin `null` which `file://` cannot satisfy.
+Every test in the suite ran over `http://localhost`, where this failure mode does not
+exist, so nothing would have caught it before submission.
 
-Measure the bundle, because ~1.2MB of JSON is inlined and first paint over a
-compressed Teams share is the risk:
+The fix is a build plugin that folds the chunk and the stylesheet into `index.html`,
+leaving one file with zero subresources:
 
-```bash
-cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && du -sh apps/web/dist && ls -lS apps/web/dist/assets | head -5
+```ts
+import { defineConfig, type Plugin } from "vite";
+import react from "@vitejs/plugin-react";
+
+/**
+ * Folds the JS chunk and the stylesheet into index.html so the built app makes
+ * ZERO subresource requests.
+ *
+ * This is not an optimisation, it is the only way the submitted artifact works.
+ * Vite tags its emitted <script> and <link> with `crossorigin`, which makes
+ * Chrome treat them as CORS requests. A page opened from the filesystem has
+ * origin `null`, and file:// is not a scheme CORS can satisfy, so both the
+ * script and the stylesheet fail with ERR_FAILED and the page renders
+ * completely blank - measured, not assumed. Serving over http:// hides this
+ * entirely, so a dev server is exactly the wrong place to look for it.
+ *
+ * The guard against regression is apps/web/e2e/static-file.spec.ts, which opens
+ * dist/index.html over file:// and asserts the verdict actually renders.
+ */
+function inlineEverything(): Plugin {
+  return {
+    name: "arbiter-inline-everything",
+    enforce: "post",
+    apply: "build",
+    generateBundle(_options, bundle) {
+      const html = bundle["index.html"];
+      if (!html || html.type !== "asset") {
+        throw new Error("inlineEverything: no index.html in the bundle");
+      }
+      let source = String(html.source);
+
+      // Deleting a bundle entry whose tag was never found would satisfy the
+      // survivors check below while leaving a dead reference in the HTML, so
+      // every substitution has to be observed to change the source.
+      const substitute = (pattern: RegExp, replacement: () => string, what: string): void => {
+        const next = source.replace(pattern, replacement);
+        if (next === source) throw new Error(`inlineEverything: no tag found for ${what}`);
+        source = next;
+      };
+
+      for (const [fileName, output] of Object.entries(bundle)) {
+        if (fileName === "index.html") continue;
+
+        if (output.type === "chunk") {
+          // A closing script tag inside the JS would end the element early. The
+          // escaped form is inert to the HTML parser and identical to JS.
+          const code = output.code.replace(/<\/script/gi, "<\\/script");
+          // A replacer FUNCTION, not a replacement string: minified JS is full of
+          // `$`, and in a replacement string `$&`, `$'` and `` $` `` are
+          // substitution patterns. They silently spliced the original tag back
+          // into the middle of the code and produced a SyntaxError.
+          substitute(
+            new RegExp(`<script[^>]*src="\\.?/?${fileName}"[^>]*></script>`),
+            // type="module" is kept, and it matters twice over. It preserves the
+            // deferred execution the original tag had - an inline classic script
+            // in <head> runs before <body> exists, so createRoot got a null
+            // container and React threw #299. And an INLINE module script issues
+            // no request, so there is nothing for CORS to block; it was the
+            // crossorigin attribute on the external src that broke file://, not
+            // module semantics.
+            () => `<script type="module">${code}</script>`,
+            fileName,
+          );
+          delete bundle[fileName];
+        } else if (fileName.endsWith(".css")) {
+          const css = String(output.source).replace(/<\/style/gi, "<\\/style");
+          substitute(
+            new RegExp(`<link[^>]*href="\\.?/?${fileName}"[^>]*>`),
+            () => `<style>${css}</style>`,
+            fileName,
+          );
+          delete bundle[fileName];
+        }
+      }
+
+      html.source = source;
+
+      // The invariant, checked on the bundle rather than on the HTML text: if
+      // anything besides index.html survives, the artifact has a subresource,
+      // and a subresource is a blank page over file://. Scanning the HTML for
+      // leftover src=/href= would instead scan the 1MB of inlined JS and trip
+      // over string literals inside it.
+      const survivors = Object.keys(bundle).filter((k) => k !== "index.html");
+      if (survivors.length > 0) {
+        throw new Error(
+          `inlineEverything: ${survivors.length} asset(s) not inlined: ${survivors.join(", ")}`,
+        );
+      }
+    },
+  };
+}
+
+export default defineConfig({
+  plugins: [react(), inlineEverything()],
+  // Relative base so the built index.html opens directly from the filesystem.
+  // The static ZIP submission depends on this.
+  base: "./",
+  build: {
+    outDir: "dist",
+    // Inline every asset as a data URI. The default 4KB threshold would leave
+    // small files as separate fetches, which is the same file:// failure in
+    // miniature. Deliberately not 0.
+    assetsInlineLimit: 100_000_000,
+    // One chunk, so there is one script to inline and no modulepreload links.
+    modulePreload: false,
+    rollupOptions: { output: { inlineDynamicImports: true } },
+  },
+});
 ```
 
-Record the largest asset size in §10 of the Phase 2 spec. If the main chunk exceeds
-**3MB raw**, the fix is to drop `metrics.json`'s prose fields and the unused
-`compounds.json` SMILES strings from the bundle — not to re-introduce a runtime
-fetch, which would break the `file://` build.
+Three non-obvious things in it, each found by measurement rather than reasoning:
 
-- [ ] **Step 6: Add the web build and e2e to CI**
+- **`type="module"` is kept on the inline script.** An inline module script issues no
+  request, so there is nothing for CORS to block — it was the `crossorigin` attribute
+  on the external `src` that broke `file://`, not module semantics. Dropping to a
+  classic script runs it in `<head>` before `<body>` exists, and React throws
+  minified error #299 on a null container.
+- **The replacement is a FUNCTION, not a string.** In a replacement string `$&`,
+  `` $` `` and `$'` are substitution patterns, and minified JS is full of `$`. As a
+  string it silently spliced the original `<script src>` tag back into the middle of
+  the code and produced `SyntaxError: missing ) after argument list`.
+- **The survivor check inspects the bundle, not the HTML text.** Scanning the HTML for
+  leftover `src=`/`href=` scans the 1MB of inlined JS and trips over string literals
+  inside it — it reported 2 phantom leftovers on a correct build.
+
+An earlier attempt at this used `rollupOptions.output.format: "iife"` instead. It did
+not work — the emitted tag was still `type="module" crossorigin` — and it silently
+dropped the entire 1.20 kB stylesheet from the build, so the app would have shipped
+unstyled. Recorded because the failure was invisible without diffing `dist/`.
+
+The regression guard, `apps/web/e2e/static-file.spec.ts`:
+
+```ts
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { expect, test } from "@playwright/test";
+
+// The submitted artifact is a ZIP that a judge double-clicks. It is opened from
+// the filesystem, with no server. Every other test in this suite runs over
+// http://localhost, which cannot see the failure mode this one exists for: a
+// crossorigin subresource is blocked over file:// and the page renders blank.
+//
+// The absolute URL overrides the config's baseURL on purpose.
+const artifact = pathToFileURL(path.resolve("apps/web/dist/index.html")).href;
+
+test("the built artifact works opened from the filesystem, with no server", async ({ page }) => {
+  const failures: string[] = [];
+  page.on("pageerror", (e) => failures.push(`pageerror: ${String(e)}`));
+  page.on("console", (m) => {
+    if (m.type() === "error") failures.push(`console: ${m.text()}`);
+  });
+  page.on("requestfailed", (r) => {
+    failures.push(`requestfailed: ${r.url()} ${r.failure()?.errorText ?? ""}`);
+  });
+
+  await page.goto(`${artifact}#/case`);
+
+  // The engine ran in the browser and produced a verdict. If the bundle were
+  // blocked, #root would still be empty and this would time out.
+  await expect(page.getByTestId("verdict")).toContainText(/abstain/i);
+  await expect(page.locator("body")).toContainText("TAK-994");
+
+  // And the stylesheet applied. --deep is defined only in tokens.css, so a
+  // transparent nav means the CSS was inlined but never parsed, or was dropped
+  // from the build entirely - which is how a previous attempt at this failed.
+  const navBackground = await page.evaluate(() => {
+    const nav = document.querySelector("nav");
+    return nav ? getComputedStyle(nav).backgroundColor : "NO_NAV";
+  });
+  expect(navBackground).not.toBe("NO_NAV");
+  expect(navBackground).not.toBe("rgba(0, 0, 0, 0)");
+
+  // A blocked subresource shows up here as ERR_FAILED even when the page
+  // happens to render, so assert the clean load rather than only the outcome.
+  expect(failures).toEqual([]);
+});
+
+test("the artifact requests nothing over the network", async ({ page }) => {
+  const external: string[] = [];
+  page.on("request", (r) => {
+    if (!r.url().startsWith("file://")) external.push(`${r.method()} ${r.url()}`);
+  });
+
+  await page.goto(`${artifact}#/validation`);
+  await expect(page.getByTestId("single-class-warning")).toBeVisible();
+
+  // No runtime fetch anywhere in the app: all data is imported at build time.
+  // Over file:// a fetch of a sibling JSON is blocked as cross-origin, so this
+  // is a correctness requirement, not a preference.
+  expect(external).toEqual([]);
+});
+```
+
+Verified failable: with `inlineEverything()` removed from the plugin list, both
+static-file tests fail while all three `http://localhost` tests still pass. That
+asymmetry is the reason this spec exists.
+
+Result after the fix — `dist/` is a single file, and over `file://`:
+
+```
+ROOT_HTML_LENGTH 11818
+VERDICT "▲Abstain"
+MENTIONS_TAK994 true
+NAV_BACKGROUND rgb(0, 26, 114)
+ERRORS []
+```
+
+The nav background proves the stylesheet applied: `--deep` is defined only in
+`tokens.css`, so a transparent nav would mean the CSS was inlined but never parsed,
+or dropped from the build entirely.
+
+Bundle measured: **1,077 kB raw, 177 kB gzipped**, one file, zero subresources.
+Inside the 3MB raw budget, so the contingency trim of `metrics.json` prose fields and
+unused `compounds.json` SMILES strings is **not needed**. Recorded in §9 and §10 of
+the Phase 2 spec.
+
+- [x] **Step 6: Add the web build and e2e to CI**
 
 Append to the `verify` job in `.github/workflows/ci.yml`:
 
@@ -2956,26 +3273,10 @@ Append to the `verify` job in `.github/workflows/ci.yml`:
       - run: npm run e2e
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
-```bash
-git add apps/web playwright.config.ts .github package.json
-git commit -m "Add motion kill switch, accessibility guards, and the Playwright walk
-
-Motion is Level 2 with a real kill switch: the M toggle and prefers-reduced-motion
-both drop the app to opacity-only through one data-motion attribute on the root,
-so there is a single place that turns it all off rather than per-component
-guesswork.
-
-The Playwright walk drives the whole demo with the arrow keys a presenter actually
-uses, and asserts the single-class warning is visible on the Validation tab -
-the number that must never be quoted as an accuracy.
-
-The static build is verified by opening dist/index.html from the filesystem with
-no server. That file is the submitted artifact; if it only works when served, the
-ZIP is broken and we would not find out until after submission."
-git push origin arbiter-round1
-```
+Commit `4b532be`. Suite at 253 vitest tests across 29 files plus 5 Playwright tests;
+lint, typecheck, build and `git diff --exit-code results/verdict-manifest.json` clean.
 
 ---
 
