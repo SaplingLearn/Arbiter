@@ -700,14 +700,30 @@ interpretation is more credible than a suspiciously clean sweep.
 
 ### The mixed result arrived — measured 2026-07-27, on the test split
 
-| | value |
-|---|---|
-| scored (test split) | 267 |
-| conflict subset | 61 (22.8%), positive rate 0.902 |
-| ARBITER | balanced accuracy 0.75, **coverage 6.6%**, n committed **4**, single-class |
-| best baseline (majority vote) | balanced accuracy 0.75, **coverage 4.9%**, n committed **3**, single-class |
-| planner unchanged under ±50% prior perturbation | **0.992** |
-| robustness on committed compounds | 1.00 |
+Scored on the test split: 267 compounds, conflict subset 61 (22.8%), subset positive rate 0.902.
+
+| pipeline | balanced accuracy | coverage | n committed | confusion | single-class |
+|---|---|---|---|---|---|
+| **ARBITER** | 0.750 | **6.6%** | **4** | 4/0/0/0 | yes |
+| `single:transporter` | 0.750 | **6.6%** | **4** | 4/0/0/0 | yes |
+| `majorityVote` | 0.750 | 4.9% | 3 | 3/0/0/0 | yes |
+| `weightedAverage` | 0.547 | 100% | 61 | 51/5/1/4 | no |
+| `single:qsar` | 0.500 | 98.4% | 60 | 54/6/0/0 | no |
+| `single:cytotox` | 0.500 | 100% | 61 | 0/0/6/55 | no |
+
+Confusion is tp/fp/tn/fn. Planner unchanged under ±50% prior perturbation: **0.992**. Robustness on committed
+compounds: 1.00.
+
+**ARBITER does not beat the best baseline on this subset — it ties a single stream, exactly.**
+`single:transporter` — "read the BSEP assay and believe it" — commits on the same 4 compounds, gets the same
+4 right, and produces a bit-identical confusion matrix. An earlier draft of this section named majority vote
+as the best baseline and omitted the tie, which flattered the result; the tie is the honest headline. On this
+evidence base the reasoning layer earns nothing measurable over one assay, and the interesting question
+becomes why: with only 4 committed rows there is no statistical room for it to earn anything, which is the
+coverage problem restated rather than a separate finding.
+
+Note also what happens to the pipelines that DO commit broadly: `weightedAverage` covers all 61 at 0.547, and
+`single:qsar` covers 60 at 0.500 — chance. Nothing on this subset both commits widely and discriminates.
 
 **Coverage is the finding, and the headline is not reportable as accuracy.** ARBITER abstains on 260 of 267
 compounds. Every one of those abstentions is the belief–plausibility gap rule; none is applicability domain
