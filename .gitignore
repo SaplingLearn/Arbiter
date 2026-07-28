@@ -39,6 +39,8 @@ data/out/*
 # machine is not reproducible.
 !data/out/stream-*.json
 !data/out/evidence.json
+!data/out/tak994.json
+!data/out/cid-cache.json
 
 # Node
 node_modules/
