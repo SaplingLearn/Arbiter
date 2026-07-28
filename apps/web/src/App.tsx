@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { parseHash, type TabId } from "./router.js";
+import { parseHash, TAB_IDS, type TabId } from "./router.js";
+import { loadData } from "./data/load.js";
+import { StoreProvider } from "./state/store.js";
+import { CaseTab } from "./tabs/Case/index.js";
+
+const data = loadData();
 
 export function App() {
   const [tab, setTab] = useState<TabId>(() => parseHash(window.location.hash));
@@ -8,5 +13,18 @@ export function App() {
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
-  return <main><h1>ARBITER</h1><p>tab: {tab}</p></main>;
+
+  return (
+    <StoreProvider data={data}>
+      <nav style={{ background: "var(--deep)", padding: "10px 20px", display: "flex", gap: 18 }}>
+        {TAB_IDS.map((t) => (
+          <a key={t} href={`#/${t}`} aria-current={t === tab ? "page" : undefined}
+             style={{ color: "#fff", textDecoration: t === tab ? "underline" : "none", textTransform: "capitalize" }}>
+            {t}
+          </a>
+        ))}
+      </nav>
+      {tab === "case" ? <CaseTab /> : <p style={{ padding: 20 }}>{tab} tab arrives in a later task.</p>}
+    </StoreProvider>
+  );
 }
