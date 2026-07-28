@@ -9,10 +9,10 @@ const sample = {
   provenance: { rulesetHash: "abc", splitSeed: 1, perturbationSeed: 2, prose: "ignored" },
   sampleSizes: { scored: 10, conflictSubset: 4 },
   metric1_conflictSubsetAccuracy: {
-    arbiter: { balancedAccuracy: 0.75, coverage: 0.5, nCommitted: 2, ci: { lo: 0.1, hi: 0.9 }, singleClass: true },
+    arbiter: { balancedAccuracy: 0.75, coverage: 0.5, nCommitted: 2, balancedAccuracyCi: null, rawAccuracyCi: { lo: 0.1, hi: 0.9 }, singleClass: true },
     baselines: {
-      zeta: { balancedAccuracy: 0.4, coverage: 0.2, nCommitted: 1, ci: { lo: 0, hi: 1 } },
-      alpha: { balancedAccuracy: 0.6, coverage: 0.3, nCommitted: 2, ci: { lo: 0.2, hi: 0.8 } },
+      zeta: { balancedAccuracy: 0.4, coverage: 0.2, nCommitted: 1, balancedAccuracyCi: null, rawAccuracyCi: { lo: 0, hi: 1 } },
+      alpha: { balancedAccuracy: 0.6, coverage: 0.3, nCommitted: 2, balancedAccuracyCi: { lo: 0.2, hi: 0.8 }, rawAccuracyCi: { lo: 0.2, hi: 0.8 } },
     },
   },
   metric2b_arbiterRobustness: { meanHeldFraction: 1, worstHeldFraction: 1 },

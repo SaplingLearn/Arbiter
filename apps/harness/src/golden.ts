@@ -2,7 +2,9 @@ export interface GoldenPipeline {
   balancedAccuracy: number;
   coverage: number;
   nCommitted: number;
-  ci: { lo: number; hi: number };
+  /** Null where one class is absent, so no interval for balanced accuracy exists. */
+  balancedAccuracyCi: { lo: number; hi: number } | null;
+  rawAccuracyCi: { lo: number; hi: number };
 }
 
 export interface GoldenNumbers {
@@ -14,7 +16,8 @@ export interface GoldenNumbers {
   arbiterBalancedAccuracy: number;
   arbiterCoverage: number;
   arbiterNCommitted: number;
-  arbiterCi: { lo: number; hi: number };
+  arbiterBalancedAccuracyCi: { lo: number; hi: number } | null;
+  arbiterRawAccuracyCi: { lo: number; hi: number };
   baselines: Record<string, GoldenPipeline>;
   meanHeldFraction: number;
   worstHeldFraction: number;
@@ -51,7 +54,10 @@ export function extractGolden(raw: unknown): GoldenNumbers {
       balancedAccuracy: b.balancedAccuracy,
       coverage: b.coverage,
       nCommitted: b.nCommitted,
-      ci: { lo: b.ci.lo, hi: b.ci.hi },
+      balancedAccuracyCi: b.balancedAccuracyCi
+        ? { lo: b.balancedAccuracyCi.lo, hi: b.balancedAccuracyCi.hi }
+        : null,
+      rawAccuracyCi: { lo: b.rawAccuracyCi.lo, hi: b.rawAccuracyCi.hi },
     };
   }
 
@@ -64,7 +70,10 @@ export function extractGolden(raw: unknown): GoldenNumbers {
     arbiterBalancedAccuracy: acc.arbiter.balancedAccuracy,
     arbiterCoverage: acc.arbiter.coverage,
     arbiterNCommitted: acc.arbiter.nCommitted,
-    arbiterCi: { lo: acc.arbiter.ci.lo, hi: acc.arbiter.ci.hi },
+    arbiterBalancedAccuracyCi: acc.arbiter.balancedAccuracyCi
+      ? { lo: acc.arbiter.balancedAccuracyCi.lo, hi: acc.arbiter.balancedAccuracyCi.hi }
+      : null,
+    arbiterRawAccuracyCi: { lo: acc.arbiter.rawAccuracyCi.lo, hi: acc.arbiter.rawAccuracyCi.hi },
     baselines,
     meanHeldFraction: m["metric2b_arbiterRobustness"].meanHeldFraction,
     worstHeldFraction: m["metric2b_arbiterRobustness"].worstHeldFraction,

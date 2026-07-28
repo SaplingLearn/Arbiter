@@ -60,6 +60,35 @@ export function singleClass(pairs: { y: number; predicted: number }[]): boolean 
   return tp + fn === 0 || tn + fp === 0;
 }
 
+/**
+ * A confidence interval for BALANCED accuracy, or null when there is not one.
+ *
+ * This exists because `wilson(correct, n)` is an interval for RAW accuracy, and
+ * the two statistics are different numbers. Reporting the raw-accuracy interval
+ * beside a balanced accuracy produced claims that contradicted themselves: on
+ * `single:qsar` the balanced accuracy is 0.500 and the raw-accuracy interval is
+ * [0.799, 0.953], which does not even contain the point estimate it was printed
+ * next to. On the ARBITER headline it read "balanced accuracy 0.75 (95% CI
+ * 0.51-1.00)", where the interval was really describing raw accuracy 4/4 = 1.0.
+ *
+ * Returns NULL when either class is absent, and that is the substantive part.
+ * Balanced accuracy substitutes 0.5 for the missing half; a substitution carries
+ * no sampling uncertainty because it is not an estimate, so no honest interval
+ * exists. Emitting one anyway would put a precision claim on a placeholder.
+ *
+ * When both classes are present, each of sensitivity and specificity gets its own
+ * Wilson interval and the bounds are averaged, mirroring how the point estimate
+ * itself is the average of the two proportions. Conservative and stays in [0,1].
+ */
+export function balancedAccuracyInterval(pairs: { y: number; predicted: number }[]): Interval | null {
+  const { tp, fp, tn, fn } = confusion(pairs);
+  if (tp + fn === 0 || tn + fp === 0) return null;
+
+  const sens = wilson(tp, tp + fn);
+  const spec = wilson(tn, tn + fp);
+  return { lo: (sens.lo + spec.lo) / 2, hi: (sens.hi + spec.hi) / 2 };
+}
+
 export function mean(xs: number[]): number {
   return xs.length === 0 ? 0 : xs.reduce((s, v) => s + v, 0) / xs.length;
 }

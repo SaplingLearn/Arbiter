@@ -23,6 +23,23 @@ describe("ValidationTab", () => {
     expect(screen.getByTestId("single-class-warning")).toBeTruthy();
   });
 
+  it("does NOT attach a confidence interval to a single-class balanced accuracy", () => {
+    // The defect this guards: the headline read "balanced accuracy 0.75 (95% CI
+    // 0.51-1.00)", where the interval was wilson(4,4) on RAW accuracy 4/4 = 1.0 -
+    // an uncertainty claim about a different statistic than the one beside it.
+    // ARBITER's committed set is single-class, so there is no interval to report.
+    const acc = (data.metrics as Record<string, any>)["metric1_conflictSubsetAccuracy"];
+    expect(acc.arbiter.singleClass).toBe(true);
+    expect(acc.arbiter.balancedAccuracyCi).toBeNull();
+
+    renderTab();
+    const text = screen.getByTestId("headline").textContent ?? "";
+    expect(text).toMatch(/no confidence interval/i);
+    expect(text).toMatch(/substituted 0\.5/);
+    // And specifically not the raw-accuracy bounds, which is what leaked before.
+    expect(text).not.toMatch(/95% CI 0\.51/);
+  });
+
   it("shows the pre-registration hash and the perturbation seed", () => {
     renderTab();
     expect(screen.getByTestId("provenance").textContent).toMatch(/ed073a8a/);

@@ -42,7 +42,7 @@ Keys: `→`/`←` step the seven demo beats, `M` motion kill switch, `?` pre-fli
 ### Verify everything
 
 ```bash
-npm run lint && npm run typecheck && npm test      # 269 tests, 32 files
+npm run lint && npm run typecheck && npm test      # 273 tests, 32 files
 npm run web:build && npm run e2e                   # 8 Playwright tests
 npm run golden:update && git diff --exit-code results/   # must produce NO diff
 ```
@@ -205,16 +205,47 @@ fine and still fails.
 
 **Owner: whoever runs the first rehearsal.** Record the date and any change in spec §9a.
 
-### 3.5 Final whole-branch review — NOT DONE, and the branch was merged anyway
+### 3.5 Final whole-branch review — DONE, and it found a real defect
 
-Phase 2 closed with a per-task review loop: every task got a review package and a
-reviewer, and defects were fixed before the task closed. But **the branch has never
-been reviewed end-to-end as a whole**, and it was merged to `main` at the owner's
-direction before that review happened. ~72 commits.
+Ran after the merge. **It found a defect in a judge-facing headline number**, which is
+the argument for having done it: `metrics.json` had a single field named `ci` carrying
+the *raw*-accuracy Wilson interval, and the Validation tab printed it beside *balanced*
+accuracy as "balanced accuracy 0.75 (95% CI 0.51-1.00)". The interval described a
+different statistic than the number next to it. Three reported pipelines had intervals
+that did not contain their own point estimate:
 
-That is a deliberate owner decision, not an oversight, but it means the usual
-last-line check did not run. Worth doing on the most capable model available before
-submission. Nothing is blocking it.
+| pipeline | balanced accuracy | old interval | contains estimate? |
+|---|---|---|---|
+| `single:qsar` | 0.500 | [0.799, 0.953] | no |
+| `single:cytotox` | 0.500 | [0.046, 0.198] | no |
+| `weightedAverage` | 0.547 | [0.743, 0.920] | no |
+| **ARBITER** | 0.750 | [0.510, 1.000] | was really raw accuracy 4/4 = 1.0 |
+
+Fixed by splitting the field into `balancedAccuracyCi` and `rawAccuracyCi`, and
+returning **null** for the former whenever a class is absent — including ARBITER's own
+headline. A substituted 0.5 is not an estimate, so it has no sampling uncertainty, and
+borrowing an interval to fill the gap puts a precision claim on a placeholder.
+
+Verdicts did not move: `results/verdict-manifest.json` is byte-identical. Only the
+reported intervals changed.
+
+Note that TypeScript did **not** catch this, because the web app reads `metrics.json`
+through a `Record<string, any>` cast. `npm run typecheck` stayed green while
+`Validation.tsx` referenced a field that no longer existed. **The metrics contract
+between the harness and the app is untyped — that is a live gap.** Worth closing with a
+shared type or a runtime schema if you touch this area.
+
+### 3.5a The rest of the review
+
+The engine came out clean. `fuse.ts` is correct Dempster combination (masses sum to 1
+by construction; total conflict returns vacuous with K=1 rather than fabricating a
+verdict). `abstain.ts` reads its threshold from the pre-registered ruleset and checks
+total conflict, then applicability domain, then the gap, in that order. `soften` cannot
+produce a negative mass because rule strengths are schema-bounded to [0,1]. The comments
+in `index.ts` documenting why the R6 concordance boost was deleted are accurate.
+
+The branch was merged to `main` before this review ran, at the owner's direction. That
+turned out to matter: the fix above is a follow-up PR rather than part of the branch.
 
 ### 3.6 CI has one step that can stall for ten minutes, unpredictably
 
@@ -441,7 +472,7 @@ docs/superpowers/plans/   Task-by-task plans with every code block synced to sou
 
 | | |
 |---|---|
-| Tests | 269 vitest across 32 files; 8 Playwright |
+| Tests | 273 vitest across 32 files; 8 Playwright |
 | Lint / typecheck / build | clean |
 | `golden:update` | produces no diff — the reported numbers have not moved |
 | CI | green, and now runs `web:build` + `playwright install` + `e2e` on every push |
