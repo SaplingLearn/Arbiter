@@ -18,6 +18,20 @@ const REGISTERED_HASH = "ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c4856
  * under the ~16ms frame budget a range input's pointer-move events demand, so the
  * slider stays on plain onChange - a debounce would only add latency to a control
  * whose entire point is answering under the cursor.
+ *
+ * The precedence order and the abstention threshold render here (spec §8.1) because
+ * they were in the registered, hashed ruleset and on screen NOWHERE - so the two
+ * likeliest questions about the pre-registration had no answer the app could point
+ * at. Neither is editable: no control exists for either, so the working copy and
+ * the registered copy cannot differ on them, and the block reads from `ruleset`
+ * only for consistency with the rule cards below it.
+ *
+ * Note what the threshold block does NOT do. The ruleset registers a
+ * `precedenceRationale` and registers no rationale for the threshold value, so the
+ * block states the value and its provenance and stops. Writing a justification for
+ * 0.5 into the UI would put an undisclosed number's defence in source instead of in
+ * the reviewable, hashed artifact - which is the failure the pre-registration
+ * exists to prevent.
  */
 export function RulesetTab() {
   const { data, ruleset } = useAppState();
@@ -54,6 +68,42 @@ export function RulesetTab() {
       <button type="button" className="btn" onClick={() => dispatch({ type: "resetRuleset" })}>
         Reset to registered
       </button>
+
+      {/* Neither block below has a control: no input exists for the order or the
+          threshold, so the working copy and the registered copy cannot disagree on
+          either. .panel-flat matches the rule cards so these read as two more
+          entries in one governed list, not a dashboard bolted onto it. */}
+      <div data-anchor="ruleset.precedenceOrder" className="panel-flat">
+        <h3 className="subtitle">Precedence order</h3>
+        <p className="small muted">
+          Which rule wins when two rules would each license an attack in opposite directions on the
+          same pair of claims. R4 downweights rather than defeats and R6 is a property of a set of
+          claims, so neither takes part.
+        </p>
+        <ol data-testid="precedence-order" className="stack">
+          {ruleset.precedenceOrder.map((id) => {
+            const rule = ruleset.rules.find((x) => x.id === id);
+            return (
+              <li key={id} data-testid="precedence-entry">
+                <span className="mono muted">{id}</span>{rule ? ` ${rule.name}` : ""}
+              </li>
+            );
+          })}
+        </ol>
+        <p data-testid="precedence-rationale">{ruleset.precedenceRationale}</p>
+      </div>
+
+      <div data-anchor="ruleset.abstentionThreshold" className="panel-flat">
+        <h3 className="subtitle">Abstention threshold</h3>
+        <p data-testid="abstention-threshold">
+          ARBITER declines rather than answer when the belief-to-plausibility gap exceeds{" "}
+          <strong className="num" data-testid="abstention-threshold-value">{ruleset.abstentionGapThreshold}</strong>.
+        </p>
+        <p data-testid="abstention-threshold-provenance" className="small muted">
+          Read from the pre-registered, hashed ruleset rather than held as a constant in the engine,
+          so it could not be tuned after the results were seen.
+        </p>
+      </div>
 
       {/* .panel-flat, so six rules read as one governed list separated by
           hairlines rather than six boxes competing for attention. */}

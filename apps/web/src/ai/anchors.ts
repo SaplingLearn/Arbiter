@@ -29,12 +29,11 @@ export interface Anchor {
  * "switch tab, un-collapse the region, then re-check". The DOM test distinguishes
  * the two rather than skipping this list.
  *
- * `ruleset.precedenceOrder` and `ruleset.abstentionThreshold` are here for a
- * different reason than the other five: a later task's cached anchor map already
- * points at both, so the ids are registered now, but the elements they name are
- * built in Task 6. Until then they are declared-but-not-yet-mounted - the same
- * observable category as the other five, even though the other five cycle by data
- * rather than by which task has landed.
+ * `ruleset.precedenceOrder` and `ruleset.abstentionThreshold` are NOT here. Task 6
+ * mounts both unconditionally on the Ruleset tab - neither has a control, so
+ * neither can ever be absent the way `ruleset.modifiedBadge` can - and so they fall
+ * to the generic "every unconditional anchor is present exactly once" sweep in
+ * anchors.test.tsx rather than needing a conditional carve-out.
  */
 export const CONDITIONAL_ANCHORS = [
   "trace.counterfactual",
@@ -42,8 +41,6 @@ export const CONDITIONAL_ANCHORS = [
   "validation.singleClassWarning",
   "evidence.citationStatus",
   "ruleset.modifiedBadge",
-  "ruleset.precedenceOrder",
-  "ruleset.abstentionThreshold",
 ] as const;
 
 /**
