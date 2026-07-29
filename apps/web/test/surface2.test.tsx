@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { StoreProvider } from "../src/state/store.js";
 import { ValidationTab } from "../src/tabs/Validation.js";
@@ -69,14 +69,44 @@ describe("Surface 2 - the live ablation spot check", () => {
     expect(button.getAttribute("title")).toMatch(/specified but not built/);
   });
 
-  it("leaves the baselines table untouched", () => {
-    // The master spec's own wording for this row. A control that disabled itself
-    // while blanking the table beside it would pass every assertion above.
+  it("leaves the baselines table untouched when the control is pressed", () => {
+    // The master spec's own wording for this row, and the test that used to stand
+    // here could not check it: it read `before` and re-read the same nodes with no
+    // action in between, so its only live assertion was `rows.length > 0`. Its own
+    // comment named the defect it failed to catch - "A control that disabled itself
+    // while blanking the table beside it would pass every assertion above" - and
+    // that was true of itself.
+    //
+    // Two changes make it a check. What the table must be SHOWING is derived from
+    // metrics.json rather than from the DOM being checked, so a blanked table fails
+    // here; and "untouched" is asserted across a real press of the control, because
+    // "nothing happened" is only worth asserting when something was attempted.
     const { container } = renderWith(data);
-    const rows = container.querySelectorAll("tbody tr");
-    expect(rows.length).toBeGreaterThan(0);
-    const before = [...rows].map((r) => r.textContent);
-    expect([...container.querySelectorAll("tbody tr")].map((r) => r.textContent)).toEqual(before);
+    const readRows = () => [...container.querySelectorAll("tbody tr")].map((r) => r.textContent);
+
+    const expected = Object.entries(data.metrics.metric1_conflictSubsetAccuracy.baselines)
+      .filter(([, b]) => b.nCommitted > 0)
+      .map(([name, b]) => ({ name, accuracy: b.balancedAccuracy.toFixed(2) }));
+    // The positive control on the fixture itself: several baselines commit, so
+    // "one row appeared" is not what is being asserted below.
+    expect(expected.length).toBeGreaterThan(1);
+
+    const before = readRows();
+    expect(before).toHaveLength(expected.length);
+    // Matched by content rather than by index, so this does not re-implement the
+    // component's sort and then agree with itself about it.
+    for (const e of expected) {
+      const row = before.find((t) => t?.includes(e.name));
+      expect(row, `no baselines row for ${e.name}`).toBeDefined();
+      expect(row).toContain(e.accuracy);
+    }
+
+    // A judge presses the button. It is disabled, so the table must be identical
+    // afterwards - the whole of Surface 2's §11 row.
+    const button = screen.getByTestId("live-ablation-run");
+    fireEvent.click(button);
+    expect(button).toBeDisabled();
+    expect(readRows()).toEqual(before);
   });
 
   it("still exposes the placeholder as text, so the absence is readable without hovering", () => {

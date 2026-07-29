@@ -115,16 +115,55 @@ test("the honesty caveats are not the least legible text on screen", async ({ pa
 });
 
 test("the artifact requests nothing over the network", async ({ page }) => {
+  // BELT AND BRACES, NOT THE GUARANTEE. These two channels catch a request over
+  // http:// - which is the shape a regression takes on the served build, and the
+  // shape a judge never sees. Over file:// they catch nothing at all: measured,
+  // with the liveEnabled gate ablated so both AI ladders fire real fetches on
+  // every panel open, NEITHER "request" NOR "requestfailed" fired, and all five
+  // tests in this file stayed green. A relative "/api/interpret" resolves against
+  // a file:// document as file:///api/interpret, and the Fetch API refuses the
+  // file: scheme synchronously, before any CDP network event exists to observe.
   const external: string[] = [];
   page.on("request", (r) => {
     if (!r.url().startsWith("file://")) external.push(`${r.method()} ${r.url()}`);
+  });
+  page.on("requestfailed", (r) => {
+    external.push(`FAILED ${r.method()} ${r.url()} ${r.failure()?.errorText ?? ""}`);
+  });
+
+  // THIS is the channel that can fail over file://. The refused fetch leaves one
+  // trace and only one:
+  //   Fetch API cannot load file:///api/interpret. URL scheme "file" is not supported.
+  // A caught TypeError produces no pageerror either, so the console is what makes
+  // the zero-network claim falsifiable on the artifact a judge actually opens.
+  // ai-static.spec.ts:41-43 already does this for the AI surfaces; this file is
+  // where the claim is made, so the check belongs here too.
+  const failures: string[] = [];
+  page.on("pageerror", (e) => failures.push(`pageerror: ${String(e)}`));
+  page.on("console", (m) => {
+    if (m.type() === "error") failures.push(`console: ${m.text()}`);
   });
 
   await page.goto(`${artifact}#/validation`);
   await expect(page.getByTestId("single-class-warning")).toBeVisible();
 
+  // And the two paths that CAN reach for a network: opening the pre-flight panel
+  // runs both AI ladders with their real resolvers. Without this the test never
+  // drives the only code in the app that owns a fetch call at all, so the gate it
+  // claims to guard is never exercised.
+  await page.goto(`${artifact}#/case`);
+  await expect(page.getByTestId("verdict")).toContainText(/abstain/i);
+  await page.keyboard.press("?");
+  await expect(page.getByTestId("check-surface-1")).not.toHaveAttribute("data-source", "pending");
+  await expect(page.getByTestId("check-surface-3")).not.toHaveAttribute("data-source", "pending");
+  // Neither ladder may report a live answer: on this artifact both of client.ts's
+  // gates hold, so rung 1 is skipped rather than attempted and failed.
+  await expect(page.getByTestId("check-surface-1")).not.toHaveAttribute("data-source", "live");
+  await expect(page.getByTestId("check-surface-3")).not.toHaveAttribute("data-source", "live");
+
   // No runtime fetch anywhere in the app: all data is imported at build time.
   // Over file:// a fetch of a sibling JSON is blocked as cross-origin, so this
   // is a correctness requirement, not a preference.
   expect(external).toEqual([]);
+  expect(failures).toEqual([]);
 });

@@ -138,6 +138,19 @@ function tokens(s: string): string[] {
  * Rung 1 - the live call. Ids only: NavResultSchema rejects any body carrying
  * prose, so a model that answers the question instead of locating it is a rung-1
  * miss rather than a claim on screen (spec §7.2).
+ *
+ * The survivors go through `sanitizeNavResult`, THE SAME FUNCTION every other rung
+ * uses, rather than an inline `.filter(isKnownAnchor)`. That filter kept the
+ * registry check and dropped everything else the sanitiser guarantees:
+ *
+ * - a response whose ids were ALL stale filtered to `{ anchorIds: [], noMatch: false }`,
+ *   which is non-null, so `resolve` stopped at rung 1 and the cache was never
+ *   consulted - NavigatorBar rendering an empty results strip labelled "rung 1 ·
+ *   live". `sanitizeNavResult` returns null there instead, and its docstring says
+ *   why: a live model answering with invented ids is precisely when the cache is
+ *   worth the most.
+ * - the MAX_ANCHORS cap and the de-duplication, both enforced on rungs 2, 3 and 4,
+ *   were unenforced on the one caller nobody in this repo controls.
  */
 const liveRung: Rung<NavigateInput, NavResult> = {
   source: "live",
@@ -149,7 +162,7 @@ const liveRung: Rung<NavigateInput, NavResult> = {
       // schema failure (spec §11 names it as one of the three that do not collapse):
       // a response naming two real anchors and one stale one is still useful, so the
       // stale one is dropped and the rest are kept.
-      return { ...parsed.data, anchorIds: parsed.data.anchorIds.filter(isKnownAnchor) };
+      return sanitizeNavResult(parsed.data);
     }),
 };
 

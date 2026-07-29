@@ -1,9 +1,11 @@
+import { createElement } from "react";
+import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
-  initialState, isEdited, reducer, visibleClaims, workingClaims,
+  initialState, isEdited, reducer, StoreProvider, visibleClaims, workingClaims,
   type EvidenceEdit,
 } from "../src/state/store.js";
-import { loadData } from "../src/data/load.js";
+import { loadData, type LoadedData } from "../src/data/load.js";
 import type { EvidenceClaim } from "@arbiter/engine";
 import { useLibraryVerdicts } from "../src/engine/useLibraryVerdicts.js";
 
@@ -221,21 +223,46 @@ describe("isEdited — one predicate for both working copies (§9.3)", () => {
 });
 
 describe("useLibraryVerdicts error containment", () => {
-  it("keeps a row for a compound the engine cannot evaluate", () => {
-    // Exercised through the reducer path rather than a hook renderer: the
-    // guarantee is that one failure yields one error row, not zero rows.
-    const rows = new Map<string, { verdict: string; error?: string }>();
-    const ids = ["ok", "bad"];
-    for (const id of ids) {
-      try {
-        if (id === "bad") throw new Error("engine exploded");
-        rows.set(id, { verdict: "abstain" });
-      } catch (e) {
-        rows.set(id, { verdict: "abstain", error: (e as Error).message });
-      }
-    }
-    expect(rows.size).toBe(2);
-    expect(rows.get("bad")!.error).toBe("engine exploded");
-    expect(typeof useLibraryVerdicts).toBe("function");
+  it("keeps a row for a compound the engine cannot evaluate, and every other row with it", () => {
+    // The test this replaces REIMPLEMENTED the try/catch inline and then asserted
+    // `typeof useLibraryVerdicts === "function"`. Replacing the hook's `catch` with
+    // `throw e` left it green, along with the other 503 - so the guarantee that one
+    // bad compound must not blank the 267-row table was guarded by nothing, from
+    // either side: `check-errors` is deliberately untested (HANDOVER §4.3) because
+    // there is no honest way to force a throw from outside the component.
+    //
+    // There is one from in here. The engine has no I/O to fail at, so a claim that
+    // throws when a field is READ is the honest forcing function: it is what a
+    // corrupt bundled artifact looks like from inside the hook, and the throw lands
+    // inside the try exactly where a real engine failure would.
+    const victim = base.data.testSplit[0]!;
+    const survivor = base.data.testSplit[1]!;
+    const registered = base.data.claimsByCompound.get(victim) ?? [];
+    expect(registered.length).toBeGreaterThan(0);
+
+    const exploding = { ...registered[0]! };
+    Object.defineProperty(exploding, "assertion", {
+      enumerable: true,
+      get(): never { throw new Error("engine exploded"); },
+    });
+
+    const data: LoadedData = {
+      ...base.data,
+      claimsByCompound: new Map(base.data.claimsByCompound)
+        .set(victim, [exploding as EvidenceClaim]),
+    };
+
+    const { result } = renderHook(() => useLibraryVerdicts(), {
+      wrapper: ({ children }) => createElement(StoreProvider, { data, children }),
+    });
+    const rows = result.current;
+
+    // One error row, not zero rows: the whole table survives one bad compound.
+    expect(rows.size).toBe(data.testSplit.length);
+    expect(rows.get(victim)!.error).toBe("engine exploded");
+    expect(rows.get(victim)!.verdict).toBe("abstain");
+    // And the row beside it is a real verdict, not a swallowed one.
+    expect(rows.get(survivor)!.error).toBeUndefined();
+    expect(rows.get(survivor)!.verdict).toBe(base.data.manifest.get(survivor)!.verdict);
   });
 });

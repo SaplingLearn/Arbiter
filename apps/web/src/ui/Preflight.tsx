@@ -23,8 +23,17 @@ import type { Source } from "../ai/resolve.js";
  * The line this phase deleted said "No network call is made at any point". True in
  * Phase 2, false on a served build with a live surface (spec §10, correction 6). It
  * is replaced by per-surface reporting driven by the same `source` value the
- * resolvers return - which on the static ZIP reads `cache` for every surface, both
- * honest and exactly the state the artifact is supposed to be in.
+ * resolvers return.
+ *
+ * An earlier draft of this docstring added "which on the static ZIP reads `cache`
+ * for every surface". MEASURED, that is false: today's PROBE_CHALLENGE and
+ * PROBE_QUESTION appear verbatim in neither cache artifact, so both surfaces
+ * resolve at rung 4, source `local`. It is retired rather than repaired, because
+ * the probes are deliberately unpinned (see their comment below) and any claim
+ * about which rung they reach is a claim this file is not entitled to make. What
+ * the static ZIP guarantees is narrower and is the part worth stating: no surface
+ * can read `live`, because client.ts gates the only fetch in apps/web on both the
+ * build flag and `location.protocol !== "file:"`.
  */
 
 /**
@@ -166,12 +175,41 @@ export function Preflight() {
   const rulesetEdited = hash !== null && workingHash !== null && hash !== workingHash;
   const evidenceEdited = evidence !== null && evidence.registered !== evidence.working;
 
+  /**
+   * One branch per `Source`, because the ladder has four outcomes and only two of
+   * them were being reported.
+   *
+   * The line this replaces had two branches - `live`, and everything else printed
+   * as "answered from the bundled cache (rung N, source S)". Measured on the built
+   * artifact, that shipped "answered from the bundled cache (rung 4, source local)":
+   * a sentence contradicting itself inside its own parentheses. On an exhausted
+   * ladder it went further and claimed a cache answer for a rung-5 noMatch, which
+   * is precisely what resolve.ts:42-44 refuses to do - "nothing answered, so
+   * nothing may be reported as having answered".
+   *
+   * That is the §5.4 defect this component has already had rewritten out of it once:
+   * a caption that reads identically whether or not it is true. The fix is per-source
+   * reporting rather than pinned probes - see PROBE_CHALLENGE above - because pinning
+   * the probes would make one sentence accidentally true today while leaving this
+   * renderer free to lie the moment the cache drifts.
+   *
+   * The switch is exhaustive over `Source`, so a sixth rung kind cannot be added
+   * without the compiler naming this function.
+   */
   const surfaceLine = (r: Reported | null, what: string): string => {
     if (r === null) return `${what}: Checking which rung answers…`;
-    if (r.source === "live") {
-      return `${what}: answered live (rung ${r.rung}). If the connection drops it falls back to the bundled cache.`;
+    switch (r.source) {
+      case "live":
+        return `${what}: answered live (rung ${r.rung}). If the connection drops it falls back to the bundled cache.`;
+      case "cache":
+        return `${what}: answered from the bundled cache (rung ${r.rung}), so losing the connection changes nothing.`;
+      case "local":
+        return `${what}: answered from the bundled deterministic matcher (rung ${r.rung}) — no entry in the authored `
+          + `cache matched — so losing the connection changes nothing.`;
+      case "none":
+        return `${what}: no rung answered (rung ${r.rung}), so the surface is asking you to choose rather than `
+          + `guessing. Nothing on this path needs the network.`;
     }
-    return `${what}: answered from the bundled cache (rung ${r.rung}, source ${r.source}), so losing the connection changes nothing.`;
   };
 
   return (

@@ -148,6 +148,49 @@ describe("Surface 3 rung 1", () => {
     expect(res.value).toEqual({ anchorIds: [anchorId], noMatch: false });
   });
 
+  it("DESCENDS to the cache when every id in a live response is stale", async () => {
+    // Rung 1 used to filter with `isKnownAnchor` by hand instead of routing through
+    // sanitizeNavResult, so a response whose ids were all stale filtered down to
+    // `{ anchorIds: [], noMatch: false }` - non-null, so `resolve` stopped at rung 1
+    // and the cache was never consulted. NavigatorBar then rendered an empty results
+    // strip labelled "rung 1 · live".
+    //
+    // sanitizeNavResult's own docstring says why that is wrong: "a live model
+    // answering with invented ids is precisely when the cache is worth the most".
+    // This question is in the cache, so the correct outcome is a real answer at
+    // rung 2, not an empty one at rung 1.
+    vi.stubGlobal("fetch", vi.fn(async () =>
+      new Response(JSON.stringify({
+        anchorIds: ["trace.theModelMadeThisUp", "ruleset.alsoInvented"], noMatch: false,
+      }), { status: 200, headers: { "content-type": "application/json" } })));
+
+    const res = await withLive(async ({ navigate }) =>
+      navigate({ question: "Did you tune the rules to fit DILIrank?", anchors: [] }));
+
+    expect(res.rung).toBe(2);
+    expect(res.source).toBe("cache");
+    expect(res.value?.anchorIds).toEqual(["ruleset.hash", "validation.provenance"]);
+  });
+
+  it("CAPS and DE-DUPLICATES a live response, exactly as every cached rung is capped", async () => {
+    // The other half of the bypass. Three destinations is a navigator and four is a
+    // search results page (MAX_ANCHORS), and a repeated id offers the same
+    // destination twice - both enforced on rungs 2, 3 and 4 and on neither half of
+    // rung 1. A live model was the one caller that could ignore them.
+    vi.stubGlobal("fetch", vi.fn(async () =>
+      new Response(JSON.stringify({
+        anchorIds: ["rule.R6", "rule.R6", "ruleset.hash", "trace.verdictReason", "trace.beliefTrack"],
+        noMatch: false,
+      }), { status: 200, headers: { "content-type": "application/json" } })));
+
+    const res = await withLive(async ({ navigate }) =>
+      navigate({ question: "Which rule discounted the murine study?", anchors: [] }));
+
+    expect(res.rung).toBe(1);
+    expect(res.source).toBe("live");
+    expect(res.value?.anchorIds).toEqual(["rule.R6", "ruleset.hash", "trace.verdictReason"]);
+  });
+
   it("REJECTS a response carrying prose, because the schema has no room for it", async () => {
     // The check that makes the previous test mean something: a 200 with an extra
     // `answer` field is exactly what "the model wrote prose" looks like on the wire.

@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import {
-  EvidenceClaimSchema, relevanceDiscount, reasonVerdictOnly,
+  EvidenceClaimSchema, relevanceDiscount,
   type EvidenceClaim, type Reasoning, type RuleId, type Ruleset,
 } from "@arbiter/engine";
 import {
   useAppState, useDispatch, visibleClaims, workingClaims,
   type Action, type EvidenceEdit,
 } from "../../state/store.js";
+import type { LoadedData } from "../../data/load.js";
 import { useCaseReasoning } from "../../engine/useCaseReasoning.js";
 import { interpret, type InterpretInput, type Proposal } from "../../ai/interpret.js";
 import type { Resolution } from "../../ai/resolve.js";
@@ -120,15 +121,51 @@ function dispatchable(p: Proposal): Action | null {
 }
 
 /**
+ * Every key-event id the LOADED EVIDENCE actually carries - design section 5.3's
+ * "key-event ids present in the loaded evidence", derived rather than listed.
+ *
+ * It has to be derived. `measuresKeyEvent` is a bare `z.string().nullable()` with no
+ * pattern, and `rules.ts` compares it only for EQUALITY after normalisation, so an
+ * invented id does not error: it silently takes the claim out of R5's
+ * equal-mechanistic-relevance gate, and the trace that results reads perfectly
+ * plausible. A hardcoded allow-list would be a second copy of the corpus that drifts
+ * the first time a new key event is ingested; reading the corpus cannot drift.
+ *
+ * The fixture is folded in beside the corpus because `workingClaims` prefers it for
+ * TAK-994, so it is part of the loaded evidence in exactly the sense that matters.
+ */
+export function loadedKeyEvents(data: LoadedData): Set<string> {
+  const out = new Set<string>();
+  const add = (cs: EvidenceClaim[]) => {
+    for (const c of cs) if (c.measuresKeyEvent !== null) out.add(c.measuresKeyEvent);
+  };
+  for (const cs of data.claimsByCompound.values()) add(cs);
+  add(data.fixture.claims);
+  return out;
+}
+
+/**
  * Design section 5.4, run here rather than inside the ladder because the ladder is
  * not given the raw values that `schema.ts:26-35`'s cross-field refinement needs.
  * An invalid proposal is a MISS, not an error: the panel falls back to the rule
  * picker and the user never sees a broken proposal.
+ *
+ * Two checks, because the schema cannot make the second one. The schema proves the
+ * merged claim is well formed; `keyEvents` proves a proposed `measuresKeyEvent`
+ * names something this evidence base contains (section 5.3). A model-invented id is
+ * schema-legal on any non-`in_silico`, non-`qsar` claim, so without this it reaches
+ * the confirm panel and a reviewer approves a value that quietly breaks R5.
  */
-function validAgainstEvidence(p: Proposal, claims: EvidenceClaim[]): boolean {
+function validAgainstEvidence(p: Proposal, claims: EvidenceClaim[], keyEvents: Set<string>): boolean {
   if (p.action !== "reclassify_field" || p.field === null || p.targetClaimId === null) return true;
   const target = claims.find((c) => c.id === p.targetClaimId);
   if (target === undefined) return false;
+  // `null` stays legal - clearing a key event is a real reclassification, and the
+  // schema's cross-field rule is what decides whether it is allowed on this claim.
+  if (p.field === "measuresKeyEvent" && p.newValue !== null
+      && (typeof p.newValue !== "string" || !keyEvents.has(p.newValue))) {
+    return false;
+  }
   return EvidenceClaimSchema.safeParse({ ...target, [p.field]: p.newValue }).success;
 }
 
@@ -162,30 +199,38 @@ export function TablePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
     [state, selectedCompoundId, asOf],
   );
 
-  /**
-   * The registered baseline, which design section 5.5 notes is cheap because it is
-   * still sitting in state - the same trick Preflight.tsx uses for the manifest
-   * check. Asking the ONE selector for the registered copy, rather than
-   * re-deriving "the claims for this compound" a fifth time, is the point of
-   * section 9's refactor.
-   *
-   * `reasonVerdictOnly` rather than `reason`: the delta reads verdict, belief and
-   * plausibility only, and the counterfactual search behind `reason` costs ~130
-   * extra engine evaluations for output nothing here looks at. Identical verdict
-   * logic by construction - same function, one flag.
-   */
-  const before = useMemo(
-    () => reasonVerdictOnly(
-      visibleClaims(workingClaims({ ...state, evidenceEdits: {} }, selectedCompoundId), asOf),
-      data.ruleset,
-    ),
-    [state, selectedCompoundId, asOf, data.ruleset],
-  );
+  // Section 5.3's constraint surface. Derived from the whole loaded corpus, not
+  // from `claims`: a claim may legitimately be the first on its compound to measure
+  // a key event that other compounds already carry.
+  const keyEvents = useMemo(() => loadedKeyEvents(data), [data]);
 
   const [challenge, setChallenge] = useState("");
   const [resolution, setResolution] = useState<Resolution<Proposal> | null>(null);
   const [armed, setArmed] = useState(false);
   const [applied, setApplied] = useState<Proposal | null>(null);
+  /**
+   * The delta's baseline: the reasoning as it stood at the instant Apply was
+   * pressed, SNAPSHOT there rather than recomputed here.
+   *
+   * Design section 5.5 originally specified this as `reason(claims, data.ruleset)`
+   * against `reason(workingClaims, ruleset)` - the registered baseline against now.
+   * That is a different measurement from the one the panel claims to make, and
+   * MEASURED it credits the interpreter with edits it had nothing to do with: drag
+   * the R1 slider to 0.45 and then apply the R5 challenge, and the registered
+   * comparison reports "Applied - the position moved", belief 0.090 → 0.495, and
+   * suppresses the explanation - when R5 is inert on TAK-994 and every unit of that
+   * movement came from the slider. Apply two proposals back to back and the second
+   * one's delta reads over the first one's work as well as its own.
+   *
+   * The spec was at fault, not the panel; §5.5 now describes this comparison. Its
+   * real requirement - report belief, plausibility and the gap, never the verdict
+   * label alone - is unchanged and is still what the four lines below render.
+   *
+   * A snapshot, not a memo: it must not move when the store does. `after` read
+   * inside `apply` is this render's value, which is the pre-dispatch one, because
+   * the dispatch it sits beside cannot have re-rendered anything yet.
+   */
+  const [baseline, setBaseline] = useState<Reasoning | null>(null);
 
   if (collapsed) {
     return (
@@ -204,7 +249,7 @@ export function TablePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
       claims: claims.map((c) => ({ id: c.id, label: claimLabel(c.id) })),
     };
     const r = await interpret(input);
-    const usable = r.value !== null && validAgainstEvidence(r.value, claims);
+    const usable = r.value !== null && validAgainstEvidence(r.value, claims, keyEvents);
     // The rung is preserved even when the proposal is dropped, so the pre-flight
     // panel and the tests still see which rung answered.
     setResolution(usable ? r : { value: null, rung: r.rung, source: r.source });
@@ -236,6 +281,9 @@ export function TablePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
   const apply = (p: Proposal) => {
     const a = dispatchable(p);
     if (a === null) return;
+    // Snapshot BEFORE dispatching. `after` here is this render's reasoning, which
+    // is the state the proposal is about to act on.
+    setBaseline(after);
     dispatch(a);
     setApplied(p);
     setResolution(null);
@@ -243,7 +291,7 @@ export function TablePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
 
   const p = resolution?.value ?? null;
   const kind = p === null ? null : actionKind(p);
-  const didMove = applied === null ? false : moved(before, after);
+  const didMove = applied === null || baseline === null ? false : moved(baseline, after);
 
   return (
     <div className="stack">
@@ -318,7 +366,7 @@ export function TablePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
         </fieldset>
       )}
 
-      {applied !== null && (
+      {applied !== null && baseline !== null && (
         <section data-testid="applied-delta" data-moved={String(didMove)} className="panel">
           {/* "Applied - the position did not move, and here is why" is a first-class
               state. Four of the six rules cannot move the number on TAK-994, and a
@@ -329,16 +377,16 @@ export function TablePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
           </h4>
           <div className="stack">
             <p data-testid="delta-belief" className="small">
-              Belief {before.belief.toFixed(3)} → {after.belief.toFixed(3)}
+              Belief {baseline.belief.toFixed(3)} → {after.belief.toFixed(3)}
             </p>
             <p data-testid="delta-plausibility" className="small">
-              Plausibility {before.plausibility.toFixed(3)} → {after.plausibility.toFixed(3)}
+              Plausibility {baseline.plausibility.toFixed(3)} → {after.plausibility.toFixed(3)}
             </p>
             <p data-testid="delta-gap" className="small">
-              Gap {(before.plausibility - before.belief).toFixed(3)} → {(after.plausibility - after.belief).toFixed(3)}
+              Gap {(baseline.plausibility - baseline.belief).toFixed(3)} → {(after.plausibility - after.belief).toFixed(3)}
             </p>
             <p data-testid="delta-verdict" className="small">
-              Verdict {before.verdict} → {after.verdict}
+              Verdict {baseline.verdict} → {after.verdict}
             </p>
             {!didMove && (
               <p data-testid="delta-why" className="small muted">

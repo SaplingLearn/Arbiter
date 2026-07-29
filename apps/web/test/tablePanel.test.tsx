@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { StoreProvider, useAppState, workingClaims } from "../src/state/store.js";
-import { TablePanel, claimLabel } from "../src/tabs/Case/TablePanel.js";
-import { interpret } from "../src/ai/interpret.js";
+import { StoreProvider, useAppState, useDispatch, workingClaims, type Action } from "../src/state/store.js";
+import { TablePanel, claimLabel, loadedKeyEvents } from "../src/tabs/Case/TablePanel.js";
+import { interpret, type Proposal } from "../src/ai/interpret.js";
+import type { Resolution } from "../src/ai/resolve.js";
 import { loadData } from "../src/data/load.js";
 
 // A real spy over the REAL interpreter. Stubbing it out would test a fake ladder;
@@ -35,11 +36,23 @@ function Probe() {
   );
 }
 
+/**
+ * An edit made the way a reviewer makes one - by hand, from the Ruleset tab -
+ * rather than through the interpreter. Mirrors the same helper in
+ * preflight.test.tsx. It exists so a proposal can be applied on top of a store
+ * that is already dirty, which every other test in this file avoids.
+ */
+function Fire({ id, action }: { id: string; action: Action }) {
+  const dispatch = useDispatch();
+  return <button type="button" data-testid={id} onClick={() => dispatch(action)}>{id}</button>;
+}
+
 const renderPanel = () =>
   render(
     <StoreProvider data={data}>
       <TablePanel collapsed={false} onExpand={() => {}} />
       <Probe />
+      <Fire id="drag-r1" action={{ type: "setRuleStrength", id: "R1", strength: 0.45 }} />
     </StoreProvider>,
   );
 
@@ -136,6 +149,70 @@ describe("TablePanel - the change is displayed before it is applied", () => {
   });
 });
 
+/**
+ * Spec §5.3's one unimplemented constraint: "Constrain the proposal surface to ids
+ * present in the loaded evidence."
+ *
+ * The stakes are the spec's own: `measuresKeyEvent` is a bare `z.string().nullable()`
+ * with no pattern, and `rules.ts` compares it only for equality after normalisation,
+ * so an invented id "silently breaks R5's equal-mechanistic-relevance gate rather
+ * than erroring". A schema-legal string is therefore not enough - the value has to
+ * name a key event this evidence base actually contains.
+ *
+ * Reachable today only through rung 1, so both cases arrive as a stubbed live
+ * response. That is the shape the constraint exists for.
+ */
+const liveReclassify = (newValue: string): Resolution<Proposal> => ({
+  value: {
+    targetRule: null,
+    targetClaimId: "TAK-994:invivo_rodent",
+    action: "reclassify_field",
+    field: "measuresKeyEvent",
+    newValue,
+    paraphrase: "Record that the rodent study measured a key event.",
+    confidence: "high",
+  },
+  rung: 1,
+  source: "live",
+});
+
+describe("TablePanel - a reclassification may only name evidence that exists (§5.3)", () => {
+  it("derives the legal key events FROM the loaded evidence rather than a hardcoded list", () => {
+    const known = loadedKeyEvents(data);
+    // Every id the corpus and the fixture actually carry, and nothing else.
+    expect([...known].sort()).toEqual([
+      "KE:BSEP-INHIBITION", "KE:CYP-INDUCTION", "KE:HEPATOCYTE-DEATH",
+    ]);
+    expect(known.has("KE:MODEL-INVENTED-THIS")).toBe(false);
+  });
+
+  it("REFUSES a measuresKeyEvent id the loaded evidence has never heard of", async () => {
+    // EvidenceClaimSchema accepts this string - it is a non-null key event on a
+    // rodent claim, which breaks no cross-field rule - so the schema check alone
+    // lets it through to the confirm panel, where a reviewer would approve a value
+    // that silently removes the claim from R5's equality gate.
+    interpretSpy.mockResolvedValueOnce(liveReclassify("KE:MODEL-INVENTED-THIS"));
+    renderPanel();
+    await challenge("the rodent study measured a key event nobody has recorded");
+
+    expect(screen.getByTestId("proposal-rung").dataset.rung).toBe("1");
+    expect(screen.queryByTestId("proposal")).toBeNull();
+    expect(screen.getByTestId("rule-picker")).toBeTruthy();
+  });
+
+  it("ACCEPTS a measuresKeyEvent id that IS present in the loaded evidence", async () => {
+    // The positive control. Without it the check above would also pass on a
+    // constraint that rejected every reclassification, which is a broken surface
+    // rather than an enforced one.
+    interpretSpy.mockResolvedValueOnce(liveReclassify("KE:BSEP-INHIBITION"));
+    renderPanel();
+    await challenge("the rodent study measured BSEP inhibition");
+
+    expect(screen.getByTestId("proposal-delta").textContent)
+      .toBe("invivo rodent · measuresKeyEvent: null → KE:BSEP-INHIBITION");
+  });
+});
+
 describe("TablePanel - confidence and action are legible before Apply", () => {
   it("arms Apply on a high-confidence reading and NOT on a low-confidence one", async () => {
     // Design section 5.2: `confidence: "low"` never arrives pre-armed, and its
@@ -220,6 +297,47 @@ describe("TablePanel - Apply and the delta", () => {
     expect(why).toContain("TAK-994:qsar");
     expect(why).toContain("ambiguous");
     expect(why).toContain("commits no mass");
+  });
+
+  it("measures THIS proposal's effect, not every edit made since the registered baseline", async () => {
+    // Every other test in this file applies exactly one proposal from a clean
+    // store, where "registered → now" and "before this proposal → now" are the same
+    // interval. They are not the same interval on the demo path: beat 6 applies a
+    // challenge, and the demo has already dragged the R1 slider by then
+    // (demo.spec.ts:107).
+    //
+    // R5 is INERT on TAK-994 - the sibling test above proves it moves nothing from
+    // a clean store. So every unit of movement here came from the slider, and a
+    // panel that reports "the position moved, 0.090 → 0.495" over an R5 proposal
+    // has credited the slider's work to the interpreter and suppressed the
+    // explanation of why R5 did nothing.
+    renderPanel();
+    fireEvent.click(screen.getByTestId("drag-r1"));
+    await challenge(R5_LOWER);
+    fireEvent.click(screen.getByTestId("proposal-apply"));
+
+    const delta = screen.getByTestId("applied-delta");
+    expect(delta.dataset.moved).toBe("false");
+    expect(screen.getByTestId("delta-belief").textContent).toBe("Belief 0.495 → 0.495");
+    expect(screen.getByTestId("delta-gap").textContent).toBe("Gap 0.505 → 0.505");
+    // And the explanation is not suppressed, which is the reader-visible half.
+    expect(screen.getByTestId("delta-why").textContent).toContain("TAK-994:qsar");
+  });
+
+  it("baselines a SECOND proposal at the state the first one left behind", async () => {
+    // The other order the demo can produce. Applied back to back, the second
+    // proposal's delta must start where the first one finished, not at the
+    // registered baseline - otherwise the cytotox reclassify reads as though it
+    // undid a change that was really R1's.
+    renderPanel();
+    await challenge(R1_LOWER);
+    fireEvent.click(screen.getByTestId("proposal-apply"));
+    expect(screen.getByTestId("delta-belief").textContent).toBe("Belief 0.090 → 0.495");
+
+    await challenge(CYTOTOX);
+    fireEvent.click(screen.getByTestId("proposal-apply"));
+    expect(screen.getByTestId("probe-cytotox").textContent).toBe("true");
+    expect(screen.getByTestId("delta-belief").textContent).toMatch(/^Belief 0\.495 → /);
   });
 
   it("explains a no-move on a DEFEAT rule differently, because the reason is different", async () => {

@@ -1,6 +1,8 @@
 # ARBITER — handover audit
 
 **Written 2026-07-28. Branch `arbiter-round1` merged to `main`.**
+**Updated 2026-07-29 for Phase 3 (branch `phase3`, 14 tasks). The Phase 3 record is
+§10 — read it with §3.3, which it corrects.**
 Pfizer Digital & Technology Hackathon 2026, Round 1.
 Team: Jack He, Andres Lopez, Jose Cruz-Lopez.
 
@@ -42,18 +44,23 @@ Keys: `→`/`←` step the seven demo beats, `M` motion kill switch, `?` pre-fli
 ### Verify everything
 
 ```bash
-npm run lint && npm run typecheck && npm test      # 275 tests, 32 files
-npm run web:build && npm run e2e                   # 8 Playwright tests
+npm run lint && npm run typecheck && npm test      # 513 tests, 52 files
+npm run web:build && npm run e2e                   # 12 Playwright tests
 npm run golden:update && git diff --exit-code results/   # must produce NO diff
 ```
 
 All of the above were green at merge, and CI runs all of it on every push.
 
 **Every command in this document was executed on 2026-07-28**, from the merge commit, and
-every file path it names was checked to exist. Results: lint clean, typecheck clean,
-**275** vitest tests across 32 files, **8** Playwright tests, `golden:update` produces no
-diff, and **32** Python tests pass across the four files in `data/prep/tests/`. The one
+every file path it names was checked to exist. Results at that point: lint clean, typecheck
+clean, **275** vitest tests across 32 files, **8** Playwright tests, `golden:update` produces
+no diff, and **32** Python tests pass across the four files in `data/prep/tests/`. The one
 path deliberately unresolvable is `progress.md`, for the reason in §7.
+
+**Re-run on 2026-07-29 from the end of branch `phase3`:** lint clean, typecheck clean,
+**513** vitest tests across 52 files, **12** Playwright tests, `golden:update` still produces
+no diff — Phase 3 moved no reported number. The Python side is untouched by Phase 3 and was
+not re-run.
 
 If a command here fails for you, it is drift since that date, not a typo — say so in this
 file when you fix it.
@@ -278,6 +285,11 @@ it exists, that question has no measured answer, only an argument.
 
 ### 3.3 Phase 3 — the three AI surfaces
 
+**STATUS, 2026-07-29: Surfaces 1 and 3 are BUILT on branch `phase3` (14 tasks). Surface 2
+is specified and deliberately not built.** Everything below was written before that work and
+is kept because its reasoning is still the reasoning; **§10 records what the build actually
+found, including two claims in this section that turned out to be false.**
+
 **Correction to an earlier draft of this document, which said "nothing is written".
 That was wrong.** The three surfaces are specified in detail in **master spec §7** —
 endpoints, payload shapes, fallback ladders, and thresholds. What does not exist is a
@@ -314,8 +326,24 @@ track, the consensus record. *Those four are the product.*
 
 Note Phase 3 needs the API service, which is the first thing in this project that is not
 a static artifact. The static ZIP must keep working with every surface on cache — that
-is already asserted by `apps/web/e2e/static-file.spec.ts`, which fails if the app makes
-any network request. **Do not break that test to make a surface work.**
+is asserted by `apps/web/e2e/static-file.spec.ts`. **Do not break that test to make a
+surface work.**
+
+**Correction, measured 2026-07-29.** The sentence that stood here — that the spec "fails if
+the app makes any network request" — was **false over `file://`, which is the only protocol
+that test uses.** Playwright's `request` and `requestfailed` channels never fired for a
+refused `file:` fetch, so with the `liveEnabled` gate ablated so both AI ladders fired real
+fetches on every panel open, **all five tests in that file stayed green.** The fetch is
+refused by the Fetch API synchronously, before any network event exists to observe, and a
+caught `TypeError` produces no `pageerror` either. The one trace is a console error:
+
+```
+Fetch API cannot load file:///api/interpret. URL scheme "file" is not supported.
+```
+
+The test now collects console errors and opens the pre-flight panel so both ladders actually
+run; the fix was verified by re-ablating the gate and watching it fail. **The general lesson
+is bigger than one test: over `file://` the network panel is not evidence.** See §10.2.
 
 ### 3.4 The Teams-share legibility check (needs a person)
 
@@ -695,9 +723,13 @@ docs/superpowers/plans/   Task-by-task plans with every code block synced to sou
 ### What you will look for and not find
 
 `.superpowers/` is **gitignored**, so none of it reached you: the SDD ledger
-(`progress.md`), the per-task briefs, and the per-task review reports that Phase 2 was
-built and reviewed through. If a commit message or a plan refers to "the ledger" or
+(`progress.md`), the per-task briefs, and the per-task review reports that Phases 2 and 3
+were built and reviewed through. If a commit message or a plan refers to "the ledger" or
 "task-N-report.md", that is why you cannot open it.
+
+**Phase 3's ledger conclusions were copied into §10 of this document** rather than left to
+die on one machine — which is what the paragraph below asks for, and which the Phase 3
+branch had not done until the final review caught it.
 
 Nothing load-bearing was lost, because the findings were deliberately written into
 tracked files as each task closed — the plans under `docs/superpowers/plans/` record what
@@ -731,6 +763,17 @@ recovery map — which is the same argument that keeps `data/out/` and `results/
 | Ruleset hash | `ed073a8a…` matches pre-registration |
 | Phase | 1 complete, 2 complete (all 14 tasks), 3 not started |
 
+### 8.1 State at the end of branch `phase3` (2026-07-29)
+
+| | |
+|---|---|
+| Tests | 513 vitest across 52 files; 12 Playwright |
+| Lint / typecheck / build | clean |
+| `golden:update` | produces no diff — Phase 3 moved no reported number |
+| Bundle | 1,144 kB raw / 199 kB gzipped, still one self-contained file |
+| Ruleset hash | `ed073a8a…` unchanged; `rules/ruleset-v1.0.json` untouched |
+| Phase | 1 complete, 2 complete, 3 built except Surface 2 (specified, deliberately not built) |
+
 One untracked file left deliberately:
 `documents/Drug Induced Liver Injury Rank (DILIrank 2.0) Dataset FDA.xlsx`. Committing a
 data file is an owner's call, not mine.
@@ -751,3 +794,200 @@ The strongest things to lead with are the ones that are actually true: a pre-reg
 hashed ruleset, a deterministic engine, golden-file CI that catches a moved number, a
 planner whose recommendation survives ±50% prior perturbation 99.2% of the time, and an
 audit trail whose tamper-evidence has been tested rather than asserted.
+
+---
+
+## 10. Phase 3 — the record, copied out of the gitignored ledger
+
+**Why this section exists.** §7 warns in writing that `.superpowers/` is gitignored and
+that a recovery map living on one machine is not a recovery map. Phase 3 then ran fourteen
+tasks through that ledger and **touched neither this document nor `docs/` in 5,894 lines of
+diff** — so a plan defect, two adjudications and thirteen deferred findings existed on
+exactly one laptop. The final whole-branch review caught it. What follows is the ledger's
+*conclusions*, in a tracked file. If you are running tasks the same way, do this as you go.
+
+### 10.1 What shipped
+
+Surfaces 1 (challenge interpreter) and 3 (navigator), both complete, both resolving through
+one shared five-rung fallback ladder (`apps/web/src/ai/resolve.ts`) that returns
+`{ value, rung, source }` — so "which rung answered" is a **value** the tests assert on and
+the pre-flight panel displays, not a comment. Plus an anchor registry with a `data-anchor`
+namespace, an evidence working copy (`evidenceEdits`), a spotlight, the precedence/threshold
+block on the Ruleset tab, and two thin handlers in `services/api/`.
+
+**Surface 2 is specified and deliberately not built** (Phase 3 spec §6). It appends one run
+to a pre-computed 25-runs-per-compound ablation that does not exist (§3.2). The Validation
+tab renders the placeholder `metric2a_llmConsistency` already carries, and the button stays
+disabled **even if that metric one day carries real numbers** — a specified-but-not-built
+surface must not enable itself the day the harness lands under it.
+
+### 10.2 Over `file://`, the network panel is not evidence
+
+**The most transferable finding of the phase, and it is about the project's central
+methodology rather than about one test.**
+
+Reproduced independently twice, in a real browser: a `fetch()` of a relative path from a
+`file://` document is refused by the Fetch API **synchronously**, before any CDP network
+event exists to observe. No `request`. No `requestfailed`. No `pageerror`, because the
+rejection is caught. The sole trace is a console error:
+
+```
+Fetch API cannot load file:///api/interpret. URL scheme "file" is not supported.
+```
+
+Consequence, measured by ablating `client.ts`'s `liveEnabled` gate to `true` so both ladders
+fired real fetches on every panel open: **all five tests in `static-file.spec.ts` stayed
+green.** The guarantee that the submitted ZIP never reaches for the network could not fail.
+
+Fixed by giving that test a console-error listener and making it open the pre-flight panel,
+so both ladders run with their real resolvers; verified by re-ablating and watching it fail
+with both console lines. `request`/`requestfailed` are kept, re-labelled as belt-and-braces
+for a regression on a **served** build. `ai-static.spec.ts` had this right first and says so.
+
+Spec §2 and the Phase 3 plan both asserted the opposite of what is measurable. Both are
+corrected in place.
+
+### 10.3 The pre-flight probes are deliberately unpinned, and the panel must not pretend otherwise
+
+`Preflight.tsx` runs both ladders when it opens and reports the rung each reached. Its two
+probe strings are **not** asserted to hit any particular rung: if the authored cache drifts
+away from them, the panel is meant to report a lower rung and say so. That is the correct
+behaviour for a panel whose stated rule is that every line is a check computed now.
+
+Measured: today's `PROBE_CHALLENGE` and `PROBE_QUESTION` appear verbatim in neither cache
+artifact, so **both surfaces resolve at rung 4, source `local`** — not `cache`. Two written
+claims were therefore false and shipped: the component's own header comment ("reads `cache`
+for every surface") and the plan's "Done when" bullet ("reports every surface on cache").
+
+The renderer was worse than the comments. `surfaceLine` had two branches — `live`, and
+everything else printed as *"answered from the bundled cache (rung N, source S)"* — so the
+built artifact showed:
+
+```
+Challenge interpreter: answered from the bundled cache (rung 4, source local),
+so losing the connection changes nothing.
+```
+
+A sentence contradicting itself inside its own parentheses, and on an exhausted ladder it
+claimed a cache answer for a rung-5 `noMatch` — exactly what `resolve.ts` refuses to do
+("nothing answered, so nothing may be reported as having answered").
+
+**Fixed by reporting the rung actually reached, one branch per `Source`, not by pinning the
+probes.** Pinning them would make one sentence accidentally true today and leave the
+renderer free to lie the moment the cache drifts. This is the §5.4 defect — a caption that
+reads identically whether or not it is true — recurring in the same component it had already
+been rewritten out of once. **Expect it to try again.**
+
+### 10.4 `services/api` has no HTTP server, so rung 1 has never run against a real model
+
+`services/api/` contains two exported handler functions, `handleInterpret` and
+`handleNavigate`, plus `completeFromEnv`. It contains **no server**: no `listen`, no route
+mounting, no start script, and `package.json` declares no `scripts` block at all. Nothing
+deploys it.
+
+So the live rung is exercised by exactly two things, and neither involves a model: the
+handler tests, which inject a fake `Complete`, and `apps/web/test/rung1.test.ts`, which stubs
+`fetch`. **The path from a real browser through a real HTTP server to a real model has never
+executed.** That is the residual risk spec §15 names — "a Railway deploy landing late is the
+first real test of code written weeks earlier" — stated as a fact rather than a risk.
+
+It is survivable by design: rung 1 is one optional rung, the demo path does not depend on
+it, and the submitted ZIP compiles it out entirely. Do not let that make it invisible.
+
+### 10.5 The plan's own test was unsatisfiable (Task 5)
+
+The Task 5 brief's Step 3 test clicked the Apply button **without arming it**, while its own
+sibling test required that button to be natively disabled when unarmed and its own Step 5
+reference implementation used `disabled={!armed}`. The brief's reference implementation would
+have failed the brief's own test: unsatisfiable by **any** implementation honouring "a
+low-confidence reading never arrives pre-armed". Fixed by arming the checkbox before the
+click, exactly as a reviewer confirming a guess would. Every downstream assertion unchanged.
+
+This is §5.2 and §5.4 again — the plan is not the authority, measurement is — and it is the
+third recorded instance of a plan-supplied test that a correct implementation would fail.
+
+### 10.6 Two adjudications about reports that cited things that did not exist
+
+Recorded because the *handling* is the reusable part, not the incidents.
+
+- **Task 7.** The task report claimed the brief "explicitly lists `parseAnchor` as an import
+  target". It does not — `parseAnchor` appears nowhere in that brief. **The citation was
+  fabricated.** The engineering decision it defended was independently sound, so the ruling
+  was *no code change*: the defect was in a gitignored scratch report, not in shipped code.
+  Its real risk was that it undermined the report's **other** unverifiable self-audits — so
+  the controller verified the load-bearing one directly instead of trusting it, by corrupting
+  `anchor-map.json` to name a nonexistent anchor and re-running. Five tests failed, a
+  **stronger** guard than the report had claimed.
+- **Task 10.** The report claimed "the e2e run confirms this" for the zero-network guarantee,
+  citing a test that never opens the pre-flight panel. The guarantee was real; the citation
+  was overstated. That overstatement is the same gap §10.2 later measured.
+
+**The pattern: an unverifiable claim in a report is not a small thing even when the code is
+right, because it spends credibility the report's other claims are drawing on.** Verify the
+load-bearing one directly.
+
+### 10.7 The final whole-branch review — eight findings, all fixed
+
+Ran on 2026-07-29 against all fourteen commits at once. Every one of these was invisible to
+per-task review by construction: each needed either two tasks' output side by side, or a file
+that was off-limits while the tasks ran, or a deliberate ablation to expose.
+
+| # | finding | fix |
+|---|---|---|
+| C1 | The pre-flight honesty panel shipped a self-contradicting sentence (§10.3) | One branch per `Source`; header claim retired |
+| C2 | The applied delta measured *registered → now*, so it credited the interpreter with the reviewer's own earlier edits | Snapshot the pre-apply reasoning at apply time; **spec §5.5 corrected** |
+| I1 | The zero-network guarantee could not fail (§10.2) | Console-error listener; panel opened; verified by ablation |
+| I2 | `useLibraryVerdicts` error containment was untested — the test reimplemented the guarantee inline and asserted `typeof … === "function"` | Real hook test with a claim that throws when read; verified by replacing the `catch` with `throw e` |
+| I3 | "leaves the baselines table untouched" was a self-comparison with no action between the two reads | Content derived from `metrics.json`, asserted across a real press; verified by blanking the table |
+| I4 | Navigator rung 1 bypassed `sanitizeNavResult`, so an all-stale live response stopped the ladder at rung 1 with an empty result strip labelled "rung 1 · live" — and dropped the dedupe and the 3-anchor cap | Route rung 1 through the same sanitiser every other rung uses |
+| I6 | Spec §5.3's `measuresKeyEvent` constraint was unimplemented | Legal ids derived from the loaded evidence; an invented id is a rung miss |
+| I7 | The entire finding record was gitignored | This section |
+
+**C2 is the one to understand, because the spec was at fault rather than the implementer.**
+Spec §5.5 specified the delta as *registered baseline* against *now*. Measured: drag the R1
+slider to 0.45 (which the demo does), then apply the R5 challenge, and the panel reported
+"Applied — the position moved", belief 0.090 → 0.495, and **suppressed** the explanation —
+when R5 is inert on TAK-994 and every unit of that movement came from the slider. Applied the
+other way round, an R1 challenge followed by the cytotox reclassify reported belief
+0.090 → 0.000, reading as though cytotox had zeroed it. Every existing test applied exactly
+one proposal from a clean store, where the two intervals coincide, which is why it survived.
+
+**Three of the eight (I1, I2, I3) were tests that could not fail.** That is §5.1's list
+recurring, and the countermeasure is the one §5.1 already gives: for each of those, the fix
+was verified by **injecting the defect it guards against** and watching it fail. Do that.
+
+### 10.8 Deferred findings — real, minor, and still open
+
+None is load-bearing. All are honest to fix if you are in the file.
+
+1. `anchors.ts`'s docstring claims `compound-row` needs a per-instance anchor; no such
+   constructor exists (only the collective `compounds.table`). Inherited from the brief.
+2. `ReclassifiableField` is declared **twice**, in `ai/interpret.ts` and `state/store.tsx`.
+   Both derive from `keyof AssayOperator["produces"]` so there is no type risk, but it
+   duplicates a single-source-of-truth concept with no import between the modules.
+   `interpret.ts` should import it from the store.
+3. `interpret.ts`'s drift-guard comment cites `schema.ts:87-102` for the mutually-assignable
+   idiom; the real idiom is at `schema.ts:262-267`. Every other citation in that file checked
+   out.
+4. `store.test.ts`'s `@ts-expect-error` block ends in a runtime `toHaveLength(4)` that is
+   vacuous — the real gate is `npm run typecheck`, not `npm test`. Brief-specified pattern,
+   documented rather than silently changed.
+5. `navigate.test.ts`'s `NavResultSchema` test is **named** for the prose-rejection case but
+   carries no extra-key assertion. Pre-existing; `rung1.test.ts` covers the behaviour.
+6. `trigram.test.ts`'s empty-challenge test title claims "every cached entry" and exercises
+   two cases.
+7. The `NavigatorBar` placeholder does not hint the Backspace-to-dismiss gesture.
+8. `submit()` calls `setApplied(null)` beyond the brief's reference implementation — sensible
+   (it clears a stale applied panel on resubmit), untested either way.
+9. Task 3's polarity experiment (rewiring `useLibraryVerdicts` and observing
+   `expected advance to be abstain`) was reverted, so it leaves no artifact: credible but
+   unverifiable from the diff.
+10. Task 1's report gave per-file line counts that were asserted rather than measured and are
+    all wrong. Its meaningful counts (31 tests) are correct.
+
+Two more were promoted to findings and fixed above (§10.2, §10.3).
+
+**One thing worth knowing before you "verify" a hash:** the `ed073a8a…` constant is a
+**canonical-JSON** digest computed by `apps/harness/src/preregistration.ts`, not a raw-byte
+`sha256sum` of the file. Running `sha256sum rules/ruleset-v1.0.json` produces a different
+number and does not mean the ruleset has drifted.

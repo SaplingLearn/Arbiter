@@ -194,6 +194,36 @@ describe("Preflight", () => {
     expect(one.textContent).toMatch(/losing the connection changes nothing/i);
   });
 
+  it("reports a LOCAL answer as local, and never as a cache answer", async () => {
+    // The defect this pins. `surfaceLine` had two branches - "live", and everything
+    // else rendered as "answered from the bundled cache" - so rung 4 shipped the
+    // sentence "answered from the bundled cache (rung 4, source local)", which
+    // contradicts itself inside one set of parentheses. Measured on the built
+    // artifact: today's PROBE_CHALLENGE and PROBE_QUESTION both land on rung 4,
+    // source "local", so this was the sentence the panel actually printed.
+    vi.mocked(interpret).mockResolvedValue({ value: null, rung: 4, source: "local" });
+    renderWith(data);
+    const one = await screen.findByTestId("check-surface-1");
+    await waitFor(() => expect(one.getAttribute("data-source")).toBe("local"));
+    expect(one.textContent).toMatch(/rung 4/);
+    expect(one.textContent).not.toMatch(/answered from the bundled cache/i);
+    expect(one.textContent).toMatch(/deterministic matcher/i);
+    expect(one.textContent).toMatch(/losing the connection changes nothing/i);
+  });
+
+  it("reports an EXHAUSTED ladder as having answered nothing, never as a cache answer", async () => {
+    // resolve.ts:42-44 refuses to name a source when nothing answered - "nothing
+    // answered, so nothing may be reported as having answered". A line claiming a
+    // cache answer for a rung-5 noMatch says the opposite of the module it reports on.
+    vi.mocked(navigate).mockResolvedValue({ value: null, rung: 5, source: "none" });
+    renderWith(data);
+    const three = await screen.findByTestId("check-surface-3");
+    await waitFor(() => expect(three.getAttribute("data-source")).toBe("none"));
+    expect(three.textContent).toMatch(/rung 5/);
+    expect(three.textContent).not.toMatch(/answered from/i);
+    expect(three.textContent).toMatch(/no rung answered/i);
+  });
+
   it("reports a surface as LIVE when the live rung answered, and says what a drop costs", async () => {
     // The other direction, and the reason the old check-network line had to go: on a
     // served build with a live surface, "no network call is made at any point" is

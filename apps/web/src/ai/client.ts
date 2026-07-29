@@ -13,10 +13,16 @@ export const LIVE_TIMEOUT_MS = 2500;
  *
  * The build flag means the submitted ZIP is compiled with live off entirely. The
  * protocol check means a ZIP built from the wrong config still cannot fire a
- * request. The redundancy is deliberate: apps/web/e2e/static-file.spec.ts collects
- * page.on("request") as well as requestfailed and asserts both are empty, so over
- * file:// the app must not ATTEMPT the call - a build that tries and fails still
- * fails the test.
+ * request. The redundancy is deliberate: over file:// the app must not ATTEMPT the
+ * call - a build that tries and fails still fails apps/web/e2e/static-file.spec.ts.
+ *
+ * What catches an ablated gate there is the CONSOLE listener, not page.on("request").
+ * Measured: a fetch of a relative path from a file:// document is refused by the
+ * Fetch API synchronously, before any CDP network event exists, so neither "request"
+ * nor "requestfailed" nor "pageerror" fires - the sole trace is
+ *   Fetch API cannot load file:///api/interpret. URL scheme "file" is not supported.
+ * Worth knowing before anyone concludes from a silent network panel that this gate
+ * is holding.
  *
  * A module-level const, not a function: Vite replaces import.meta.env statically
  * at build time, so on the static build this whole expression folds to `false` and
