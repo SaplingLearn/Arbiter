@@ -49,6 +49,23 @@ npm run golden:update && git diff --exit-code results/   # must produce NO diff
 
 All of the above were green at merge, and CI runs all of it on every push.
 
+### The Python half, which npm does not touch
+
+`data/prep/` is a separate toolchain and you need it for anything touching the data
+layer — including the Cmax work, which is the most time-critical item on the list.
+
+```bash
+python -m venv .venv && . .venv/Scripts/activate     # or bin/activate outside Windows
+pip install -r data/prep/requirements.txt            # pandas, rdkit, scikit-learn, ...
+cd data/prep && python -m pytest                     # 4 test files
+```
+
+`data/prep/README.md` documents the pipeline order. Note `rdkit` is the heavy dependency
+and the one most likely to fight a fresh environment.
+
+**These Python tests do NOT run in CI.** See §3.5d — two of them guard the strongest
+methodological claim in the project, so run them by hand after touching `data/prep/`.
+
 ---
 
 ## 1. Three things you must not do
@@ -154,7 +171,8 @@ it, and the corpus mean is dominated by cases never close to deciding.
 | # | what | blocked by | § |
 |---|---|---|---|
 | 1 | **Cmax hunt** — before the 2 Aug freeze | *needs a person*; team-capacity call | 3.1 |
-| 2 | **LLM ablation** — a literal hole in `metrics.json` today | `ANTHROPIC_API_KEY` from Jack (~$20-40) | 3.2 |
+| 2 | **LLM ablation** — needs BUILDING, not just a key; see the correction | `ANTHROPIC_API_KEY` (~$20-40) **and** a spec | 3.2 |
+| 2b | **Python tests into CI** — one guards the split-before-fitting claim | nothing | 3.5d |
 | 3 | **Type the metrics contract** — small, do it before Phase 3 adds readers | nothing | 3.5c |
 | 4 | **Phase 3 spec, then plan** — requirements already in master spec §7 | nothing | 3.3 |
 | 5 | **Phase 3 build** — Surface 1, then 3, then 2 | item 4 | 3.3 |
@@ -192,19 +210,46 @@ That stops R3 firing unconditionally and makes the headline reportable.
 This competes for the same days as everything else and is a **team-capacity call, not an
 engineering one.** It has not been started.
 
-### 3.2 T14 — the LLM ablation (blocked on a key)
+### 3.2 T14 — the LLM ablation is UNIMPLEMENTED, not merely unkeyed
 
-`results/metrics.json` currently carries:
+**Correction to an earlier draft of this document, which said it was "blocked on
+`ANTHROPIC_API_KEY`" and "needs no new design work". Both were wrong**, and believing
+them would cost someone a day.
 
+`results/metrics.json` tells you to run `npm run ablation`. **That script does not
+exist.** Neither does any implementation:
+
+```bash
+$ npm run   # ablation is absent from the whole list
+test lint typecheck harness validate:evidence metrics golden:update e2e web:dev web:build
+$ find . -name '*ablation*' -not -path '*/node_modules/*'
+# nothing
 ```
-metric2a_llmConsistency = { "note": "results/ablation.json not present -
-  run `npm run ablation` (Task 14, needs ANTHROPIC_API_KEY)" }
-```
 
-**Blocked on `ANTHROPIC_API_KEY` from Jack (~$20–40 of spend).** This is the metric that
-shows a raw LLM giving inconsistent answers to the same evidence where ARBITER gives one
-— it is the "why not just ask a model" answer, and it is currently a hole in the metrics
-file. Unblock it early; it needs no new design work.
+The only reference anywhere is in `apps/harness/src/run-metrics.ts`, which emits the
+"not present" note into `metric2a_llmConsistency`. So the metric is a placeholder that
+correctly reports its own absence — good behaviour, but it is *all* that exists.
+
+**What actually has to be built**, and it needs design decisions, not just a key:
+
+1. A runner that asks a model for a verdict on the same evidence, **25 runs per compound**
+   across the conflict subset (spec §7, Surface 2) with the temperature disclosed.
+2. The prompt, and a decision on how the evidence is serialised into it — this is a
+   methodological choice a judge can attack, so it belongs in the spec before the code.
+3. A consistency metric over those runs, plus how disagreement is summarised.
+4. Caching, because 61 compounds × 25 runs is not something to re-run casually, and the
+   result must be committed so a reviewer can re-derive the number.
+5. Engine purity is not at risk — this lives entirely in `apps/harness`, which is
+   allowed I/O — but **determinism is.** Everything else in `results/` is reproducible
+   from a seed. A model's output is not, so the committed run data becomes the record and
+   `golden:update` must not start churning on it.
+
+`ANTHROPIC_API_KEY` (~$20–40) is necessary but nowhere near sufficient. Budget this as a
+real task with a spec, not an afternoon.
+
+Note the honest framing this metric is for: **"why not just ask a model"** — showing a
+raw LLM giving inconsistent answers to identical evidence where ARBITER gives one. Until
+it exists, that question has no measured answer, only an argument.
 
 ### 3.3 Phase 3 — the three AI surfaces
 
@@ -336,6 +381,31 @@ pattern applied to `metrics.json` would make a drifted field fail at load with a
 naming itself, which is how every other bundled artifact in this app already behaves.
 
 Small, contained, and worth doing before Phase 3 adds more surfaces reading more fields.
+
+### 3.5d The Python tests are not in CI, and two of them guard the headline claim
+
+`data/prep/tests/` holds four test files. **None of them runs in CI** — the workflow
+never invokes `pytest` or installs Python at all. Two of the four are not incidental:
+
+| test | what it protects |
+|---|---|
+| `test_splits.py` | the three-way split |
+| `test_qsar_leakage.py` | **that the QSAR model was fitted on train only** |
+| `test_evidence_assembly.py` | stream assembly into `evidence.json` |
+| `test_tak994_asof.py` | the fixture's as-of milestones |
+
+`test_qsar_leakage.py` guards **the strongest methodological claim in the project** —
+that the split was fixed before any model was fitted, which is the condition under which
+every reported number is valid at all (master spec §8). A leak reintroduced into
+`data/prep/` today would be caught by nothing automatic.
+
+**Fix:** add Python to the CI job and run `pytest`. It is a handful of lines and needs
+`rdkit`, which is the slow install — cache `~/.cache/pip` the same way the Playwright
+browser is cached, and check the cache actually hits (§3.6 for why that phrasing).
+
+Until then: **run `cd data/prep && python -m pytest` by hand after any change under
+`data/prep/`.** That instruction is easy to forget, which is the argument for doing the
+CI work rather than relying on it.
 
 ### 3.6 CI has one step that can stall for ten minutes, unpredictably
 
@@ -596,6 +666,22 @@ results/                  metrics.json, golden/, verdict-manifest.json (golden-f
 docs/superpowers/specs/   2026-07-26-arbiter-design.md is the master spec
 docs/superpowers/plans/   Task-by-task plans with every code block synced to source
 ```
+
+### What you will look for and not find
+
+`.superpowers/` is **gitignored**, so none of it reached you: the SDD ledger
+(`progress.md`), the per-task briefs, and the per-task review reports that Phase 2 was
+built and reviewed through. If a commit message or a plan refers to "the ledger" or
+"task-N-report.md", that is why you cannot open it.
+
+Nothing load-bearing was lost, because the findings were deliberately written into
+tracked files as each task closed — the plans under `docs/superpowers/plans/` record what
+was measured and what went wrong per task, and this document carries the rest. But if you
+are hunting for a decision's rationale and the trail stops, it stopped there. Ask Jack.
+
+**If you run tasks the same way, either commit your ledger or copy its conclusions into a
+tracked file as you go.** A recovery map that only exists on one machine is not a
+recovery map — which is the same argument that keeps `data/out/` and `results/` in git.
 
 ### Read in this order
 
