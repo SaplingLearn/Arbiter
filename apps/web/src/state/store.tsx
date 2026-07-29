@@ -107,11 +107,14 @@ export type Action =
   | { type: "toggleMotion" }
   | { type: "setPendingAnchor"; anchorId: string | null };
 
-export function initialState(data: LoadedData): AppState {
+export function initialState(
+  data: LoadedData,
+  initialEvidenceEdits: Record<string, EvidenceEdit> = {},
+): AppState {
   return {
     data,
     ruleset: data.ruleset,
-    evidenceEdits: {},
+    evidenceEdits: initialEvidenceEdits,
     asOf: null,
     selectedCompoundId: data.fixture.compoundId,
     tour: { beat: 0, tab: "case", focus: null },
@@ -303,8 +306,14 @@ export function reducer(s: AppState, a: Action): AppState {
 const StateCtx = createContext<AppState | null>(null);
 const DispatchCtx = createContext<Dispatch<Action> | null>(null);
 
-export function StoreProvider({ data, children }: { data: LoadedData; children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, data, initialState);
+export function StoreProvider(
+  { data, initialEvidenceEdits, children }:
+    { data: LoadedData; initialEvidenceEdits?: Record<string, EvidenceEdit>; children: ReactNode },
+) {
+  // The seed prop exists so a test that wants to render with edited evidence
+  // already in place can pass it here, rather than dispatching reclassifyClaim
+  // through act() in every test that needs one.
+  const [state, dispatch] = useReducer(reducer, data, (d) => initialState(d, initialEvidenceEdits));
   return (
     <StateCtx.Provider value={state}>
       <DispatchCtx.Provider value={dispatch}>{children}</DispatchCtx.Provider>

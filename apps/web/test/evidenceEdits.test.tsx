@@ -155,10 +155,15 @@ describe("the verdict and the evidence beside it (§9)", () => {
 });
 
 describe("one edited predicate, both surfaces (§9.3)", () => {
-  it("clears the MODIFIED badge and the pre-flight warning TOGETHER", () => {
+  it("clears the MODIFIED badge and the pre-flight warning TOGETHER", async () => {
     // Before this task the badge cleared and the panel did not, because one tested
     // by reference and the other by deep compare. The failure is only visible when
     // both are on screen at once, which is why they are rendered together here.
+    //
+    // check-edits is now a digest comparison (Task 10, §9.3 superseded again) and
+    // so is asynchronous - it goes through the same "pending" state check-ruleset
+    // does before the recomputed hash lands, which is why the two assertions below
+    // are each behind a waitFor rather than read on the next line.
     render(
       <StoreProvider data={data}>
         <RulesetTab />
@@ -168,11 +173,11 @@ describe("one edited predicate, both surfaces (§9.3)", () => {
 
     fireEvent.change(screen.getByTestId("strength-R1"), { target: { value: "0.05" } });
     expect(screen.getByTestId("modified-badge")).toBeTruthy();
-    expect(screen.getByTestId("check-edits").getAttribute("data-ok")).toBe("false");
+    await waitFor(() => expect(screen.getByTestId("check-edits").getAttribute("data-ok")).toBe("false"));
 
     fireEvent.change(screen.getByTestId("strength-R1"), { target: { value: "0.9" } });
     expect(screen.queryByTestId("modified-badge")).toBeNull();
-    expect(screen.getByTestId("check-edits").getAttribute("data-ok")).toBe("true");
+    await waitFor(() => expect(screen.getByTestId("check-edits").getAttribute("data-ok")).toBe("true"));
   });
 
   it("still warns while a real edit is on screen", async () => {
