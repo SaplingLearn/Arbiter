@@ -378,3 +378,48 @@ a.btn { display: inline-block; text-decoration: none; }
   .nav-brand span, .nav-hint { display: none; }
   .nav-brand { white-space: nowrap; }
 }
+
+/* ---------- table: challenge interpreter ----------
+   Task 5. The change is displayed before it is applied (design section 5.2), so
+   this is the one place in the app that renders a proposal the user has not yet
+   confirmed. Two additions beyond .panel/.control/.row, because a bare .field
+   sizes to a browser default rather than the textarea's container, and the
+   proposal card needs a distinct silhouette for `disable` that survives a
+   greyscale screen-share the same way the evidence dots do. */
+
+/* The challenge textarea. `.field` alone leaves a multi-row textarea at its
+   intrinsic character width, which reads as a broken layout next to a full-width
+   panel. */
+.field-full { display: block; width: 100%; resize: vertical; }
+
+/* The proposal card. Confidence is legible from `data-confidence` already, but
+   `disable` gets its own border treatment regardless of confidence - dashed and
+   toxic-coloured - because on TAK-994 disabling R3 flips the verdict while
+   lowering it moves nothing at all: two low-confidence readings of one objection,
+   a whole verdict apart, so confidence cannot be the only thing telling them
+   apart on screen (design section 5.2). */
+.proposal-card { border-width: 2px; }
+.proposal-card[data-action-kind="disable"] { border-style: dashed; border-color: var(--toxic); }
+
+/* The paraphrase. Raised weight at low confidence - not colour alone - because a
+   low-confidence guess is exactly the line a reviewer must not skim past. */
+.proposal-paraphrase { font-size: 15px; line-height: 1.4; margin: 0; }
+.proposal-paraphrase[data-emphasis="raised"] { font-weight: 700; }
+
+/* ---------- navigator ----------
+   Task 7. Surface 3's mount (spec section 7.3): a slim bar between the tab nav
+   and the tab body, one line when idle. A question is asked about whatever is on
+   screen, tab included, so the bar sits outside <main> rather than belonging to
+   any one tab - the same reasoning that keeps TourFooter outside it. */
+.navigator {
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface);
+  padding: var(--s3) var(--s5);
+}
+.navigator-form { display: flex; align-items: center; gap: var(--s3); }
+.navigator-label { flex: 0 0 auto; }
+/* `.field` alone sizes to a browser default, same reason `.field-full` exists
+   for the challenge textarea - this box grows to fill the bar instead. */
+.navigator-input { flex: 1; }
+.navigator-rung { flex: 0 0 auto; white-space: nowrap; }
+.navigator-answer { margin-top: var(--s3); align-items: center; }

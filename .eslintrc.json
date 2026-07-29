@@ -26,6 +26,16 @@
       "env": { "browser": true }
     },
     {
+      // `NodeJS.ProcessEnv` is an AMBIENT TYPE from @types/node, not a runtime
+      // global, so the base `no-undef` rule (which only knows the `globals`
+      // package's runtime lists) flags it even with `env: { node: true }` set
+      // above. tsc already checks this correctly; this override only tells
+      // eslint the type-level name exists so it stops double-checking what
+      // typecheck already covers.
+      "files": ["services/api/**/*.ts"],
+      "globals": { "NodeJS": "readonly" }
+    },
+    {
       "files": ["packages/engine/src/**/*.ts"],
       "rules": {
         "no-restricted-globals": [

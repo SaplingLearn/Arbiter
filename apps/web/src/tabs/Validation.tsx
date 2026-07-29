@@ -20,6 +20,20 @@ export function ValidationTab() {
     .filter(([, b]) => b.nCommitted > 0)
     .sort((a, b) => b[1].balancedAccuracy - a[1].balancedAccuracy);
 
+  // Surface 2, the live ablation spot check: SPECIFIED, NOT BUILT (Phase 3 spec §6).
+  // The headline it would append to is pre-computed per compound, and that ablation
+  // does not exist - `npm run ablation` is absent from the repo (HANDOVER §3.2).
+  // metric2a_llmConsistency is a genuine union (LlmConsistencyPending has `note`,
+  // LlmConsistencyMeasured does not) rather than one shape with an optional half, so
+  // narrowing on "note" is the type-correct read of "has the ablation run yet". The
+  // placeholder already correctly reports its own absence, so the tooltip is READ
+  // FROM IT rather than written here; the day the ablation lands, this stops
+  // claiming it is missing without anyone editing a string.
+  const ablation = m.metric2a_llmConsistency;
+  const ablationNote = "note" in ablation ? ablation.note : null;
+  const ablationTooltip = ablationNote
+    ?? "The live spot check is specified but not built (Phase 3 spec §6) — the button stays disabled.";
+
   return (
     // The shell supplies .container. Prose gets a measure; the baseline table
     // does not.
@@ -28,7 +42,7 @@ export function ValidationTab() {
         <p className="label">Measured</p>
         <h2 className="display">Validation</h2>
 
-        <p className="small muted" data-testid="provenance">
+        <p className="small muted" data-testid="provenance" data-anchor="validation.provenance">
           ruleset <span className="mono">{m.provenance.rulesetHash.slice(0, 8)}…</span> · split seed{" "}
           {m.provenance.splitSeed} · perturbation seed {m.provenance.perturbationSeed} · scored on the{" "}
           {m.provenance.scoredSplit} split
@@ -41,7 +55,7 @@ export function ValidationTab() {
             substitutes 0.5 for an absent class there is no interval to report,
             because a substitution is not an estimate, so we say that instead of
             borrowing one. */}
-        <p className="lede" data-testid="headline">
+        <p className="lede" data-testid="headline" data-anchor="validation.headline">
           Conflict subset n = <strong>{acc.n}</strong>. ARBITER coverage{" "}
           <strong>{(arbiter.coverage * 100).toFixed(1)}%</strong> ({arbiter.nCommitted} committed).
           {" "}balanced accuracy {arbiter.balancedAccuracy.toFixed(2)}{" "}
@@ -56,7 +70,7 @@ export function ValidationTab() {
             balanced accuracy beside it is half a substituted 0.5 and a judge who
             reads the number but not the caveat has been misled by us. */}
         {arbiter.singleClass && (
-          <p className="caveat caveat-warn" data-testid="single-class-warning">
+          <p className="caveat caveat-warn" data-testid="single-class-warning" data-anchor="validation.singleClassWarning">
             <strong>Single-class:</strong> ARBITER committed on only one label, so this balanced accuracy is
             half a substituted 0.5. It must not be quoted as an accuracy. Coverage is the finding — no compound
             in this set carries exposure-relevant evidence, so R3 discounts every safe claim.
@@ -66,46 +80,69 @@ export function ValidationTab() {
 
       <hr className="rule" />
 
-      <h3 className="subtitle">Baselines</h3>
-      <table className="table">
-        <thead>
-          <tr>
-            <th scope="col">Pipeline</th>
-            <th scope="col" className="n">n committed</th>
-            <th scope="col" className="n">Coverage</th>
-            <th scope="col" className="n">Balanced accuracy</th>
-            <th scope="col">Flag</th>
-          </tr>
-        </thead>
-        <tbody>
-          {baselines.map(([name, b]) => (
-            <tr key={name}>
-              <td>{name}</td>
-              <td className="n">{b.nCommitted}</td>
-              <td className="n">{(b.coverage * 100).toFixed(1)}%</td>
-              <td className="n">{b.balancedAccuracy.toFixed(2)}</td>
-              <td>{b.singleClass ? <span className="chip chip-warn">single-class</span> : null}</td>
+      {/* Heading and table share one anchor: scrolling to the bare table would
+          put "Baselines" off screen and the numbers would arrive unlabelled. */}
+      <section data-anchor="validation.baselines">
+        <h3 className="subtitle">Baselines</h3>
+        <table className="table">
+          <thead>
+            <tr>
+              <th scope="col">Pipeline</th>
+              <th scope="col" className="n">n committed</th>
+              <th scope="col" className="n">Coverage</th>
+              <th scope="col" className="n">Balanced accuracy</th>
+              <th scope="col">Flag</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {baselines.map(([name, b]) => (
+              <tr key={name}>
+                <td>{name}</td>
+                <td className="n">{b.nCommitted}</td>
+                <td className="n">{(b.coverage * 100).toFixed(1)}%</td>
+                <td className="n">{b.balancedAccuracy.toFixed(2)}</td>
+                <td>{b.singleClass ? <span className="chip chip-warn">single-class</span> : null}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
       <hr className="rule" />
 
       <div className="prose">
         <h3 className="subtitle">What is reportable</h3>
-        <p data-testid="planner-stability">
+        <p data-testid="planner-stability" data-anchor="validation.plannerStability">
           Planner recommendation unchanged under ±50% perturbation of every expert-elicited prior:{" "}
           <strong className="num">{m.metric5_plannerSensitivity.meanUnchangedFraction.toFixed(3)}</strong>.
           The recommendation is driven by argument structure, not by the priors.
         </p>
-        <p>
+        <p data-anchor="validation.robustness">
           Robustness on committed compounds:{" "}
           <span className="num">{m.metric2b_arbiterRobustness.meanHeldFractionOnCommitted.toFixed(3)}</span> ·{" "}
           determinism verified by a 1000-run single-hash test.
         </p>
-        <p className="small muted" data-testid="llm-ablation">
+        <p className="small muted" data-testid="llm-ablation" data-anchor="validation.llmAblation">
           LLM ablation: <span className="mono">{JSON.stringify(m.metric2a_llmConsistency)}</span>
+        </p>
+
+        {/* Disabled under every one of §11's five conditions, and under a sixth: the
+            ablation it would append to has not been built. The baselines table above
+            is untouched either way - that is the whole of Surface 2's §11 row (the
+            master spec's own wording: the button disables with a tooltip and the
+            table is untouched). Stays disabled even once metric2a_llmConsistency
+            carries real numbers - a specified-but-not-built surface must not enable
+            itself the day the harness lands under it. */}
+        <p className="small muted">
+          <button
+            type="button"
+            className="btn"
+            data-testid="live-ablation-run"
+            disabled
+            title={ablationTooltip}
+          >
+            Append one live consistency run
+          </button>
         </p>
       </div>
     </section>

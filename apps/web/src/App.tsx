@@ -9,6 +9,8 @@ import { RulesetTab } from "./tabs/Ruleset.js";
 import { ValidationTab } from "./tabs/Validation.js";
 import { RecordTab } from "./tabs/Record.js";
 import { TourFooter } from "./tour/TourFooter.js";
+import { NavigatorBar } from "./ai/NavigatorBar.js";
+import { useAnchorScroll } from "./ai/useAnchorScroll.js";
 import { Preflight } from "./ui/Preflight.js";
 import { isTypingTarget } from "./ui/isTypingTarget.js";
 import "./ui/motion.css";
@@ -54,6 +56,11 @@ function AppShell({ tab }: { tab: TabId }) {
   const { motion } = useAppState();
   const [preflight, setPreflight] = useState(false);
 
+  // Here rather than inside NavigatorBar: the hook needs the tab that is
+  // actually rendered, which is what tells it the deferred hashchange has
+  // landed (spec section 8).
+  useAnchorScroll(tab);
+
   // `?` rather than a visible button: it is for the presenter in the ninety
   // seconds before going live, not part of the story a judge is shown.
   useEffect(() => {
@@ -96,6 +103,11 @@ function AppShell({ tab }: { tab: TabId }) {
             It is written down on the About tab, where the rest of the keys are. */}
         <div className="nav-right"><span className="nav-hint">←/→ beats · M motion</span></div>
       </nav>
+
+      {/* Between the nav and the tab body, per spec section 7.3: a question is
+          asked about whatever is on screen, so the bar belongs above it and
+          outside it - the same reasoning that keeps TourFooter outside <main>. */}
+      <NavigatorBar />
 
       {/* tabIndex -1 so the skip link can actually move focus here; a plain
           fragment jump scrolls without moving the caret in some browsers. */}

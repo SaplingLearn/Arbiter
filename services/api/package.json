@@ -1,0 +1,10 @@
+{
+  "name": "@arbiter/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "zod": "^3.25.76"
+  }
+}

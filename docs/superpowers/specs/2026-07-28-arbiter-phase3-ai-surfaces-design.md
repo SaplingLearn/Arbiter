@@ -35,8 +35,18 @@ that as a risk to be managed, this phase treats it as a **build order**: every s
 network, and the live call is a strictly optional rung on top.
 
 This costs almost nothing, because the static build forces the same switch anyway. `apps/web/e2e/static-file.spec.ts`
-collects `page.on("request")` **and** `requestfailed`, and asserts both are empty — so over `file://` the app
-must not *attempt* the call, not merely survive its failure. A build that tries and fails still fails the test.
+asserts the app must not *attempt* the call, not merely survive its failure: a build that tries and fails still
+fails the test.
+
+**Correction, measured.** This paragraph used to say that `page.on("request")` and `requestfailed` were what
+enforced that. Over `file://` they enforce nothing. A relative `/api/interpret` resolves to
+`file:///api/interpret`, and the Fetch API refuses the `file:` scheme synchronously, before any CDP network
+event exists to observe — with the gate ablated so both ladders fire real fetches, neither channel fired and
+every test in the file stayed green. The only trace is a console error: *"Fetch API cannot load
+file:///api/interpret. URL scheme "file" is not supported."* **A console-error listener is what makes the
+zero-network claim falsifiable on the artifact a judge opens**, and the `request`/`requestfailed` listeners are
+belt-and-braces for a regression on a served build. This is a property of the project's central methodology,
+not of one test: a caught `TypeError` produces no `pageerror` either.
 
 **Two independent gates, computed once in `client.ts`:**
 
@@ -207,9 +217,26 @@ renders only current values; the only before/after cue is a CSS transition that 
 stating it.
 
 Apply and re-run are complete and need no work: `useCaseReasoning` is memoised on
-`[data, ruleset, asOf, selectedCompoundId]` and a full `reason()` costs 1.46 ms. The delta is cheap because
-the registered baseline is still in state — `reason(claims, data.ruleset)` against
-`reason(workingClaims, ruleset)`, the same trick `Preflight.tsx:20` already uses for the manifest check.
+`[data, ruleset, asOf, selectedCompoundId]` and a full `reason()` costs 1.46 ms.
+
+**The baseline is the state at the moment Apply is pressed, snapshot there — not the registered baseline.**
+An earlier version of this section specified `reason(claims, data.ruleset)` against `reason(workingClaims, ruleset)`,
+borrowing the trick `Preflight.tsx` uses for the manifest check. That comparison answers a different question
+from the one the panel asks. It measures *registered → now*, so it attributes every edit made since load to
+whichever proposal happened to be applied last. Measured on the demo path, where the R1 slider is already
+dragged by the time beat 6 applies a challenge:
+
+| sequence | what the registered comparison reported | the truth |
+|---|---|---|
+| drag R1 to 0.45, then apply the R5 challenge | "Applied — the position moved", belief 0.090 → 0.495, `delta-why` suppressed | R5 is inert on TAK-994; all of it came from the slider |
+| apply the R1 challenge, then the cytotox reclassify | "the position moved", belief 0.090 → **0.000** | reads as though cytotox zeroed a belief R1 had raised |
+
+The correction is to snapshot the pre-apply `Reasoning` inside the apply handler and compare against that.
+The reason it matters is the reason the panel exists at all: **a confirm-before-apply surface whose delta
+credits the interpreter with a reviewer's own edits is not showing the interpretation, it is flattering it**,
+and the "did not move, and here is why" state — the one that keeps a judge from reading an inert rule as a
+broken app — is exactly the state the wrong baseline suppresses. This section's real requirement is unchanged:
+report **belief, plausibility and the gap, not the verdict label alone.**
 
 **It must report belief, plausibility and the gap, not the verdict label alone.** On TAK-994 the label does
 not move between passes (belief 0.000 → 0.090, gap holding at 0.910), so a verdict-only delta reads as

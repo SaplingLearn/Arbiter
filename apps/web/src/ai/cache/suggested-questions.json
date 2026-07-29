@@ -1,0 +1,18 @@
+[
+  {
+    "question": "Why did ARBITER decline to commit here?",
+    "anchorIds": ["trace.verdictReason", "trace.beliefTrack"]
+  },
+  {
+    "question": "What would have to change for this to advance?",
+    "anchorIds": ["trace.counterfactual", "trace.nextExperiment"]
+  },
+  {
+    "question": "Which rule is doing the most work, and where does it come from?",
+    "anchorIds": ["rule.R3", "ruleset.hash"]
+  },
+  {
+    "question": "Who signed this, and what exactly were they signing?",
+    "anchorIds": ["record.chainExplainer", "record.position:0"]
+  }
+]

@@ -8,6 +8,24 @@
 
 **Tech Stack:** TypeScript 5.x, React 18, Vite 5, vitest + Testing Library, Playwright, zod 3.
 
+## Post-execution corrections (2026-07-29) — read before transcribing any code block below
+
+All fourteen tasks are closed. A final whole-branch review then found eight defects that
+per-task review could not see, and **changed source that this plan carries code blocks for.**
+HANDOVER §5.3 asks that a fix land in both the source and the plan's block; these blocks were
+**not** re-spliced, so for the files below **the source file is the authority and the block
+here is a historical record of what the task was asked to build.**
+
+| file | what changed after execution |
+|---|---|
+| `apps/web/src/ui/Preflight.tsx` | `surfaceLine` reports one branch per `Source`; the "reads `cache` for every surface" header claim is retired (measured false — both probes land on rung 4, `local`) |
+| `apps/web/src/tabs/Case/TablePanel.tsx` | the delta baseline is snapshot at apply time, not recomputed from the registered ruleset (spec §5.5 corrected); §5.3's `measuresKeyEvent` constraint implemented |
+| `apps/web/src/ai/navigate.ts` | rung 1 routes through `sanitizeNavResult` instead of an inline `isKnownAnchor` filter |
+| `apps/web/src/ai/client.ts` | docstring correction only — see the Global Constraints note on `static-file.spec.ts` |
+| `apps/web/e2e/static-file.spec.ts` | console-error listener added and the pre-flight panel opened, because the `request`/`requestfailed` assertions could not fail over `file://` |
+
+The full record, with what was measured for each, is **HANDOVER §10**.
+
 ## Before you start
 
 This plan assumes **PR #9 (`metrics-contract`) and PR #10 (`audit-record-integrity`) are merged**.
@@ -30,7 +48,7 @@ Every task ends by pushing to it. Commit and push after every task — not batch
 - **Never edit `rules/ruleset-v1.0.json`.** It is pre-registered and hashed: `ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136`. The harness refuses to run if the computed hash differs.
 - **The engine stays pure.** No `Date`, `Math.random`, `node:*`, `fs`/`path`/`crypto`, dynamic `import`, or parent imports anywhere in `packages/engine/src`. Lint enforces every one.
 - **Language discipline.** Write "review-ready evidence package" never "regulator-ready dossier"; "positions / sign-off / decision owner" never "voting / tally / majority"; "hash-chained audit log" never "blockchain". Applies to code, comments, UI copy, commit messages, and test names.
-- **`apps/web/e2e/static-file.spec.ts` is not modified.** It must still pass unchanged with every surface on cache. It asserts on *attempted* requests (`page.on("request")` and `requestfailed`), not merely failed ones.
+- **`apps/web/e2e/static-file.spec.ts` is not modified** *during this plan's tasks*. It must still pass unchanged with every surface on cache. **Correction, measured after Task 11 and applied in the final review:** this line used to claim that its `page.on("request")` and `requestfailed` listeners were what made the zero-network guarantee falsifiable. They are not, over `file://`. A relative `/api/interpret` resolves to `file:///api/interpret` and the Fetch API refuses the `file:` scheme synchronously, before any CDP network event exists — with `liveEnabled` ablated to `true` so both ladders fire real fetches, **neither channel fired and all five tests in the file stayed green.** The only trace is a console error (`Fetch API cannot load file:///api/interpret. URL scheme "file" is not supported.`). The file now also collects console errors and opens the pre-flight panel so both ladders actually run; `request`/`requestfailed` are kept as belt-and-braces for a regression on a *served* build. See `ai-static.spec.ts:39-43`, which had it right first.
 - **No runtime `fetch` in `apps/web` outside `apps/web/src/ai/client.ts`,** and there only when `liveEnabled`. This is the first legitimate relaxation of the Phase 2 invariant; nothing else relaxes it.
 - **Cache artifacts are imported as ES modules at build time,** exactly as `apps/web/src/data/bundle.ts` imports evidence and metrics. Never fetched.
 - **No number in `results/` may move.** `npm run golden:update` must produce no diff.
@@ -8270,9 +8288,9 @@ Each criterion is tied to a number or an observation, never to inspection. A cri
 
 - [ ] `npm run lint && npm run typecheck && npm test` green, with the vitest count **above the 299-test baseline** and every new test having been watched failing first.
 - [ ] `npm run web:build && npm run e2e` green at **8 or more Playwright tests**.
-- [ ] **`apps/web/e2e/static-file.spec.ts` passes unchanged.** Not modified, not relaxed, not skipped. It asserts on *attempted* requests, so this is the criterion that proves the submitted ZIP never reaches for the network.
+- [ ] **`apps/web/e2e/static-file.spec.ts` passes unchanged** *through Task 12*. Not relaxed, not skipped. **Corrected in the final review** (see Global Constraints): asserting on *attempted* requests does not prove this over `file://`, because a refused `file:` fetch emits no `request` and no `requestfailed`. The criterion that proves the submitted ZIP never reaches for the network is the **console-error** assertion added there, with the pre-flight panel opened so both ladders run.
 - [ ] `npm run golden:update && git diff --exit-code results/` produces **no diff**. Phase 3 touches no reported number; if one moves, something is wrong that a rebaseline would hide.
-- [ ] The built `dist/index.html`, opened from the filesystem on a machine that is not the one that built it, renders the verdict, walks all seven beats, and reports **every surface on cache** in the pre-flight panel.
+- [ ] The built `dist/index.html`, opened from the filesystem on a machine that is not the one that built it, renders the verdict, walks all seven beats, and reports, for **every** surface in the pre-flight panel, a rung that is not `live` and not `pending`. **Corrected in the final review:** "every surface on cache" was unmet and unmeetable as written — the probe strings appear verbatim in neither cache artifact, so both surfaces resolve at rung 4, source `local`. The probes are deliberately unpinned so that cache drift is *reported* (`Preflight.tsx`), so no rung may be asserted; what the artifact guarantees is that nothing answers `live`.
 - [ ] Both gates on the live path are tested in both directions — the build flag and the `file://` protocol check, independently. A false positive here is the §6.1 failure mode returning.
 - [ ] The §11 matrix is complete: five transport conditions each proven to produce a rung-1 miss, and each surface proven to degrade to its **correct rung** rather than merely to "an answer".
 - [ ] Every cached challenge references a real rule id, and every `reclassify_field` entry a real claim id and a schema-legal value — proven by a test that was watched failing against a deliberately corrupted entry.
