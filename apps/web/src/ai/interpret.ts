@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AssayOperator, RuleId } from "@arbiter/engine";
+import { postJson } from "./client.js";
 import { resolve, type Resolution, type Rung } from "./resolve.js";
 import { FUZZY_THRESHOLD, jaccard } from "./trigram.js";
 import CACHE from "./cache/interpretations.json";
@@ -291,19 +292,33 @@ function keywordProposal(input: InterpretInput): Proposal | null {
 }
 
 /**
+ * Rung 1 - the live call, and the only rung that can touch the network.
+ *
+ * `postJson` owns both gates (build flag, file:// protocol) and the 2.5s abort, so
+ * this rung is unconditional here: on the static ZIP it returns null immediately
+ * without attempting a request, which is what makes the same ladder correct in both
+ * builds.
+ *
+ * `ProposalSchema.safeParse` rather than a cast. Spec §11: a 200 carrying
+ * well-formed JSON of the wrong shape is the case that reaches the confirm panel if
+ * this is a cast, and returning null here makes it a rung-1 miss like every other
+ * transport failure.
+ */
+const liveRung: Rung<InterpretInput, Proposal> = {
+  source: "live",
+  run: (input) =>
+    postJson<Proposal>("/api/interpret", input, (u) => {
+      const parsed = ProposalSchema.safeParse(u);
+      return parsed.success ? parsed.data : null;
+    }),
+};
+
+/**
  * The five rungs, declared as DATA so that "which rung answered" is a value the
  * tests assert on and the pre-flight panel displays, rather than a comment.
  */
 const RUNGS: Rung<InterpretInput, Proposal>[] = [
-  {
-    // Rung 1, live. Stubbed as a permanent miss until Task 9 replaces this body
-    // with `postJson("/api/interpret", input, (u) => ProposalSchema.safeParse(u).data ?? null)`.
-    // It is declared NOW rather than added later so that every rung number in
-    // every test is already the final one - renumbering rungs after the tests are
-    // written is how a rung assertion quietly starts testing the wrong rung.
-    source: "live",
-    run: async () => null,
-  },
+  liveRung, // 1 - live, 2.5s timeout
   {
     // Rung 2, exact match against the authored cache.
     source: "cache",

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isKnownAnchor, parseAnchor, type Anchor } from "./anchors.js";
+import { postJson } from "./client.js";
 import { FUZZY_THRESHOLD, jaccard } from "./trigram.js";
 import { resolve, type Resolution, type Rung } from "./resolve.js";
 import rawMap from "./cache/anchor-map.json";
@@ -30,10 +31,18 @@ export interface NavigateInput {
   anchors: { id: string; label: string }[];
 }
 
+/**
+ * `.strict()`, not the zod-object default of silently stripping unknown keys.
+ * Spec §11's schema-validated-not-merely-parsed rule cuts both ways: a body
+ * carrying `{ anchorIds, noMatch, answer: "prose" }` must fail validation outright
+ * - a rung-1 miss - rather than parse successfully with `answer` quietly dropped,
+ * which would make "ids only, never prose" true of the parsed VALUE but false of
+ * what the model was actually allowed to get away with returning.
+ */
 export const NavResultSchema: z.ZodType<NavResult> = z.object({
   anchorIds: z.array(z.string()),
   noMatch: z.boolean(),
-});
+}).strict();
 
 /** Three destinations is a navigator. Four is a search results page. */
 const MAX_ANCHORS = 3;
@@ -126,13 +135,22 @@ function tokens(s: string): string[] {
 }
 
 /**
- * Rung 1. Stubbed until Task 9 replaces it with client.postJson("/api/navigate", …).
- * A stub that always misses is exactly what a file:// build does, so the demo path
- * this task ships is the demo path the submitted ZIP runs.
+ * Rung 1 - the live call. Ids only: NavResultSchema rejects any body carrying
+ * prose, so a model that answers the question instead of locating it is a rung-1
+ * miss rather than a claim on screen (spec §7.2).
  */
 const liveRung: Rung<NavigateInput, NavResult> = {
   source: "live",
-  run: async () => null,
+  run: (input) =>
+    postJson<NavResult>("/api/navigate", input, (u) => {
+      const parsed = NavResultSchema.safeParse(u);
+      if (!parsed.success) return null;
+      // An id absent from the registry is handled here rather than folded into the
+      // schema failure (spec §11 names it as one of the three that do not collapse):
+      // a response naming two real anchors and one stale one is still useful, so the
+      // stale one is dropped and the rest are kept.
+      return { ...parsed.data, anchorIds: parsed.data.anchorIds.filter(isKnownAnchor) };
+    }),
 };
 
 /** Rung 2. Exact match after normalisation, so casing and punctuation do not miss. */
