@@ -20,6 +20,20 @@ export function ValidationTab() {
     .filter(([, b]) => b.nCommitted > 0)
     .sort((a, b) => b[1].balancedAccuracy - a[1].balancedAccuracy);
 
+  // Surface 2, the live ablation spot check: SPECIFIED, NOT BUILT (Phase 3 spec §6).
+  // The headline it would append to is pre-computed per compound, and that ablation
+  // does not exist - `npm run ablation` is absent from the repo (HANDOVER §3.2).
+  // metric2a_llmConsistency is a genuine union (LlmConsistencyPending has `note`,
+  // LlmConsistencyMeasured does not) rather than one shape with an optional half, so
+  // narrowing on "note" is the type-correct read of "has the ablation run yet". The
+  // placeholder already correctly reports its own absence, so the tooltip is READ
+  // FROM IT rather than written here; the day the ablation lands, this stops
+  // claiming it is missing without anyone editing a string.
+  const ablation = m.metric2a_llmConsistency;
+  const ablationNote = "note" in ablation ? ablation.note : null;
+  const ablationTooltip = ablationNote
+    ?? "The live spot check is specified but not built (Phase 3 spec §6) — the button stays disabled.";
+
   return (
     // The shell supplies .container. Prose gets a measure; the baseline table
     // does not.
@@ -110,6 +124,25 @@ export function ValidationTab() {
         </p>
         <p className="small muted" data-testid="llm-ablation" data-anchor="validation.llmAblation">
           LLM ablation: <span className="mono">{JSON.stringify(m.metric2a_llmConsistency)}</span>
+        </p>
+
+        {/* Disabled under every one of §11's five conditions, and under a sixth: the
+            ablation it would append to has not been built. The baselines table above
+            is untouched either way - that is the whole of Surface 2's §11 row (the
+            master spec's own wording: the button disables with a tooltip and the
+            table is untouched). Stays disabled even once metric2a_llmConsistency
+            carries real numbers - a specified-but-not-built surface must not enable
+            itself the day the harness lands under it. */}
+        <p className="small muted">
+          <button
+            type="button"
+            className="btn"
+            data-testid="live-ablation-run"
+            disabled
+            title={ablationTooltip}
+          >
+            Append one live consistency run
+          </button>
         </p>
       </div>
     </section>
