@@ -8,8 +8,12 @@ import type { Region } from "../state/store.js";
  *
  * A NEW `data-anchor` attribute, never a reuse of `data-testid` (spec section 8).
  * Five testids are non-unique by construction - `evidence-row`, `trace-step`,
- * `compound-row`, `rule-card`, `position-row` - and those are exactly the families
- * that need a per-instance anchor. `provenance` is two different things in two
+ * `compound-row`, `rule-card`, `position-row` - which is why anchors need their own
+ * namespace. Four of those five have a per-instance anchor family below;
+ * `compound-row` deliberately does NOT. The navigator points at the Compounds table
+ * as a whole (`compounds.table`), because a question about the corpus is not a
+ * question about row 154 of 267. Do not read this paragraph as promising a
+ * `compoundRow(id)` constructor - there isn't one, and nothing needs one. `provenance` is two different things in two
  * different tabs. Ten more are frozen by the Playwright specs and cannot be
  * reshaped. The two attributes coexist on the same element and neither is renamed.
  *

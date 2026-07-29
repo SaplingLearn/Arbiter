@@ -309,6 +309,17 @@ export function TablePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
   };
 
   const apply = (p: Proposal) => {
+    // Re-checked HERE, not only at submit. `validAgainstEvidence` ran against the
+    // claims visible when the proposal was interpreted, and the as-of control sits
+    // directly above this panel: move it between Interpret and Apply and the claim
+    // the proposal names may no longer be in play. Dispatching a reclassify onto a
+    // claim the reviewer can no longer see is the confirm-before-apply guarantee
+    // failing quietly, which is the one failure mode this surface exists to avoid.
+    if (!validAgainstEvidence(p, claims, keyEvents)) {
+      setResolution(null);
+      setArmed(false);
+      return;
+    }
     const a = dispatchable(p);
     if (a === null) return;
     // Snapshot BEFORE dispatching. `after` here is this render's reasoning, which

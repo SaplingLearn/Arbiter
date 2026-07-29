@@ -32,6 +32,11 @@ function Probe() {
       <span data-testid="probe-cytotox">
         {String(claims.find((c) => c.id === "TAK-994:cytotox")?.exposureRelevant)}
       </span>
+      {/* Reads the WORKING copy, not the visible one: the point is whether an edit
+          was dispatched onto a claim, regardless of whether the as-of hides it. */}
+      <span data-testid="probe-murine-ke">
+        {String(claims.find((c) => c.id === "TAK-994:toxicogenomics-murine")?.measuresKeyEvent)}
+      </span>
     </div>
   );
 }
@@ -176,6 +181,53 @@ const liveReclassify = (newValue: string): Resolution<Proposal> => ({
   },
   rung: 1,
   source: "live",
+});
+
+describe("TablePanel - the evidence check is re-run at Apply, not only at Interpret", () => {
+  it("refuses to dispatch a reclassify onto a claim the as-of control has since hidden", async () => {
+    // The as-of buttons sit directly above this panel, and the demo presses one
+    // between beats. So the claims a proposal was validated against at Interpret are
+    // not necessarily the claims in play at Apply.
+    //
+    // The cytotox reclassify is valid at "all evidence". Wind the as-of back to
+    // pre-first-in-human and TAK-994:cytotox is no longer visible, so approving the
+    // proposal would dispatch an edit onto a claim the reviewer can no longer see -
+    // the confirm-before-apply guarantee failing quietly, which is the single thing
+    // this surface exists to prevent.
+    // The murine claim is the one the as-of control actually hides: it carries
+    // availableFrom 2022-03-01, so it is in play under "all evidence" and gone at
+    // pre-first-in-human. (Every other TAK-994 claim predates 2021-06-01, which is
+    // why the first version of this test — winding back with a cytotox proposal —
+    // passed against the unfixed code. Measured, not assumed.)
+    interpretSpy.mockResolvedValueOnce({
+      value: {
+        targetRule: null,
+        targetClaimId: "TAK-994:toxicogenomics-murine",
+        action: "reclassify_field",
+        field: "measuresKeyEvent",
+        newValue: "KE:BSEP-INHIBITION",
+        paraphrase: "Record that the murine study measured BSEP inhibition.",
+        confidence: "high",
+      },
+      rung: 1,
+      source: "live",
+    });
+
+    renderPanel();
+    await challenge("the mouse study did measure a key event");
+    expect(screen.getByTestId("proposal-apply")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("pre-fih"));
+    fireEvent.click(screen.getByTestId("proposal-apply"));
+
+    // Nothing dispatched, and the proposal is withdrawn rather than left armed over
+    // evidence that is gone. The claim keeps its REGISTERED key event - asserting a
+    // specific surviving value rather than an absence, so the test cannot pass by
+    // the claim simply not being found.
+    expect(screen.getByTestId("probe-murine-ke").textContent).toBe("KE:CYP-INDUCTION");
+    expect(screen.queryByTestId("applied-delta")).toBeNull();
+    expect(screen.queryByTestId("proposal-apply")).toBeNull();
+  });
 });
 
 describe("TablePanel - a reclassification may only name evidence that exists (§5.3)", () => {

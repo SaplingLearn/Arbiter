@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AssayOperator, RuleId } from "@arbiter/engine";
+import type { RuleId } from "@arbiter/engine";
 import { postJson } from "./client.js";
 import { resolve, type Resolution, type Rung } from "./resolve.js";
 import { FUZZY_THRESHOLD, jaccard } from "./trigram.js";
@@ -39,7 +39,11 @@ export type InterpretAction = "disable" | "lower_strength" | "raise_strength" | 
  * there is no deny-list to maintain and none to forget to update. Design section
  * 5.3 records why each one is excluded.
  */
-export type ReclassifiableField = keyof AssayOperator["produces"];
+// Imported and re-exported, never re-declared: state/store.tsx owns this type. A
+// second declaration - even one derived identically from AssayOperator["produces"] -
+// is a second place for the "no separate knob to tune" guarantee to drift out of.
+import type { ReclassifiableField } from "../state/store.js";
+export type { ReclassifiableField };
 
 export interface Proposal {
   targetRule: RuleId | null;
@@ -63,7 +67,7 @@ const FIELDS = [
 ] as const;
 
 /**
- * Drift guard, in the idiom packages/engine/src/schema.ts:87-102 already uses. The
+ * Drift guard, in the idiom packages/engine/src/schema.ts:262-267 already uses. The
  * runtime tuple above and the derived `ReclassifiableField` type declare the same
  * six names twice, and nothing else forces them to agree. Bidirectional on
  * purpose: a one-way check passes happily when one side gains an extra member,
