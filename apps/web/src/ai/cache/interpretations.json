@@ -1,0 +1,140 @@
+{
+  "authoredFrom": "master spec 12b prepared Q&A, the seven demo beats, and the six registered rules of rules/ruleset-v1.0.json",
+  "reviewFlags": [
+    "entry 2 (ICH M3 two-species phrasing) needs a toxicologist, not an engineer: is this how a reviewer actually opens that objection? It matters more than it looks, because this string is what live input is matched against at rungs 2 and 3.",
+    "entry 8 (a >100x in-vitro margin treated as an established exposure margin) needs a toxicologist.",
+    "entry 12 (clearing a Klimisch score on a QSAR claim as a category error) needs a toxicologist."
+  ],
+  "entries": [
+    {
+      "challenge": "the rat data shouldn't be discounted that hard",
+      "targetRule": "R1",
+      "targetClaimId": null,
+      "action": "lower_strength",
+      "field": null,
+      "newValue": 0.45,
+      "paraphrase": "Reduce R1, human relevance, so the rodent studies keep more of their stated confidence.",
+      "confidence": "high"
+    },
+    {
+      "challenge": "ICH M3 asks for two species because rodent and non-rodent answer different questions. collapsing both into 'not human' throws that away",
+      "targetRule": "R1",
+      "targetClaimId": null,
+      "action": "lower_strength",
+      "field": null,
+      "newValue": 0.45,
+      "paraphrase": "Reduce R1, human relevance, so a two-species animal package is not discounted as one undifferentiated block.",
+      "confidence": "high"
+    },
+    {
+      "challenge": "primary human hepatocytes are the whole point of the FDA roadmap. if anything R1 is too soft here",
+      "targetRule": "R1",
+      "targetClaimId": null,
+      "action": "raise_strength",
+      "field": null,
+      "newValue": 0.95,
+      "paraphrase": "Increase R1, human relevance, so human-cell evidence outweighs animal evidence more decisively.",
+      "confidence": "high"
+    },
+    {
+      "challenge": "read-across from a known toxicophore is real evidence, you're treating it like noise",
+      "targetRule": "R2",
+      "targetClaimId": null,
+      "action": "lower_strength",
+      "field": null,
+      "newValue": 0.45,
+      "paraphrase": "Reduce R2, mechanistic proximity, so structural read-across is discounted less against a directly measured key event.",
+      "confidence": "high"
+    },
+    {
+      "challenge": "why is a structural alert worth less than a cell assay? both are only proxies for a human liver",
+      "targetRule": "R2",
+      "targetClaimId": null,
+      "action": "lower_strength",
+      "field": null,
+      "newValue": 0.45,
+      "paraphrase": "Reduce R2, mechanistic proximity, on the grounds that structural and in-vitro evidence are both indirect.",
+      "confidence": "low"
+    },
+    {
+      "challenge": "why does R3 only apply to negative findings? that looks convenient",
+      "targetRule": "R3",
+      "targetClaimId": null,
+      "action": "disable",
+      "field": null,
+      "newValue": null,
+      "paraphrase": "Turn R3, exposure relevance, off entirely, so a negative finding is not discounted for an unstated exposure margin.",
+      "confidence": "low"
+    },
+    {
+      "challenge": "isn't the discounting just a fudge factor to get the answer you wanted",
+      "targetRule": "R3",
+      "targetClaimId": null,
+      "action": "lower_strength",
+      "field": null,
+      "newValue": 0.45,
+      "paraphrase": "Reduce R3, exposure relevance, so an unstated exposure margin costs a negative finding less weight.",
+      "confidence": "low"
+    },
+    {
+      "challenge": "the in-vitro panel was run against clinical Cmax — a hundred-fold margin IS an exposure margin. stop calling it untested",
+      "targetRule": "R3",
+      "targetClaimId": "TAK-994:cytotox",
+      "action": "reclassify_field",
+      "field": "exposureRelevant",
+      "newValue": true,
+      "paraphrase": "Record the in-vitro DILI panel as having an established exposure margin, so R3 stops discounting it.",
+      "confidence": "high"
+    },
+    {
+      "challenge": "first-in-class orexin agonist. there is nothing like it in the training set — that QSAR call is out of domain",
+      "targetRule": "R4",
+      "targetClaimId": "TAK-994:qsar",
+      "action": "reclassify_field",
+      "field": "inApplicabilityDomain",
+      "newValue": false,
+      "paraphrase": "Record the QSAR prediction as outside the model's applicability domain, so R4 admits it at reduced weight.",
+      "confidence": "high"
+    },
+    {
+      "challenge": "a 0.5 downweight for out-of-domain is far too gentle. out of domain means the prediction is uninformative",
+      "targetRule": "R4",
+      "targetClaimId": null,
+      "action": "raise_strength",
+      "field": null,
+      "newValue": 0.75,
+      "paraphrase": "Increase R4, applicability domain, so an out-of-domain prediction is admitted at a much lower weight.",
+      "confidence": "high"
+    },
+    {
+      "challenge": "klimisch 3 gets hammered too hard here. plenty of non-GLP work is perfectly sound",
+      "targetRule": "R5",
+      "targetClaimId": null,
+      "action": "lower_strength",
+      "field": null,
+      "newValue": 0.3,
+      "paraphrase": "Reduce R5, study reliability, so a Klimisch 3 study is not discounted so heavily.",
+      "confidence": "high"
+    },
+    {
+      "challenge": "a klimisch score on a QSAR prediction is a category error. Klimisch grades experimental studies, not models",
+      "targetRule": "R5",
+      "targetClaimId": "TAK-994:qsar",
+      "action": "reclassify_field",
+      "field": "klimisch",
+      "newValue": null,
+      "paraphrase": "Clear the Klimisch score on the QSAR prediction, so R5's reliability discount stops applying to a computational claim.",
+      "confidence": "high"
+    },
+    {
+      "challenge": "cytotox and transporter both come out of Tox21. that's one platform, not two independent sources",
+      "targetRule": "R6",
+      "targetClaimId": null,
+      "action": "lower_strength",
+      "field": null,
+      "newValue": 0.2,
+      "paraphrase": "Reduce R6, concordance, so two readouts from one assay platform are not credited as two independent sources.",
+      "confidence": "low"
+    }
+  ]
+}
