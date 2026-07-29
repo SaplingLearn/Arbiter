@@ -217,7 +217,17 @@ not move between passes (belief 0.000 → 0.090, gap holding at 0.910), so a ver
 
 **Four of the six rules cannot move the number on TAK-994**, measured: R6's concordance boost is diagnostic
 only and is never applied to a mass, and R2/R4/R5 fire only on `TAK-994:qsar`, which carries `strength: 0.0`
-and `assertion: "ambiguous"` and therefore commits no mass. Only R1 and R3 move the belief range.
+and `assertion: "ambiguous"` and therefore commits no mass. Only R1 and R3 move the belief range —
+**and R3 only by being disabled.**
+
+That last point was measured while drafting the plan and is sharper than it first looks. On this
+fixture R3 acts as a *defeat* rule: the murine claim R3-defeats all four safe claims, and defeat
+ignores `strength` entirely. HANDOVER §5.4 records a plan-supplied test that failed for exactly this
+reason. So `lower_strength` on R3 is **inert** while `disable` on R3 flips the position to advance —
+the two authored R3 challenges differ by the entire verdict, and they sit close together in trigram
+space. That is the measured justification for §5.2's rule that `disable` renders visually distinct
+and that low-confidence matches never arrive pre-armed, and it means the "did not move" panel must
+compute its explanation rather than print one canned string.
 
 That is not a defect and it is not hidden. The confirm-and-apply panel treats **"applied — the position did
 not move, and here is why"** as a first-class state, not an edge case that looks broken in front of a judge.
