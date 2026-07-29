@@ -1,0 +1,17 @@
+/* The spotlight is a TRANSITION on an attribute, deliberately.
+
+   [data-motion="off"] in motion.css overrides transition-duration with
+   !important, so the M toggle and prefers-reduced-motion both kill this for
+   free, and Playwright can measure getComputedStyle(el).transitionDuration
+   exactly as the existing belief-fill motion test already does.
+
+   600ms ease is the Case region-focus grid transition from case.css, reused on
+   purpose: the app should not grow a second motion idiom for a second kind of
+   spotlight. Well inside the 1.5s budget (spec section 8.2). */
+[data-anchor] {
+  transition: box-shadow 600ms ease, background-color 600ms ease;
+}
+[data-anchor-spotlight="on"] {
+  box-shadow: 0 0 0 3px var(--pfizer-blue);
+  background-color: var(--surface);
+}

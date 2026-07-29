@@ -84,6 +84,13 @@ export interface AppState {
   tour: { beat: number; tab: TabId; focus: Region | null };
   positions: ReviewerPosition[];
   motion: boolean;
+  /**
+   * The anchor the navigator is trying to reach. It cannot be reached in the
+   * click that requested it: switching tab means assigning window.location.hash,
+   * and hashchange fires asynchronously, so the target element is not mounted on
+   * the next statement (spec section 8).
+   */
+  pendingAnchor: string | null;
 }
 
 export type Action =
@@ -97,7 +104,8 @@ export type Action =
   | { type: "setTourBeat"; beat: number; tab: TabId; focus: Region | null }
   | { type: "setFocus"; focus: Region | null }
   | { type: "addPosition"; position: ReviewerPosition }
-  | { type: "toggleMotion" };
+  | { type: "toggleMotion" }
+  | { type: "setPendingAnchor"; anchorId: string | null };
 
 export function initialState(data: LoadedData): AppState {
   return {
@@ -109,6 +117,7 @@ export function initialState(data: LoadedData): AppState {
     tour: { beat: 0, tab: "case", focus: null },
     positions: [],
     motion: true,
+    pendingAnchor: null,
   };
 }
 
@@ -285,6 +294,9 @@ export function reducer(s: AppState, a: Action): AppState {
     case "setFocus": return { ...s, tour: { ...s.tour, focus: a.focus } };
     case "addPosition": return { ...s, positions: [...s.positions, a.position] };
     case "toggleMotion": return { ...s, motion: !s.motion };
+    // Presentational, like setFocus. The hash is still what switches the tab -
+    // this only records what to do once it has.
+    case "setPendingAnchor": return { ...s, pendingAnchor: a.anchorId };
   }
 }
 

@@ -10,6 +10,7 @@ import { ValidationTab } from "./tabs/Validation.js";
 import { RecordTab } from "./tabs/Record.js";
 import { TourFooter } from "./tour/TourFooter.js";
 import { NavigatorBar } from "./ai/NavigatorBar.js";
+import { useAnchorScroll } from "./ai/useAnchorScroll.js";
 import { Preflight } from "./ui/Preflight.js";
 import { isTypingTarget } from "./ui/isTypingTarget.js";
 import "./ui/motion.css";
@@ -54,6 +55,11 @@ const TAB_LABEL: Record<TabId, string> = {
 function AppShell({ tab }: { tab: TabId }) {
   const { motion } = useAppState();
   const [preflight, setPreflight] = useState(false);
+
+  // Here rather than inside NavigatorBar: the hook needs the tab that is
+  // actually rendered, which is what tells it the deferred hashchange has
+  // landed (spec section 8).
+  useAnchorScroll(tab);
 
   // `?` rather than a visible button: it is for the presenter in the ninety
   // seconds before going live, not part of the story a judge is shown.

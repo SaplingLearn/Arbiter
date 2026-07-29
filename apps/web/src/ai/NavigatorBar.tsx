@@ -63,13 +63,20 @@ export function NavigatorBar() {
 
   /**
    * Presentational only. Un-collapsing a region is the same setFocus a user
-   * clicking the region header dispatches, exactly as the tour beats do. A
-   * compound change would be a DATA action and goes through selectCompound,
+   * clicking the region header dispatches, exactly as the tour beats do, and the
+   * tab switch is the tour's own mechanism - assigning the hash (TourFooter.tsx).
+   * A compound change would be a DATA action and goes through selectCompound,
    * visibly (spec section 16).
+   *
+   * The scroll cannot happen here: hashchange is asynchronous, so the target is
+   * not mounted on the next statement. useAnchorScroll picks it up once it is.
    */
   const pick = (id: string) => {
     const meta = anchorMeta(id);
-    if (meta?.region) dispatch({ type: "setFocus", focus: meta.region });
+    if (meta === null) return;
+    if (meta.region) dispatch({ type: "setFocus", focus: meta.region });
+    dispatch({ type: "setPendingAnchor", anchorId: id });
+    window.location.hash = `#/${meta.tab}`;
   };
 
   const value = result?.value ?? null;
