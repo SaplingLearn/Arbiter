@@ -1,18 +1,23 @@
-import { useAppState, useDispatch, visibleClaims } from "../../state/store.js";
+import { useAppState, useDispatch, visibleClaims, workingClaims } from "../../state/store.js";
 import { useCaseReasoning } from "../../engine/useCaseReasoning.js";
 import { VerdictLabel } from "../../ui/primitives/VerdictLabel.js";
 
 /**
  * The as-of control lives HERE, not in global settings: it is an input to this
  * case, not an application preference (master spec section 9).
+ *
+ * Call site 2 of the four (§9). The hidden-count is computed from the same list
+ * the verdict beside it was computed from, which is the property the refactor
+ * exists to guarantee.
  */
 export function CaseHeader() {
-  const { data, asOf, selectedCompoundId } = useAppState();
+  const state = useAppState();
+  const { data, asOf, selectedCompoundId } = state;
   const dispatch = useDispatch();
   const r = useCaseReasoning();
 
   const isFixture = selectedCompoundId === data.fixture.compoundId;
-  const all = isFixture ? data.fixture.claims : (data.claimsByCompound.get(selectedCompoundId) ?? []);
+  const all = workingClaims(state, selectedCompoundId);
   const shown = visibleClaims(all, asOf);
   const hidden = all.length - shown.length;
   const compound = data.compounds.get(selectedCompoundId);

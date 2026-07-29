@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAppState, useDispatch, visibleClaims } from "../state/store.js";
+import { useAppState, useDispatch, visibleClaims, workingClaims } from "../state/store.js";
 import { useCaseReasoning } from "../engine/useCaseReasoning.js";
 import { evidenceSnapshot, recordHash, sha256Hex } from "../record/chain.js";
 import { recordPosition } from "../ai/anchors.js";
@@ -7,17 +7,27 @@ import { browserRulesetHash } from "../data/rulesetHash.js";
 
 const GENESIS = "0".repeat(64);
 
+/**
+ * Call site 4 of the four (§9).
+ *
+ * Routing this one is load-bearing, not cosmetic. `evidenceSnapshot` serialises
+ * the WHOLE claim - every reclassifiable field included - so a position signed
+ * over un-routed claims would hash evidence the panel beside it is not showing.
+ * That is exactly the binding the function exists to provide: "I agree" must
+ * attach to what was on screen.
+ */
 export function RecordTab() {
-  const { data, ruleset, asOf, selectedCompoundId, positions } = useAppState();
+  const state = useAppState();
+  const { ruleset, asOf, selectedCompoundId, positions } = state;
   const dispatch = useDispatch();
   const r = useCaseReasoning();
   const [name, setName] = useState("Jack He");
   const [position, setPosition] = useState<"agree" | "dissent" | "abstain">("agree");
   const [rationale, setRationale] = useState("");
 
-  const all = selectedCompoundId === data.fixture.compoundId
-    ? data.fixture.claims
-    : (data.claimsByCompound.get(selectedCompoundId) ?? []);
+  // `data` is no longer destructured: the compound lookup that needed it now
+  // lives in the selector, which is the point of the refactor.
+  const all = workingClaims(state, selectedCompoundId);
 
   async function sign() {
     const snapshot = await sha256Hex(evidenceSnapshot(visibleClaims(all, asOf), r));

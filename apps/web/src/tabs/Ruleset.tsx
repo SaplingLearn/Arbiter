@@ -1,4 +1,4 @@
-import { useAppState, useDispatch } from "../state/store.js";
+import { isEdited, useAppState, useDispatch } from "../state/store.js";
 import { useCaseReasoning } from "../engine/useCaseReasoning.js";
 import { ruleAnchor } from "../ai/anchors.js";
 
@@ -23,7 +23,8 @@ export function RulesetTab() {
   const { data, ruleset } = useAppState();
   const dispatch = useDispatch();
   const r = useCaseReasoning();
-  const modified = JSON.stringify(ruleset) !== JSON.stringify(data.ruleset);
+  // §9.3. The same predicate the pre-flight panel and the evidence panel use.
+  const modified = isEdited(ruleset, data.ruleset);
 
   return (
     // No wide data here, so the whole tab takes the prose measure (the shell

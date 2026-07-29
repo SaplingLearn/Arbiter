@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { useAppState } from "../state/store.js";
+import { isEdited, useAppState } from "../state/store.js";
 import { useLibraryVerdicts } from "../engine/useLibraryVerdicts.js";
 import { browserRulesetHash, PRE_REGISTERED_HASH } from "../data/rulesetHash.js";
 
@@ -70,7 +70,12 @@ export function Preflight() {
     (id) => live.get(id)?.verdict !== data.manifest.get(id)?.verdict,
   );
   const errored = data.testSplit.filter((id) => live.get(id)?.error !== undefined);
-  const edited = ruleset !== data.ruleset;
+  // §9.3. Was `ruleset !== data.ruleset`, which reported a slider dragged back to
+  // its registered value as a live edit while the Ruleset tab's badge - a deep
+  // compare - had already cleared. One predicate now, and it is the value
+  // compare, because a false alarm is not free in a panel whose stated rule is
+  // that every line is a check computed now rather than a caption.
+  const edited = isEdited(ruleset, data.ruleset);
 
   return (
     // The one genuinely floating surface in the app, and so the only user of
