@@ -14,7 +14,7 @@ export function BeliefTrack({ belief, plausibility }: { belief: number; plausibi
   const width = Math.max(0, plausibility - belief);
   const label = `Belief ${belief.toFixed(3)} to plausibility ${plausibility.toFixed(3)}`;
   return (
-    <div>
+    <div data-anchor="trace.beliefTrack">
       <div className="belief-ends small muted">
         <span data-testid="belief-lo" className="num">{belief.toFixed(3)}</span>
         <span data-testid="belief-hi" className="num">{plausibility.toFixed(3)}</span>

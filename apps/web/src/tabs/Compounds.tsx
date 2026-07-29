@@ -25,13 +25,13 @@ export function CompoundsTab() {
       <div className="prose">
         <p className="label">Library</p>
         <h2 className="display">Compounds</h2>
-        <p className="lede" data-testid="conflict-rate">
+        <p className="lede" data-testid="conflict-rate" data-anchor="compounds.conflictRate">
           <strong>{conflicting} of {ids.length}</strong> scored compounds have streams in genuine conflict
           ({((conflicting / ids.length) * 100).toFixed(1)}%).
         </p>
         {/* .caveat, not .small.muted: the decline rate is the honest half of this
             screen, and shrinking it is how a screen-share loses it. */}
-        <p className="caveat" data-testid="decline-note">
+        <p className="caveat" data-testid="decline-note" data-anchor="compounds.declineNote">
           ARBITER declines on {declined} of {ids.length}. See Validation for why — no compound in this set
           carries exposure-relevant evidence.
         </p>
@@ -39,7 +39,7 @@ export function CompoundsTab() {
 
       <hr className="rule" />
 
-      <table className="table">
+      <table className="table" data-anchor="compounds.table">
         <thead>
           <tr>
             <th scope="col">Compound</th>

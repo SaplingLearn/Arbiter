@@ -1,5 +1,6 @@
 import { useAppState, useDispatch } from "../state/store.js";
 import { useCaseReasoning } from "../engine/useCaseReasoning.js";
+import { ruleAnchor } from "../ai/anchors.js";
 
 const REGISTERED_HASH = "ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136";
 
@@ -31,13 +32,13 @@ export function RulesetTab() {
       <p className="label">Governance</p>
       <h2 className="display">Ruleset</h2>
 
-      <p className="small muted" data-testid="ruleset-hash">
+      <p className="small muted" data-testid="ruleset-hash" data-anchor="ruleset.hash">
         v{ruleset.version} · registered {ruleset.registeredAt} ·{" "}
         <span className="mono">{REGISTERED_HASH.slice(0, 8)}…</span>
         {modified && (
           <>
             {" "}
-            <strong data-testid="modified-badge" className="chip chip-warn">
+            <strong data-testid="modified-badge" data-anchor="ruleset.modifiedBadge" className="chip chip-warn">
               MODIFIED — not the registered ruleset
             </strong>
           </>
@@ -46,7 +47,7 @@ export function RulesetTab() {
 
       <p className="lede">
         Live on the selected case: belief{" "}
-        <strong className="num" data-testid="live-belief">{r.belief.toFixed(3)}</strong>, verdict{" "}
+        <strong className="num" data-testid="live-belief" data-anchor="ruleset.liveBelief">{r.belief.toFixed(3)}</strong>, verdict{" "}
         <strong>{r.verdict}</strong>
       </p>
       <button type="button" className="btn" onClick={() => dispatch({ type: "resetRuleset" })}>
@@ -56,7 +57,7 @@ export function RulesetTab() {
       {/* .panel-flat, so six rules read as one governed list separated by
           hairlines rather than six boxes competing for attention. */}
       {ruleset.rules.map((rule) => (
-        <article key={rule.id} data-testid="rule-card" className="panel-flat">
+        <article key={rule.id} data-testid="rule-card" data-anchor={ruleAnchor(rule.id)} className="panel-flat">
           <h3 className="subtitle">
             <span className="mono muted">{rule.id}</span> {rule.name}
           </h3>

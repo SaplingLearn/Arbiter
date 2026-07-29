@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAppState, useDispatch, visibleClaims } from "../state/store.js";
 import { useCaseReasoning } from "../engine/useCaseReasoning.js";
 import { evidenceSnapshot, recordHash, sha256Hex } from "../record/chain.js";
+import { recordPosition } from "../ai/anchors.js";
 import { browserRulesetHash } from "../data/rulesetHash.js";
 
 const GENESIS = "0".repeat(64);
@@ -55,13 +56,13 @@ export function RecordTab() {
       <div className="prose">
         <p className="label">Sign-off</p>
         <h2 className="display">Review-ready evidence package</h2>
-        <p className="lede muted">
+        <p className="lede muted" data-anchor="record.chainExplainer">
           Positions are recorded against the exact evidence and verdict on screen. The log is a hash-chained
           audit log: each entry carries the hash of the one before it, so tampering is detectable.
         </p>
       </div>
 
-      <fieldset className="panel">
+      <fieldset className="panel" data-anchor="record.signForm">
         <legend className="label">Record a position</legend>
         <div className="row">
           <label className="control">
@@ -87,7 +88,7 @@ export function RecordTab() {
 
       <ol className="position-list">
         {positions.map((p, i) => (
-          <li key={i} data-testid="position-row" className="position-row">
+          <li key={i} data-testid="position-row" data-anchor={recordPosition(i)} className="position-row">
             <div>
               <strong>{p.displayName}</strong> — {p.position}
               {p.rationale ? ` · ${p.rationale}` : ""}

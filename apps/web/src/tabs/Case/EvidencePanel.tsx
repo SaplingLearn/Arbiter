@@ -1,6 +1,7 @@
 import { useAppState, visibleClaims } from "../../state/store.js";
 import { useCaseReasoning } from "../../engine/useCaseReasoning.js";
 import { Dot } from "../../ui/primitives/Dot.js";
+import { evidenceClaim } from "../../ai/anchors.js";
 
 export function EvidencePanel({ collapsed, onExpand }: { collapsed: boolean; onExpand: () => void }) {
   const { data, asOf, selectedCompoundId } = useAppState();
@@ -27,7 +28,7 @@ export function EvidencePanel({ collapsed, onExpand }: { collapsed: boolean; onE
           is a disclosure, and it was measured as the smallest text on the Case tab -
           the caveat least likely to survive a compressed share. */}
       {isFixture && (
-        <p data-testid="citation-status" className="caveat case-caveat">
+        <p data-testid="citation-status" data-anchor="evidence.citationStatus" className="caveat case-caveat">
           Literature fixture · citations {data.fixture.citationStatus}
         </p>
       )}
@@ -36,7 +37,7 @@ export function EvidencePanel({ collapsed, onExpand }: { collapsed: boolean; onE
           const step = stepFor(c.id);
           const defeated = step?.status === "defeated";
           return (
-            <li key={c.id} data-testid="evidence-row"
+            <li key={c.id} data-testid="evidence-row" data-anchor={evidenceClaim(c.id)}
                 className={`evidence-row${defeated ? " is-defeated" : ""}`}>
               <div className="evidence-head">
                 <Dot assertion={c.assertion} defeated={defeated} />
