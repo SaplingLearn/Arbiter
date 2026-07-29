@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAppState, useDispatch, visibleClaims } from "../state/store.js";
 import { useCaseReasoning } from "../engine/useCaseReasoning.js";
 import { evidenceSnapshot, recordHash, sha256Hex } from "../record/chain.js";
+import { browserRulesetHash } from "../data/rulesetHash.js";
 
 const GENESIS = "0".repeat(64);
 
@@ -19,6 +20,12 @@ export function RecordTab() {
 
   async function sign() {
     const snapshot = await sha256Hex(evidenceSnapshot(visibleClaims(all, asOf), r));
+    // The WORKING COPY (`ruleset`), never `data.ruleset`. The record documents the
+    // ruleset that was on screen, which is the whole point of signing: after a
+    // toxicologist drags R1 to 0.05, the recorded hash must differ from the
+    // registered one. Hashing the pristine bundled copy would record the
+    // registration on a position taken under something else.
+    const rulesetHash = await browserRulesetHash(ruleset);
     const last = positions[positions.length - 1];
     const prev = last ? await recordHash(last) : GENESIS;
     dispatch({
@@ -32,7 +39,7 @@ export function RecordTab() {
         // Signing time is a real clock read, which is why it lives in the app and
         // never in the engine.
         signedAt: new Date().toISOString(),
-        rulesetHash: ruleset.version,
+        rulesetHash,
         evidenceSnapshotHash: snapshot,
         asOfDate: asOf,
         signatureMethod: "demo-persona",

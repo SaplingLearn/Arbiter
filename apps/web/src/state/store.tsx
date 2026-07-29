@@ -11,6 +11,13 @@ export interface ReviewerPosition {
   position: "agree" | "dissent" | "abstain";
   rationale: string | null;
   signedAt: string;
+  /**
+   * A DIGEST of the ruleset that was on screen, over the pre-registration surface
+   * (`browserRulesetHash`) - not `ruleset.version`. A version string is identical
+   * across every edit a toxicologist can make, so storing one here made a position
+   * signed under an edited ruleset byte-identical to one signed under the
+   * registered ruleset.
+   */
   rulesetHash: string;
   evidenceSnapshotHash: string;
   asOfDate: string | null;
