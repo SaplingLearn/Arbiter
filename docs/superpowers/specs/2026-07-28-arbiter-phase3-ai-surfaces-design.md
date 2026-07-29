@@ -238,6 +238,23 @@ and the "did not move, and here is why" state — the one that keeps a judge fro
 broken app — is exactly the state the wrong baseline suppresses. This section's real requirement is unchanged:
 report **belief, plausibility and the gap, not the verdict label alone.**
 
+**Both ends are snapshot, not just the baseline.** Freezing only the "before" side fixed one direction and
+opened the other: with the "after" side read live, any change made *after* Apply is credited to the applied
+proposal. Measured, at as-of `2021-06-01`, applying the inert R5 challenge and then pressing the
+`2023-01-01` as-of button once:
+
+| | `data-moved` | belief | `delta-why` |
+|---|---|---|---|
+| immediately after Apply | `false` | 0.000 → 0.000 | shown, naming `TAK-994:qsar` |
+| after one as-of press | `true` | 0.000 → **0.090** | **suppressed** |
+
+The murine study becoming visible is not something the interpreter did. That is one keystroke away on the
+demo path — beats 3 and 4 are both the Case tab, the panel is collapsed by a prop rather than unmounted, and
+beat 4 dispatches `setAsOf`. So the applied delta reports the interval between the instant before the
+proposal and the instant after it, **and then stops listening.** The "after" snapshot cannot be taken inside
+the apply handler, because the dispatch beside it has not re-rendered yet — which is precisely why that same
+read is the correct one for the baseline.
+
 **It must report belief, plausibility and the gap, not the verdict label alone.** On TAK-994 the label does
 not move between passes (belief 0.000 → 0.090, gap holding at 0.910), so a verdict-only delta reads as
 "nothing happened" on the hero case.

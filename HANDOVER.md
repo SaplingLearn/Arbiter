@@ -562,8 +562,21 @@ Neither is load-bearing. Both are honest to fix if you are in there.
 ### 4.3 `check-errors` in the pre-flight panel is untested
 
 Deliberately. Asserting `errored.length === 0` on this fixture asserts a value that is
-zero under every possible implementation, and there is no honest way to force a throw
-from outside the component. A vacuous assertion is worse than an absent one.
+zero under every possible implementation, and a vacuous assertion is worse than an absent
+one.
+
+**The second half of that reasoning no longer holds.** This section used to say there was
+"no honest way to force a throw from outside the component". There is one, and it is now
+in use: `apps/web/test/store.test.ts` builds a claim whose `assertion` is a throwing getter
+and hands it to the engine, which produced `Error: engine exploded` through
+`reasonVerdictOnly`. That test exists because the containment it guards — one bad compound
+must not blank the 267-row library table — was itself untested, and replacing the `catch`
+with `throw e` left the whole suite green.
+
+The same technique would work for `Preflight`. The gap is now a gap because nobody has
+closed it, not because it cannot be closed honestly. **Closing it is a small, well-defined
+task** — the first half of the reasoning above still stands, so the test must force the
+throw rather than assert a zero.
 
 ---
 

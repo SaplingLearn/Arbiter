@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   EvidenceClaimSchema, relevanceDiscount,
   type EvidenceClaim, type Reasoning, type RuleId, type Ruleset,
@@ -231,6 +231,36 @@ export function TablePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
    * the dispatch it sits beside cannot have re-rendered anything yet.
    */
   const [baseline, setBaseline] = useState<Reasoning | null>(null);
+  /**
+   * The delta's OTHER end, frozen for the same reason the baseline is.
+   *
+   * Freezing only `baseline` fixed one direction and opened the other: with the
+   * result read live from `useCaseReasoning`, any change AFTER Apply is credited to
+   * the applied proposal. MEASURED on the demo's own dates: apply R5 (inert on
+   * TAK-994) at as-of 2021-06-01 and the panel correctly says "the position did not
+   * move"; press the 2023-01-01 as-of button once and the same panel flips to
+   * "the position moved", belief 0.000 → 0.090, and suppresses its own explanation.
+   * The murine study becoming visible is not something the interpreter did.
+   *
+   * That is one keystroke away on the demo path: beats 3 and 4 are both the Case
+   * tab, this panel is collapsed by a prop rather than unmounted, and beat 4
+   * dispatches setAsOf. So the applied delta is a SNAPSHOT AT BOTH ENDS - it
+   * reports what this proposal did, and then it stops listening.
+   */
+  const [result, setResult] = useState<Reasoning | null>(null);
+  const [capture, setCapture] = useState(false);
+
+  /**
+   * Captures the post-dispatch reasoning exactly once per apply. It cannot be read
+   * inside `apply` itself: the dispatch sitting beside it has not re-rendered yet,
+   * so `after` there is still the PRE-dispatch value - which is precisely why that
+   * same read is correct for the baseline and wrong for the result.
+   */
+  useEffect(() => {
+    if (!capture) return;
+    setResult(after);
+    setCapture(false);
+  }, [capture, after]);
 
   if (collapsed) {
     return (
@@ -287,11 +317,14 @@ export function TablePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
     dispatch(a);
     setApplied(p);
     setResolution(null);
+    setResult(null);
+    setCapture(true);
   };
 
   const p = resolution?.value ?? null;
   const kind = p === null ? null : actionKind(p);
-  const didMove = applied === null || baseline === null ? false : moved(baseline, after);
+  const settled = applied !== null && baseline !== null && result !== null;
+  const didMove = settled ? moved(baseline, result) : false;
 
   return (
     <div className="stack">
@@ -366,31 +399,35 @@ export function TablePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
         </fieldset>
       )}
 
-      {applied !== null && baseline !== null && (
+      {settled && (
         <section data-testid="applied-delta" data-moved={String(didMove)} className="panel">
           {/* "Applied - the position did not move, and here is why" is a first-class
               state. Four of the six rules cannot move the number on TAK-994, and a
               panel that renders that as a blank is a panel that looks broken in
-              front of a judge. */}
+              front of a judge.
+
+              Every figure below reads from `baseline` and `result`, both frozen at
+              apply time. Reading either from the live store is what let an as-of
+              press be reported as the interpreter's doing. */}
           <h4 className="subtitle">
             {didMove ? "Applied — the position moved" : "Applied — the position did not move"}
           </h4>
           <div className="stack">
             <p data-testid="delta-belief" className="small">
-              Belief {baseline.belief.toFixed(3)} → {after.belief.toFixed(3)}
+              Belief {baseline.belief.toFixed(3)} → {result.belief.toFixed(3)}
             </p>
             <p data-testid="delta-plausibility" className="small">
-              Plausibility {baseline.plausibility.toFixed(3)} → {after.plausibility.toFixed(3)}
+              Plausibility {baseline.plausibility.toFixed(3)} → {result.plausibility.toFixed(3)}
             </p>
             <p data-testid="delta-gap" className="small">
-              Gap {(baseline.plausibility - baseline.belief).toFixed(3)} → {(after.plausibility - after.belief).toFixed(3)}
+              Gap {(baseline.plausibility - baseline.belief).toFixed(3)} → {(result.plausibility - result.belief).toFixed(3)}
             </p>
             <p data-testid="delta-verdict" className="small">
-              Verdict {baseline.verdict} → {after.verdict}
+              Verdict {baseline.verdict} → {result.verdict}
             </p>
             {!didMove && (
               <p data-testid="delta-why" className="small muted">
-                {noMoveReason(after, ruleset, claims, applied)}
+                {noMoveReason(result, ruleset, claims, applied)}
               </p>
             )}
           </div>

@@ -53,6 +53,8 @@ const renderPanel = () =>
       <TablePanel collapsed={false} onExpand={() => {}} />
       <Probe />
       <Fire id="drag-r1" action={{ type: "setRuleStrength", id: "R1", strength: 0.45 }} />
+      <Fire id="pre-fih" action={{ type: "setAsOf", asOf: "2021-06-01" }} />
+      <Fire id="reveal-murine" action={{ type: "setAsOf", asOf: "2023-01-01" }} />
     </StoreProvider>,
   );
 
@@ -321,6 +323,44 @@ describe("TablePanel - Apply and the delta", () => {
     expect(screen.getByTestId("delta-belief").textContent).toBe("Belief 0.495 → 0.495");
     expect(screen.getByTestId("delta-gap").textContent).toBe("Gap 0.505 → 0.505");
     // And the explanation is not suppressed, which is the reader-visible half.
+    expect(screen.getByTestId("delta-why").textContent).toContain("TAK-994:qsar");
+  });
+
+  it("stops listening once applied, so a later as-of press is not credited to the proposal", async () => {
+    // The sibling test above froze the BEFORE end of the interval. This one freezes
+    // the AFTER end, and the two together are the whole guarantee: the panel reports
+    // what this proposal did, between the instant before it and the instant after,
+    // and nothing else.
+    //
+    // Reachable in one keystroke on the demo path. Beats 3 and 4 are both the Case
+    // tab and this panel is collapsed by a prop rather than unmounted, so it is
+    // mounted across the boundary - and beat 4 dispatches setAsOf 2023-01-01. Apply
+    // a challenge at beat 3, press the arrow key, and a panel reading the live store
+    // credits the interpreter with the murine study becoming visible.
+    //
+    // R5 is inert, so every unit of the 0.090 movement below belongs to the as-of
+    // change. Against the pre-fix code this fails on the first assertion with
+    // `expected 'true' to be 'false'`.
+    // The as-of has to start at pre-first-in-human, which is where beat 3 leaves it.
+    // From the default (all evidence visible) the 2023 press changes nothing, and a
+    // test written that way passes against the broken code - measured, on the first
+    // attempt at this test.
+    renderPanel();
+    fireEvent.click(screen.getByTestId("pre-fih"));
+    await challenge(R5_LOWER);
+    fireEvent.click(screen.getByTestId("proposal-apply"));
+    const applied = screen.getByTestId("delta-belief").textContent;
+    expect(screen.getByTestId("applied-delta").dataset.moved).toBe("false");
+
+    fireEvent.click(screen.getByTestId("reveal-murine"));
+
+    const delta = screen.getByTestId("applied-delta");
+    expect(delta.dataset.moved).toBe("false");
+    expect(delta.textContent).toMatch(/did not move/);
+    // Byte-identical to what it read before the press: the panel stopped listening.
+    expect(screen.getByTestId("delta-belief").textContent).toBe(applied);
+    // The explanation must survive too. Suppressing it is how the pre-fix panel
+    // turned a correct "nothing happened, here is why" into a silent lie.
     expect(screen.getByTestId("delta-why").textContent).toContain("TAK-994:qsar");
   });
 

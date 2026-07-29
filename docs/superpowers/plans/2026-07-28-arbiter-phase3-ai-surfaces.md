@@ -19,10 +19,15 @@ here is a historical record of what the task was asked to build.**
 | file | what changed after execution |
 |---|---|
 | `apps/web/src/ui/Preflight.tsx` | `surfaceLine` reports one branch per `Source`; the "reads `cache` for every surface" header claim is retired (measured false — both probes land on rung 4, `local`) |
-| `apps/web/src/tabs/Case/TablePanel.tsx` | the delta baseline is snapshot at apply time, not recomputed from the registered ruleset (spec §5.5 corrected); §5.3's `measuresKeyEvent` constraint implemented |
+| `apps/web/src/tabs/Case/TablePanel.tsx` | **both ends** of the applied delta are snapshot at apply time (spec §5.5 corrected); §5.3's `measuresKeyEvent` constraint implemented. Freezing only the baseline fixed one direction and opened the other — an as-of press after Apply was credited to the proposal |
+| `apps/web/src/ai/interpret.ts` | `ProposalSchema` gained `.strict()`, chained **before** `.superRefine()` |
 | `apps/web/src/ai/navigate.ts` | rung 1 routes through `sanitizeNavResult` instead of an inline `isKnownAnchor` filter |
 | `apps/web/src/ai/client.ts` | docstring correction only — see the Global Constraints note on `static-file.spec.ts` |
 | `apps/web/e2e/static-file.spec.ts` | console-error listener added and the pre-flight panel opened, because the `request`/`requestfailed` assertions could not fail over `file://` |
+
+Each affected block below also carries an inline **SUPERSEDED** marker, because nobody
+transcribing Task 7 reads line 19 of an 8,000-line file. If you add a correction here, add the
+marker too — the table is the record, the marker is the guard.
 
 The full record, with what was measured for each, is **HANDOVER §10**.
 
@@ -3065,6 +3070,13 @@ Measured before committing: the highest character-trigram Jaccard between any tw
 
 Create `apps/web/src/ai/interpret.ts`:
 
+> **SUPERSEDED — do not transcribe this block as written.** The source file is the
+> authority; see "Post-execution corrections" at the top of this plan. `ProposalSchema`
+> here has no `.strict()`, so zod STRIPS an unknown key instead of rejecting it and a live
+> response smuggling prose in an extra field is accepted as a trusted rung-1 hit. Note
+> `.strict()` must chain BEFORE `.superRefine()`, which returns a ZodEffects that no longer
+> exposes it. This block also predates the `loadedKeyEvents` constraint on `measuresKeyEvent`.
+
 ```ts
 import { z } from "zod";
 import type { AssayOperator, RuleId } from "@arbiter/engine";
@@ -3897,6 +3909,9 @@ Expected: FAIL — `SyntaxError: [vite] The requested module '/apps/web/src/tabs
 - [ ] **Step 5: Write the panel**
 
 Replace `apps/web/src/tabs/Case/TablePanel.tsx` entirely:
+
+> **SUPERSEDED — do not transcribe this block as written.** The source file is the
+> authority; see "Post-execution corrections" at the top of this plan. The delta is baselined against the REGISTERED state here, which credits prior edits to the applied proposal. Both ends of the interval are now snapshot at apply time.
 
 ```tsx
 import { useMemo, useState } from "react";
@@ -6947,6 +6962,9 @@ Add `postJson` to the existing import from `./client.js`.
 
 The same edit in `apps/web/src/ai/navigate.ts`:
 
+> **SUPERSEDED — do not transcribe this block as written.** The source file is the
+> authority; see "Post-execution corrections" at the top of this plan. This inline filter bypasses `sanitizeNavResult`, so an all-stale live response stops the ladder at rung 1 with an empty result instead of falling through to the cache.
+
 ```ts
 /**
  * Rung 1 - the live call. Ids only: NavResultSchema rejects any body carrying
@@ -7403,6 +7421,9 @@ Expected: FAIL — `Unable to find an element by: [data-testid="check-evidence-e
 - [ ] **Step 7: Rewrite the pre-flight panel**
 
 Modify `apps/web/src/ui/Preflight.tsx` (whole file):
+
+> **SUPERSEDED — do not transcribe this block as written.** The source file is the
+> authority; see "Post-execution corrections" at the top of this plan. This string is self-contradicting for rungs 4 and 5 and claims a cache answer for a no-match; `surfaceLine` is now exhaustive over `Source`.
 
 ```tsx
 import { useEffect, useState } from "react";
