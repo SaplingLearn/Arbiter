@@ -58,6 +58,22 @@ path deliberately unresolvable is `progress.md`, for the reason in §7.
 If a command here fails for you, it is drift since that date, not a typo — say so in this
 file when you fix it.
 
+**On Windows, `golden:update` will make the golden file look modified when it is not.**
+The script writes LF, git's `autocrlf` rewrites to CRLF, and `git status` then reports
+`M results/golden/metrics.golden.json` with an empty `git diff`. Confirm it is nothing
+before you go hunting:
+
+```bash
+git show HEAD:results/golden/metrics.golden.json | sha256sum
+sha256sum results/golden/metrics.golden.json    # identical => nothing moved
+git checkout -- results/golden/metrics.golden.json   # clears the phantom
+```
+
+Called out because **"did one of my numbers move?" is the most alarming question in this
+project**, `golden:update` exists precisely to answer it, and a false yes from a line
+ending wastes exactly the time that guard was built to save. CI runs on Linux and never
+sees this.
+
 ### The Python half, which npm does not touch
 
 `data/prep/` is a separate toolchain and you need it for anything touching the data
