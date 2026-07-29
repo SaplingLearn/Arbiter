@@ -96,6 +96,17 @@ export const ProposalSchema: z.ZodType<Proposal> = z
     paraphrase: z.string().min(1),
     confidence: z.enum(["high", "low"]),
   })
+  // `.strict()`, not the zod-object default of silently stripping unknown keys.
+  // The same hole NavResultSchema.strict() closes on the navigate side (spec
+  // section 11 cuts both ways): a live response carrying all seven legal fields
+  // plus an extra one the model volunteered - a rationale, a confidence gloss,
+  // anything - must fail validation outright rather than parse "successfully"
+  // with the extra field quietly dropped. Both consumers of this schema (the
+  // ENTRIES cache parse below, and apps/web/test/interpretCache.test.ts) build
+  // their input object by picking exactly these seven fields off the raw
+  // source first, so `.strict()` costs neither consumer anything - it only
+  // closes a door the live rung was otherwise leaving open.
+  .strict()
   // Cross-field constraints, because a proposal that parses field-by-field can
   // still be undispatchable - a reclassify naming no claim, or a strength change
   // carrying a string. The confirm panel would then render a control that does

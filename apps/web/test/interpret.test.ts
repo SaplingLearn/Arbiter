@@ -130,4 +130,17 @@ describe("ProposalSchema", () => {
     ).success).toBe(false);
     expect(ProposalSchema.safeParse({ ...valid, action: "disable", newValue: 0.2 }).success).toBe(false);
   });
+
+  it("rejects an otherwise-legal proposal carrying an extra field, the same guarantee Surface 3's schema gives its response", () => {
+    // .strict(), not the zod-object default of silently stripping unknown keys.
+    // All seven required fields are present and legal here - only `.strict()`
+    // catches this. A model volunteering a field it was never asked for (a
+    // rationale, a confidence gloss, anything) is a schema violation, not free
+    // information: letting it through with the extra field quietly dropped is
+    // the "merely parsed" failure mode spec section 11 exists to close, and it is
+    // the same class of hole NavResultSchema.strict() closes on the navigate side.
+    expect(ProposalSchema.safeParse({
+      ...valid, explanation: "I'm not fully sure but I'll guess R1",
+    }).success).toBe(false);
+  });
 });

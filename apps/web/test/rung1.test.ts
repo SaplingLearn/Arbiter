@@ -105,6 +105,28 @@ describe("Surface 1 rung 1", () => {
     expect(res.rung).toBeGreaterThan(1);
     expect(res.source).not.toBe("live");
   });
+
+  it("treats a well-formed 200 carrying an EXTRA field as a rung-1 miss too", async () => {
+    // The other half of the wrong-shape case above: every required field is
+    // present and legal, but the model volunteered one it was never asked for.
+    // ProposalSchema.strict() rejects this outright rather than parsing it with
+    // the extra field silently dropped, which would otherwise report a trusted
+    // live hit (rung 1) carrying a proposal the model wasn't constrained to
+    // produce. Mirrors the "REJECTS a response carrying prose" check below for
+    // Surface 3.
+    vi.stubGlobal("fetch", vi.fn(async () =>
+      new Response(JSON.stringify({
+        targetRule: "R1", targetClaimId: null, action: "lower_strength",
+        field: null, newValue: 0.2, paraphrase: "Lower R1", confidence: "high",
+        explanation: "I'm not fully sure but I'll guess R1",
+      }), { status: 200, headers: { "content-type": "application/json" } })));
+
+    const res = await withLive(async ({ interpret }) =>
+      interpret({ challenge: "The rat study should not carry this much weight", rules: [], claims: [] }));
+
+    expect(res.rung).toBeGreaterThan(1);
+    expect(res.source).not.toBe("live");
+  });
 });
 
 describe("Surface 3 rung 1", () => {
