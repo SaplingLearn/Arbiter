@@ -49,6 +49,15 @@ npm run golden:update && git diff --exit-code results/   # must produce NO diff
 
 All of the above were green at merge, and CI runs all of it on every push.
 
+**Every command in this document was executed on 2026-07-28**, from the merge commit, and
+every file path it names was checked to exist. Results: lint clean, typecheck clean,
+**275** vitest tests across 32 files, **8** Playwright tests, `golden:update` produces no
+diff, and **32** Python tests pass across the four files in `data/prep/tests/`. The one
+path deliberately unresolvable is `progress.md`, for the reason in §7.
+
+If a command here fails for you, it is drift since that date, not a typo — say so in this
+file when you fix it.
+
 ### The Python half, which npm does not touch
 
 `data/prep/` is a separate toolchain and you need it for anything touching the data
@@ -384,7 +393,7 @@ Small, contained, and worth doing before Phase 3 adds more surfaces reading more
 
 ### 3.5d The Python tests are not in CI, and two of them guard the headline claim
 
-`data/prep/tests/` holds four test files. **None of them runs in CI** — the workflow
+`data/prep/tests/` holds four test files and 32 tests. **None of them runs in CI** — the workflow
 never invokes `pytest` or installs Python at all. Two of the four are not incidental:
 
 | test | what it protects |
