@@ -1,6 +1,6 @@
 import {
-  EvidenceClaimSchema, RulesetSchema,
-  type AssayOperator, type EvidenceClaim, type Ruleset, type Verdict,
+  EvidenceClaimSchema, MetricsDocumentSchema, RulesetSchema,
+  type AssayOperator, type EvidenceClaim, type MetricsDocument, type Ruleset, type Verdict,
 } from "@arbiter/engine";
 import { RAW } from "./bundle.js";
 
@@ -21,7 +21,7 @@ export interface LoadedData {
   testSplit: string[];
   ruleset: Ruleset;
   assays: AssayOperator[];
-  metrics: Record<string, unknown>;
+  metrics: MetricsDocument;
   fixture: FixtureDoc;
   manifest: Map<string, { verdict: Verdict; belief: number }>;
 }
@@ -62,6 +62,16 @@ export function loadData(): LoadedData {
     manifest.set(r.compoundId, { verdict: r.verdict, belief: r.belief });
   }
 
+  // The Validation tab is the one surface a judge reads numbers off, and it read
+  // this document through `Record<string, any>` - so a metric renamed by the
+  // harness reached the screen as `undefined` with the typecheck still green.
+  // Parsed here, a drifted field names itself before anything renders.
+  const parsedMetrics = MetricsDocumentSchema.safeParse(RAW.metrics);
+  if (!parsedMetrics.success) {
+    const issue = parsedMetrics.error.issues[0];
+    throw new DataLoadError(`results/metrics.json: invalid metric at ${issue?.path.join(".")}: ${issue?.message}`);
+  }
+
   const fixtureClaims: EvidenceClaim[] = [];
   for (const raw of RAW.fixture.claims as unknown[]) {
     const parsed = EvidenceClaimSchema.safeParse(raw);
@@ -77,7 +87,7 @@ export function loadData(): LoadedData {
     testSplit: RAW.splits.test as string[],
     ruleset,
     assays: RAW.assays.assays as AssayOperator[],
-    metrics: RAW.metrics as Record<string, unknown>,
+    metrics: parsedMetrics.data,
     fixture: {
       compoundId: RAW.fixture.compoundId,
       claims: fixtureClaims,

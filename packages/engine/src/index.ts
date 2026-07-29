@@ -8,7 +8,7 @@ import { relevanceDiscount } from "./rules.js";
 import type { EvidenceClaim, Reasoning, Ruleset, TraceStep, Verdict } from "./types.js";
 
 export * from "./types.js";
-export { EvidenceClaimSchema, EvidenceFileSchema, RulesetSchema } from "./schema.js";
+export { EvidenceClaimSchema, EvidenceFileSchema, MetricsDocumentSchema, RulesetSchema } from "./schema.js";
 export { VACUOUS, claimToMass, combine, fuse } from "./fuse.js";
 export type { Mass } from "./fuse.js";
 export { concordanceBoost, conflictsWith, defeats, downweightFactor, relevanceDiscount } from "./rules.js";

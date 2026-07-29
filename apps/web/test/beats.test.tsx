@@ -65,9 +65,9 @@ describe("the seven beats", () => {
   });
 
   it("BEAT 7 - the reported coverage is on screen in the metrics we ship", () => {
-    const m = data.metrics as Record<string, any>;
-    expect(m["metric1_conflictSubsetAccuracy"].arbiter.coverage).toBeLessThan(0.25);
-    expect(m["metric5_plannerSensitivity"].meanUnchangedFraction).toBeGreaterThan(0.9);
+    const m = data.metrics;
+    expect(m.metric1_conflictSubsetAccuracy.arbiter.coverage).toBeLessThan(0.25);
+    expect(m.metric5_plannerSensitivity.meanUnchangedFraction).toBeGreaterThan(0.9);
   });
 
   it("every beat names a real tab and a real focus region", () => {
