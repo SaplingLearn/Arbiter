@@ -12,8 +12,7 @@ export function EvidencePanel({ collapsed, onExpand }: { collapsed: boolean; onE
 
   if (collapsed) {
     return (
-      <button type="button" onClick={onExpand} aria-label="Expand the evidence panel"
-              style={{ display: "flex", flexDirection: "column", gap: 6, background: "none", border: 0, cursor: "pointer" }}>
+      <button type="button" className="case-rail" onClick={onExpand} aria-label="Expand the evidence panel">
         {claims.map((c) => (
           <Dot key={c.id} assertion={c.assertion} defeated={stepFor(c.id)?.status === "defeated"} />
         ))}
@@ -23,31 +22,31 @@ export function EvidencePanel({ collapsed, onExpand }: { collapsed: boolean; onE
 
   return (
     <div>
-      <h3 style={{ fontFamily: "var(--serif)", marginTop: 0 }}>Evidence</h3>
-      {/* 14px below, not the 13px used for incidental captions. UNVERIFIED citations
+      <h3 className="label">Evidence</h3>
+      {/* .caveat, not the 13px used for incidental captions. UNVERIFIED citations
           is a disclosure, and it was measured as the smallest text on the Case tab -
           the caveat least likely to survive a compressed share. */}
       {isFixture && (
-        <p data-testid="citation-status" style={{ color: "var(--ambiguous)", fontSize: 14, fontWeight: 600 }}>
+        <p data-testid="citation-status" className="caveat case-caveat">
           Literature fixture · citations {data.fixture.citationStatus}
         </p>
       )}
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+      <ul className="evidence-list">
         {claims.map((c) => {
           const step = stepFor(c.id);
           const defeated = step?.status === "defeated";
           return (
             <li key={c.id} data-testid="evidence-row"
-                style={{ padding: "10px 0", borderBottom: "1px solid var(--hairline-soft)", opacity: defeated ? 0.55 : 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                className={`evidence-row${defeated ? " is-defeated" : ""}`}>
+              <div className="evidence-head">
                 <Dot assertion={c.assertion} defeated={defeated} />
-                <strong style={{ fontSize: 15, textDecoration: defeated ? "line-through" : "none" }}>{c.stream}</strong>
-                <span style={{ color: "var(--muted)" }}>{c.system} · strength {c.strength.toFixed(2)}</span>
+                <strong className="evidence-stream">{c.stream}</strong>
+                <span className="muted">{c.system} · strength <span className="num">{c.strength.toFixed(2)}</span></span>
               </div>
-              <div data-testid="provenance" style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>
+              <div data-testid="provenance" className="small muted">
                 {c.provenance.kind.toUpperCase()} · {c.provenance.source}
               </div>
-              {step && <div style={{ fontSize: 13, marginTop: 4 }}>{step.rationale}</div>}
+              {step && <div className="small">{step.rationale}</div>}
             </li>
           );
         })}

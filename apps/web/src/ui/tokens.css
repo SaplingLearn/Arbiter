@@ -1,3 +1,21 @@
+/**
+ * Design tokens.
+ *
+ * Two constraints shape every choice here, and both are load-bearing rather than
+ * stylistic:
+ *
+ * 1. The submitted artifact is ONE self-contained index.html opened from the
+ *    filesystem. A webfont, a CDN stylesheet or a remote image is a subresource,
+ *    and `e2e/static-file.spec.ts` fails on an ATTEMPTED request - not merely a
+ *    failed one. So every face named here already ships with the operating
+ *    system. Georgia is the display voice precisely because it is everywhere and
+ *    still has character.
+ * 2. This is read over a compressed Teams screen-share, which degrades silently:
+ *    it looks fine locally and fails at the far end. That is why the scale starts
+ *    at 12px rather than 10px, why nothing meaningful is carried by colour alone,
+ *    and why the honesty caveats are among the largest small text on screen
+ *    rather than the smallest (master spec section 9a).
+ */
 :root {
   --ink: #14172E;
   --muted: #616784;
@@ -12,20 +30,61 @@
   --toxic: #C81E3C;
   --clean: #0E8A5F;
   --ambiguous: #B0700A;
-  --serif: Georgia, "Times New Roman", serif;
-  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --radius: 4px;
+
+  /* Georgia for display, because it ships everywhere and reads as a document
+     rather than a dashboard. The pitch is a review-ready evidence package; the
+     type should not argue with that. */
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Hashes, belief values, confusion counts. Tabular by construction, so digits
+     do not shift as a slider moves. */
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Type scale. Body is 15px, not 14: the smallest thing a judge must read is a
+     caveat, and the caveats are what stop us overclaiming. */
+  --t-display: 34px;
+  --t-title: 22px;
+  --t-verdict: 27px;
+  --t-body: 15px;
+  --t-small: 13px;
+  --t-label: 12px;
+
+  /* Spacing, 4px base. */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 24px; --s6: 32px; --s7: 48px; --s8: 72px;
+
+  /* Varied, not uniform: tighter on controls, softer on containers. */
+  --radius-sm: 3px;
+  --radius: 6px;
+  --measure: 68ch;
+
+  /* Tinted, never pure black - the canvas is cool, so the shadow is too. */
+  --lift: 0 1px 2px rgba(20, 23, 46, 0.04), 0 8px 24px rgba(20, 23, 46, 0.08);
+  --speed: 180ms;
 }
 
 * { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
 body {
   margin: 0;
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: var(--t-body);
+  line-height: 1.55;
   color: var(--ink);
   background: var(--canvas);
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Every number here is read against another number - belief against
+   plausibility, a baseline against ARBITER. Proportional digits make columns
+   jitter and make two equal-width values look different. */
+table, .num, input[type="number"] { font-variant-numeric: tabular-nums; }
+
 :focus-visible { outline: 2px solid var(--pfizer-blue); outline-offset: 2px; }
+
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

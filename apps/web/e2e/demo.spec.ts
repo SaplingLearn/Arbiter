@@ -19,10 +19,17 @@ test("the M key actually stops the motion, not just flips an attribute", async (
   const fill = page.getByTestId("belief-fill");
   const duration = () => fill.evaluate((el) => getComputedStyle(el).transitionDuration);
 
-  // BeliefTrack sets `transition: left 900ms ease, width 900ms ease` as an INLINE
-  // style, and inline styles lose only to `!important` in a stylesheet. That is
-  // the whole mechanism this asserts: an attribute that flips while the animation
-  // keeps running would be a kill switch in name only.
+  // `.belief-fill` in case.css sets `transition: left 900ms ease, width 900ms ease`,
+  // and `motion.css` overrides it with `transition-duration: 0.01ms !important`
+  // scoped to `[data-motion="off"]`. That is the whole mechanism this asserts: an
+  // attribute that flips while the animation keeps running would be a kill switch
+  // in name only.
+  //
+  // The transition used to be an inline style, and this comment used to explain
+  // that inline styles lose only to `!important`. The redesign moved it into
+  // case.css; `!important` still wins and the assertion is unchanged, but the
+  // stated mechanism was wrong for a while. A comment that confidently explains
+  // the wrong mechanism is worse than none.
   await expect(page.locator("[data-motion=on]")).toHaveCount(1);
   expect(await duration()).toBe("0.9s, 0.9s");
 

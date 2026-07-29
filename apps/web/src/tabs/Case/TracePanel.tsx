@@ -7,37 +7,45 @@ export function TracePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
   const verdictStep = r.trace.find((s) => s.kind === "verdict");
 
   if (collapsed) {
-    return <button type="button" onClick={onExpand} aria-label="Expand the argument trace">Trace</button>;
+    return (
+      <button type="button" className="case-rail" onClick={onExpand} aria-label="Expand the argument trace">
+        Trace
+      </button>
+    );
   }
 
   return (
     <div>
-      <h3 style={{ fontFamily: "var(--serif)", marginTop: 0 }}>Argument</h3>
+      <h3 className="label">Argument</h3>
       <BeliefTrack belief={r.belief} plausibility={r.plausibility} />
 
-      <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 10 }}>
-        mass toxic {r.mass.toxic.toFixed(3)} · safe {r.mass.safe.toFixed(3)} · uncommitted {r.mass.uncommitted.toFixed(3)}
+      <p className="small muted case-mass">
+        mass toxic <span className="num">{r.mass.toxic.toFixed(3)}</span> ·
+        safe <span className="num">{r.mass.safe.toFixed(3)}</span> ·
+        uncommitted <span className="num">{r.mass.uncommitted.toFixed(3)}</span>
         {r.contested && " · contested"}
       </p>
 
-      <ol style={{ paddingLeft: 18 }}>
+      <ol className="trace-list small">
         {claimSteps.map((s) => (
-          <li key={s.claimId} data-testid="trace-step" style={{ marginBottom: 8, fontSize: 13 }}>
-            <strong>{s.claimId}</strong> — {s.status}
-            {s.byRule && <span style={{ color: "var(--pfizer-blue)" }}> · {s.byRule}</span>}
-            <div style={{ color: "var(--muted)" }}>{s.rationale}</div>
+          <li key={s.claimId} data-testid="trace-step" className="trace-step">
+            <strong className="mono">{s.claimId}</strong> — {s.status}
+            {/* The rule that fired is one of the three jobs --pfizer-blue is
+                reserved for, and it is a field value rather than a badge. */}
+            {s.byRule && <span className="chip chip-fired">{s.byRule}</span>}
+            <div className="muted">{s.rationale}</div>
           </li>
         ))}
       </ol>
 
       {verdictStep && (
-        <p data-testid="verdict-reason" style={{ fontFamily: "var(--serif)" }}>{verdictStep.rationale}</p>
+        <p data-testid="verdict-reason" className="case-reason">{verdictStep.rationale}</p>
       )}
 
       {r.counterfactual && (
-        <section data-testid="counterfactual">
-          <h4>What would change it</h4>
-          <p style={{ fontSize: 13 }}>
+        <section data-testid="counterfactual" className="case-aside">
+          <h4 className="label">What would change it</h4>
+          <p className="small">
             {r.counterfactual.flips.map((f) => `${f.claimId} → ${f.to}`).join(" and ")}
             {" "}gives <strong>{r.counterfactual.newVerdict}</strong>.
           </p>
@@ -45,9 +53,9 @@ export function TracePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
       )}
 
       {r.nextExperiment && (
-        <section data-testid="next-experiment">
-          <h4>The experiment it asks for</h4>
-          <p style={{ fontSize: 13 }}>{r.nextExperiment.rationale}</p>
+        <section data-testid="next-experiment" className="case-aside">
+          <h4 className="label">The experiment it asks for</h4>
+          <p className="small">{r.nextExperiment.rationale}</p>
         </section>
       )}
     </div>

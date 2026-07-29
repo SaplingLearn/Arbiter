@@ -50,42 +50,61 @@ export function RecordTab() {
   }
 
   return (
-    <section style={{ padding: 20 }}>
-      <h2 style={{ fontFamily: "var(--serif)" }}>Review-ready evidence package</h2>
-      <p style={{ color: "var(--muted)" }}>
-        Positions are recorded against the exact evidence and verdict on screen. The log is a hash-chained
-        audit log: each entry carries the hash of the one before it, so tampering is detectable.
-      </p>
+    // The shell supplies .container.
+    <section>
+      <div className="prose">
+        <p className="label">Sign-off</p>
+        <h2 className="display">Review-ready evidence package</h2>
+        <p className="lede muted">
+          Positions are recorded against the exact evidence and verdict on screen. The log is a hash-chained
+          audit log: each entry carries the hash of the one before it, so tampering is detectable.
+        </p>
+      </div>
 
-      <fieldset style={{ border: "1px solid var(--hairline)", borderRadius: "var(--radius)", padding: 12 }}>
-        <legend>Record a position</legend>
-        <label>Reviewer <input value={name} onChange={(e) => setName(e.target.value)} /></label>{" "}
-        <label>Position{" "}
-          <select value={position} onChange={(e) => setPosition(e.target.value as typeof position)}>
-            <option value="agree">agree</option>
-            <option value="dissent">dissent</option>
-            <option value="abstain">abstain</option>
-          </select>
-        </label>{" "}
-        <label>Rationale <input value={rationale} onChange={(e) => setRationale(e.target.value)} /></label>{" "}
-        <button type="button" onClick={() => void sign()}>Sign</button>
+      <fieldset className="panel">
+        <legend className="label">Record a position</legend>
+        <div className="row">
+          <label className="control">
+            Reviewer <input className="field" value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label className="control">
+            Position{" "}
+            <select className="field" value={position}
+                    onChange={(e) => setPosition(e.target.value as typeof position)}>
+              <option value="agree">agree</option>
+              <option value="dissent">dissent</option>
+              <option value="abstain">abstain</option>
+            </select>
+          </label>
+          <label className="control">
+            Rationale <input className="field" value={rationale} onChange={(e) => setRationale(e.target.value)} />
+          </label>
+          {/* Signing is the one action on this tab, so it is the one primary
+              button - the blue is rationed to it. */}
+          <button type="button" className="btn btn-primary" onClick={() => void sign()}>Sign</button>
+        </div>
       </fieldset>
 
-      <ol>
+      <ol className="position-list">
         {positions.map((p, i) => (
-          <li key={i} data-testid="position-row" style={{ marginTop: 10, fontSize: 13 }}>
-            <strong>{p.displayName}</strong> — {p.position}
-            {p.rationale ? ` · ${p.rationale}` : ""}
-            <div style={{ color: "var(--muted)" }}>
-              snapshot {p.evidenceSnapshotHash.slice(0, 12)}… · prev {p.prevRecordHash.slice(0, 12)}… ·
+          <li key={i} data-testid="position-row" className="position-row">
+            <div>
+              <strong>{p.displayName}</strong> — {p.position}
+              {p.rationale ? ` · ${p.rationale}` : ""}
+            </div>
+            {/* Truncated on purpose: twelve hex characters is enough to compare two
+                entries by eye, and the full digest is in the exported record. */}
+            <div className="small muted">
+              snapshot <span className="mono">{p.evidenceSnapshotHash.slice(0, 12)}</span>… ·
+              prev <span className="mono">{p.prevRecordHash.slice(0, 12)}</span>… ·
               as of {p.asOfDate ?? "all evidence"} · {p.signatureMethod}
             </div>
           </li>
         ))}
       </ol>
-      <p style={{ color: "var(--muted)", fontSize: 13 }}>
-        ARBITER holds no position. The named decision owner signs.
-      </p>
+
+      <hr className="rule" />
+      <p className="caveat">ARBITER holds no position. The named decision owner signs.</p>
     </section>
   );
 }

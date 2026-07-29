@@ -35,15 +35,16 @@ export function TourFooter() {
 
   const b = BEATS[tour.beat]!;
   return (
-    <footer style={{ position: "sticky", bottom: 0, background: "var(--surface)",
-                     borderTop: "1px solid var(--hairline)", padding: "10px 20px", display: "flex", gap: 16 }}>
-      <button type="button" onClick={() => go(tour.beat - 1)} aria-label="Previous beat">←</button>
-      <button type="button" onClick={() => go(tour.beat + 1)} aria-label="Next beat">→</button>
+    <footer className="beat-bar">
+      <button type="button" className="btn btn-ghost" onClick={() => go(tour.beat - 1)} aria-label="Previous beat">←</button>
+      <button type="button" className="btn btn-ghost" onClick={() => go(tour.beat + 1)} aria-label="Next beat">→</button>
       <div>
-        <strong>Beat {b.n + 1} of {BEATS.length} · {b.title}</strong>
-        <div style={{ color: "var(--muted)", fontSize: 13 }}>{b.line}</div>
+        {/* One element, one string: the e2e walk reads "Beat n of 7" off this
+            node, so the count and the title must not be split apart. */}
+        <strong className="beat-title">Beat {b.n + 1} of {BEATS.length} · {b.title}</strong>
+        <div className="small muted">{b.line}</div>
       </div>
-      <span style={{ marginLeft: "auto", color: "var(--muted)", fontSize: 13 }}>
+      <span className="small muted beat-motion">
         motion {motion ? "on" : "off"} (M)
       </span>
     </footer>

@@ -1,0 +1,380 @@
+/**
+ * Component styles.
+ *
+ * This file exists because the app previously had 56 lines of CSS and styled
+ * itself with inline objects scattered across every component. That is why two
+ * panels could disagree about what "small muted text" meant, and why the honesty
+ * caveats drifted into being the smallest text on screen - the defect master
+ * spec section 9a records. One stylesheet makes that class of drift visible in
+ * review rather than invisible until a rehearsal.
+ *
+ * Every transition here goes through var(--speed) and is a `transition`, never a
+ * JS animation, so `motion.css` can kill all of it with one attribute on the
+ * shell root. Anything that animates without being killable by `M` is a defect.
+ */
+
+/* ---------- shell ---------- */
+
+.shell { min-height: 100dvh; display: flex; flex-direction: column; }
+
+/* Skip link. Added with the shell rewrite: the nav is sticky and six links long,
+   and it is re-read on every tab change, so a keyboard user pays for it every
+   time. Moved off-screen with a negative offset rather than display:none or
+   visibility:hidden, both of which remove it from the tab order and leave a link
+   that can never be reached - which is the usual way this control is broken. */
+.skip-link {
+  position: fixed; top: -100px; left: var(--s4); z-index: 20;
+  padding: var(--s2) var(--s4);
+  background: var(--canvas); color: var(--ink);
+  border: 1px solid var(--hairline); border-radius: var(--radius-sm);
+  font-size: var(--t-small); font-weight: 600; text-decoration: none;
+  box-shadow: var(--lift);
+}
+.skip-link:focus { top: var(--s2); }
+
+/* The nav background is asserted by e2e/static-file.spec.ts as proof the
+   stylesheet was inlined AND parsed - a transparent nav there means the CSS was
+   dropped from the build, which is how a previous static build failed. Do not
+   make this transparent. */
+.nav {
+  display: flex; align-items: baseline; gap: var(--s5);
+  padding: var(--s3) var(--s5);
+  background: var(--deep);
+  position: sticky; top: 0; z-index: 10;
+}
+.nav-brand {
+  font-family: var(--serif);
+  font-size: 17px; color: #fff; letter-spacing: 0.01em;
+  margin-right: var(--s2); text-decoration: none;
+}
+.nav-brand span { color: #93A6E8; }
+.nav a:not(.nav-brand) {
+  color: #B9C6EE; text-decoration: none;
+  font-size: var(--t-small); letter-spacing: 0.02em;
+  padding: var(--s1) 0;
+  border-bottom: 2px solid transparent;
+  transition: color var(--speed) ease, border-color var(--speed) ease;
+}
+.nav a:not(.nav-brand):hover { color: #fff; }
+/* Current page is marked by a rule AND a colour change, never colour alone. */
+.nav a[aria-current="page"] { color: #fff; border-bottom-color: #fff; }
+.nav-right { margin-left: auto; display: flex; gap: var(--s4); align-items: baseline; }
+.nav-hint { color: #8FA2DE; font-size: var(--t-label); }
+
+.main { flex: 1; }
+.container { max-width: 1180px; margin: 0 auto; padding: var(--s6) var(--s5) var(--s8); }
+/* Prose gets a measure; data tables do not. */
+.prose { max-width: var(--measure); }
+.prose p { text-wrap: pretty; }
+
+/* ---------- type ---------- */
+
+.display {
+  font-family: var(--serif);
+  font-size: var(--t-display); font-weight: 400;
+  letter-spacing: -0.02em; line-height: 1.12;
+  margin: 0 0 var(--s2); text-wrap: balance;
+}
+.title {
+  font-family: var(--serif);
+  font-size: var(--t-title); font-weight: 400;
+  letter-spacing: -0.01em; line-height: 1.25;
+  margin: 0 0 var(--s3);
+}
+/* Section markers. Small caps rather than another heading level, so the serif
+   display sizes stay reserved for things that are actually titles. */
+.label {
+  font-size: var(--t-label); font-weight: 600;
+  letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 var(--s3);
+}
+.lede { font-size: 17px; line-height: 1.6; color: var(--ink); margin: 0 0 var(--s4); }
+.muted { color: var(--muted); }
+.small { font-size: var(--t-small); }
+.mono { font-family: var(--mono); font-size: 0.92em; letter-spacing: -0.01em; }
+
+/* The caveats. Sized deliberately, and tested: static-file.spec.ts asserts
+   >= 15px / weight >= 600 on the single-class warning and >= 14px / 600 on the
+   citation status. They are the text that stops us overclaiming, so they are the
+   last thing that should be hard to read on a compressed screen-share. */
+.caveat {
+  font-size: var(--t-body); font-weight: 600; line-height: 1.5;
+  color: var(--ink); margin: 0;
+}
+.caveat-warn { color: var(--toxic); }
+
+/* ---------- structure ---------- */
+
+.rule { border: 0; border-top: 1px solid var(--hairline); margin: var(--s6) 0; }
+.rule-soft { border-top-color: var(--hairline-soft); margin: var(--s4) 0; }
+.stack > * + * { margin-top: var(--s4); }
+.row { display: flex; gap: var(--s4); align-items: baseline; flex-wrap: wrap; }
+
+/* Panels are defined by a hairline and a tint, not a border-plus-shadow card.
+   Elevation is reserved for things that genuinely float, which is the pre-flight
+   panel and nothing else. */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  padding: var(--s5);
+}
+.panel-flat { background: transparent; border: 0; border-top: 1px solid var(--hairline); border-radius: 0; padding: var(--s5) 0 0; }
+.floating { box-shadow: var(--lift); border-radius: var(--radius); }
+
+/* ---------- data ---------- */
+
+.table { width: 100%; border-collapse: collapse; font-size: var(--t-small); }
+.table th {
+  text-align: left; font-size: var(--t-label); font-weight: 600;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted);
+  padding: 0 var(--s3) var(--s2) 0; border-bottom: 1px solid var(--hairline);
+  white-space: nowrap;
+}
+.table td { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--hairline-soft); }
+.table tbody tr { transition: background-color var(--speed) ease; }
+.table tbody tr:hover { background: var(--surface); }
+.table .n { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Definition pairs - "belief 0.090", "gap 0.910". */
+.kv { display: flex; gap: var(--s2); align-items: baseline; }
+.kv dt { font-size: var(--t-label); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.kv dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* ---------- controls ---------- */
+
+.btn {
+  font: inherit; font-size: var(--t-small); font-weight: 600;
+  padding: var(--s2) var(--s4);
+  border: 1px solid var(--hairline); border-radius: var(--radius-sm);
+  background: var(--canvas); color: var(--ink); cursor: pointer;
+  transition: background-color var(--speed) ease, border-color var(--speed) ease, transform var(--speed) ease;
+}
+.btn:hover:not(:disabled) { background: var(--surface); border-color: var(--muted); }
+/* Physical press. 1px, because more reads as a toy. */
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--pfizer-blue); border-color: var(--pfizer-blue); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #0000A6; border-color: #0000A6; }
+.btn-ghost { border-color: transparent; background: transparent; color: var(--muted); }
+.btn-ghost:hover:not(:disabled) { color: var(--ink); background: var(--surface); }
+
+.field {
+  font: inherit; font-size: var(--t-small);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--hairline); border-radius: var(--radius-sm);
+  background: var(--canvas); color: var(--ink);
+  transition: border-color var(--speed) ease;
+}
+.field:hover { border-color: var(--muted); }
+
+input[type="range"] { accent-color: var(--pfizer-blue); cursor: pointer; }
+
+/* ---------- semantics ---------- */
+
+.verdict {
+  font-family: var(--serif);
+  font-size: var(--t-verdict); font-weight: 400;
+  letter-spacing: -0.01em; line-height: 1.1;
+}
+/* Colour is never the sole carrier - each verdict also has its own word, and
+   callers pair this with a text marker (master spec section 9). */
+.verdict-toxic { color: var(--toxic); }
+.verdict-clean { color: var(--clean); }
+.verdict-abstain { color: var(--ambiguous); }
+/* The marker glyph that pairs with every verdict word. Added here rather than in
+   a tab stylesheet because VerdictLabel is a shared primitive: the marker has to
+   sit the same distance from the word wherever the verdict is shown. */
+.verdict-marker { margin-right: var(--s2); }
+
+/* Evidence dots, the other shared primitive. Solid when the claim is live,
+   outlined when it is defeated, so the state survives greyscale and screen-share
+   compression - form as well as colour (master spec section 9). currentColor
+   drives both fill and ring, so one modifier sets the assertion. */
+.dot {
+  display: inline-block; width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  background: currentColor;
+}
+.dot-defeated { background: transparent; }
+.dot-toxic { color: var(--toxic); }
+.dot-safe { color: var(--clean); }
+.dot-ambiguous { color: var(--ambiguous); }
+
+/* Square, not pill. A pill badge is the default look; a square chip reads as a
+   field value, which is what these are. */
+.chip {
+  display: inline-block;
+  font-size: var(--t-label); font-weight: 600; letter-spacing: 0.04em;
+  padding: 2px var(--s2); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--muted); border: 1px solid var(--hairline);
+}
+.chip-fired { background: var(--pfizer-blue); border-color: var(--pfizer-blue); color: #fff; }
+
+/* ---------- landing ---------- */
+
+.hero { padding: var(--s8) 0 var(--s7); border-bottom: 1px solid var(--hairline); }
+.hero .display { font-size: 46px; max-width: 20ch; }
+/* Asymmetric on purpose: the claim reads left, the numbers sit right and are
+   deliberately not centred under it. */
+.hero-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--s7); align-items: end; }
+.figure { border-left: 2px solid var(--pfizer-blue); padding-left: var(--s4); }
+.figure-n { font-family: var(--serif); font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums; }
+.figure-cap { font-size: var(--t-small); color: var(--muted); margin-top: var(--s2); }
+
+/* Two columns, offset - not three equal cards. */
+.about-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s6) var(--s7); }
+.about-grid > :nth-child(even) { padding-top: var(--s5); }
+
+@media (max-width: 860px) {
+  .hero-grid, .about-grid { grid-template-columns: 1fr; }
+  .about-grid > :nth-child(even) { padding-top: 0; }
+  .hero .display { font-size: 34px; }
+  .container { padding: var(--s5) var(--s4) var(--s7); }
+}
+
+/* ---------- tabs: shared primitives ----------
+   Everything below replaces an inline style object that used to live in
+   Compounds/Ruleset/Validation/Record/Preflight/TourFooter. Each one is here
+   rather than in a component because the same drift the header of this file
+   describes started as "just one inline style". */
+
+/* A heading one step below .title. Six rule cards at title size would compete
+   with the page's own name, so the card headings get their own size. */
+.subtitle {
+  font-family: var(--serif);
+  font-size: 17px; font-weight: 400; line-height: 1.3;
+  margin: var(--s5) 0 var(--s3);
+}
+
+/* A label and the control it names, kept on one line. Centred rather than
+   baseline-aligned because a range input and a checkbox have no useful
+   baseline. */
+.control {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  font-size: var(--t-small);
+}
+
+/* Warning chip. It still says its warning in words - MODIFIED, single-class -
+   so the fill is the second channel and never the only one. */
+.chip-warn { background: var(--toxic); border-color: var(--toxic); color: #fff; }
+
+/* ---------- library table ---------- */
+
+/* The compound name opens its case. It is a button rather than a link because it
+   dispatches the selection before it changes the hash, so it has to be given
+   back the affordance a link would have had: an underline that firms up under
+   the cursor, over a row that lights up with it (.table tbody tr:hover). The
+   name is the click target, so the pointer belongs here and not on the row. */
+.cell-link {
+  font: inherit; color: var(--ink);
+  background: none; border: 0; padding: 0;
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--hairline);
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--speed) ease;
+}
+.cell-link:hover { text-decoration-color: var(--ink); }
+
+/* "in conflict" / "agree" are words first. The colour is the second channel,
+   because screen-share compression eats hue before it eats letterforms. */
+.state-conflict { color: var(--toxic); font-weight: 600; }
+
+/* ---------- record ---------- */
+
+.position-list { list-style: none; margin: 0; padding: 0; }
+.position-row { border-top: 1px solid var(--hairline-soft); padding: var(--s3) 0; }
+.position-row:first-child { border-top: 0; }
+
+/* ---------- pre-flight ---------- */
+
+/* The one surface in the app that genuinely floats, and so the only user of
+   .floating: it is summoned with ? over whatever is already on screen, ninety
+   seconds before going live, and must not shove the page around as it appears. */
+.preflight {
+  position: fixed; z-index: 20;
+  right: var(--s5); bottom: var(--s8);
+  width: min(640px, calc(100vw - 2 * var(--s5)));
+  max-height: 70vh; overflow: auto;
+}
+.preflight > :last-child { margin-bottom: 0; }
+
+.check-list { list-style: none; margin: 0 0 var(--s4); padding: 0; }
+/* Fixed first column so the markers stack into a readable gutter. */
+.check {
+  display: grid; grid-template-columns: 4.5em 1fr; gap: var(--s2);
+  padding: var(--s1) 0; font-size: var(--t-small); line-height: 1.5;
+}
+/* A word, not a dot: a pass and a failure are told apart by reading, and the
+   colour only agrees with what the word already said. */
+.check-mark {
+  font-family: var(--mono); font-size: var(--t-label); font-weight: 700;
+  letter-spacing: 0.06em; color: var(--muted);
+}
+.check[data-tone="pass"] .check-mark { color: var(--clean); }
+.check[data-tone="fail"] .check-mark { color: var(--toxic); }
+.check[data-tone="fail"] { color: var(--toxic); font-weight: 600; }
+/* A live edit is not a failure - it is the product - so it is toned as a note
+   even though its data-ok reads "false". */
+.check[data-tone="note"] { color: var(--muted); font-weight: 600; }
+
+/* ---------- tour ---------- */
+
+.beat-bar {
+  position: sticky; bottom: 0; z-index: 5;
+  display: flex; align-items: center; gap: var(--s4);
+  padding: var(--s3) var(--s5);
+  background: var(--surface); border-top: 1px solid var(--hairline);
+}
+.beat-title { font-family: var(--serif); font-size: 17px; font-weight: 400; }
+.beat-motion { margin-left: auto; }
+
+/* ---------- landing: figures, key hints, narrow tables ----------
+   Five additions, each because an existing class could not do the job without an
+   inline style - which is the thing this file exists to prevent. */
+
+/* .btn on an anchor. The class was written for <button>, and an <a> is inline
+   and underlined by default, so the padding produced a lopsided box with a rule
+   through it. The landing page's two calls to action are links because they
+   navigate, not links dressed as buttons for effect. */
+a.btn { display: inline-block; text-decoration: none; }
+
+/* The third hero figure is a 64-hex digest, not a number. At the 40px serif of
+   .figure-n its eight visible characters would outweigh the two figures above it
+   and set a hash in a book face; it keeps the figure's rule and caption and
+   changes only the face and the size. */
+.figure-hash {
+  font-family: var(--mono);
+  font-size: 24px; line-height: 1.25; letter-spacing: -0.02em;
+}
+
+/* Data tables do not get a measure - except this one. The ARBITER/baseline tie
+   is two rows being read as a sentence rather than scanned as a dataset, and at
+   the full 1180px container width the two ends of a row stop reading as one
+   row. */
+.table-narrow { max-width: var(--measure); }
+.table caption { text-align: left; padding-bottom: var(--s2); }
+
+/* The keyboard legend: a key and what it does. A <dl> is the right element and
+   the wrong default - dd carries a 40px margin-inline-start that reads as a
+   broken second column - so the reset lives here rather than being re-typed at
+   each of the four rows. */
+.keys > div { display: flex; gap: var(--s3); align-items: baseline; }
+.keys > div + div { margin-top: var(--s3); }
+.keys dt { flex: 0 0 5rem; }
+.keys dd { margin: 0; }
+/* One step up from the chip default. An arrow glyph loses more to screen-share
+   compression than a letter does, and these four keys are the entire interface
+   during a demo. */
+.keys .chip { font-size: var(--t-small); }
+
+@media (max-width: 860px) {
+  /* .nav cannot wrap, so its items shrink instead: measured at 700px the brand
+     tagline took three lines and the key hint another three, turning a one-line
+     nav into four. Both repeat something the page says elsewhere - the tagline
+     is the hero's first line, the keys have a section of their own - so they are
+     the parts that go. */
+  .nav-brand span, .nav-hint { display: none; }
+  .nav-brand { white-space: nowrap; }
+}
