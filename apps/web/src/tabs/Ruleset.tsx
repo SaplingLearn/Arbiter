@@ -25,46 +25,61 @@ export function RulesetTab() {
   const modified = JSON.stringify(ruleset) !== JSON.stringify(data.ruleset);
 
   return (
-    <section style={{ padding: 20 }}>
-      <h2 style={{ fontFamily: "var(--serif)" }}>Ruleset</h2>
-      <p data-testid="ruleset-hash" style={{ color: "var(--muted)", fontSize: 13 }}>
-        v{ruleset.version} · registered {ruleset.registeredAt} · {REGISTERED_HASH.slice(0, 8)}…
+    // No wide data here, so the whole tab takes the prose measure (the shell
+    // supplies .container) and reads as a governance document, not a dashboard.
+    <section className="prose stack">
+      <p className="label">Governance</p>
+      <h2 className="display">Ruleset</h2>
+
+      <p className="small muted" data-testid="ruleset-hash">
+        v{ruleset.version} · registered {ruleset.registeredAt} ·{" "}
+        <span className="mono">{REGISTERED_HASH.slice(0, 8)}…</span>
         {modified && (
-          <strong data-testid="modified-badge" style={{ color: "var(--toxic)", marginLeft: 10 }}>
-            MODIFIED — not the registered ruleset
-          </strong>
+          <>
+            {" "}
+            <strong data-testid="modified-badge" className="chip chip-warn">
+              MODIFIED — not the registered ruleset
+            </strong>
+          </>
         )}
       </p>
-      <p>
-        Live on the selected case: belief <strong data-testid="live-belief">{r.belief.toFixed(3)}</strong>,
-        verdict <strong>{r.verdict}</strong>
-      </p>
-      <button type="button" onClick={() => dispatch({ type: "resetRuleset" })}>Reset to registered</button>
 
+      <p className="lede">
+        Live on the selected case: belief{" "}
+        <strong className="num" data-testid="live-belief">{r.belief.toFixed(3)}</strong>, verdict{" "}
+        <strong>{r.verdict}</strong>
+      </p>
+      <button type="button" className="btn" onClick={() => dispatch({ type: "resetRuleset" })}>
+        Reset to registered
+      </button>
+
+      {/* .panel-flat, so six rules read as one governed list separated by
+          hairlines rather than six boxes competing for attention. */}
       {ruleset.rules.map((rule) => (
-        <article key={rule.id} data-testid="rule-card"
-                 style={{ borderTop: "1px solid var(--hairline)", padding: "14px 0" }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>
-            <span style={{ color: "var(--pfizer-blue)" }}>{rule.id}</span> {rule.name}
+        <article key={rule.id} data-testid="rule-card" className="panel-flat">
+          <h3 className="subtitle">
+            <span className="mono muted">{rule.id}</span> {rule.name}
           </h3>
-          <p style={{ margin: "6px 0" }}>{rule.statement}</p>
-          <p style={{ color: "var(--muted)", fontSize: 13, margin: "6px 0" }}>
+          <p>{rule.statement}</p>
+          <p className="small muted">
             {rule.framework.name} ({rule.framework.date})
             {rule.framework.note ? ` — ${rule.framework.note}` : ""}
           </p>
-          <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            Strength {rule.strength.toFixed(2)}
-            <input
-              data-testid={`strength-${rule.id}`}
-              type="range" min="0" max="1" step="0.05" value={rule.strength}
-              onChange={(e) => dispatch({ type: "setRuleStrength", id: rule.id, strength: Number(e.target.value) })}
-            />
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input type="checkbox" checked={rule.enabled}
-                   onChange={(e) => dispatch({ type: "setRuleEnabled", id: rule.id, enabled: e.target.checked })} />
-            Enabled
-          </label>
+          <div className="row">
+            <label className="control">
+              Strength <span className="num">{rule.strength.toFixed(2)}</span>
+              <input
+                data-testid={`strength-${rule.id}`}
+                type="range" min="0" max="1" step="0.05" value={rule.strength}
+                onChange={(e) => dispatch({ type: "setRuleStrength", id: rule.id, strength: Number(e.target.value) })}
+              />
+            </label>
+            <label className="control">
+              <input type="checkbox" checked={rule.enabled}
+                     onChange={(e) => dispatch({ type: "setRuleEnabled", id: rule.id, enabled: e.target.checked })} />
+              Enabled
+            </label>
+          </div>
         </article>
       ))}
     </section>

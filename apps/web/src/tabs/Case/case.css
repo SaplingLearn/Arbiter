@@ -1,8 +1,26 @@
+/**
+ * The Case tab.
+ *
+ * Only what the three-region spotlight needs lives here. Type, panels, chips,
+ * buttons and the key/value pairs all come from ui/app.css, so this tab cannot
+ * drift into its own dialect of "small muted text" - which is the defect the
+ * design system exists to stop.
+ *
+ * Every transition below is a `transition` through a duration a human can
+ * follow, never a JS animation, so ui/motion.css kills all of it with one
+ * attribute when the presenter presses M.
+ */
+
 /* The spotlight is a grid-template-columns transition: the focused region grows
-   to presentation size and the others collapse to 56px rails that still show
-   every evidence verdict as a coloured dot, so a judge can see nothing was
-   hidden from them. */
+   to presentation size and the others collapse to rails that still show every
+   evidence verdict as a coloured dot, so a judge can see nothing was hidden
+   from them.
+
+   600ms rather than var(--speed): this is a stage move a room has to follow,
+   not a control answering a pointer. The rail width is named because three
+   selectors below depend on it agreeing with itself. */
 .case-grid {
+  --rail: 56px;
   display: grid;
   gap: 1px;
   background: var(--hairline-soft);
@@ -10,7 +28,130 @@
   grid-template-columns: 1fr 1fr 1fr;
   min-height: 60vh;
 }
-.case-grid[data-focus="evidence"] { grid-template-columns: 1fr 56px 56px; }
-.case-grid[data-focus="trace"]    { grid-template-columns: 56px 1fr 56px; }
-.case-grid[data-focus="table"]    { grid-template-columns: 56px 56px 1fr; }
-.case-region { background: var(--canvas); padding: 16px; overflow: auto; }
+.case-grid[data-focus="evidence"] { grid-template-columns: 1fr var(--rail) var(--rail); }
+.case-grid[data-focus="trace"]    { grid-template-columns: var(--rail) 1fr var(--rail); }
+.case-grid[data-focus="table"]    { grid-template-columns: var(--rail) var(--rail) 1fr; }
+
+.case-region { background: var(--canvas); padding: var(--s5); overflow: auto; }
+/* A collapsed region keeps its content - it is a rail, not a hidden panel - so
+   it only loses the padding it no longer has room for. */
+.case-region.is-rail { padding: var(--s3) var(--s1); overflow: hidden; }
+
+/* A rail is still a control, and at 56px wide it has to look pressable. */
+.case-rail {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s2);
+  width: 100%; padding: var(--s2) 0;
+  background: none; border: 0; border-radius: var(--radius-sm);
+  font: inherit; font-size: var(--t-label); font-weight: 600;
+  letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--muted); cursor: pointer;
+  transition: background-color var(--speed) ease, color var(--speed) ease;
+}
+.case-rail:hover { background: var(--surface); color: var(--ink); }
+
+/* ---------- masthead ---------- */
+
+.case-header { border-bottom: 1px solid var(--hairline); padding: var(--s5); }
+/* The compound and the verdict read as one line: the name on the left, the
+   thing ARBITER concluded about it on the right, sharing a baseline. */
+.case-masthead {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--s5); flex-wrap: wrap;
+}
+.case-subtitle { margin: 0; }
+
+/* belief, plausibility and the gap, read against each other. Tabular figures
+   come from .kv dd, so the digits do not jitter as the slider moves. */
+.case-figures { display: flex; gap: var(--s5); flex-wrap: wrap; margin-top: var(--s4); }
+
+.case-asof { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s4); }
+/* .label carries a bottom margin for section headings; inline in a control row
+   it must not. */
+.case-asof .label { margin: 0; }
+/* The selected date is marked by a rule as well as a tint, never by colour
+   alone (master spec section 9). Ink rather than --pfizer-blue: the blue is
+   reserved for the rule that fired, the primary action and the belief fill. */
+.case-asof .btn[aria-pressed="true"] {
+  background: var(--surface);
+  border-color: var(--muted);
+  box-shadow: inset 0 -2px 0 var(--ink);
+}
+
+/* ---------- evidence ---------- */
+
+/* Ink, not amber: this is the caveat that stops us overclaiming, so it takes
+   the most legible colour on the page and hands the "unverified" signal to a
+   rule in the margin - the same idiom as .figure on the landing page. Sized by
+   .caveat (15px/600), which static-file.spec.ts measures at >= 14px/600. */
+.case-caveat {
+  border-left: 2px solid var(--ambiguous);
+  padding-left: var(--s3);
+  margin: 0 0 var(--s4);
+}
+
+.evidence-list { list-style: none; padding: 0; margin: 0; }
+.evidence-row {
+  padding: var(--s3) var(--s2);
+  margin: 0 calc(var(--s2) * -1);
+  border-bottom: 1px solid var(--hairline-soft);
+  transition: background-color var(--speed) ease;
+}
+.evidence-row:hover { background: var(--surface); }
+/* A defeated claim is dimmed and struck, never removed: the whole point of the
+   trace is that nothing was taken off the table quietly. */
+.evidence-row.is-defeated { opacity: 0.55; }
+.evidence-row.is-defeated .evidence-stream { text-decoration: line-through; }
+.evidence-head { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.evidence-stream { font-weight: 600; }
+
+/* ---------- argument ---------- */
+
+/* The mass split, directly under the band it explains. */
+.case-mass { margin: var(--s3) 0 0; }
+
+.trace-list { padding-left: var(--s5); margin: var(--s4) 0 0; }
+/* The fired-rule chip sits in a sentence, so it needs the space a badge in a
+   row would get from its container. */
+.trace-step .chip { margin-left: var(--s2); }
+.trace-step {
+  padding: var(--s2);
+  margin-left: calc(var(--s2) * -1);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--speed) ease;
+}
+.trace-step:hover { background: var(--surface); }
+
+/* The engine's own words for the verdict. Serif, because it is a sentence the
+   document says rather than UI chrome - the voice of .title without claiming to
+   be a heading. */
+.case-reason {
+  font-family: var(--serif);
+  font-size: 17px; line-height: 1.5;
+  margin: var(--s4) 0 0;
+}
+
+.case-aside { margin-top: var(--s5); }
+
+/* ---------- belief band ---------- */
+
+.belief-ends { display: flex; justify-content: space-between; margin-bottom: var(--s1); }
+.belief-track {
+  position: relative; height: 14px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+}
+/* The band spreads outward as the range widens, which is literally what the gap
+   is. One of the three jobs --pfizer-blue is reserved for.
+
+   900ms, and a CSS transition rather than a JS animation on purpose:
+   e2e/demo.spec.ts reads getComputedStyle(...).transitionDuration off this
+   element and asserts it collapses when M is pressed, which only works because
+   ui/motion.css can out-!important a stylesheet rule. `left` and `width` stay
+   inline because they are data, not style. */
+.belief-fill {
+  position: absolute; top: 0; bottom: 0;
+  background: var(--pfizer-blue);
+  opacity: 0.25;
+  transition: left 900ms ease, width 900ms ease;
+}

@@ -9,6 +9,13 @@ import React from "react";
  * Declared inside main.tsx it was unreachable: importing main.tsx runs
  * `createRoot(...).render(...)` at module scope, so a test could never get hold of
  * the boundary without booting the whole application.
+ *
+ * THIS IS THE ONE COMPONENT THAT KEEPS ITS INLINE STYLES, deliberately. Every
+ * other component moved to `app.css` during the redesign. This one is the screen
+ * shown when rendering has already failed, so it should depend on as little as
+ * possible: a class here would render as unstyled text in exactly the scenario
+ * where a stylesheet is what broke. The `var()` calls degrade to browser defaults
+ * rather than to nothing. Do not "finish the job" by converting it.
  */
 export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };

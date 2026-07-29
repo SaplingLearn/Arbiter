@@ -19,21 +19,33 @@ export function CompoundsTab() {
   const declined = ids.filter((id) => rows.get(id)?.verdict === "abstain").length;
 
   return (
-    <section style={{ padding: 20 }}>
-      <h2 style={{ fontFamily: "var(--serif)" }}>Compounds</h2>
-      <p data-testid="conflict-rate">
-        <strong>{conflicting} of {ids.length}</strong> scored compounds have streams in genuine conflict
-        ({((conflicting / ids.length) * 100).toFixed(1)}%).
-      </p>
-      <p data-testid="decline-note" style={{ color: "var(--muted)" }}>
-        ARBITER declines on {declined} of {ids.length}. See Validation for why — no compound in this set
-        carries exposure-relevant evidence.
-      </p>
+    // The shell supplies .container; the tab supplies the measure. Prose gets one,
+    // the 267-row table does not.
+    <section>
+      <div className="prose">
+        <p className="label">Library</p>
+        <h2 className="display">Compounds</h2>
+        <p className="lede" data-testid="conflict-rate">
+          <strong>{conflicting} of {ids.length}</strong> scored compounds have streams in genuine conflict
+          ({((conflicting / ids.length) * 100).toFixed(1)}%).
+        </p>
+        {/* .caveat, not .small.muted: the decline rate is the honest half of this
+            screen, and shrinking it is how a screen-share loses it. */}
+        <p className="caveat" data-testid="decline-note">
+          ARBITER declines on {declined} of {ids.length}. See Validation for why — no compound in this set
+          carries exposure-relevant evidence.
+        </p>
+      </div>
 
-      <table style={{ borderCollapse: "collapse", width: "100%", marginTop: 12 }}>
+      <hr className="rule" />
+
+      <table className="table">
         <thead>
-          <tr style={{ textAlign: "left", borderBottom: "1px solid var(--hairline)" }}>
-            <th>Compound</th><th>Streams</th><th>Verdict</th><th>DILIrank</th>
+          <tr>
+            <th scope="col">Compound</th>
+            <th scope="col">Streams</th>
+            <th scope="col">Verdict</th>
+            <th scope="col">DILIrank</th>
           </tr>
         </thead>
         <tbody>
@@ -41,18 +53,19 @@ export function CompoundsTab() {
             const c = data.compounds.get(id)!;
             const r = rows.get(id)!;
             return (
-              <tr key={id} data-testid="compound-row"
-                  style={{ borderBottom: "1px solid var(--hairline-soft)" }}>
+              <tr key={id} data-testid="compound-row">
                 <td>
-                  <button type="button" onClick={() => { dispatch({ type: "selectCompound", compoundId: id }); window.location.hash = "#/case"; }}>
+                  <button type="button" className="cell-link"
+                          onClick={() => { dispatch({ type: "selectCompound", compoundId: id }); window.location.hash = "#/case"; }}>
                     {c.name}
                   </button>
                 </td>
-                <td style={{ color: r.conflicting ? "var(--toxic)" : "var(--muted)" }}>
+                {/* The word carries the state; the colour only agrees with it. */}
+                <td className={r.conflicting ? "state-conflict" : "muted"}>
                   {r.conflicting ? "in conflict" : "agree"}
                 </td>
-                <td style={{ color: "var(--muted)" }}>{r.verdict}</td>
-                <td style={{ color: "var(--muted)" }}>{c.dilirankLabel}</td>
+                <td className="muted">{r.verdict}</td>
+                <td className="muted">{c.dilirankLabel}</td>
               </tr>
             );
           })}

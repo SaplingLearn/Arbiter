@@ -15,32 +15,52 @@ export function CaseHeader() {
   const all = isFixture ? data.fixture.claims : (data.claimsByCompound.get(selectedCompoundId) ?? []);
   const shown = visibleClaims(all, asOf);
   const hidden = all.length - shown.length;
-  const name = isFixture ? "TAK-994" : (data.compounds.get(selectedCompoundId)?.name ?? selectedCompoundId);
+  const compound = data.compounds.get(selectedCompoundId);
+  const name = isFixture ? "TAK-994" : (compound?.name ?? selectedCompoundId);
+  // TAK-994 was terminated in Phase 2 and never approved, so it is absent from
+  // DILIrank by construction - it is the motivating case, not benchmark evidence.
+  const compoundClass = isFixture
+    ? "Literature fixture · outside the DILIrank benchmark"
+    : (compound?.dilirankLabel ?? "DILIrank class not recorded");
   const milestones = Object.entries(data.fixture.asOfMilestones);
 
   return (
-    <header style={{ borderBottom: "1px solid var(--hairline)", padding: "16px 20px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 24 }}>
-        <h2 style={{ fontFamily: "var(--serif)", margin: 0, fontSize: 22 }}>{name}</h2>
+    <header className="case-header">
+      {/* The masthead: the compound on the left, what ARBITER concluded about it
+          on the right, sharing one baseline so they read as a single line. */}
+      <div className="case-masthead">
+        <div>
+          <h2 className="display">{name}</h2>
+          <p className="muted case-subtitle">{compoundClass}</p>
+        </div>
         <VerdictLabel verdict={r.verdict} />
       </div>
 
-      <div data-testid="belief-range" style={{ color: "var(--muted)", marginTop: 6 }}>
-        Belief {r.belief.toFixed(3)} – plausibility {r.plausibility.toFixed(3)}
-        <span style={{ marginLeft: 12 }}>gap {(r.plausibility - r.belief).toFixed(3)}</span>
+      {/* Belief, plausibility and the gap are read against each other, so they
+          are one set of pairs in tabular figures rather than a sentence. */}
+      <div data-testid="belief-range" className="case-figures">
+        <dl className="kv">
+          <dt>Belief – plausibility</dt>
+          <dd>{r.belief.toFixed(3)} – {r.plausibility.toFixed(3)}</dd>
+        </dl>
+        <dl className="kv">
+          <dt>Gap</dt>
+          <dd>{(r.plausibility - r.belief).toFixed(3)}</dd>
+        </dl>
       </div>
 
-      <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <span style={{ color: "var(--muted)" }}>As of</span>
-        <button type="button" onClick={() => dispatch({ type: "setAsOf", asOf: null })}
+      <div className="case-asof">
+        <span className="label">As of</span>
+        <button type="button" className="btn" onClick={() => dispatch({ type: "setAsOf", asOf: null })}
                 aria-pressed={asOf === null}>All evidence</button>
         {milestones.map(([label, date]) => (
-          <button key={date} type="button" onClick={() => dispatch({ type: "setAsOf", asOf: date })}
+          <button key={date} type="button" className="btn"
+                  onClick={() => dispatch({ type: "setAsOf", asOf: date })}
                   aria-pressed={asOf === date}>
             {label} ({date})
           </button>
         ))}
-        <span data-testid="hidden-count" style={{ color: "var(--muted)" }}>
+        <span data-testid="hidden-count" className="small muted">
           {hidden === 0 ? "nothing hidden" : `${hidden} of ${all.length} claims hidden by this date`}
         </span>
       </div>
