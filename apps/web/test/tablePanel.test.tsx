@@ -32,6 +32,11 @@ function Probe() {
       <span data-testid="probe-cytotox">
         {String(claims.find((c) => c.id === "TAK-994:cytotox")?.exposureRelevant)}
       </span>
+      {/* Reads the WORKING copy, not the visible one: the point is whether an edit
+          was dispatched onto a claim, regardless of whether the as-of hides it. */}
+      <span data-testid="probe-murine-ke">
+        {String(claims.find((c) => c.id === "TAK-994:toxicogenomics-murine")?.measuresKeyEvent)}
+      </span>
     </div>
   );
 }
@@ -53,6 +58,8 @@ const renderPanel = () =>
       <TablePanel collapsed={false} onExpand={() => {}} />
       <Probe />
       <Fire id="drag-r1" action={{ type: "setRuleStrength", id: "R1", strength: 0.45 }} />
+      <Fire id="pre-fih" action={{ type: "setAsOf", asOf: "2021-06-01" }} />
+      <Fire id="reveal-murine" action={{ type: "setAsOf", asOf: "2023-01-01" }} />
     </StoreProvider>,
   );
 
@@ -174,6 +181,53 @@ const liveReclassify = (newValue: string): Resolution<Proposal> => ({
   },
   rung: 1,
   source: "live",
+});
+
+describe("TablePanel - the evidence check is re-run at Apply, not only at Interpret", () => {
+  it("refuses to dispatch a reclassify onto a claim the as-of control has since hidden", async () => {
+    // The as-of buttons sit directly above this panel, and the demo presses one
+    // between beats. So the claims a proposal was validated against at Interpret are
+    // not necessarily the claims in play at Apply.
+    //
+    // The cytotox reclassify is valid at "all evidence". Wind the as-of back to
+    // pre-first-in-human and TAK-994:cytotox is no longer visible, so approving the
+    // proposal would dispatch an edit onto a claim the reviewer can no longer see -
+    // the confirm-before-apply guarantee failing quietly, which is the single thing
+    // this surface exists to prevent.
+    // The murine claim is the one the as-of control actually hides: it carries
+    // availableFrom 2022-03-01, so it is in play under "all evidence" and gone at
+    // pre-first-in-human. (Every other TAK-994 claim predates 2021-06-01, which is
+    // why the first version of this test — winding back with a cytotox proposal —
+    // passed against the unfixed code. Measured, not assumed.)
+    interpretSpy.mockResolvedValueOnce({
+      value: {
+        targetRule: null,
+        targetClaimId: "TAK-994:toxicogenomics-murine",
+        action: "reclassify_field",
+        field: "measuresKeyEvent",
+        newValue: "KE:BSEP-INHIBITION",
+        paraphrase: "Record that the murine study measured BSEP inhibition.",
+        confidence: "high",
+      },
+      rung: 1,
+      source: "live",
+    });
+
+    renderPanel();
+    await challenge("the mouse study did measure a key event");
+    expect(screen.getByTestId("proposal-apply")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("pre-fih"));
+    fireEvent.click(screen.getByTestId("proposal-apply"));
+
+    // Nothing dispatched, and the proposal is withdrawn rather than left armed over
+    // evidence that is gone. The claim keeps its REGISTERED key event - asserting a
+    // specific surviving value rather than an absence, so the test cannot pass by
+    // the claim simply not being found.
+    expect(screen.getByTestId("probe-murine-ke").textContent).toBe("KE:CYP-INDUCTION");
+    expect(screen.queryByTestId("applied-delta")).toBeNull();
+    expect(screen.queryByTestId("proposal-apply")).toBeNull();
+  });
 });
 
 describe("TablePanel - a reclassification may only name evidence that exists (§5.3)", () => {
@@ -321,6 +375,44 @@ describe("TablePanel - Apply and the delta", () => {
     expect(screen.getByTestId("delta-belief").textContent).toBe("Belief 0.495 → 0.495");
     expect(screen.getByTestId("delta-gap").textContent).toBe("Gap 0.505 → 0.505");
     // And the explanation is not suppressed, which is the reader-visible half.
+    expect(screen.getByTestId("delta-why").textContent).toContain("TAK-994:qsar");
+  });
+
+  it("stops listening once applied, so a later as-of press is not credited to the proposal", async () => {
+    // The sibling test above froze the BEFORE end of the interval. This one freezes
+    // the AFTER end, and the two together are the whole guarantee: the panel reports
+    // what this proposal did, between the instant before it and the instant after,
+    // and nothing else.
+    //
+    // Reachable in one keystroke on the demo path. Beats 3 and 4 are both the Case
+    // tab and this panel is collapsed by a prop rather than unmounted, so it is
+    // mounted across the boundary - and beat 4 dispatches setAsOf 2023-01-01. Apply
+    // a challenge at beat 3, press the arrow key, and a panel reading the live store
+    // credits the interpreter with the murine study becoming visible.
+    //
+    // R5 is inert, so every unit of the 0.090 movement below belongs to the as-of
+    // change. Against the pre-fix code this fails on the first assertion with
+    // `expected 'true' to be 'false'`.
+    // The as-of has to start at pre-first-in-human, which is where beat 3 leaves it.
+    // From the default (all evidence visible) the 2023 press changes nothing, and a
+    // test written that way passes against the broken code - measured, on the first
+    // attempt at this test.
+    renderPanel();
+    fireEvent.click(screen.getByTestId("pre-fih"));
+    await challenge(R5_LOWER);
+    fireEvent.click(screen.getByTestId("proposal-apply"));
+    const applied = screen.getByTestId("delta-belief").textContent;
+    expect(screen.getByTestId("applied-delta").dataset.moved).toBe("false");
+
+    fireEvent.click(screen.getByTestId("reveal-murine"));
+
+    const delta = screen.getByTestId("applied-delta");
+    expect(delta.dataset.moved).toBe("false");
+    expect(delta.textContent).toMatch(/did not move/);
+    // Byte-identical to what it read before the press: the panel stopped listening.
+    expect(screen.getByTestId("delta-belief").textContent).toBe(applied);
+    // The explanation must survive too. Suppressing it is how the pre-fix panel
+    // turned a correct "nothing happened, here is why" into a silent lie.
     expect(screen.getByTestId("delta-why").textContent).toContain("TAK-994:qsar");
   });
 
