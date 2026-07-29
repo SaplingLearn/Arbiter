@@ -176,7 +176,13 @@ describe("the spotlight", () => {
 
       act(() => { vi.advanceTimersByTime(SPOTLIGHT_HOLD_MS + 1); });
 
-      expect(document.querySelector("[data-anchor]")).not.toHaveAttribute("data-anchor-spotlight");
+      // "off", not absent (fix round 2): the attribute is flipped rather than
+      // removed, so spotlight.css's presence-based transition rule
+      // ([data-anchor][data-anchor-spotlight]) keeps matching through the fade
+      // and the exit animates over the same 600ms as the entrance instead of
+      // snapping. See apps/web/e2e/demo.spec.ts's exit-transition test for the
+      // browser-rendered proof that this actually fades rather than jumps.
+      expect(document.querySelector("[data-anchor]")).toHaveAttribute("data-anchor-spotlight", "off");
     } finally {
       vi.useRealTimers();
     }

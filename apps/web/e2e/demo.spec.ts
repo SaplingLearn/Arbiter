@@ -64,6 +64,39 @@ test("the spotlight's transition never blankets an evidence row or a trace step"
   expect(await step.evaluate((el) => getComputedStyle(el).transitionDuration)).toBe("0.18s");
 });
 
+test("the spotlight fades out over the same 600ms it fades in, not instantly", async ({ page }) => {
+  await page.goto("/#/case");
+
+  // validation.llmAblation is a PLAIN anchor - a <p> with no class of its own
+  // (Validation.tsx) - exactly the shape spec section 8.2's fix round 2 named:
+  // "everything outside .evidence-row/.trace-step/.case-rail" has no rival
+  // transition to fall back on, which is what made the pre-fix exit snap
+  // instant instead of fading.
+  await page.getByTestId("nav-input").fill("You use an LLM as your baseline and in the product. Which is it?");
+  await page.getByTestId("nav-input").press("Enter");
+  await page.getByTestId("nav-anchor").click();
+
+  const target = page.locator('[data-anchor="validation.llmAblation"]');
+  const duration = () => target.evaluate((el) => getComputedStyle(el).transitionDuration);
+
+  await expect(target).toHaveAttribute("data-anchor-spotlight", "on");
+  expect(await duration()).toBe("0.6s, 0.6s");
+
+  // SPOTLIGHT_HOLD_MS is 1500ms; useAnchorScroll.ts flips the attribute to
+  // "off" rather than removing it once the hold expires.
+  await expect(target).toHaveAttribute("data-anchor-spotlight", "off", { timeout: 3000 });
+
+  // The bug fix round 2 caught: pre-fix, removing the attribute entirely
+  // dropped the element out of the ONLY rule that declared `transition` for it,
+  // so this exact read returned "0s" - an instant snap rather than a fade back
+  // out. Post-fix, [data-anchor][data-anchor-spotlight] in spotlight.css
+  // matches on PRESENCE (either value "on" or "off"), so the 600ms transition
+  // is still in effect while box-shadow/background-color animate back to rest -
+  // the exit rhymes with the entrance, exactly as .case-grid's own
+  // grid-template-columns transition fades symmetrically both ways.
+  expect(await duration()).toBe("0.6s, 0.6s");
+});
+
 test("the ruleset slider changes the verdict live", async ({ page }) => {
   await page.goto("/#/ruleset");
   const before = await page.getByTestId("live-belief").textContent();

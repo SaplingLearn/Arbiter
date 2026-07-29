@@ -74,8 +74,13 @@ export function useAnchorScroll(tab: TabId): void {
     }
 
     handled.current = pendingAnchor;
-    for (const stale of document.querySelectorAll("[data-anchor-spotlight]")) {
-      stale.removeAttribute("data-anchor-spotlight");
+    // Flip stale "on"s to "off" rather than removing the attribute - see
+    // spotlight.css. Removing it would drop the element out of
+    // [data-anchor][data-anchor-spotlight] entirely, and the box-shadow/
+    // background-color it is still fading out from would have no transition
+    // left to animate through: an instant snap instead of a fade.
+    for (const stale of document.querySelectorAll('[data-anchor-spotlight="on"]')) {
+      stale.setAttribute("data-anchor-spotlight", "off");
     }
 
     // Spec section 8.2. motion.css overrides animation-duration and
@@ -89,7 +94,11 @@ export function useAnchorScroll(tab: TabId): void {
 
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
-      el.removeAttribute("data-anchor-spotlight");
+      // "off", not removed: spotlight.css's [data-anchor][data-anchor-spotlight]
+      // rule matches on PRESENCE, either value, specifically so this flip keeps
+      // the 600ms transition in effect while the highlight fades back out,
+      // rather than the element dropping out of that selector and snapping.
+      el.setAttribute("data-anchor-spotlight", "off");
       timer.current = null;
       dispatch({ type: "setPendingAnchor", anchorId: null });
     }, SPOTLIGHT_HOLD_MS);
