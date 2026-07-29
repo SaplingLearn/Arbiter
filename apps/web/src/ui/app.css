@@ -405,3 +405,21 @@ a.btn { display: inline-block; text-decoration: none; }
    low-confidence guess is exactly the line a reviewer must not skim past. */
 .proposal-paraphrase { font-size: 15px; line-height: 1.4; margin: 0; }
 .proposal-paraphrase[data-emphasis="raised"] { font-weight: 700; }
+
+/* ---------- navigator ----------
+   Task 7. Surface 3's mount (spec section 7.3): a slim bar between the tab nav
+   and the tab body, one line when idle. A question is asked about whatever is on
+   screen, tab included, so the bar sits outside <main> rather than belonging to
+   any one tab - the same reasoning that keeps TourFooter outside it. */
+.navigator {
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface);
+  padding: var(--s3) var(--s5);
+}
+.navigator-form { display: flex; align-items: center; gap: var(--s3); }
+.navigator-label { flex: 0 0 auto; }
+/* `.field` alone sizes to a browser default, same reason `.field-full` exists
+   for the challenge textarea - this box grows to fill the bar instead. */
+.navigator-input { flex: 1; }
+.navigator-rung { flex: 0 0 auto; white-space: nowrap; }
+.navigator-answer { margin-top: var(--s3); align-items: center; }

@@ -1,0 +1,42 @@
+[
+  {
+    "question": "Did you tune the rules to fit DILIrank?",
+    "anchorIds": ["ruleset.hash", "validation.provenance"]
+  },
+  {
+    "question": "Nothing in pass 1 contradicts anything. So what is there to arbitrate?",
+    "anchorIds": ["trace.verdictReason", "trace.beliefTrack"]
+  },
+  {
+    "question": "Doesn't discounting make you abstain on everything?",
+    "anchorIds": ["validation.singleClassWarning", "compounds.conflictRate"]
+  },
+  {
+    "question": "If R6 has no code of its own, is it really a rule?",
+    "anchorIds": ["rule.R6"]
+  },
+  {
+    "question": "You use an LLM as your baseline and in the product. Which is it?",
+    "anchorIds": ["validation.llmAblation"]
+  },
+  {
+    "question": "Why does R3 outrank R1?",
+    "anchorIds": ["ruleset.precedenceOrder", "rule.R3"]
+  },
+  {
+    "question": "Why is the abstention threshold 0.5?",
+    "anchorIds": ["ruleset.abstentionThreshold", "ruleset.hash"]
+  },
+  {
+    "question": "Isn't feeding it the mouse study hindsight?",
+    "anchorIds": ["trace.nextExperiment", "evidence.citationStatus"]
+  },
+  {
+    "question": "Your consistency claim is trivial. Deterministic code is deterministic.",
+    "anchorIds": ["validation.plannerStability"]
+  },
+  {
+    "question": "How do I know the ruleset wasn't edited before you showed me this?",
+    "anchorIds": ["ruleset.modifiedBadge", "ruleset.hash"]
+  }
+]
