@@ -7,11 +7,26 @@
 
    600ms ease is the Case region-focus grid transition from case.css, reused on
    purpose: the app should not grow a second motion idiom for a second kind of
-   spotlight. Well inside the 1.5s budget (spec section 8.2). */
-[data-anchor] {
+   spotlight. Well inside the 1.5s budget (spec section 8.2).
+
+   The transition lives ONLY on the compound selector below -
+   [data-anchor][data-anchor-spotlight="on"], specificity (0,2,0) - never on a
+   bare [data-anchor] rule. .evidence-row and .trace-step (case.css) declare
+   their OWN `transition: background-color var(--speed) ease;` at (0,1,0), and
+   CSS does not merge two same-property declarations across rules: whichever
+   rule wins the `transition` cascade slot supplies the WHOLE shorthand,
+   discarding the other's entirely. A bare [data-anchor] rule - even one naming
+   only box-shadow - sits at the same (0,1,0) as .evidence-row/.trace-step, so
+   whichever file the bundler happens to emit later would silently win and
+   erase the other's transition (this is exactly how a 600ms hover crept onto
+   rows that are supposed to fade at --speed = 180ms). Compounding both
+   attributes here gives this rule strictly HIGHER specificity, so it wins
+   UNCONDITIONALLY while spotlighted regardless of bundle order, and - because
+   [data-anchor-spotlight="on"] is only ever present during the hold - it never
+   applies at rest, so every element's own hover transition is undisturbed the
+   rest of the time. */
+[data-anchor][data-anchor-spotlight="on"] {
   transition: box-shadow 600ms ease, background-color 600ms ease;
-}
-[data-anchor-spotlight="on"] {
   box-shadow: 0 0 0 3px var(--pfizer-blue);
   background-color: var(--surface);
 }

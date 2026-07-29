@@ -40,6 +40,30 @@ test("the M key actually stops the motion, not just flips an attribute", async (
   expect(await duration()).toBe("1e-05s");
 });
 
+test("the spotlight's transition never blankets an evidence row or a trace step", async ({ page }) => {
+  await page.goto("/#/case");
+  const row = page.getByTestId("evidence-row").first();
+  const step = page.getByTestId("trace-step").first();
+
+  // .evidence-row and .trace-step (case.css) each declare
+  // `transition: background-color var(--speed) ease;` UNCONDITIONALLY - not only
+  // under :hover - so, exactly as the belief-fill assertion above reads its
+  // transition without simulating a pointer, this reads it directly too.
+  // --speed is 180ms (tokens.css).
+  //
+  // ai/spotlight.css's spotlight transition is a SEPARATE 600ms idiom for the
+  // navigator's highlight, scoped to the compound selector
+  // [data-anchor][data-anchor-spotlight="on"] specifically so it never applies
+  // to these rows merely for carrying data-anchor. A regression here (both
+  // rules share equal (0,1,0) specificity if the spotlight rule is ever
+  // loosened back to a bare [data-anchor] selector) would have the bundler's
+  // import order silently decide which one wins, and previously did: it made
+  // every row's ordinary hover 3.3x slower than every other hover surface in
+  // the app.
+  expect(await row.evaluate((el) => getComputedStyle(el).transitionDuration)).toBe("0.18s");
+  expect(await step.evaluate((el) => getComputedStyle(el).transitionDuration)).toBe("0.18s");
+});
+
 test("the ruleset slider changes the verdict live", async ({ page }) => {
   await page.goto("/#/ruleset");
   const before = await page.getByTestId("live-belief").textContent();
