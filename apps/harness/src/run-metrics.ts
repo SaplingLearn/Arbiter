@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { MetricsDocumentSchema, type LlmConsistency, type MetricsDocument } from "@arbiter/engine";
 import { abstentionQuality, calibration, conflictSubsetAccuracy, plannerSensitivity, robustness } from "./metrics.js";
 import { loadInputs } from "./load.js";
 import { mean } from "./stats.js";
@@ -24,7 +25,7 @@ function main(): void {
     .filter((s) => s.baselineAssay !== null);
 
   // Metric 2a from the ablation, if it has been run.
-  let llm: unknown = { note: "results/ablation.json not present - run `npm run ablation` (Task 14, needs ANTHROPIC_API_KEY)" };
+  let llm: LlmConsistency = { note: "results/ablation.json not present - run `npm run ablation` (Task 14, needs ANTHROPIC_API_KEY)" };
   if (existsSync("results/ablation.json")) {
     const a = JSON.parse(readFileSync("results/ablation.json", "utf8")) as {
       config: unknown;
@@ -47,7 +48,10 @@ function main(): void {
   // corpus-wide mean is dominated by cases that were never close to deciding.
   const robCommitted = rob.filter((r) => r.baselineVerdict !== "abstain");
 
-  const metrics = {
+  // Annotated, not inferred. This document is the contract apps/web reads, and an
+  // anonymous object literal let a field be renamed here while every reader kept
+  // compiling. A rename must now fail at the WRITER.
+  const metrics: MetricsDocument = {
     provenance: {
       rulesetVersion: results.rulesetVersion,
       rulesetHash: results.rulesetHash,
@@ -81,6 +85,12 @@ function main(): void {
     },
   };
 
+  // The type above cannot see a NaN, an interval whose bounds arrived reversed, or
+  // a singleClass flag that disagrees with the confusion counts beside it. Validate
+  // before writing, so a document that contradicts itself never reaches the app.
+  // The ORIGINAL object is written, not the parse result: a reserialised document
+  // would be a second way for bytes to move, and no number may move here.
+  MetricsDocumentSchema.parse(metrics);
   writeFileSync("results/metrics.json", JSON.stringify(metrics, null, 2));
 
   const best = Object.entries(m1.baselines)

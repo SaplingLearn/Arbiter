@@ -1,10 +1,12 @@
+import { MetricsDocumentSchema, type Interval } from "@arbiter/engine";
+
 export interface GoldenPipeline {
   balancedAccuracy: number;
   coverage: number;
   nCommitted: number;
   /** Null where one class is absent, so no interval for balanced accuracy exists. */
-  balancedAccuracyCi: { lo: number; hi: number } | null;
-  rawAccuracyCi: { lo: number; hi: number };
+  balancedAccuracyCi: Interval | null;
+  rawAccuracyCi: Interval;
 }
 
 export interface GoldenNumbers {
@@ -16,8 +18,8 @@ export interface GoldenNumbers {
   arbiterBalancedAccuracy: number;
   arbiterCoverage: number;
   arbiterNCommitted: number;
-  arbiterBalancedAccuracyCi: { lo: number; hi: number } | null;
-  arbiterRawAccuracyCi: { lo: number; hi: number };
+  arbiterBalancedAccuracyCi: Interval | null;
+  arbiterRawAccuracyCi: Interval;
   baselines: Record<string, GoldenPipeline>;
   meanHeldFraction: number;
   worstHeldFraction: number;
@@ -44,12 +46,20 @@ export interface GoldenNumbers {
  * showed is live.
  */
 export function extractGolden(raw: unknown): GoldenNumbers {
-  const m = raw as Record<string, any>;
-  const acc = m["metric1_conflictSubsetAccuracy"];
+  // Parsed, not cast. This is the second reader of results/metrics.json, and it
+  // read the document through `Record<string, any>` - under which a renamed field
+  // arrives as `undefined`, gets written into the golden file, and compares equal
+  // to itself on the next run. The guard against a moved number would have gone
+  // quiet at exactly the moment it was needed.
+  const m = MetricsDocumentSchema.parse(raw);
+  const acc = m.metric1_conflictSubsetAccuracy;
 
   const baselines: Record<string, GoldenPipeline> = {};
-  for (const name of Object.keys(acc.baselines ?? {}).sort()) {
-    const b = acc.baselines[name];
+  // Sorted with an explicit code-unit comparator, not localeCompare: the golden
+  // file is compared byte for byte, and a locale-dependent order would make the
+  // guard fail on a colleague's machine rather than on a moved number.
+  const byName = Object.entries(acc.baselines).sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0));
+  for (const [name, b] of byName) {
     baselines[name] = {
       balancedAccuracy: b.balancedAccuracy,
       coverage: b.coverage,
@@ -62,11 +72,11 @@ export function extractGolden(raw: unknown): GoldenNumbers {
   }
 
   return {
-    rulesetHash: m["provenance"].rulesetHash,
-    splitSeed: m["provenance"].splitSeed,
-    perturbationSeed: m["provenance"].perturbationSeed,
-    nScored: m["sampleSizes"].scored,
-    nConflictSubset: m["sampleSizes"].conflictSubset,
+    rulesetHash: m.provenance.rulesetHash,
+    splitSeed: m.provenance.splitSeed,
+    perturbationSeed: m.provenance.perturbationSeed,
+    nScored: m.sampleSizes.scored,
+    nConflictSubset: m.sampleSizes.conflictSubset,
     arbiterBalancedAccuracy: acc.arbiter.balancedAccuracy,
     arbiterCoverage: acc.arbiter.coverage,
     arbiterNCommitted: acc.arbiter.nCommitted,
@@ -75,15 +85,15 @@ export function extractGolden(raw: unknown): GoldenNumbers {
       : null,
     arbiterRawAccuracyCi: { lo: acc.arbiter.rawAccuracyCi.lo, hi: acc.arbiter.rawAccuracyCi.hi },
     baselines,
-    meanHeldFraction: m["metric2b_arbiterRobustness"].meanHeldFraction,
-    worstHeldFraction: m["metric2b_arbiterRobustness"].worstHeldFraction,
-    strictCoverage: m["metric3_calibration"].strictCoverage,
-    meanWidth: m["metric3_calibration"].meanWidth,
-    meanWidthOnCorrect: m["metric3_calibration"].meanWidthOnCorrect,
-    meanWidthOnIncorrect: m["metric3_calibration"].meanWidthOnIncorrect,
-    widthDiscriminates: m["metric3_calibration"].widthDiscriminates,
-    declineRate: m["metric4_abstentionQuality"].declineRate,
-    balancedAccuracyOnCommitted: m["metric4_abstentionQuality"].balancedAccuracyOnCommitted,
-    plannerMeanUnchangedFraction: m["metric5_plannerSensitivity"].meanUnchangedFraction,
+    meanHeldFraction: m.metric2b_arbiterRobustness.meanHeldFraction,
+    worstHeldFraction: m.metric2b_arbiterRobustness.worstHeldFraction,
+    strictCoverage: m.metric3_calibration.strictCoverage,
+    meanWidth: m.metric3_calibration.meanWidth,
+    meanWidthOnCorrect: m.metric3_calibration.meanWidthOnCorrect,
+    meanWidthOnIncorrect: m.metric3_calibration.meanWidthOnIncorrect,
+    widthDiscriminates: m.metric3_calibration.widthDiscriminates,
+    declineRate: m.metric4_abstentionQuality.declineRate,
+    balancedAccuracyOnCommitted: m.metric4_abstentionQuality.balancedAccuracyOnCommitted,
+    plannerMeanUnchangedFraction: m.metric5_plannerSensitivity.meanUnchangedFraction,
   };
 }

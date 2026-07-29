@@ -190,3 +190,203 @@ export interface Reasoning {
   nextExperiment: NextExperiment | null;
   rulesetHash: string;
 }
+
+/* ------------------------------------------------------------------------- *
+ * The validation metrics document — `results/metrics.json`.
+ *
+ * Written by `apps/harness/src/run-metrics.ts`, read by the Validation tab, by
+ * the golden-file guard, and by anything Phase 3 adds. Both ends previously read
+ * it through `Record<string, any>`, so `npm run typecheck` stayed green while
+ * `Validation.tsx` referenced a field that had been renamed out of existence. The
+ * failure surfaces as a blank Validation panel in front of a judge, which is the
+ * cost of an untyped contract paid at the worst possible moment.
+ *
+ * These declarations live in the engine rather than the harness because the web
+ * app cannot import from the harness — the harness reads `node:fs` — and
+ * `@arbiter/engine` is the web app's only package dependency. They are inert type
+ * declarations, so nothing here touches engine purity: no clock, no randomness,
+ * no I/O. `EvidenceFile` above is the same kind of citizen, a data-file shape
+ * rather than a reasoning concern.
+ * ------------------------------------------------------------------------- */
+
+/** The bounds of a confidence interval. `lo <= hi` always; the schema enforces it. */
+export interface Interval {
+  lo: number;
+  hi: number;
+}
+
+/** Counts over a committed set. `tp + fp + tn + fn` is the size of that set. */
+export interface Confusion {
+  tp: number;
+  fp: number;
+  tn: number;
+  fn: number;
+}
+
+/** One scored pipeline — ARBITER itself, or one of the baselines it is compared against. */
+export interface ScoredPipeline {
+  balancedAccuracy: number;
+  /**
+   * Interval for BALANCED accuracy, or null when one class is absent.
+   *
+   * Null is not missing data, and it must never be made non-nullable: balanced
+   * accuracy substitutes 0.5 for the absent half, and a substitution has no
+   * sampling uncertainty, so no honest interval exists. Null in six of the nine
+   * pipelines reported today, including ARBITER's own headline.
+   *
+   * Named for the statistic it describes because the previous field was called
+   * plainly `ci` and carried the RAW-accuracy interval, which the Validation tab
+   * then printed as "balanced accuracy 0.75 (95% CI 0.51-1.00)".
+   */
+  balancedAccuracyCi: Interval | null;
+  /** Interval for RAW accuracy (correct/committed). A different statistic — see above. */
+  rawAccuracyCi: Interval;
+  /** Fraction of the subset this pipeline committed to. Travels WITH accuracy, always. */
+  coverage: number;
+  nCommitted: number;
+  confusion: Confusion;
+  /**
+   * True when the committed set contains only one class, so balancedAccuracy
+   * substituted 0.5 for the missing half. The figure is then not interpretable as
+   * accuracy and must not be quoted as one.
+   */
+  singleClass: boolean;
+}
+
+/** What the run was scored under. Every number in the document is conditional on this. */
+export interface MetricsProvenance {
+  rulesetVersion: string;
+  /** Must equal the pre-registered hash, or the numbers describe a ruleset nobody registered. */
+  rulesetHash: string;
+  splitSeed: number;
+  perturbationSeed: number;
+  /**
+   * "test" today. Left a plain string rather than an enum on purpose: reporting on
+   * another split would be a change of VALUE, and freezing it into the type would
+   * turn a disclosure into a schema error.
+   */
+  scoredSplit: string;
+  note: string;
+}
+
+export interface MetricsSampleSizes {
+  scored: number;
+  conflictSubset: number;
+}
+
+/** METRIC 1 (headline): balanced accuracy on the conflict subset only. */
+export interface ConflictSubsetAccuracy {
+  n: number;
+  /** Prevalence of the positive label on the subset; null when the subset is empty. */
+  positiveRate: number | null;
+  arbiter: ScoredPipeline;
+  /**
+   * Keyed by baseline name. The names contain colons (`single:qsar`,
+   * `single:transporter`), and the set grows whenever a stream is added, so this
+   * is an open record rather than a fixed set of keys.
+   */
+  baselines: Record<string, ScoredPipeline>;
+}
+
+/** METRIC 2a before the ablation has been run: the numbers are absent and `note` says why. */
+export interface LlmConsistencyPending {
+  note: string;
+}
+
+/** METRIC 2a once `results/ablation.json` exists. Carries no `note`. */
+export interface LlmConsistencyMeasured {
+  /**
+   * The ablation's own configuration, echoed verbatim. Its shape is owned by the
+   * ablation, not by this document, so it is deliberately opaque here. Optional
+   * because an ablation file without a `config` key serialises without one.
+   */
+  config?: unknown;
+  refusals: { refusalRate: number; refused: number; requests: number };
+  meanAgreementRate: number;
+  meanConfidenceStdDev: number;
+  nCompoundsFullyRefused: number;
+}
+
+/**
+ * A genuine union of two shapes, not one shape with optional halves.
+ *
+ * Declaring the measured fields optional would let a half-written document — an
+ * agreement rate with no refusal denominator beside it — validate, and a
+ * consistency figure quoted without its refusal rate is the one reading of this
+ * metric that is actively misleading. A reader discriminates on `note`.
+ */
+export type LlmConsistency = LlmConsistencyPending | LlmConsistencyMeasured;
+
+/** METRIC 2b: stability of the verdict under perturbation of evidence and rule strengths. */
+export interface ArbiterRobustness {
+  /**
+   * Trivially 1 — a pure function is a pure function. Pinned to the literal
+   * because anything else would mean the engine stopped being deterministic,
+   * which is a different and much larger problem than a metric moving.
+   */
+  determinism: 1;
+  determinismNote: string;
+  meanHeldFraction: number;
+  worstHeldFraction: number;
+  /**
+   * The figure that carries information. A compound that abstains far from any
+   * threshold holds at 1.0 under any perturbation, so the corpus-wide mean is
+   * dominated by cases that were never close to deciding.
+   */
+  meanHeldFractionOnCommitted: number;
+  nCommittedCompounds: number;
+  heldFractionCaveat: string;
+  samplesPerCompound: number;
+  seed: number;
+}
+
+/** METRIC 3: does the reported uncertainty widen where the verdict was wrong? */
+export interface Calibration {
+  strictCoverage: number;
+  meanWidth: number;
+  meanWidthOnCorrect: number;
+  meanWidthOnIncorrect: number;
+  widthDiscriminates: boolean;
+  /** False when either group is too small for the comparison above to mean anything. */
+  widthDiscriminatesIsMeaningful: boolean;
+  nCorrect: number;
+  nIncorrect: number;
+}
+
+/** METRIC 4: accuracy on what was committed to, reported inseparably from the decline rate. */
+export interface AbstentionQuality {
+  declineRate: number;
+  balancedAccuracyOnCommitted: number;
+  /** Interval for RAW accuracy on the committed set. Never null: `wilson` returns [0,1] at n=0. */
+  ciOnCommitted: Interval;
+  singleClassOnCommitted: boolean;
+  nDeclined: number;
+  nCommitted: number;
+}
+
+/** METRIC 5: how often the planner's top recommendation survives perturbed priors. */
+export interface PlannerSensitivity {
+  nCompoundsWithRecommendation: number;
+  meanUnchangedFraction: number;
+  perturbation: string;
+  samplesPerCompound: number;
+  seed: number;
+}
+
+/**
+ * The whole of `results/metrics.json`.
+ *
+ * Mirrors `MetricsDocumentSchema`; schema.ts asserts at compile time that the two
+ * cannot drift apart. The harness annotates the object it writes with this type,
+ * so a renamed field fails at the WRITER rather than silently at a reader.
+ */
+export interface MetricsDocument {
+  provenance: MetricsProvenance;
+  sampleSizes: MetricsSampleSizes;
+  metric1_conflictSubsetAccuracy: ConflictSubsetAccuracy;
+  metric2a_llmConsistency: LlmConsistency;
+  metric2b_arbiterRobustness: ArbiterRobustness;
+  metric3_calibration: Calibration;
+  metric4_abstentionQuality: AbstentionQuality;
+  metric5_plannerSensitivity: PlannerSensitivity;
+}

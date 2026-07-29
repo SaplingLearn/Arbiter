@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { parseHash, TAB_IDS, type TabId } from "./router.js";
-import { loadData } from "./data/load.js";
+import { loadData, type LoadedData } from "./data/load.js";
 import { StoreProvider, useAppState } from "./state/store.js";
 import { CaseTab } from "./tabs/Case/index.js";
 import { CompoundsTab } from "./tabs/Compounds.js";
@@ -12,7 +12,26 @@ import { Preflight } from "./ui/Preflight.js";
 import { isTypingTarget } from "./ui/isTypingTarget.js";
 import "./ui/motion.css";
 
-const data = loadData();
+/**
+ * Load once, but INSIDE a render.
+ *
+ * This was `const data = loadData()` at module scope, which is the one place a
+ * throw cannot be seen: module evaluation happens before React mounts, so the
+ * ErrorBoundary in main.tsx never got the chance to catch it and
+ * `createRoot(...).render(...)` never ran at all. The result was a blank page -
+ * the same failure as HANDOVER 6.1, and the exact opposite of what load.ts
+ * promises when it says a malformed file "must fail HERE, naming itself". An
+ * error message nobody can see does not name itself.
+ *
+ * Called from App's render instead, the same throw is a render-phase error, which
+ * the boundary catches and prints. Memoised rather than re-run per render because
+ * loadData parses every bundled claim through zod, and StrictMode renders twice.
+ */
+let loaded: LoadedData | null = null;
+function loadDataOnce(): LoadedData {
+  if (loaded === null) loaded = loadData();
+  return loaded;
+}
 
 function AppShell({ tab }: { tab: TabId }) {
   const { motion } = useAppState();
@@ -51,6 +70,7 @@ function AppShell({ tab }: { tab: TabId }) {
 }
 
 export function App() {
+  const data = loadDataOnce();
   const [tab, setTab] = useState<TabId>(() => parseHash(window.location.hash));
   useEffect(() => {
     const onHash = () => setTab(parseHash(window.location.hash));

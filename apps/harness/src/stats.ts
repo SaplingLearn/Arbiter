@@ -1,4 +1,10 @@
-export interface Interval { lo: number; hi: number }
+// Interval and Confusion are declared in @arbiter/engine, not here, because they
+// are part of the shape of results/metrics.json and apps/web has to read that
+// shape too. The web app cannot import from this package - the harness reads
+// node:fs - so the one definition lives where both ends can reach it.
+import type { Confusion, Interval } from "@arbiter/engine";
+
+export type { Confusion, Interval };
 
 /**
  * Wilson score interval for a binomial proportion.
@@ -16,8 +22,6 @@ export function wilson(successes: number, n: number, z = 1.96): Interval {
   const half = (z * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / denom;
   return { lo: Math.max(0, centre - half), hi: Math.min(1, centre + half) };
 }
-
-export interface Confusion { tp: number; fp: number; tn: number; fn: number }
 
 export function confusion(pairs: { y: number; predicted: number }[]): Confusion {
   const c: Confusion = { tp: 0, fp: 0, tn: 0, fn: 0 };

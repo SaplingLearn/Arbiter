@@ -28,7 +28,7 @@ describe("ValidationTab", () => {
     // 0.51-1.00)", where the interval was wilson(4,4) on RAW accuracy 4/4 = 1.0 -
     // an uncertainty claim about a different statistic than the one beside it.
     // ARBITER's committed set is single-class, so there is no interval to report.
-    const acc = (data.metrics as Record<string, any>)["metric1_conflictSubsetAccuracy"];
+    const acc = data.metrics.metric1_conflictSubsetAccuracy;
     expect(acc.arbiter.singleClass).toBe(true);
     expect(acc.arbiter.balancedAccuracyCi).toBeNull();
 

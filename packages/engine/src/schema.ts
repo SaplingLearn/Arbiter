@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { EvidenceClaim, EvidenceFile, Ruleset } from "./types.js";
+import type { EvidenceClaim, EvidenceFile, MetricsDocument, Ruleset } from "./types.js";
 
 export const ProvenanceSchema = z.object({
   kind: z.enum(["database", "literature"]),
@@ -69,6 +69,180 @@ export const EvidenceFileSchema = z.object({
 });
 
 /* ------------------------------------------------------------------------- *
+ * `results/metrics.json` — the harness-to-app contract.
+ *
+ * Every refine below encodes an identity that already holds by construction in
+ * apps/harness/src/metrics.ts. That is the point: the file on disk is the only
+ * thing the web app ever sees, and a document whose parts contradict each other
+ * is a deck quoting two different numbers for the same thing. See the header on
+ * MetricsDocument in types.ts for why these declarations live in the engine.
+ * ------------------------------------------------------------------------- */
+
+export const IntervalSchema = z
+  .object({
+    lo: z.number(),
+    hi: z.number(),
+  })
+  .refine((i) => i.lo <= i.hi, {
+    message:
+      "A confidence interval must have lo <= hi. Reversed bounds render as '95% CI 0.90-0.51', " +
+      "which reads as carelessness rather than as the defect it is.",
+    path: ["hi"],
+  });
+
+export const ScoredPipelineSchema = z
+  .object({
+    balancedAccuracy: z.number().min(0).max(1),
+    balancedAccuracyCi: IntervalSchema.nullable(),
+    rawAccuracyCi: IntervalSchema,
+    coverage: z.number().min(0).max(1),
+    nCommitted: z.number().int().min(0),
+    confusion: z.object({
+      tp: z.number().int().min(0),
+      fp: z.number().int().min(0),
+      tn: z.number().int().min(0),
+      fn: z.number().int().min(0),
+    }),
+    singleClass: z.boolean(),
+  })
+  .refine((p) => p.confusion.tp + p.confusion.fp + p.confusion.tn + p.confusion.fn === p.nCommitted, {
+    message:
+      "The confusion counts must sum to nCommitted. If they disagree, the accuracy printed beside " +
+      "them was computed over a different set than the one the table shows.",
+    path: ["confusion"],
+  })
+  .refine((p) => p.singleClass === (p.confusion.tp + p.confusion.fn === 0 || p.confusion.tn + p.confusion.fp === 0), {
+    message:
+      "singleClass must agree with the confusion counts: it is true exactly when one class is absent " +
+      "from the committed set. This flag is the only thing on screen telling a reader that half of " +
+      "the balanced accuracy beside it is a substituted 0.5 rather than a measurement.",
+    path: ["singleClass"],
+  })
+  .refine((p) => (p.balancedAccuracyCi === null) === p.singleClass, {
+    message:
+      "balancedAccuracyCi must be null exactly when singleClass is true. A substituted 0.5 is not an " +
+      "estimate, so it carries no sampling uncertainty, and borrowing an interval to fill the gap puts " +
+      "a precision claim on a placeholder - the defect that had the Validation tab printing the " +
+      "RAW-accuracy interval beside a balanced accuracy.",
+    path: ["balancedAccuracyCi"],
+  });
+
+export const MetricsProvenanceSchema = z.object({
+  rulesetVersion: z.string().min(1),
+  rulesetHash: z.string().min(1),
+  splitSeed: z.number(),
+  perturbationSeed: z.number(),
+  scoredSplit: z.string().min(1),
+  note: z.string().min(1),
+});
+
+export const MetricsSampleSizesSchema = z.object({
+  scored: z.number().int().min(0),
+  conflictSubset: z.number().int().min(0),
+});
+
+export const ConflictSubsetAccuracySchema = z.object({
+  n: z.number().int().min(0),
+  positiveRate: z.number().min(0).max(1).nullable(),
+  arbiter: ScoredPipelineSchema,
+  // z.record, not an enum of keys: baseline names contain colons (`single:qsar`)
+  // and the set grows with every stream added.
+  baselines: z.record(ScoredPipelineSchema),
+});
+
+export const LlmConsistencyPendingSchema = z.object({
+  note: z.string().min(1),
+});
+
+export const LlmConsistencyMeasuredSchema = z.object({
+  config: z.unknown(),
+  refusals: z.object({
+    refusalRate: z.number().min(0).max(1),
+    refused: z.number().int().min(0),
+    requests: z.number().int().min(0),
+  }),
+  meanAgreementRate: z.number(),
+  meanConfidenceStdDev: z.number(),
+  nCompoundsFullyRefused: z.number().int().min(0),
+});
+
+/**
+ * Two shapes, both valid, discriminated by whether the ablation has been run.
+ *
+ * A single object with optional halves would accept an agreement rate with no
+ * refusal denominator beside it, and a consistency figure quoted without its
+ * refusal rate is the one reading of this metric that actively misleads.
+ */
+export const LlmConsistencySchema = z.union([LlmConsistencyPendingSchema, LlmConsistencyMeasuredSchema]);
+
+export const ArbiterRobustnessSchema = z.object({
+  determinism: z.literal(1),
+  determinismNote: z.string().min(1),
+  meanHeldFraction: z.number().min(0).max(1),
+  worstHeldFraction: z.number().min(0).max(1),
+  meanHeldFractionOnCommitted: z.number().min(0).max(1),
+  nCommittedCompounds: z.number().int().min(0),
+  heldFractionCaveat: z.string().min(1),
+  samplesPerCompound: z.number().int().min(0),
+  seed: z.number(),
+});
+
+export const CalibrationSchema = z.object({
+  strictCoverage: z.number().min(0).max(1),
+  meanWidth: z.number().min(0).max(1),
+  meanWidthOnCorrect: z.number().min(0).max(1),
+  meanWidthOnIncorrect: z.number().min(0).max(1),
+  widthDiscriminates: z.boolean(),
+  widthDiscriminatesIsMeaningful: z.boolean(),
+  nCorrect: z.number().int().min(0),
+  nIncorrect: z.number().int().min(0),
+});
+
+export const AbstentionQualitySchema = z.object({
+  declineRate: z.number().min(0).max(1),
+  balancedAccuracyOnCommitted: z.number().min(0).max(1),
+  ciOnCommitted: IntervalSchema,
+  singleClassOnCommitted: z.boolean(),
+  nDeclined: z.number().int().min(0),
+  nCommitted: z.number().int().min(0),
+});
+
+export const PlannerSensitivitySchema = z.object({
+  nCompoundsWithRecommendation: z.number().int().min(0),
+  meanUnchangedFraction: z.number().min(0).max(1),
+  perturbation: z.string().min(1),
+  samplesPerCompound: z.number().int().min(0),
+  seed: z.number(),
+});
+
+export const MetricsDocumentSchema = z
+  .object({
+    provenance: MetricsProvenanceSchema,
+    sampleSizes: MetricsSampleSizesSchema,
+    metric1_conflictSubsetAccuracy: ConflictSubsetAccuracySchema,
+    metric2a_llmConsistency: LlmConsistencySchema,
+    metric2b_arbiterRobustness: ArbiterRobustnessSchema,
+    metric3_calibration: CalibrationSchema,
+    metric4_abstentionQuality: AbstentionQualitySchema,
+    metric5_plannerSensitivity: PlannerSensitivitySchema,
+  })
+  .refine((m) => m.sampleSizes.conflictSubset === m.metric1_conflictSubsetAccuracy.n, {
+    message:
+      "The conflict-subset size in sampleSizes must equal the n the headline was computed over. " +
+      "Two different subset sizes in one document means the deck can quote either.",
+    path: ["sampleSizes", "conflictSubset"],
+  })
+  .refine(
+    (m) => m.metric4_abstentionQuality.nDeclined + m.metric4_abstentionQuality.nCommitted === m.sampleSizes.scored,
+    {
+      message:
+        "Declined plus committed must account for every scored compound. A shortfall means rows " +
+        "vanished between the two figures, and the decline rate reported beside the accuracy is wrong.",
+      path: ["metric4_abstentionQuality", "nDeclined"],
+    },
+  );
+
+/* ------------------------------------------------------------------------- *
  * Drift guards: the hand-written interfaces in types.ts and the zod schemas
  * here declare the same field lists twice, and nothing forced them to agree.
  *
@@ -90,13 +264,15 @@ type MutuallyAssignable<A, B> = [A] extends [B] ? ([B] extends [A] ? true : neve
 export type ClaimShapeMatchesInterface = MutuallyAssignable<z.infer<typeof EvidenceClaimSchema>, EvidenceClaim>;
 export type RulesetShapeMatchesInterface = MutuallyAssignable<z.infer<typeof RulesetSchema>, Ruleset>;
 export type EvidenceFileShapeMatchesInterface = MutuallyAssignable<z.infer<typeof EvidenceFileSchema>, EvidenceFile>;
+export type MetricsShapeMatchesInterface = MutuallyAssignable<z.infer<typeof MetricsDocumentSchema>, MetricsDocument>;
 
 /**
- * Forces the three checks above to be evaluated. Without a value site TypeScript
+ * Forces the four checks above to be evaluated. Without a value site TypeScript
  * would leave them as unused aliases and never report the `never`.
  */
 export const SCHEMAS_MATCH_TYPES: [
   ClaimShapeMatchesInterface,
   RulesetShapeMatchesInterface,
   EvidenceFileShapeMatchesInterface,
-] = [true, true, true];
+  MetricsShapeMatchesInterface,
+] = [true, true, true, true];

@@ -1,44 +1,22 @@
 import {
   planNextExperiment,
   reasonVerdictOnly,
+  type AbstentionQuality,
   type AssayOperator,
+  type Calibration,
+  type ConflictSubsetAccuracy,
   type EvidenceClaim,
   type Ruleset,
+  type ScoredPipeline,
   type Verdict,
 } from "@arbiter/engine";
 import { jitter01, mulberry32, uniform } from "./prng.js";
-import { balancedAccuracy, balancedAccuracyInterval, confusion, mean, singleClass, wilson, type Interval } from "./stats.js";
+import { balancedAccuracy, balancedAccuracyInterval, confusion, mean, singleClass, wilson } from "./stats.js";
 import type { ResultRow } from "./main.js";
 
 /** do_not_advance means "predicted toxic" = 1. abstain is not a prediction. */
 const toBinary = (v: Verdict): number | null =>
   v === "do_not_advance" ? 1 : v === "advance" ? 0 : null;
-
-export interface ScoredPipeline {
-  balancedAccuracy: number;
-  /**
-   * Interval for BALANCED accuracy, or null when one class is absent.
-   *
-   * Null is not missing data: balanced accuracy substitutes 0.5 for the absent
-   * half, and a substitution has no sampling uncertainty, so no honest interval
-   * exists. Named for the statistic it describes because the previous field was
-   * called plainly `ci` and carried the RAW-accuracy interval, which the
-   * Validation tab then printed as "balanced accuracy 0.75 (95% CI 0.51-1.00)".
-   */
-  balancedAccuracyCi: Interval | null;
-  /** Interval for RAW accuracy (correct/committed). A different statistic - see above. */
-  rawAccuracyCi: Interval;
-  /** Fraction of the subset this pipeline committed to. Travels WITH accuracy, always. */
-  coverage: number;
-  nCommitted: number;
-  confusion: ReturnType<typeof confusion>;
-  /**
-   * True when the committed set contains only one class, so balancedAccuracy
-   * substituted 0.5 for the missing half. The figure is then not interpretable as
-   * accuracy and must not be quoted as one.
-   */
-  singleClass: boolean;
-}
 
 function score(pairs: { y: number; predicted: number | null }[]): ScoredPipeline {
   const committed = pairs.filter((p) => p.predicted !== null) as { y: number; predicted: number }[];
@@ -65,12 +43,7 @@ function score(pairs: { y: number; predicted: number | null }[]): ScoredPipeline
  * of cases is not an 85% system, and reporting the pair together is the only way
  * that number means what a reader will take it to mean.
  */
-export function conflictSubsetAccuracy(rows: ResultRow[]): {
-  n: number;
-  positiveRate: number | null;
-  arbiter: ScoredPipeline;
-  baselines: Record<string, ScoredPipeline>;
-} {
+export function conflictSubsetAccuracy(rows: ResultRow[]): ConflictSubsetAccuracy {
   const subset = rows.filter((r) => r.conflicting);
   const arbiter = score(subset.map((r) => ({ y: r.y, predicted: toBinary(r.arbiter.verdict) })));
 
@@ -107,16 +80,7 @@ export function conflictSubsetAccuracy(rows: ResultRow[]): {
  * meanWidth is reported alongside because a wide always-right interval is
  * worthless.
  */
-export function calibration(rows: ResultRow[]): {
-  strictCoverage: number;
-  meanWidth: number;
-  meanWidthOnCorrect: number;
-  meanWidthOnIncorrect: number;
-  widthDiscriminates: boolean;
-  widthDiscriminatesIsMeaningful: boolean;
-  nCorrect: number;
-  nIncorrect: number;
-} {
+export function calibration(rows: ResultRow[]): Calibration {
   const width = (r: ResultRow) => r.arbiter.plausibility - r.arbiter.belief;
   const committed = rows.filter((r) => toBinary(r.arbiter.verdict) !== null);
   const correct = committed.filter((r) => toBinary(r.arbiter.verdict) === r.y);
@@ -148,14 +112,7 @@ export function calibration(rows: ResultRow[]): {
  * on the set as a whole, and should route the rest to a human. Decline rate is
  * reported inseparably from accuracy.
  */
-export function abstentionQuality(rows: ResultRow[]): {
-  declineRate: number;
-  balancedAccuracyOnCommitted: number;
-  ciOnCommitted: Interval;
-  singleClassOnCommitted: boolean;
-  nDeclined: number;
-  nCommitted: number;
-} {
+export function abstentionQuality(rows: ResultRow[]): AbstentionQuality {
   const declined = rows.filter((r) => r.arbiter.verdict === "abstain");
   const pairs = rows
     .map((r) => ({ y: r.y, predicted: toBinary(r.arbiter.verdict) }))

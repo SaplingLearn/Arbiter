@@ -1,14 +1,5 @@
 import { useAppState } from "../state/store.js";
 
-interface Interval { lo: number; hi: number }
-
-interface Pipeline {
-  balancedAccuracy: number; coverage: number; nCommitted: number;
-  /** Null when one class is absent - see the comment on the headline below. */
-  balancedAccuracyCi: Interval | null;
-  rawAccuracyCi: Interval; singleClass: boolean;
-}
-
 /**
  * Coverage before accuracy, deliberately.
  *
@@ -18,10 +9,14 @@ interface Pipeline {
  */
 export function ValidationTab() {
   const { data } = useAppState();
-  const m = data.metrics as Record<string, any>;
-  const acc = m["metric1_conflictSubsetAccuracy"];
-  const arbiter = acc.arbiter as Pipeline;
-  const baselines = Object.entries(acc.baselines as Record<string, Pipeline>)
+  // Typed end to end. This read was a `Record<string, any>` cast, and the local
+  // Pipeline/Interval interfaces beneath it were a second, unenforced copy of the
+  // harness's own types - so `npm run typecheck` stayed green while this file
+  // referenced a field the harness had renamed away.
+  const m = data.metrics;
+  const acc = m.metric1_conflictSubsetAccuracy;
+  const arbiter = acc.arbiter;
+  const baselines = Object.entries(acc.baselines)
     .filter(([, b]) => b.nCommitted > 0)
     .sort((a, b) => b[1].balancedAccuracy - a[1].balancedAccuracy);
 
@@ -30,8 +25,8 @@ export function ValidationTab() {
       <h2 style={{ fontFamily: "var(--serif)" }}>Validation</h2>
 
       <p data-testid="provenance" style={{ color: "var(--muted)", fontSize: 13 }}>
-        ruleset {String(m["provenance"].rulesetHash).slice(0, 8)}… · split seed {m["provenance"].splitSeed} ·
-        perturbation seed {m["provenance"].perturbationSeed} · scored on the {m["provenance"].scoredSplit} split
+        ruleset {m.provenance.rulesetHash.slice(0, 8)}… · split seed {m.provenance.splitSeed} ·
+        perturbation seed {m.provenance.perturbationSeed} · scored on the {m.provenance.scoredSplit} split
       </p>
 
       {/* The interval attached here must describe the number it sits beside.
@@ -87,16 +82,16 @@ export function ValidationTab() {
       <h3>What is reportable</h3>
       <p data-testid="planner-stability">
         Planner recommendation unchanged under ±50% perturbation of every expert-elicited prior:{" "}
-        <strong>{Number(m["metric5_plannerSensitivity"].meanUnchangedFraction).toFixed(3)}</strong>.
+        <strong>{m.metric5_plannerSensitivity.meanUnchangedFraction.toFixed(3)}</strong>.
         The recommendation is driven by argument structure, not by the priors.
       </p>
       <p>
         Robustness on committed compounds:{" "}
-        {Number(m["metric2b_arbiterRobustness"].meanHeldFractionOnCommitted).toFixed(3)} ·{" "}
+        {m.metric2b_arbiterRobustness.meanHeldFractionOnCommitted.toFixed(3)} ·{" "}
         determinism verified by a 1000-run single-hash test.
       </p>
       <p data-testid="llm-ablation" style={{ color: "var(--muted)" }}>
-        LLM ablation: {JSON.stringify(m["metric2a_llmConsistency"])}
+        LLM ablation: {JSON.stringify(m.metric2a_llmConsistency)}
       </p>
     </section>
   );
