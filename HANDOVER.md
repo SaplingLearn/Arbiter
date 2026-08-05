@@ -168,16 +168,96 @@ belief–plausibility gap rule; **none** is applicability-domain and **none** is
 conflict. The median compound musters 0.060 of committed mass against a threshold
 needing more than 0.5.
 
-**The cause is measurable and structural: no benchmark compound carries
-exposure-relevant evidence.** The only `exposureRelevant: true` claim in the corpus is
-the TAK-994 murine study, which is excluded from the benchmark by design. QSAR has no
-exposure axis; Tox21 qHTS concentrations are not clinical. So R3 fires on **100% of safe
-claims and 0% of toxic ones**, and the engine structurally *cannot* license "advance" on
-this evidence base. It returned zero advances.
+**Correction, measured 2026-08-05. This section said "the cause is measurable and
+structural: no benchmark compound carries exposure-relevant evidence" — singular. That
+cause is real, it is the one worth leading with, and it is not the whole cause.** R3's
+exposure discount accounts for 118 of the 225 discounted claims. Two other factors do
+comparable work, and naming only the first understates a stronger result than the one
+it was reaching for.
+
+Every number below is recomputed by `node tools/abstention_ceiling.mjs` from
+`results/results.json`, so none of them is retyped. Re-run it rather than trusting this
+paragraph.
+
+#### Three causes, not one
+
+| # | cause | measured |
+|---|---|---|
+| 1 | **No exposure-relevant evidence.** R3 discounts a negative result tested outside the clinically relevant range to 15% of stated confidence. | 118 claims |
+| 2 | **QSAR measures no key event.** Structure correlation alone is discounted to 6%, or to 1% where it carries least. | 107 claims |
+| 3 | **The corpus is thin.** 140 of 267 compounds carry exactly **one** claim; 123 carry two; 4 carry three. There is usually no second stream to fuse. | 52.4% single-claim |
+
+225 of 398 claims — **56.5%** — reach fusion discounted. A lone QSAR claim at 1% of its
+stated confidence has a ceiling of 0.01 committed mass against a bar of 0.5.
+
+#### 59.9% of the corpus cannot commit at any evidence values
+
+This is the sharpest way to state the result, and it is stronger than what this section
+used to claim. Sum the surviving weight of every live claim on a compound and pretend
+each was stated at full confidence 1.0. For **160 of 267 compounds (59.9%)** that
+generous ceiling is still at or below 0.5, so the gap rule fires **before the engine
+reads a single evidence value**. All 160 are in the abstain set.
+
+The bound is deliberately an over-estimate — Dempster combination yields less than the
+sum for masses this small (two 0.15 claims combine to 0.2775, not 0.30) — which is what
+makes "cannot commit" a safe word rather than a guess. The script's self-check asserts
+every structurally-forced compound actually abstained and **exits 1 if one escapes**;
+verified failing by removing the bound, which named the seven committed compounds.
+
+For those 160, abstention is arithmetic, not judgment. Say that before a judge finds it.
+
+#### The threshold is not the binding constraint
+
+The obvious challenge is "so loosen the threshold". Measured, it does almost nothing
+until it stops meaning anything:
+
+| gap threshold | compounds committing |
+|---|---|
+| **0.50 (registered)** | 7 (2.6%) |
+| 0.70 | 12 (4.5%) |
+| 0.80 | 13 (4.9%) |
+| 0.90 | 119 (44.6%) |
+
+The 10th-percentile gap is already 0.865 — almost nothing sits between 0.5 and 0.85.
+Compounds are either decisive or nowhere near, so there is no setting that trades a
+little rigour for a lot of coverage. Reaching 44.6% means committing on evidence that is
+90% unknown. **This curve is why `abstentionGapThreshold` must not be touched (§1.1): it
+is not merely forbidden, it would not work.** The fix is data — see §3.1.
+
+#### Why zero advances
+
+The only `exposureRelevant: true` claim in the corpus is the TAK-994 murine study, which
+is excluded from the benchmark by design. QSAR has no exposure axis; Tox21 qHTS
+concentrations are not clinical. So R3 fires on **100% of safe claims and 0% of toxic
+ones**, and the engine structurally *cannot* license "advance" on this evidence base. It
+returned zero advances — all 7 commits are `do_not_advance`.
 
 This is simultaneously the engine being correct about weak evidence — an HTS "inactive"
 at an unknown multiple of clinical exposure genuinely licenses nothing — and a coverage
 problem. Those are the same fact, not two competing readings.
+
+#### Abstention is not conflict, and the app invites that confusion
+
+The conflict subset (61) and the decline count (260) measure different predicates and
+have no subset relationship. `detectConflict` flags a compound when two **different**
+streams commit to opposite conclusions; declining is about evidence being too weak to
+commit. Measured, they are close to independent:
+
+| | abstain | commit | rate |
+|---|---|---|---|
+| conflicting (61) | 57 | 4 | 93.4% |
+| non-conflicting (206) | 203 | 3 | 98.5% |
+
+Non-conflicting compounds abstain *more* often. Max `conflictMass` across all 267 is
+**0.121** against a total-conflict branch needing ≥ 1.0, so that branch has never fired
+and cannot on this data.
+
+Worth knowing because the app's own copy invites the wrong inference: the About tab's
+"declines to commit on 260 of them" sits two clicks from beat 1's "61 of 267 have
+streams in genuine conflict", with nothing saying they are unrelated. Also note 267 − 260
+= **7** commits while the Validation tab shows **4** — the other 3 are non-conflicting
+compounds, two denominators rather than an inconsistency. Both are live ways a judge can
+be confused by numbers that are individually correct.
 
 `results/metrics.json` emits a `singleClass` flag plus explicit coverage and
 single-class warnings so the figure cannot be quoted as an accuracy by accident. The
@@ -531,8 +611,13 @@ rule", "why use an LLM while benchmarking one". Read them; they are better than 
 anyone will improvise. The two answers most likely to be needed:
 
 - **"Your system abstains on 97% of cases."** Correct, and it is the finding, not a
-  defect — no benchmark compound carries exposure-relevant evidence, so R3 fires on every
-  safe claim. §2 has the numbers.
+  defect. **Lead with the strongest form: for 160 of 267 compounds (59.9%) the maximum
+  achievable committed mass cannot reach the threshold at any evidence values, so the
+  abstention is arithmetic rather than judgment.** Three causes — no exposure-relevant
+  evidence, QSAR measuring no key event, and 52% of compounds carrying a single claim.
+  If pressed on "just loosen the threshold": 0.50 → 0.80 buys six compounds, and 44.6%
+  coverage needs a threshold of 0.90, which is committing on 90%-unknown evidence. §2
+  has the numbers and `tools/abstention_ceiling.mjs` regenerates them live.
 - **"You didn't beat the baseline."** Also correct. It ties `single:transporter` exactly.
   Say it before a judge finds it.
 
@@ -728,6 +813,7 @@ apps/web/                 Five-tab app. Engine runs in the BROWSER.
 
 data/prep/*.py            DILIrank ingestion, splits, QSAR/Tox21 streams
 rules/ruleset-v1.0.json   PRE-REGISTERED AND HASHED. Do not edit.
+tools/abstention_ceiling.mjs  Derives every number in §2's coverage analysis. Self-checking.
 results/                  metrics.json, golden/, verdict-manifest.json (golden-filed)
 docs/superpowers/specs/   2026-07-26-arbiter-design.md is the master spec
 docs/superpowers/plans/   Task-by-task plans with every code block synced to source
@@ -796,12 +882,14 @@ data file is an owner's call, not mine.
 ## 9. If you read only one thing
 
 The result is **honest and defensible, but it is not a win over the baseline.** ARBITER
-ties `single:transporter` exactly, and abstains on 97.4% of compounds because no
-benchmark compound carries exposure-relevant evidence.
+ties `single:transporter` exactly, and abstains on 97.4% of compounds because the
+evidence base is too thin and too heavily discounted to license a decision — for 59.9%
+of compounds, provably so at any evidence values (§2).
 
 The temptation will be to fix that by moving a number. `abstentionGapThreshold` is
 pre-registered precisely so that it cannot be moved after an abstention rate has been
-seen. **What would fix it is data, not rules.**
+seen — and, measured, moving it from 0.50 to 0.80 buys six compounds. **What would fix
+it is data, not rules.**
 
 The strongest things to lead with are the ones that are actually true: a pre-registered
 hashed ruleset, a deterministic engine, golden-file CI that catches a moved number, a
