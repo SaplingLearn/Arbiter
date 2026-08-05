@@ -85,7 +85,10 @@ describe("the seven beats", () => {
     // separates a derived line from a typed one - a literal cannot follow.
     const elsewhere: typeof data = {
       ...data,
-      metrics: { ...data.metrics, sampleSizes: { scored: 999, conflictSubset: 42 } },
+      metrics: {
+        ...data.metrics,
+        sampleSizes: { ...data.metrics.sampleSizes, scored: 999, conflictSubset: 42 },
+      },
     };
     expect(beatLine(BEATS[0]!, elsewhere)).toContain("42 of 999");
 

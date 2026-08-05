@@ -272,6 +272,13 @@ export interface MetricsProvenance {
 export interface MetricsSampleSizes {
   scored: number;
   conflictSubset: number;
+  /**
+   * Claims and distinct compounds per stream, keyed by stream name, on the scored
+   * split only. Reported because it is what explains both the decline rate and the
+   * reported tie: a stream present on a handful of compounds produces a baseline
+   * scored over exactly those compounds.
+   */
+  streamCoverage: Record<string, StreamCoverage>;
 }
 
 /** METRIC 1 (headline): balanced accuracy on the conflict subset only. */
@@ -378,6 +385,18 @@ export interface AbstentionQuality {
   nStructurallyForced: number;
   /** Why the number above is a floor rather than a point estimate. */
   structurallyForcedNote: string;
+}
+
+/**
+ * How much evidence one stream supplies on the scored split.
+ *
+ * `claims` is how much evidence exists; `compounds` is how much of the set it can
+ * speak to. The gap between them is the point — a stream can carry many claims
+ * and still be silent on almost every compound.
+ */
+export interface StreamCoverage {
+  claims: number;
+  compounds: number;
 }
 
 /** METRIC 5: how often the planner's top recommendation survives perturbed priors. */

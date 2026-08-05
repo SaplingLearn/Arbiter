@@ -1,6 +1,8 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { MetricsDocumentSchema, type LlmConsistency, type MetricsDocument } from "@arbiter/engine";
-import { abstentionQuality, calibration, conflictSubsetAccuracy, plannerSensitivity, robustness } from "./metrics.js";
+import {
+  abstentionQuality, calibration, conflictSubsetAccuracy, plannerSensitivity, robustness, streamCoverage,
+} from "./metrics.js";
 import { loadInputs } from "./load.js";
 import { mean } from "./stats.js";
 import type { ResultRow } from "./main.js";
@@ -60,7 +62,11 @@ function main(): void {
       scoredSplit: "test",
       note: "The QSAR model was fitted on the train split only; conformal thresholds on calibration. These numbers come from test, which neither touched.",
     },
-    sampleSizes: { scored: rows.length, conflictSubset: conflictRows.length },
+    sampleSizes: {
+      scored: rows.length,
+      conflictSubset: conflictRows.length,
+      streamCoverage: streamCoverage(rows, claimsByCompound),
+    },
     metric1_conflictSubsetAccuracy: m1,
     metric2a_llmConsistency: llm,
     metric2b_arbiterRobustness: {

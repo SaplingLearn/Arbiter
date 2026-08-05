@@ -136,10 +136,39 @@ export const MetricsProvenanceSchema = z.object({
   note: z.string().min(1),
 });
 
-export const MetricsSampleSizesSchema = z.object({
-  scored: z.number().int().min(0),
-  conflictSubset: z.number().int().min(0),
+export const StreamCoverageSchema = z.object({
+  claims: z.number().int().min(0),
+  // A stream cannot speak to more compounds than it has claims, and cannot appear
+  // in the record at all without one. Both bounds are what make a zero here a
+  // loading failure rather than a stream that happens to be quiet.
+  compounds: z.number().int().min(1),
 });
+
+export const MetricsSampleSizesSchema = z
+  .object({
+    scored: z.number().int().min(0),
+    conflictSubset: z.number().int().min(0),
+    streamCoverage: z.record(z.string().min(1), StreamCoverageSchema),
+  })
+  .refine(
+    (s) => Object.values(s.streamCoverage).every((c) => c.compounds <= c.claims),
+    {
+      message:
+        "A stream cannot cover more compounds than it has claims. More compounds than claims means " +
+        "the two counters were fed different sets, so neither describes the evidence base.",
+      path: ["streamCoverage"],
+    },
+  )
+  .refine(
+    (s) => Object.values(s.streamCoverage).every((c) => c.compounds <= s.scored),
+    {
+      message:
+        "A stream cannot cover more compounds than were scored. This is the leakage guard in " +
+        "numeric form: coverage counted outside the test split would exceed the split it is " +
+        "reported against.",
+      path: ["streamCoverage"],
+    },
+  );
 
 export const ConflictSubsetAccuracySchema = z.object({
   n: z.number().int().min(0),

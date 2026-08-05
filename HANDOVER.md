@@ -161,6 +161,12 @@ pre-registered conflict subset, positive rate 0.902.
 `single:transporter` matches it on every column. Say so. An earlier draft of the spec
 omitted this and it was corrected as a flattering omission — do not let it creep back.
 
+**And now say WHY, because the reason is measurable and it is better than the bare fact:
+both pipelines are scoring the same four compounds.** There are only 4 transporter claims
+in the scored split, and ARBITER's four commitments on the conflict subset are exactly
+those four compounds. An exact tie between two pipelines evaluated on an identical set of
+four is close to expected. See the stream-coverage table below.
+
 ### Coverage is the finding
 
 ARBITER abstains on **260 of 267 compounds (97.4%)**. Every abstention is the
@@ -189,6 +195,49 @@ prints the working behind it. Re-run that rather than trusting this paragraph.
 
 225 of 398 claims — **56.5%** — reach fusion discounted. A lone QSAR claim at 1% of its
 stated confidence has a ceiling of 0.01 committed mass against a bar of 0.5.
+
+#### The stream coverage, which is the concrete form of all three
+
+This is the most legible explanation in the chain and it was not written down anywhere.
+On the scored split (`sampleSizes.streamCoverage`, rendered on the Validation tab):
+
+| stream | claims | compounds | of the split |
+|---|---|---|---|
+| qsar | 267 | 267 | **100%** |
+| cytotox | 127 | 127 | 47.6% |
+| transporter | 4 | 4 | **1.5%** |
+
+Which resolves into exactly three groups:
+
+| streams held | compounds |
+|---|---|
+| qsar only | **140** |
+| cytotox + qsar | 123 |
+| cytotox + qsar + transporter | **4** |
+
+**ARBITER adjudicates between sources, and 140 compounds have one.** That single source is
+always QSAR, which R2 discounts to 6% or 1% for measuring no key event. There is nothing to
+adjudicate and nothing that could clear the bar. The engine is being asked to do its job on
+compounds where its job does not exist.
+
+#### The tie is the same four compounds, and that is worth saying first
+
+`single:transporter` — the baseline §2 reports ARBITER as tying — draws on **4 claims in
+the entire scored split.** It commits on 4 compounds because 4 is every compound it has.
+
+Measured: **ARBITER's four committed compounds on the conflict subset are exactly the four
+carrying a transporter claim.** Identical sets, not an approximate overlap. So on this
+subset ARBITER commits *if and only if* transporter evidence exists — a transporter claim
+is the only evidence in the corpus that survives discounting with enough mass to decide.
+
+That reframes the tie. It is not a coincidence and not a coin flip: both pipelines are
+scoring the same four compounds, so an exact tie is close to the expected outcome rather
+than a surprising one. **Say this before a judge derives it**, because "you tie a single
+stream" lands very differently from "we tie it because the evidence base gave both of us
+the same four compounds, and we say so on the Validation tab."
+
+It also sharpens §3.1. Cmax data addresses cause 1 and nothing else — it would not give
+QSAR a key event, and it would not give 140 compounds a second stream.
 
 #### 254 of the 260 declines could not have committed at any evidence values
 
@@ -632,7 +681,11 @@ anyone will improvise. The two answers most likely to be needed:
   threshold of 0.90, which is committing on 90%-unknown evidence. The figure is
   `nStructurallyForced` in `metrics.json`; `npm run coverage:report` shows the working.
 - **"You didn't beat the baseline."** Also correct. It ties `single:transporter` exactly.
-  Say it before a judge finds it.
+  Say it before a judge finds it — **and say why**: there are 4 transporter claims in the
+  whole scored split, and ARBITER's four commitments on the conflict subset are exactly
+  those four compounds. Both pipelines are scoring an identical set of four, so the exact
+  tie is close to expected rather than surprising. The Validation tab renders the
+  stream-coverage table this comes from.
 
 ## 4. Open questions deliberately left open
 

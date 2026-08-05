@@ -20,6 +20,12 @@ export function ValidationTab() {
     .filter(([, b]) => b.nCommitted > 0)
     .sort((a, b) => b[1].balancedAccuracy - a[1].balancedAccuracy);
 
+  // Widest stream first, so the row that reads as broad coverage sits at the top
+  // and the one carrying the tie sits at the bottom where the caveat points at it.
+  const streams = Object.entries(m.sampleSizes.streamCoverage)
+    .sort((a, b) => b[1].compounds - a[1].compounds);
+  const thinnest = streams[streams.length - 1] ?? null;
+
   // Surface 2, the live ablation spot check: SPECIFIED, NOT BUILT (Phase 3 spec §6).
   // The headline it would append to is pre-computed per compound, and that ablation
   // does not exist - `npm run ablation` is absent from the repo (HANDOVER §3.2).
@@ -72,8 +78,9 @@ export function ValidationTab() {
         {arbiter.singleClass && (
           <p className="caveat caveat-warn" data-testid="single-class-warning" data-anchor="validation.singleClassWarning">
             <strong>Single-class:</strong> ARBITER committed on only one label, so this balanced accuracy is
-            half a substituted 0.5. It must not be quoted as an accuracy. Coverage is the finding — no compound
-            in this set carries exposure-relevant evidence, so R3 discounts every safe claim.
+            half a substituted 0.5. It must not be quoted as an accuracy. Coverage is the finding, and it is
+            about how thin the evidence is rather than about the streams disagreeing — see the stream table
+            below, and About for the three causes.
           </p>
         )}
       </div>
@@ -106,6 +113,47 @@ export function ValidationTab() {
             ))}
           </tbody>
         </table>
+      </section>
+
+      {/* Its own section rather than a second table under validation.baselines: that
+          anchor names the baseline comparison, and an anchor that resolves to two
+          different tables is one the Navigator cannot spotlight precisely. */}
+      <section data-anchor="validation.streamCoverage">
+        <h3 className="subtitle">What each pipeline had to work with</h3>
+        <table className="table" data-testid="stream-coverage">
+          <caption className="label">Evidence streams on the scored split, n = {m.sampleSizes.scored}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Stream</th>
+              <th scope="col" className="n">Claims</th>
+              <th scope="col" className="n">Compounds</th>
+              <th scope="col" className="n">Of the split</th>
+            </tr>
+          </thead>
+          <tbody>
+            {streams.map(([name, c]) => (
+              <tr key={name}>
+                <td>{name}</td>
+                <td className="n">{c.claims}</td>
+                <td className="n">{c.compounds}</td>
+                <td className="n">{((c.compounds / m.sampleSizes.scored) * 100).toFixed(1)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* .caveat, not .small.muted, for the same reason the decline note is: this
+            is the unflattering half of the table above it, and it is the thing a
+            judge will otherwise derive unaided. */}
+        {thinnest ? (
+          <p className="caveat" data-testid="coverage-caveat" data-anchor="validation.coverageCaveat">
+            A single-stream baseline is scored over exactly the compounds that stream reaches, not
+            over the split. <strong>{thinnest[0]}</strong> supplies evidence on{" "}
+            <strong>{thinnest[1].compounds}</strong> of {m.sampleSizes.scored} compounds, so
+            single:{thinnest[0]} commits on {thinnest[1].compounds} because {thinnest[1].compounds}{" "}
+            is every compound it has. Read the n committed column before the accuracy beside it.
+          </p>
+        ) : null}
       </section>
 
       <hr className="rule" />

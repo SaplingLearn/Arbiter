@@ -9,7 +9,21 @@
   },
   "sampleSizes": {
     "scored": 267,
-    "conflictSubset": 61
+    "conflictSubset": 61,
+    "streamCoverage": {
+      "cytotox": {
+        "claims": 127,
+        "compounds": 127
+      },
+      "qsar": {
+        "claims": 267,
+        "compounds": 267
+      },
+      "transporter": {
+        "claims": 4,
+        "compounds": 4
+      }
+    }
   },
   "metric1_conflictSubsetAccuracy": {
     "n": 61,

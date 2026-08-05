@@ -123,7 +123,10 @@ function validMetrics(): MetricsDocument {
       scoredSplit: "test",
       note: "Scored on test, which neither the fit nor the calibration touched.",
     },
-    sampleSizes: { scored: 10, conflictSubset: 4 },
+    sampleSizes: {
+      scored: 10, conflictSubset: 4,
+      streamCoverage: { qsar: { claims: 10, compounds: 10 }, transporter: { claims: 2, compounds: 2 } },
+    },
     metric1_conflictSubsetAccuracy: {
       n: 4,
       positiveRate: 0.75,

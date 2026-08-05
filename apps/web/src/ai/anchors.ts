@@ -91,6 +91,8 @@ export const ANCHORS = {
   "validation.headline": { label: "Conflict-subset coverage and balanced accuracy", tab: "validation", region: null },
   "validation.singleClassWarning": { label: "Why the balanced accuracy must not be quoted", tab: "validation", region: null },
   "validation.baselines": { label: "The baseline pipelines, compared", tab: "validation", region: null },
+  "validation.streamCoverage": { label: "How much evidence each stream supplies", tab: "validation", region: null },
+  "validation.coverageCaveat": { label: "Why the tied baseline is scored over so few compounds", tab: "validation", region: null },
   "validation.plannerStability": { label: "Planner stability under perturbed priors", tab: "validation", region: null },
   "validation.robustness": { label: "Robustness on committed compounds", tab: "validation", region: null },
   "validation.llmAblation": { label: "The LLM ablation figure", tab: "validation", region: null },

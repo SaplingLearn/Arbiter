@@ -35,7 +35,10 @@ const sample: MetricsDocument = {
     scoredSplit: "test",
     note: "ignored prose about how the split was fitted",
   },
-  sampleSizes: { scored: 10, conflictSubset: 4 },
+  sampleSizes: {
+    scored: 10, conflictSubset: 4,
+    streamCoverage: { qsar: { claims: 10, compounds: 10 } },
+  },
   metric1_conflictSubsetAccuracy: {
     n: 4,
     positiveRate: 0.75,

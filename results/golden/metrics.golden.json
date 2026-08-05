@@ -113,5 +113,19 @@
   "declineRate": 0.9737827715355806,
   "balancedAccuracyOnCommitted": 0.75,
   "nStructurallyForced": 254,
+  "streamCoverage": {
+    "cytotox": {
+      "claims": 127,
+      "compounds": 127
+    },
+    "qsar": {
+      "claims": 267,
+      "compounds": 267
+    },
+    "transporter": {
+      "claims": 4,
+      "compounds": 4
+    }
+  },
   "plannerMeanUnchangedFraction": 0.9917704918032786
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   abstentionQuality, calibration, conflictSubsetAccuracy, plannerSensitivity, robustness,
+  streamCoverage,
 } from "../src/metrics.js";
 import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
 import assayFile from "../../../data/assays.json" with { type: "json" };
@@ -167,6 +168,47 @@ describe("abstentionQuality", () => {
  * HANDOVER section 2 measures the second group at most of the corpus, which is
  * why the decline rate is not the engine being timid.
  */
+/**
+ * Stream coverage is the most concrete explanation of the decline rate in the
+ * whole chain: the engine adjudicates BETWEEN sources, and on this corpus most
+ * compounds have only one. It is also what explains the reported tie - a baseline
+ * built on a stream present on a handful of compounds is scored over exactly
+ * those compounds, so "ties the best baseline" is a comparison over a set the
+ * evidence base chose, not the pipelines.
+ */
+describe("streamCoverage", () => {
+  const c = (id: string, compoundId: string, stream: EvidenceClaim["stream"]): EvidenceClaim => ({
+    id, compoundId, stream, assertion: "toxic", strength: 1, system: "human",
+    measuresKeyEvent: "KE:55", exposureRelevant: true, inApplicabilityDomain: true,
+    klimisch: 2, availableFrom: "2020-01-01",
+    provenance: { kind: "database", source: "t", retrieved: "2026-07-26" },
+  });
+
+  it("counts claims AND distinct compounds per stream, over the scored rows only", () => {
+    // Both counts, because they answer different questions: claims says how much
+    // evidence exists, compounds says how much of the set it can speak to. A stream
+    // with many claims on few compounds is not broad coverage.
+    const rows = [verdictRow("a", 1, "abstain"), verdictRow("b", 1, "abstain")];
+    const claims = new Map([
+      ["a", [c("a1", "a", "qsar"), c("a2", "a", "cytotox")]],
+      ["b", [c("b1", "b", "qsar")]],
+      // Not in `rows`, so it must not be counted - scoring anything outside the
+      // test split is the leakage this whole document exists to rule out.
+      ["z", [c("z1", "z", "transporter")]],
+    ]);
+    const cov = streamCoverage(rows, claims);
+    expect(cov.qsar).toEqual({ claims: 2, compounds: 2 });
+    expect(cov.cytotox).toEqual({ claims: 1, compounds: 1 });
+    expect(cov.transporter).toBeUndefined();
+  });
+
+  it("counts a compound once per stream however many claims it carries there", () => {
+    const rows = [verdictRow("a", 1, "abstain")];
+    const claims = new Map([["a", [c("a1", "a", "cytotox"), c("a2", "a", "cytotox")]]]);
+    expect(streamCoverage(rows, claims).cytotox).toEqual({ claims: 2, compounds: 1 });
+  });
+});
+
 describe("abstentionQuality: structurally forced abstentions", () => {
   const claim = (over: Partial<EvidenceClaim> & { id: string; compoundId: string }): EvidenceClaim => ({
     stream: "cytotox", assertion: "toxic", strength: 1, system: "human",

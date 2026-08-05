@@ -9,6 +9,7 @@ import {
   type EvidenceClaim,
   type Ruleset,
   type ScoredPipeline,
+  type StreamCoverage,
   type Verdict,
 } from "@arbiter/engine";
 import { jitter01, mulberry32, uniform } from "./prng.js";
@@ -113,6 +114,48 @@ export function calibration(rows: ResultRow[]): Calibration {
  * on the set as a whole, and should route the rest to a human. Decline rate is
  * reported inseparably from accuracy.
  */
+/**
+ * How much evidence each stream actually supplies, on the scored split only.
+ *
+ * This is the most concrete explanation of the decline rate anywhere in the
+ * pipeline. ARBITER adjudicates BETWEEN sources; where a compound carries one
+ * source there is nothing to adjudicate, and one discounted claim cannot clear a
+ * bar that needs half the mass.
+ *
+ * Both counts are reported because they answer different questions. `claims` is
+ * how much evidence exists; `compounds` is how much of the set it can speak to. A
+ * stream can be rich in claims and still be silent on almost every compound, and
+ * only the second number tells you that.
+ *
+ * Restricted to `rows`, which is the test split, for the reason `main.ts` gives:
+ * train fitted the QSAR model and calibration set the conformal threshold, so a
+ * coverage figure spanning them would describe a set no reported number came from.
+ */
+export function streamCoverage(
+  rows: ResultRow[],
+  claimsByCompound: Map<string, EvidenceClaim[]>,
+): Record<string, StreamCoverage> {
+  const claims = new Map<string, number>();
+  const compounds = new Map<string, Set<string>>();
+  for (const row of rows) {
+    for (const c of claimsByCompound.get(row.compoundId) ?? []) {
+      claims.set(c.stream, (claims.get(c.stream) ?? 0) + 1);
+      // A compound counts once per stream however many claims it carries there -
+      // three readouts from one assay is not three compounds' worth of coverage.
+      (compounds.get(c.stream) ?? compounds.set(c.stream, new Set()).get(c.stream)!).add(c.compoundId);
+    }
+  }
+
+  // Sorted so the JSON is byte-stable, for the same reason extractGolden sorts
+  // baselines: an object whose key order follows iteration order churns the
+  // golden file on a data change that moved no number.
+  const out: Record<string, StreamCoverage> = {};
+  for (const stream of [...claims.keys()].sort()) {
+    out[stream] = { claims: claims.get(stream)!, compounds: compounds.get(stream)!.size };
+  }
+  return out;
+}
+
 /**
  * The most committed mass this compound could possibly muster.
  *
