@@ -625,6 +625,12 @@ design commitment, in the same category as the security architecture.
 3. **Best single source** — the unflattering bar; included precisely because it is unflattering
 4. **LLM ablation** — identical evidence, no symbolic layer, **25 runs per compound**, temperature recorded
    and reported
+   > **Correction, 2026-08-05.** "Temperature recorded and reported" is unexecutable: sampling parameters
+   > are removed on current Claude models and return a 400. The full request configuration is recorded
+   > instead, and the absence of a sampling knob is itself disclosed. Also corrected: "no symbolic layer"
+   > means no engine, **not** no rules — the ablation supplies the registered rule statements, so the
+   > result survives the reply "you never told it the rules".
+   > See `2026-08-05-arbiter-llm-ablation-design.md` §2.1 and §5.
 
 ### Protocol
 

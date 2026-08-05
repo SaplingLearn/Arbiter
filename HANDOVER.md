@@ -404,22 +404,44 @@ The only reference anywhere is in `apps/harness/src/run-metrics.ts`, which emits
 "not present" note into `metric2a_llmConsistency`. So the metric is a placeholder that
 correctly reports its own absence — good behaviour, but it is *all* that exists.
 
-**What actually has to be built**, and it needs design decisions, not just a key:
+**The spec now exists: `docs/superpowers/specs/2026-08-05-arbiter-llm-ablation-design.md`.** It
+decides all four items below, and corrects two of them. Read it before writing any code; the rest of
+this section is kept because its framing is still the framing.
 
 1. A runner that asks a model for a verdict on the same evidence, **25 runs per compound**
    across the conflict subset (spec §7, Surface 2) with the temperature disclosed.
+   **CORRECTED, 2026-08-05: there is no temperature to disclose.** `temperature`, `top_p` and
+   `top_k` are removed on every current Claude model and return a 400. The variance measured is
+   the model's own, which is a stronger claim — but the write-up has to say so, because a reader
+   who knows the older API will read the absence as an omission. Ablation spec §2.1.
 2. The prompt, and a decision on how the evidence is serialised into it — this is a
    methodological choice a judge can attack, so it belongs in the spec before the code.
+   *Decided: canonical JSON of the engine's own claim objects, plus the registered rule
+   statements verbatim. Ablation spec §5.*
 3. A consistency metric over those runs, plus how disagreement is summarised.
+   *Decided, with the catch that matters: `agreementRate` has a floor near **0.58**, not 0 — a
+   model answering at random over two verdicts scores that. Ablation spec §6.*
 4. Caching, because 61 compounds × 25 runs is not something to re-run casually, and the
    result must be committed so a reviewer can re-derive the number.
+   *Decided: Batch API (50% off), resumable JSONL, two committed artifacts. Ablation spec §7.*
 5. Engine purity is not at risk — this lives entirely in `apps/harness`, which is
    allowed I/O — but **determinism is.** Everything else in `results/` is reproducible
    from a seed. A model's output is not, so the committed run data becomes the record and
    `golden:update` must not start churning on it.
+   **This risk is now closed, measured rather than argued:** `metric2a` does not appear in
+   `extractGolden`'s projection, so the golden file cannot churn on it.
 
-`ANTHROPIC_API_KEY` (~$20–40) is necessary but nowhere near sufficient. Budget this as a
-real task with a spec, not an afternoon.
+**A sixth item nobody had written down: refusals.** Hepatotoxicity adjudication is life-sciences
+adjacent, and current models can decline with `stop_reason: "refusal"` — HTTP 200, empty `content`,
+no exception. A runner reading `content[0]` crashes on the first one. The metric contract already
+anticipated this (`refusalRate`, `refused`, `nCompoundsFullyRefused`); the runner must too, and
+must **not** use the `fallbacks` parameter — answering on a substitute model and reporting it under
+the first model's name would be a fabrication. Ablation spec §8.
+
+`ANTHROPIC_API_KEY` is necessary but nowhere near sufficient. Cost recomputed at current pricing:
+about **$53 at list, ~$27 batched** on `claude-opus-5` — the old $20–40 estimate predates
+thinking-on-by-default. **Steps 1 and 2 of the spec's build order need neither a key nor a dollar**
+and are most of the work.
 
 Note the honest framing this metric is for: **"why not just ask a model"** — showing a
 raw LLM giving inconsistent answers to identical evidence where ARBITER gives one. Until

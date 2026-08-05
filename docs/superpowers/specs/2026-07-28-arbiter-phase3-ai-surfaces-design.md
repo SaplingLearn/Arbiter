@@ -281,7 +281,13 @@ R3 disabled.
 ## 6. Surface 2 — the live ablation spot check (specified, not built)
 
 The headline is pre-computed at **25 runs per compound** across the conflict subset with the temperature
-disclosed; the live button appends **one** further run. This is safe where five live runs would not have
+disclosed; the live button appends **one** further run.
+
+> **Correction, 2026-08-05.** "With the temperature disclosed" is unexecutable — `temperature`, `top_p`
+> and `top_k` are removed on every current Claude model and return a 400. There is no sampling knob to
+> set and none to disclose. See `2026-08-05-arbiter-llm-ablation-design.md` §2.1, which supersedes this
+> clause and the identical one in master spec §12. Nothing else in this section changes: the live run is
+> still a spot check on a pre-computed n, and the button is still gated on that ablation existing. This is safe where five live runs would not have
 been: the claim is already established by the pre-computed n, so the live run is a spot check rather than the
 evidence, and a concordant live run contradicts nothing.
 
