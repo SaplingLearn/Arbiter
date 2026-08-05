@@ -362,6 +362,22 @@ export interface AbstentionQuality {
   singleClassOnCommitted: boolean;
   nDeclined: number;
   nCommitted: number;
+  /**
+   * Of `nDeclined`, how many could not have committed at ANY evidence values.
+   *
+   * Sum the surviving weight of every live committed claim and grant each one
+   * full confidence 1.0; where that ceiling still cannot reach the mass the
+   * registered gap threshold demands, the abstention was settled before a single
+   * value was read. The remainder — `nDeclined - nStructurallyForced` — abstained
+   * on what the evidence actually said.
+   *
+   * The distinction is the actionable one: the first group says the assay class
+   * is the wrong instrument and more of it is wasted money; the second says more
+   * of the same might genuinely resolve it.
+   */
+  nStructurallyForced: number;
+  /** Why the number above is a floor rather than a point estimate. */
+  structurallyForcedNote: string;
 }
 
 /** METRIC 5: how often the planner's top recommendation survives perturbed priors. */

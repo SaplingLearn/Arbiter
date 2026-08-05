@@ -30,6 +30,12 @@ export interface GoldenNumbers {
   widthDiscriminates: boolean;
   declineRate: number;
   balancedAccuracyOnCommitted: number;
+  /**
+   * Golden-filed because it is quoted at a judge. It is derived from the ruleset's
+   * threshold and every claim's discount factors, so a rule strength that moved
+   * would move this even where it left the verdicts alone.
+   */
+  nStructurallyForced: number;
   plannerMeanUnchangedFraction: number;
 }
 
@@ -94,6 +100,7 @@ export function extractGolden(raw: unknown): GoldenNumbers {
     widthDiscriminates: m.metric3_calibration.widthDiscriminates,
     declineRate: m.metric4_abstentionQuality.declineRate,
     balancedAccuracyOnCommitted: m.metric4_abstentionQuality.balancedAccuracyOnCommitted,
+    nStructurallyForced: m.metric4_abstentionQuality.nStructurallyForced,
     plannerMeanUnchangedFraction: m.metric5_plannerSensitivity.meanUnchangedFraction,
   };
 }

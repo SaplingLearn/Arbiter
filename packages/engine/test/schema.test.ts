@@ -177,6 +177,8 @@ function validMetrics(): MetricsDocument {
       singleClassOnCommitted: true,
       nDeclined: 8,
       nCommitted: 2,
+      nStructurallyForced: 5,
+      structurallyForcedNote: "A floor, not a point estimate.",
     },
     metric5_plannerSensitivity: {
       nCompoundsWithRecommendation: 4,

@@ -36,12 +36,11 @@ export function AboutTab() {
   // copy for the reason in this file's header. A compound carrying one claim has
   // no second stream to fuse, so a single discount settles it on its own.
   //
-  // The sharpest form of this - that for 59.9% of the corpus the MAXIMUM
-  // achievable committed mass cannot reach the threshold at any evidence values
-  // - is measured in HANDOVER section 2 by tools/abstention_ceiling.mjs and is
-  // deliberately NOT rendered here. It is not a field in metrics.json, and a
-  // landing page is exactly where a hand-typed number survives its own staleness.
-  // Emit it from the harness first, then render it.
+  // The sharper form of this - how many declines could not have committed at ANY
+  // evidence values - is now `nStructurallyForced` in metrics.json and is rendered
+  // from there below, not typed. It briefly lived as a hand-derived 59.9% in
+  // HANDOVER; recomputed properly by the harness it is 254 of 260, because the
+  // hand derivation credited ambiguous claims with weight they never carry.
   const singleClaim = data.testSplit.filter(
     (id) => (data.claimsByCompound.get(id)?.length ?? 0) <= 1,
   ).length;
@@ -227,11 +226,20 @@ export function AboutTab() {
             fires on 100% of safe claims and 0% of toxic ones, the engine structurally cannot
             license an advance on this evidence base, and it returned none.
           </p>
-          <p>
-            For most of the corpus the outcome is settled before a single value is read: sum the
-            surviving weight of every live claim, grant each one full confidence, and the total
-            still cannot reach the threshold. Where that holds, the abstention is arithmetic rather
-            than judgment.
+          <p data-testid="about-forced" data-anchor="about.structurallyForced">
+            <strong>
+              {m.metric4_abstentionQuality.nStructurallyForced} of the{" "}
+              {m.metric4_abstentionQuality.nDeclined} declines could not have committed at any
+              evidence values.
+            </strong>{" "}
+            Sum the surviving weight of every live claim, grant each one full confidence, and the
+            total still cannot reach the threshold — so the outcome was settled before a single
+            value was read. For those the abstention is arithmetic rather than judgment, and the
+            useful reading is that the assay class is the wrong instrument: more of the same
+            evidence would not change the answer. Only{" "}
+            {m.metric4_abstentionQuality.nDeclined -
+              m.metric4_abstentionQuality.nStructurallyForced}{" "}
+            declined on what the evidence actually said.
           </p>
           <p className="caveat">
             This is the engine being correct about weak evidence — an HTS inactive at an unknown

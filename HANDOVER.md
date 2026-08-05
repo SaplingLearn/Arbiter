@@ -175,9 +175,9 @@ exposure discount accounts for 118 of the 225 discounted claims. Two other facto
 comparable work, and naming only the first understates a stronger result than the one
 it was reaching for.
 
-Every number below is recomputed by `node tools/abstention_ceiling.mjs` from
-`results/results.json`, so none of them is retyped. Re-run it rather than trusting this
-paragraph.
+The headline figure is `metric4_abstentionQuality.nStructurallyForced` in
+`results/metrics.json`, emitted by the harness and golden-filed. `npm run coverage:report`
+prints the working behind it. Re-run that rather than trusting this paragraph.
 
 #### Three causes, not one
 
@@ -190,21 +190,34 @@ paragraph.
 225 of 398 claims — **56.5%** — reach fusion discounted. A lone QSAR claim at 1% of its
 stated confidence has a ceiling of 0.01 committed mass against a bar of 0.5.
 
-#### 59.9% of the corpus cannot commit at any evidence values
+#### 254 of the 260 declines could not have committed at any evidence values
 
 This is the sharpest way to state the result, and it is stronger than what this section
-used to claim. Sum the surviving weight of every live claim on a compound and pretend
-each was stated at full confidence 1.0. For **160 of 267 compounds (59.9%)** that
-generous ceiling is still at or below 0.5, so the gap rule fires **before the engine
-reads a single evidence value**. All 160 are in the abstain set.
+used to claim. Sum the surviving weight of every live committed claim on a compound and
+pretend each was stated at full confidence 1.0. For **254 of the 260 declines** that
+generous ceiling still cannot reach the mass the threshold demands, so the gap rule fires
+**before the engine reads a single evidence value**.
 
-The bound is deliberately an over-estimate — Dempster combination yields less than the
-sum for masses this small (two 0.15 claims combine to 0.2775, not 0.30) — which is what
-makes "cannot commit" a safe word rather than a guess. The script's self-check asserts
-every structurally-forced compound actually abstained and **exits 1 if one escapes**;
-verified failing by removing the bound, which named the seven committed compounds.
+**Only 6 abstentions were evidence-dependent.** Everything else was settled by the shape
+of the evidence base, not by what the numbers said. For those 254 the actionable reading
+is that the assay class is the wrong instrument — more of the same evidence would not
+change the answer — and that is a far more useful thing to tell a toxicologist than "the
+gap was too wide".
 
-For those 160, abstention is arithmetic, not judgment. Say that before a judge finds it.
+The bound is deliberately an over-estimate twice over: real strengths are below 1, and
+Dempster combination yields less than the sum for masses this small (two 0.15 claims
+combine to 0.2775, not 0.30). That is what makes "could not have committed" a safe word
+rather than a guess. `abstentionQuality` **throws** if a compound it called forced turns
+out to have committed, so a broken bound fails the run instead of reporting a number.
+
+**Correction, 2026-08-05, same day.** An earlier version of this section said **160 of
+267 (59.9%)**, derived by a standalone script that recovered discount factors by regexing
+the trace's rationale prose. It was wrong by 94 compounds: it credited every **ambiguous**
+claim with full weight, and an ambiguous claim commits no mass at all — there are 100 of
+them in the scored set. The number now comes from `relevanceDiscount`, the same engine
+function that produced the mass, and the script has been deleted rather than fixed. Two
+implementations of one number is how the two drift apart, and this pair drifted before it
+was a week old.
 
 #### The threshold is not the binding constraint
 
@@ -611,13 +624,13 @@ rule", "why use an LLM while benchmarking one". Read them; they are better than 
 anyone will improvise. The two answers most likely to be needed:
 
 - **"Your system abstains on 97% of cases."** Correct, and it is the finding, not a
-  defect. **Lead with the strongest form: for 160 of 267 compounds (59.9%) the maximum
-  achievable committed mass cannot reach the threshold at any evidence values, so the
-  abstention is arithmetic rather than judgment.** Three causes — no exposure-relevant
-  evidence, QSAR measuring no key event, and 52% of compounds carrying a single claim.
-  If pressed on "just loosen the threshold": 0.50 → 0.80 buys six compounds, and 44.6%
-  coverage needs a threshold of 0.90, which is committing on 90%-unknown evidence. §2
-  has the numbers and `tools/abstention_ceiling.mjs` regenerates them live.
+  defect. **Lead with the strongest form: 254 of the 260 declines could not have committed
+  at any evidence values — only 6 were evidence-dependent — so the abstention is
+  arithmetic rather than judgment.** Three causes: no exposure-relevant evidence, QSAR
+  measuring no key event, and 52% of compounds carrying a single claim. If pressed on
+  "just loosen the threshold": 0.50 → 0.80 buys six compounds, and 44.6% coverage needs a
+  threshold of 0.90, which is committing on 90%-unknown evidence. The figure is
+  `nStructurallyForced` in `metrics.json`; `npm run coverage:report` shows the working.
 - **"You didn't beat the baseline."** Also correct. It ties `single:transporter` exactly.
   Say it before a judge finds it.
 
@@ -805,6 +818,7 @@ apps/harness/             Benchmark runner. Node only.
   src/preregistration.ts  THE pre-registration surface + canonicalisation. One copy.
   src/main.ts             Scores the test split, writes results/
   src/metrics.ts          The five metrics, with their honesty caveats in comments
+  src/coverage-report.ts  The working behind §2 (npm run coverage:report)
 
 apps/web/                 Five-tab app. Engine runs in the BROWSER.
   vite.config.ts          inlineEverything - read §6.1 before touching
@@ -813,7 +827,6 @@ apps/web/                 Five-tab app. Engine runs in the BROWSER.
 
 data/prep/*.py            DILIrank ingestion, splits, QSAR/Tox21 streams
 rules/ruleset-v1.0.json   PRE-REGISTERED AND HASHED. Do not edit.
-tools/abstention_ceiling.mjs  Derives every number in §2's coverage analysis. Self-checking.
 results/                  metrics.json, golden/, verdict-manifest.json (golden-filed)
 docs/superpowers/specs/   2026-07-26-arbiter-design.md is the master spec
 docs/superpowers/plans/   Task-by-task plans with every code block synced to source
@@ -883,8 +896,8 @@ data file is an owner's call, not mine.
 
 The result is **honest and defensible, but it is not a win over the baseline.** ARBITER
 ties `single:transporter` exactly, and abstains on 97.4% of compounds because the
-evidence base is too thin and too heavily discounted to license a decision — for 59.9%
-of compounds, provably so at any evidence values (§2).
+evidence base is too thin and too heavily discounted to license a decision — for 254 of
+those 260 declines, provably so at any evidence values (§2).
 
 The temptation will be to fix that by moving a number. `abstentionGapThreshold` is
 pre-registered precisely so that it cannot be moved after an abstention rate has been

@@ -14,6 +14,7 @@
     "harness": "tsx apps/harness/src/main.ts",
     "validate:evidence": "tsx apps/harness/src/validate-evidence.ts",
     "metrics": "tsx apps/harness/src/run-metrics.ts",
+    "coverage:report": "tsx apps/harness/src/coverage-report.ts",
     "golden:update": "tsx apps/harness/src/update-golden.ts",
     "e2e": "playwright test",
     "web:dev": "npm run dev -w @arbiter/web",

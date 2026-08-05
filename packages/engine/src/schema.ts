@@ -205,6 +205,8 @@ export const AbstentionQualitySchema = z.object({
   singleClassOnCommitted: z.boolean(),
   nDeclined: z.number().int().min(0),
   nCommitted: z.number().int().min(0),
+  nStructurallyForced: z.number().int().min(0),
+  structurallyForcedNote: z.string().min(1),
 });
 
 export const PlannerSensitivitySchema = z.object({
@@ -239,6 +241,16 @@ export const MetricsDocumentSchema = z
         "Declined plus committed must account for every scored compound. A shortfall means rows " +
         "vanished between the two figures, and the decline rate reported beside the accuracy is wrong.",
       path: ["metric4_abstentionQuality", "nDeclined"],
+    },
+  )
+  .refine(
+    (m) => m.metric4_abstentionQuality.nStructurallyForced <= m.metric4_abstentionQuality.nDeclined,
+    {
+      message:
+        "Structurally forced abstentions are a subset of the declined set. More forced than declined " +
+        "means the ceiling is not an upper bound on committed mass, so the field cannot be read as " +
+        "\"could never have committed\" and neither can the remainder be read as \"could have\".",
+      path: ["metric4_abstentionQuality", "nStructurallyForced"],
     },
   );
 

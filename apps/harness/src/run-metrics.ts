@@ -75,7 +75,7 @@ function main(): void {
       seed: SEED,
     },
     metric3_calibration: calibration(rows),
-    metric4_abstentionQuality: abstentionQuality(rows),
+    metric4_abstentionQuality: abstentionQuality(rows, claimsByCompound, ruleset),
     metric5_plannerSensitivity: {
       nCompoundsWithRecommendation: sens.length,
       meanUnchangedFraction: mean(sens.map((s) => s.unchangedFraction)),

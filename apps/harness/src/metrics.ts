@@ -1,6 +1,7 @@
 import {
   planNextExperiment,
   reasonVerdictOnly,
+  relevanceDiscount,
   type AbstentionQuality,
   type AssayOperator,
   type Calibration,
@@ -112,12 +113,69 @@ export function calibration(rows: ResultRow[]): Calibration {
  * on the set as a whole, and should route the rest to a human. Decline rate is
  * reported inseparably from accuracy.
  */
-export function abstentionQuality(rows: ResultRow[]): AbstentionQuality {
+/**
+ * The most committed mass this compound could possibly muster.
+ *
+ * Only a LIVE claim can commit any: a defeated one is excluded from fusion
+ * outright and an undecided one contributes vacuous mass, exactly as index.ts
+ * assigns it. An ambiguous claim is live but commits to nothing, so it cannot
+ * lift a compound over the bar either.
+ *
+ * Every surviving claim is then granted full confidence 1.0, so the total is its
+ * discount factor alone. That makes this a deliberate OVER-estimate twice over -
+ * real strengths are below 1, and Dempster combination yields less than the sum
+ * for masses this small (two 0.15 claims combine to 0.2775, not 0.30). Being an
+ * upper bound is the whole point: it is what lets the caller say "could not have
+ * committed" rather than "did not".
+ *
+ * The factor comes from `relevanceDiscount`, the same engine function that
+ * produced the mass, rather than from parsing the rationale prose it wrote. The
+ * prose is for a toxicologist to read; deriving a reported number from it would
+ * make a copy edit move a metric.
+ */
+export function committedMassCeiling(row: ResultRow, claims: EvidenceClaim[], ruleset: Ruleset): number {
+  const status = new Map(row.arbiter.trace.map((s) => [s.claimId, s.status]));
+  let ceiling = 0;
+  for (const c of claims) {
+    const s = status.get(c.id);
+    if (s !== "admitted" && s !== "downweighted") continue;
+    if (c.assertion === "ambiguous") continue;
+    ceiling += relevanceDiscount(c, ruleset).factor;
+  }
+  return ceiling;
+}
+
+export function abstentionQuality(
+  rows: ResultRow[],
+  claimsByCompound: Map<string, EvidenceClaim[]>,
+  ruleset: Ruleset,
+): AbstentionQuality {
   const declined = rows.filter((r) => r.arbiter.verdict === "abstain");
   const pairs = rows
     .map((r) => ({ y: r.y, predicted: toBinary(r.arbiter.verdict) }))
     .filter((p) => p.predicted !== null) as { y: number; predicted: number }[];
   const correct = pairs.filter((p) => p.y === p.predicted).length;
+
+  // A committed verdict needs the gap at or under the threshold, which takes more
+  // than `1 - threshold` of committed mass. Read from the ruleset, never a
+  // constant here, for the reason abstain.ts gives: a threshold in source can be
+  // tuned after seeing a result and a registered one cannot.
+  const bar = 1 - ruleset.abstentionGapThreshold;
+  const forced = rows.filter((r) => committedMassCeiling(r, claimsByCompound.get(r.compoundId) ?? [], ruleset) <= bar);
+
+  // The bound is an over-estimate, so a committed compound inside the forced set
+  // is arithmetically impossible and means the derivation is wrong. Failing the
+  // run beats writing the field: HANDOVER section 6.4's recurring lesson is that a
+  // silently wrong number is indistinguishable from a working pipeline, and this
+  // one would be quoted at a judge as "could never have committed".
+  const escaped = forced.filter((r) => r.arbiter.verdict !== "abstain");
+  if (escaped.length > 0) {
+    throw new Error(
+      `${escaped.length} compound(s) committed despite being structurally forced to abstain `
+      + `(${escaped.slice(0, 3).map((r) => r.compoundId).join(", ")}). The committed-mass ceiling is `
+      + "not an upper bound, so nStructurallyForced cannot be reported.",
+    );
+  }
 
   return {
     declineRate: rows.length === 0 ? 0 : declined.length / rows.length,
@@ -126,6 +184,12 @@ export function abstentionQuality(rows: ResultRow[]): AbstentionQuality {
     singleClassOnCommitted: singleClass(pairs),
     nDeclined: declined.length,
     nCommitted: pairs.length,
+    nStructurallyForced: forced.length,
+    structurallyForcedNote:
+      "A FLOOR, not a point estimate. Every live claim is granted full confidence 1.0 and its "
+      + "surviving weights are summed, which over-states the reachable mass twice over, so a "
+      + "compound counted here provably could not have committed at any evidence values. The "
+      + "remaining declines could have committed and did not.",
   };
 }
 

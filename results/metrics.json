@@ -212,7 +212,9 @@
     },
     "singleClassOnCommitted": true,
     "nDeclined": 260,
-    "nCommitted": 7
+    "nCommitted": 7,
+    "nStructurallyForced": 254,
+    "structurallyForcedNote": "A FLOOR, not a point estimate. Every live claim is granted full confidence 1.0 and its surviving weights are summed, which over-states the reachable mass twice over, so a compound counted here provably could not have committed at any evidence values. The remaining declines could have committed and did not."
   },
   "metric5_plannerSensitivity": {
     "nCompoundsWithRecommendation": 61,

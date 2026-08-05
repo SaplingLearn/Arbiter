@@ -57,6 +57,19 @@ describe("the landing page", () => {
     expect(causes).toContain(`${expected} of ${data.metrics.sampleSizes.scored}`);
   });
 
+  it("separates declines that could never have committed from ones that could", () => {
+    // The two mean opposite things to a toxicologist: one says the assay class is
+    // the wrong instrument and more of it is wasted money, the other says better
+    // numbers from the same assays would settle it. Rendering only the total hides
+    // the actionable half, and rendering the forced count without the remainder
+    // invites reading 260 declines as 260 dead ends.
+    renderAbout();
+    const q = data.metrics.metric4_abstentionQuality;
+    const forced = screen.getByTestId("about-forced").textContent ?? "";
+    expect(forced).toContain(`${q.nStructurallyForced} of the ${q.nDeclined}`);
+    expect(forced).toContain(String(q.nDeclined - q.nStructurallyForced));
+  });
+
   it("does not let the decline rate read as a consequence of conflict", () => {
     // The two numbers measure different predicates and are close to independent -
     // measured, non-conflicting compounds abstain MORE often than conflicting ones

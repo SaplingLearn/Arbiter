@@ -98,6 +98,8 @@ const sample: MetricsDocument = {
     singleClassOnCommitted: true,
     nDeclined: 9,
     nCommitted: 1,
+    nStructurallyForced: 6,
+    structurallyForcedNote: "A floor, not a point estimate.",
   },
   metric5_plannerSensitivity: {
     nCompoundsWithRecommendation: 4,

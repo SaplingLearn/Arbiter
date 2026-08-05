@@ -112,5 +112,6 @@
   "widthDiscriminates": false,
   "declineRate": 0.9737827715355806,
   "balancedAccuracyOnCommitted": 0.75,
+  "nStructurallyForced": 254,
   "plannerMeanUnchangedFraction": 0.9917704918032786
 }
