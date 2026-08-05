@@ -31,7 +31,42 @@ describe("the landing page", () => {
     renderAbout();
     const q = data.metrics.metric4_abstentionQuality;
     expect(document.body.textContent).toContain(`${(q.declineRate * 100).toFixed(1)}%`);
-    expect(document.body.textContent).toContain("No benchmark compound carries exposure-relevant evidence");
+
+    // All THREE causes, not the one this page used to name. HANDOVER section 2
+    // records the correction: R3's exposure discount accounts for 118 of the 225
+    // discounted claims, so naming it alone reads as a complete explanation of a
+    // number it explains about half of.
+    const causes = screen.getByTestId("about-causes").textContent ?? "";
+    expect(causes).toContain("exposureRelevant");
+    expect(causes).toContain("measures no key event");
+    expect(causes).toContain("single claim");
+  });
+
+  it("derives the single-claim count instead of typing it into the copy", () => {
+    // The count is the third cause and the only one carrying a live number, so it
+    // is the one that can go stale. Recomputed here from the same evidence the
+    // page renders from - if the copy is ever pinned to a literal, the run that
+    // changes the corpus fails this rather than shipping a wrong number to a
+    // landing page nobody re-reads.
+    renderAbout();
+    const expected = data.testSplit.filter(
+      (id) => (data.claimsByCompound.get(id)?.length ?? 0) <= 1,
+    ).length;
+    expect(expected).toBeGreaterThan(0);
+    const causes = screen.getByTestId("about-causes").textContent ?? "";
+    expect(causes).toContain(`${expected} of ${data.metrics.sampleSizes.scored}`);
+  });
+
+  it("does not let the decline rate read as a consequence of conflict", () => {
+    // The two numbers measure different predicates and are close to independent -
+    // measured, non-conflicting compounds abstain MORE often than conflicting ones
+    // (98.5% against 93.4%). A reader who conflates them concludes the engine is
+    // broken, which is exactly the inference this page used to invite by putting
+    // the decline rate two clicks from the conflict rate with nothing between.
+    renderAbout();
+    const text = (document.body.textContent ?? "").toLowerCase();
+    expect(text).toContain("not because they disagree");
+    expect(screen.getByText(/none of them is disagreement/i)).toBeTruthy();
   });
 
   it("keeps to the language discipline in HANDOVER 1.3", () => {
