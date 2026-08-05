@@ -32,8 +32,9 @@ export function CompoundsTab() {
         {/* .caveat, not .small.muted: the decline rate is the honest half of this
             screen, and shrinking it is how a screen-share loses it. */}
         <p className="caveat" data-testid="decline-note" data-anchor="compounds.declineNote">
-          ARBITER declines on {declined} of {ids.length}. See Validation for why — no compound in this set
-          carries exposure-relevant evidence.
+          ARBITER declines on {declined} of {ids.length} — which is not the same set as the
+          conflicting ones, and not caused by them. See About for why: the evidence is too thin to
+          weigh, not contradictory.
         </p>
       </div>
 

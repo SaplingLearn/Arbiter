@@ -32,6 +32,19 @@ export function AboutTab() {
   const TIED = "single:transporter";
   const tied = acc.baselines[TIED];
 
+  // The third cause of the decline rate, derived here rather than typed into the
+  // copy for the reason in this file's header. A compound carrying one claim has
+  // no second stream to fuse, so a single discount settles it on its own.
+  //
+  // The sharper form of this - how many declines could not have committed at ANY
+  // evidence values - is now `nStructurallyForced` in metrics.json and is rendered
+  // from there below, not typed. It briefly lived as a hand-derived 59.9% in
+  // HANDOVER; recomputed properly by the harness it is 254 of 260, because the
+  // hand derivation credited ambiguous claims with weight they never carry.
+  const singleClaim = data.testSplit.filter(
+    (id) => (data.claimsByCompound.get(id)?.length ?? 0) <= 1,
+  ).length;
+
   return (
     <>
       <header className="hero">
@@ -73,7 +86,8 @@ export function AboutTab() {
               <div className="figure-n">{pct(m.metric4_abstentionQuality.declineRate)}</div>
               <p className="figure-cap">
                 Of {m.sampleSizes.scored} scored compounds, ARBITER declines to commit on{" "}
-                {m.metric4_abstentionQuality.nDeclined} of them. Coverage is the finding here, not a
+                {m.metric4_abstentionQuality.nDeclined} of them — not because they disagree, but
+                because the evidence is too thin to weigh. Coverage is the finding here, not a
                 footnote — the reason is two sections down.
               </p>
             </div>
@@ -196,17 +210,36 @@ export function AboutTab() {
       <section className="stack">
         <p className="label">Why it abstains so much</p>
         <div className="prose stack">
-          <h2 className="title">No benchmark compound carries exposure-relevant evidence.</h2>
-          <p>
+          <h2 className="title">Three causes, and none of them is disagreement.</h2>
+          <p data-testid="about-causes">
             All {m.metric4_abstentionQuality.nDeclined} abstentions are the belief–plausibility gap.
-            None is an applicability-domain refusal and none is total conflict. The cause is
-            structural and measurable: R3 discounts a claim that cannot be tied to clinical
-            exposure, QSAR has no exposure axis, and Tox21 qHTS concentrations are not clinical
-            ones. The only claim in the corpus marked{" "}
+            None is an applicability-domain refusal and none is total conflict — declining is about
+            how much weight the evidence carries, never about the streams contradicting each other.
+            Three things drain that weight. R3 discounts a claim that cannot be tied to clinical
+            exposure, and the only claim in the corpus marked{" "}
             <span className="mono">exposureRelevant: true</span> is the TAK-994 murine study, which
-            the benchmark excludes by design. So R3 fires on 100% of safe claims and 0% of toxic
-            ones, the engine structurally cannot license an advance on this evidence base, and it
-            returned none.
+            the benchmark excludes by design — QSAR has no exposure axis and Tox21 qHTS
+            concentrations are not clinical ones. QSAR correlates with chemical structure and
+            measures no key event directly, which discounts it further still. And{" "}
+            <strong>{singleClaim} of {m.sampleSizes.scored}</strong> compounds carry a single claim,
+            so there is no second stream to fuse and one discount settles the compound alone. So R3
+            fires on 100% of safe claims and 0% of toxic ones, the engine structurally cannot
+            license an advance on this evidence base, and it returned none.
+          </p>
+          <p data-testid="about-forced" data-anchor="about.structurallyForced">
+            <strong>
+              {m.metric4_abstentionQuality.nStructurallyForced} of the{" "}
+              {m.metric4_abstentionQuality.nDeclined} declines could not have committed at any
+              evidence values.
+            </strong>{" "}
+            Sum the surviving weight of every live claim, grant each one full confidence, and the
+            total still cannot reach the threshold — so the outcome was settled before a single
+            value was read. For those the abstention is arithmetic rather than judgment, and the
+            useful reading is that the assay class is the wrong instrument: more of the same
+            evidence would not change the answer. Only{" "}
+            {m.metric4_abstentionQuality.nDeclined -
+              m.metric4_abstentionQuality.nStructurallyForced}{" "}
+            declined on what the evidence actually said.
           </p>
           <p className="caveat">
             This is the engine being correct about weak evidence — an HTS inactive at an unknown
@@ -214,10 +247,12 @@ export function AboutTab() {
             Those are the same fact, not two competing readings of it.
           </p>
           <p>
-            What would move the number is evidence with an exposure axis, not a lower threshold.
-            Widening the abstention threshold to buy coverage was considered once and rejected: it
-            would change the figure without changing what the evidence supports, and the ruleset is
-            registered precisely so that it cannot be tuned toward a better-looking result.
+            What would move the number is evidence with an exposure axis and more than one stream
+            per compound — not a lower threshold. Widening the abstention threshold to buy coverage
+            was considered once and rejected: it would change the figure without changing what the
+            evidence supports, and the ruleset is registered precisely so that it cannot be tuned
+            toward a better-looking result. Measured, it would not even buy much — the compounds
+            here are either decisive or nowhere near, with almost nothing in between.
           </p>
         </div>
       </section>

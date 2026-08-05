@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { reason, reasonVerdictOnly } from "@arbiter/engine";
-import { BEATS } from "../src/tour/beats.js";
+import { BEATS, beatLine } from "../src/tour/beats.js";
 import { initialState, reducer, visibleClaims, type AppState } from "../src/state/store.js";
 import { loadData } from "../src/data/load.js";
 import { majorityVote, weightedAverage } from "../../harness/src/baselines.js";
@@ -74,8 +74,28 @@ describe("the seven beats", () => {
     for (const b of BEATS) {
       expect(["compounds", "case", "ruleset", "validation", "record"]).toContain(b.tab);
       if (b.focus !== null) expect(["evidence", "trace", "table"]).toContain(b.focus);
-      expect(b.line.length).toBeGreaterThan(10);
+      expect(beatLine(b, data).length).toBeGreaterThan(10);
     }
+  });
+
+  it("BEAT 1 - reads the conflict count off the metrics document, not a literal", () => {
+    // Asserting the line CONTAINS "61 of 267" would pass on the hard-coded string
+    // this replaced, which is the HANDOVER section 5.1 trap: a test that reads the
+    // same on both branches. Handing the beat a DIFFERENT metrics document is what
+    // separates a derived line from a typed one - a literal cannot follow.
+    const elsewhere: typeof data = {
+      ...data,
+      metrics: {
+        ...data.metrics,
+        sampleSizes: { ...data.metrics.sampleSizes, scored: 999, conflictSubset: 42 },
+      },
+    };
+    expect(beatLine(BEATS[0]!, elsewhere)).toContain("42 of 999");
+
+    // And on the real document it agrees with what the harness measured, so the
+    // opening line of the demo cannot drift from the Compounds tab beside it.
+    const m = data.metrics.sampleSizes;
+    expect(beatLine(BEATS[0]!, data)).toContain(`${m.conflictSubset} of ${m.scored}`);
   });
 
   it("replaying the tour twice gives the identical state", () => {

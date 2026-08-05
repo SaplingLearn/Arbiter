@@ -1,5 +1,17 @@
 import type { Action, Region } from "../state/store.js";
+import type { LoadedData } from "../data/load.js";
 import type { TabId } from "../router.js";
+
+/**
+ * A beat's caption, either fixed prose or prose computed from the bundled data.
+ *
+ * The function form exists because the opening beat quotes two figures the
+ * harness measures, and it used to quote them as a hard-coded "61 of 267" - the
+ * one retyped number left in the app, in the first sentence a judge hears, on the
+ * screen that shows the hero case was not cherry-picked. Every other surface
+ * renders its numbers from `metrics.json`; this closes the last hole.
+ */
+export type BeatLine = string | ((d: LoadedData) => string);
 
 export interface Beat {
   n: number;
@@ -12,7 +24,12 @@ export interface Beat {
    * the manual path cannot disagree.
    */
   actions: Action[];
-  line: string;
+  line: BeatLine;
+}
+
+/** Resolve a beat's caption against the loaded data. */
+export function beatLine(b: Beat, d: LoadedData): string {
+  return typeof b.line === "string" ? b.line : b.line(d);
 }
 
 const PRE_FIH = "2021-06-01";
@@ -22,7 +39,9 @@ export const BEATS: Beat[] = [
   {
     n: 0, title: "The desk, before first-in-human", tab: "compounds", focus: null,
     actions: [{ type: "setAsOf", asOf: PRE_FIH }],
-    line: "61 of 267 scored compounds have streams in genuine conflict. This case is one of them.",
+    line: (d) =>
+      `${d.metrics.sampleSizes.conflictSubset} of ${d.metrics.sampleSizes.scored} scored compounds `
+      + "have streams in genuine conflict. This case is one of them.",
   },
   {
     n: 1, title: "What happens today", tab: "case", focus: "evidence",

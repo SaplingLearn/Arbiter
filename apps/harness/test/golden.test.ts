@@ -35,7 +35,10 @@ const sample: MetricsDocument = {
     scoredSplit: "test",
     note: "ignored prose about how the split was fitted",
   },
-  sampleSizes: { scored: 10, conflictSubset: 4 },
+  sampleSizes: {
+    scored: 10, conflictSubset: 4,
+    streamCoverage: { qsar: { claims: 10, compounds: 10 } },
+  },
   metric1_conflictSubsetAccuracy: {
     n: 4,
     positiveRate: 0.75,
@@ -98,6 +101,8 @@ const sample: MetricsDocument = {
     singleClassOnCommitted: true,
     nDeclined: 9,
     nCommitted: 1,
+    nStructurallyForced: 6,
+    structurallyForcedNote: "A floor, not a point estimate.",
   },
   metric5_plannerSensitivity: {
     nCompoundsWithRecommendation: 4,
