@@ -1,14 +1,14 @@
 import { useEffect } from "react";
 import { useAppState, useDispatch } from "../state/store.js";
 import { isTypingTarget } from "../ui/isTypingTarget.js";
-import { BEATS } from "./beats.js";
+import { BEATS, beatLine } from "./beats.js";
 
 /**
  * Keyboard driving, so nobody fumbles a mouse mid-sentence and any of the three
  * team members can present with no hidden knowledge.
  */
 export function TourFooter() {
-  const { tour, motion } = useAppState();
+  const { data, tour, motion } = useAppState();
   const dispatch = useDispatch();
 
   const go = (n: number) => {
@@ -42,7 +42,7 @@ export function TourFooter() {
         {/* One element, one string: the e2e walk reads "Beat n of 7" off this
             node, so the count and the title must not be split apart. */}
         <strong className="beat-title">Beat {b.n + 1} of {BEATS.length} · {b.title}</strong>
-        <div className="small muted">{b.line}</div>
+        <div className="small muted">{beatLine(b, data)}</div>
       </div>
       <span className="small muted beat-motion">
         motion {motion ? "on" : "off"} (M)
