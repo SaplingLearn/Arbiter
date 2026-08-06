@@ -1,3 +1,5 @@
+import type { LoadedData } from "../data/load.js";
+import { CYCLOSPORINE } from "../data/heroCases.js";
 import type { Action, Region } from "../state/store.js";
 import type { TabId } from "../router.js";
 
@@ -5,6 +7,17 @@ export interface Beat {
   n: number;
   title: string;
   tab: TabId;
+  /**
+   * The compound this beat narrates. REQUIRED on every beat, not optional.
+   *
+   * An optional field was tried and is wrong: with only the contrast beat naming a
+   * compound, pressing ← from it lands on a beat that names none, which leaves
+   * Cyclosporine selected while the record beat narrates TAK-994. Making it required
+   * means every beat states its subject and no beat inherits one, so the tour is
+   * correct from any entry point and in both directions — including after a judge
+   * has clicked a library row, which is the latent bug this closes.
+   */
+  compoundId: string;
   focus: Region | null;
   /**
    * Data changes a beat performs, expressed as the SAME actions a user could
@@ -15,43 +28,69 @@ export interface Beat {
   line: string;
 }
 
-const PRE_FIH = "2021-06-01";
-const POST_MURINE = "2023-01-01";
+/**
+ * Built from `data` rather than declared as a constant so the milestone dates come
+ * from the hero case itself. They were previously duplicated here as literals, which
+ * is one edit to `tak994.json` away from a tour that sets an as-of date the as-of bar
+ * does not offer.
+ */
+export function buildBeats(data: LoadedData): Beat[] {
+  const tak = data.heroCases.get("TAK-994")!;
+  const preFih = tak.asOfMilestones["preFirstInHuman"]!;
+  const postMurine = tak.asOfMilestones["postMurineStudy"]!;
+  const cyclo = data.heroCases.get(CYCLOSPORINE)!;
 
-export const BEATS: Beat[] = [
-  {
-    n: 0, title: "The desk, before first-in-human", tab: "compounds", focus: null,
-    actions: [{ type: "setAsOf", asOf: PRE_FIH }],
-    line: "61 of 267 scored compounds have streams in genuine conflict. This case is one of them.",
-  },
-  {
-    n: 1, title: "What happens today", tab: "case", focus: "evidence",
-    actions: [],
-    line: "Majority vote, weighted average and every single source all say advance.",
-  },
-  {
-    n: 2, title: "ARBITER's argument", tab: "case", focus: "trace",
-    actions: [],
-    line: "Nothing is defeated. Nothing contradicts anything. Each source is discounted for what it cannot license, and most of the weight lands on uncommitted.",
-  },
-  {
-    n: 3, title: "The honest gap, and what would flip it", tab: "case", focus: "trace",
-    actions: [],
-    line: "The range is the widest in the set. One claim would have to change to move the verdict.",
-  },
-  {
-    n: 4, title: "The experiment it asks for", tab: "case", focus: "trace",
-    actions: [{ type: "setAsOf", asOf: POST_MURINE }],
-    line: "It asks for a human BSEP assay at matched exposure. Takeda ran a mouse study instead — and even that does not license a conclusion, because it is a mouse.",
-  },
-  {
-    n: 5, title: "The table", tab: "record", focus: null,
-    actions: [],
-    line: "Positions are recorded, including dissent. The named decision owner signs. ARBITER holds no position.",
-  },
-  {
-    n: 6, title: "What the numbers say", tab: "validation", focus: null,
-    actions: [],
-    line: "Determinism and robustness. Coverage is the finding. The planner recommendation survives ±50% perturbation of every elicited prior.",
-  },
-];
+  return [
+    {
+      n: 0, title: "The desk, before first-in-human", tab: "compounds",
+      compoundId: tak.compoundId, focus: null,
+      actions: [{ type: "setAsOf", asOf: preFih }],
+      line: "61 of 267 scored compounds have streams in genuine conflict. This case is one of them.",
+    },
+    {
+      n: 1, title: "What happens today", tab: "case",
+      compoundId: tak.compoundId, focus: "evidence",
+      actions: [],
+      line: "Majority vote, weighted average and every single source all say advance.",
+    },
+    {
+      n: 2, title: "ARBITER's argument", tab: "case",
+      compoundId: tak.compoundId, focus: "trace",
+      actions: [],
+      line: "Nothing is defeated. Nothing contradicts anything. Each source is discounted for what it cannot license, and most of the weight lands on uncommitted.",
+    },
+    {
+      n: 3, title: "The honest gap, and what would flip it", tab: "case",
+      compoundId: tak.compoundId, focus: "trace",
+      actions: [],
+      line: "The range is the widest in the set. One claim would have to change to move the verdict.",
+    },
+    {
+      n: 4, title: "The experiment it asks for", tab: "case",
+      compoundId: tak.compoundId, focus: "trace",
+      actions: [{ type: "setAsOf", asOf: postMurine }],
+      line: "It asks for a human BSEP assay at matched exposure. Takeda ran a mouse study instead — and even that does not license a conclusion, because it is a mouse.",
+    },
+    {
+      n: 5, title: "The table", tab: "record",
+      compoundId: tak.compoundId, focus: null,
+      actions: [],
+      line: "Positions are recorded, including dissent. The named decision owner signs. ARBITER holds no position.",
+    },
+    {
+      n: 6, title: "When it does commit", tab: "case",
+      compoundId: cyclo.compoundId, focus: "trace",
+      actions: [{ type: "setAsOf", asOf: null }],
+      line: `Same rules, same engine. On ${cyclo.displayName} the human streams disagree at the mechanism — and it commits.`,
+    },
+    {
+      // Corpus-wide statistics, so the compound is immaterial to what is rendered.
+      // It is still named, because "immaterial here" is not a reason to leave the
+      // selection to whatever the previous beat happened to set.
+      n: 7, title: "What the numbers say", tab: "validation",
+      compoundId: tak.compoundId, focus: null,
+      actions: [],
+      line: "Determinism and robustness. Coverage is the finding. The planner recommendation survives ±50% perturbation of every elicited prior.",
+    },
+  ];
+}

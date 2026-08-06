@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { reason, reasonVerdictOnly } from "@arbiter/engine";
-import { BEATS } from "../src/tour/beats.js";
+import { buildBeats } from "../src/tour/beats.js";
+import { CYCLOSPORINE } from "../src/data/heroCases.js";
 import { initialState, reducer, visibleClaims, type AppState } from "../src/state/store.js";
 import { loadData } from "../src/data/load.js";
 import { majorityVote, weightedAverage } from "../../harness/src/baselines.js";
 
 const data = loadData();
+const beats = buildBeats(data);
 
 /** Replay the tour from beat 0 up to and including `n`, applying each beat's actions. */
 function stateAtBeat(n: number): AppState {
   let s = initialState(data);
-  for (const b of BEATS.slice(0, n + 1)) {
+  for (const b of beats.slice(0, n + 1)) {
     s = reducer(s, { type: "setTourBeat", beat: b.n, tab: b.tab, focus: b.focus });
     for (const a of b.actions) s = reducer(s, a);
   }
@@ -20,10 +22,10 @@ function stateAtBeat(n: number): AppState {
 const caseReasoning = (s: AppState) =>
   reason(visibleClaims(data.heroCases.get("TAK-994")!.claims!, s.asOf), s.ruleset, "", data.assays);
 
-describe("the seven beats", () => {
-  it("has exactly seven, indexed 0..6", () => {
-    expect(BEATS).toHaveLength(7);
-    expect(BEATS.map((b) => b.n)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+describe("the eight beats", () => {
+  it("has exactly eight, indexed 0..7", () => {
+    expect(beats).toHaveLength(8);
+    expect(beats.map((b) => b.n)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
   });
 
   it("BEAT 2 - every baseline says advance on the pre-first-in-human evidence", () => {
@@ -64,14 +66,14 @@ describe("the seven beats", () => {
     expect(after.belief).toBeLessThan(0.5);
   });
 
-  it("BEAT 7 - the reported coverage is on screen in the metrics we ship", () => {
+  it("BEAT 8 - the reported coverage is on screen in the metrics we ship", () => {
     const m = data.metrics;
     expect(m.metric1_conflictSubsetAccuracy.arbiter.coverage).toBeLessThan(0.25);
     expect(m.metric5_plannerSensitivity.meanUnchangedFraction).toBeGreaterThan(0.9);
   });
 
   it("every beat names a real tab and a real focus region", () => {
-    for (const b of BEATS) {
+    for (const b of beats) {
       expect(["compounds", "case", "ruleset", "validation", "record"]).toContain(b.tab);
       if (b.focus !== null) expect(["evidence", "trace", "table"]).toContain(b.focus);
       expect(b.line.length).toBeGreaterThan(10);
@@ -79,8 +81,59 @@ describe("the seven beats", () => {
   });
 
   it("replaying the tour twice gives the identical state", () => {
-    expect(JSON.stringify(stateAtBeat(6).asOf)).toBe(JSON.stringify(stateAtBeat(6).asOf));
-    expect(reasonVerdictOnly(visibleClaims(data.heroCases.get("TAK-994")!.claims!, stateAtBeat(6).asOf), data.ruleset).verdict)
-      .toBe(reasonVerdictOnly(visibleClaims(data.heroCases.get("TAK-994")!.claims!, stateAtBeat(6).asOf), data.ruleset).verdict);
+    expect(JSON.stringify(stateAtBeat(7).asOf)).toBe(JSON.stringify(stateAtBeat(7).asOf));
+    expect(reasonVerdictOnly(visibleClaims(data.heroCases.get("TAK-994")!.claims!, stateAtBeat(7).asOf), data.ruleset).verdict)
+      .toBe(reasonVerdictOnly(visibleClaims(data.heroCases.get("TAK-994")!.claims!, stateAtBeat(7).asOf), data.ruleset).verdict);
+  });
+});
+
+describe("beats carry a compound", () => {
+  const data = loadData();
+  const beats = buildBeats(data);
+
+  it("reads its as-of dates from the hero case, not from module literals", () => {
+    const milestones = Object.values(data.heroCases.get("TAK-994")!.asOfMilestones);
+    const asOfActions = beats
+      .flatMap((b) => b.actions)
+      .filter((a): a is { type: "setAsOf"; asOf: string | null } => a.type === "setAsOf")
+      .map((a) => a.asOf)
+      .filter((d): d is string => d !== null);
+    expect(asOfActions.length).toBeGreaterThan(0);
+    for (const d of asOfActions) expect(milestones).toContain(d);
+  });
+
+  it("has one beat that selects the second hero case", () => {
+    const contrast = beats.filter((b) => b.compoundId === CYCLOSPORINE);
+    expect(contrast).toHaveLength(1);
+    expect(contrast[0]!.tab).toBe("case");
+  });
+
+  it("puts the contrast beat before the validation beat", () => {
+    const contrast = beats.findIndex((b) => b.compoundId === CYCLOSPORINE);
+    const validation = beats.findIndex((b) => b.tab === "validation");
+    // Coverage is named as the finding on the validation tab. An audience that has
+    // just watched the engine commit hears "it abstains on 97%" as a calibration
+    // claim rather than an admission.
+    expect(contrast).toBeGreaterThan(-1);
+    expect(contrast).toBeLessThan(validation);
+  });
+
+  it("names a compound on every beat, so none inherits one", () => {
+    for (const b of beats) expect(data.heroCases.has(b.compoundId)).toBe(true);
+  });
+
+  // The defect that made compoundId required rather than optional: with only the
+  // contrast beat naming one, stepping BACKWARD off it left Cyclosporine selected
+  // while the record beat narrated TAK-994.
+  it("restores the first hero case when stepping back off the contrast beat", () => {
+    const contrast = beats.findIndex((b) => b.compoundId === CYCLOSPORINE);
+    let state = reducer(initialState(data), {
+      type: "selectCompound", compoundId: beats[contrast]!.compoundId,
+    });
+    expect(state.selectedCompoundId).toBe(CYCLOSPORINE);
+    state = reducer(state, {
+      type: "selectCompound", compoundId: beats[contrast - 1]!.compoundId,
+    });
+    expect(state.selectedCompoundId).toBe("TAK-994");
   });
 });
