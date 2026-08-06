@@ -47,6 +47,16 @@ describe("the exposure gate", () => {
     expect(() => assertExposureBacked(hero({ source: "corpus", claims: null }))).not.toThrow();
   });
 
+  // Isolates the `hero.source !== "fixture"` clause. The sibling test above sets
+  // `source: "corpus"` AND `claims: null` together, so either clause alone would
+  // make it pass - it cannot tell which one is load-bearing. Here `claims` carries
+  // a safe, exposureRelevant claim that WOULD trip the gate on a fixture-backed
+  // case, so only the source check can be why this does not throw.
+  it("ignores a corpus-backed case even when it carries a claim that would trip the gate", () => {
+    const h = hero({ source: "corpus", claims: [claim({ exposureRelevant: true })] });
+    expect(() => assertExposureBacked(h)).not.toThrow();
+  });
+
   it("loads the shipped data with TAK-994's murine claim intact", () => {
     const data = loadData();
     const murine = data.heroCases.get("TAK-994")!.claims!
