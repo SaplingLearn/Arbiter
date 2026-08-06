@@ -3,7 +3,7 @@ import {
   type AssayOperator, type EvidenceClaim, type MetricsDocument, type Ruleset, type Verdict,
 } from "@arbiter/engine";
 import { RAW } from "./bundle.js";
-import type { HeroCase } from "./heroCases.js";
+import { CYCLOSPORINE, type HeroCase } from "./heroCases.js";
 
 export interface CompoundRow {
   compoundId: string; name: string; smiles: string; dilirankLabel: string; y: number;
@@ -86,6 +86,25 @@ export function loadData(): LoadedData {
     claims: fixtureClaims,
     asOfMilestones: RAW.fixture.asOfMilestones,
     citationStatus: RAW.fixture.citationStatus,
+    splitDisclosure: null,
+    exposure: null,
+  });
+
+  // Corpus-backed: no claims, so nothing is added to the evidence base and no
+  // reported number can move. `subtitle` comes from the compound row rather than
+  // being written here, so it cannot drift from DILIrank.
+  const cyclosporine = compounds.get(CYCLOSPORINE);
+  if (cyclosporine === undefined) {
+    throw new DataLoadError(`hero case ${CYCLOSPORINE} is absent from data/out/compounds.json`);
+  }
+  heroCases.set(CYCLOSPORINE, {
+    compoundId: CYCLOSPORINE,
+    displayName: cyclosporine.name,
+    source: "corpus",
+    subtitle: `${cyclosporine.dilirankLabel} · scored in the benchmark test split`,
+    claims: null,
+    asOfMilestones: {},
+    citationStatus: null,
     splitDisclosure: null,
     exposure: null,
   });

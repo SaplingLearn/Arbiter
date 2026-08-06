@@ -35,6 +35,9 @@ export function CaseHeader() {
         <div>
           <h2 className="display">{name}</h2>
           <p className="muted case-subtitle">{compoundClass}</p>
+          {hero?.splitDisclosure !== null && hero?.splitDisclosure !== undefined && (
+            <p data-testid="split-disclosure" className="caveat">{hero.splitDisclosure}</p>
+          )}
         </div>
         {/* The anchor wraps the primitive rather than living inside it: the
             testid `verdict` is frozen by Playwright and VerdictLabel is shared. */}

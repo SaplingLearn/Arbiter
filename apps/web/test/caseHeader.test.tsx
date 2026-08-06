@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { StoreProvider, initialState } from "../src/state/store.js";
 import { CaseHeader } from "../src/tabs/Case/CaseHeader.js";
 import { loadData } from "../src/data/load.js";
+import { CYCLOSPORINE } from "../src/data/heroCases.js";
 
 const data = loadData();
 const renderHeader = () => render(<StoreProvider data={data}><CaseHeader /></StoreProvider>);
@@ -51,5 +52,22 @@ describe("CaseHeader", () => {
     expect(screen.queryByRole("button", { name: /preFirstInHuman/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /postMurineStudy/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /All evidence/ })).not.toBeNull();
+  });
+
+  it("renders a split disclosure when the hero case carries one", () => {
+    const data = loadData();
+    const hero = data.heroCases.get(CYCLOSPORINE)!;
+    const patched = new Map(data.heroCases);
+    patched.set(CYCLOSPORINE, { ...hero, splitDisclosure: "QSAR read is in-sample (train split)." });
+    const state = {
+      ...initialState({ ...data, heroCases: patched }),
+      selectedCompoundId: CYCLOSPORINE,
+    };
+    render(
+      <StoreProvider data={{ ...data, heroCases: patched }} initialState={state}>
+        <CaseHeader />
+      </StoreProvider>,
+    );
+    expect(screen.getByTestId("split-disclosure").textContent).toMatch(/in-sample/);
   });
 });

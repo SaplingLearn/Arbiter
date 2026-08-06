@@ -52,3 +52,21 @@ export interface HeroCase {
  * the boot case an accident of the order two `set` calls happen to appear in.
  */
 export const BOOT_CASE = "TAK-994";
+
+/**
+ * Hero case 2. Corpus-backed, so this constant is the ONLY new data in the repo.
+ *
+ * Chosen over better-known DILI compounds for reasons recorded in spec §3-4, two of
+ * which were measured false on the first pass and corrected. What survives: it
+ * COMMITS where TAK-994 abstains (belief 0.886 against 0.090), its gap is 0.098
+ * against TAK-994's 0.910 — the contrast an audience reads without being told what
+ * it means — it is `contested` with conflict mass 0.122, and it is the only rendered
+ * case where Dempster-Shafer conflict is non-zero. It is also in the test split, so
+ * nothing needs disclosing.
+ *
+ * It does NOT show a defeat. The earlier claim that it did was inferred from stream
+ * polarity; the trace shows one R4 downweight. TAK-994, by contrast, shows four R3
+ * defeats once the murine study is visible. Neither fact is why this compound was
+ * picked - see spec §4.
+ */
+export const CYCLOSPORINE = "PMATZTZNYRCHOR-CGLBZJNRSA-N";
