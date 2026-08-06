@@ -7,6 +7,7 @@ const read = (p: string) => JSON.parse(readFileSync(p, "utf8"));
 export interface Inputs {
   claimsByCompound: Map<string, EvidenceClaim[]>;
   benchmarkIds: string[];
+  fixtureIds: string[];
   splits: { seed: number; train: string[]; calibration: string[]; test: string[] };
   truth: Map<string, number>;
   ruleset: Ruleset;
@@ -53,6 +54,7 @@ export function loadInputs(): Inputs {
   return {
     claimsByCompound,
     benchmarkIds: evidence.benchmarkCompoundIds as string[],
+    fixtureIds: evidence.fixtureCompoundIds as string[],
     splits,
     truth: new Map(compounds.map((c) => [c.compoundId, c.y])),
     ruleset,
