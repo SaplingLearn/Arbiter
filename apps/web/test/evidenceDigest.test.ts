@@ -4,7 +4,7 @@ import { browserEvidenceDigest, projectClaimsForDigest } from "../src/data/evide
 import { loadData } from "../src/data/load.js";
 
 const data = loadData();
-const claims = data.fixture.claims;
+const claims = data.heroCases.get("TAK-994")!.claims!;
 
 describe("browserEvidenceDigest", () => {
   it("is stable against claim ORDER, so a load-order change is not a false alarm", async () => {

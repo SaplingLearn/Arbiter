@@ -4,6 +4,7 @@ import {
   type AssayOperator, type EvidenceClaim, type Rule, type RuleId, type Ruleset,
 } from "@arbiter/engine";
 import type { LoadedData } from "../data/load.js";
+import { BOOT_CASE } from "../data/heroCases.js";
 import type { TabId } from "../router.js";
 
 export type Region = "evidence" | "trace" | "table";
@@ -11,6 +12,18 @@ export type Region = "evidence" | "trace" | "table";
 /** Master spec section 7a. Hash-chained audit log - never called a blockchain. */
 export interface ReviewerPosition {
   reviewerId: string; displayName: string; role: string;
+  /**
+   * WHAT was signed on. Absent until 2026-08-05, when a second hero case made one
+   * flat chain ambiguous: two positions signed on different compounds were
+   * distinguishable only by their evidence snapshot, which is a digest rather than
+   * a statement.
+   *
+   * It is inside `canonicalRecord` — which enumerates with Object.entries, so this
+   * is covered by construction — and not merely rendered. Rendering alone would
+   * repeat HANDOVER §6.4's defect: a field a reader trusts that tampering does not
+   * disturb.
+   */
+  compoundId: string;
   position: "agree" | "dissent" | "abstain";
   rationale: string | null;
   signedAt: string;
@@ -77,7 +90,7 @@ export interface AppState {
   data: LoadedData;
   ruleset: Ruleset;                            // editable working copy
   /** The evidence working copy, keyed by claim id. `data.claimsByCompound` and
-   *  `data.fixture.claims` stay immutable, exactly as `data.ruleset` does. */
+   *  every hero case's `claims` stay immutable, exactly as `data.ruleset` does. */
   evidenceEdits: Record<string, EvidenceEdit>;
   asOf: string | null;
   selectedCompoundId: string;
@@ -116,7 +129,7 @@ export function initialState(
     ruleset: data.ruleset,
     evidenceEdits: initialEvidenceEdits,
     asOf: null,
-    selectedCompoundId: data.fixture.compoundId,
+    selectedCompoundId: BOOT_CASE,
     tour: { beat: 0, tab: "case", focus: null },
     positions: [],
     motion: true,
@@ -144,16 +157,20 @@ export function visibleClaims(all: EvidenceClaim[], asOf: string | null): Eviden
  * directly and that is the correct behaviour, not an oversight - see §9.1 on the
  * polarity below.
  *
- * The fixture wins over the bundled corpus for TAK-994 deliberately: the compound
+ * A FIXTURE-backed hero case wins over the bundled corpus deliberately: TAK-994
  * appears in BOTH `data/out/evidence.json` and `data/out/tak994.json`, and the
  * fixture is the hand-curated literature case the demo runs on. The two copies
  * agree today; the precedence is kept so that they may stop agreeing without the
  * Case tab silently switching source.
+ *
+ * A CORPUS-backed hero case has `claims: null` and falls straight through to the
+ * corpus, so it has no second copy to disagree with. One `??` chain covers both:
+ * null claims are indistinguishable from an absent case, which is exactly right.
  */
 function registeredClaims(data: LoadedData, compoundId: string): EvidenceClaim[] {
-  return compoundId === data.fixture.compoundId
-    ? data.fixture.claims
-    : (data.claimsByCompound.get(compoundId) ?? []);
+  return data.heroCases.get(compoundId)?.claims
+    ?? data.claimsByCompound.get(compoundId)
+    ?? [];
 }
 
 /**
@@ -307,13 +324,18 @@ const StateCtx = createContext<AppState | null>(null);
 const DispatchCtx = createContext<Dispatch<Action> | null>(null);
 
 export function StoreProvider(
-  { data, initialEvidenceEdits, children }:
-    { data: LoadedData; initialEvidenceEdits?: Record<string, EvidenceEdit>; children: ReactNode },
+  { data, initialEvidenceEdits, initialState: seed, children }:
+    { data: LoadedData; initialEvidenceEdits?: Record<string, EvidenceEdit>;
+      initialState?: AppState; children: ReactNode },
 ) {
-  // The seed prop exists so a test that wants to render with edited evidence
-  // already in place can pass it here, rather than dispatching reclassifyClaim
-  // through act() in every test that needs one.
-  const [state, dispatch] = useReducer(reducer, data, (d) => initialState(d, initialEvidenceEdits));
+  // The seed props exist so a test that wants to render with edited evidence, or
+  // a whole state (a different selectedCompoundId, say), already in place can
+  // pass it here, rather than dispatching actions through act() in every test
+  // that needs one. `initialState` (the whole state) wins over
+  // `initialEvidenceEdits` (just the evidence overlay) when both are given.
+  const [state, dispatch] = useReducer(
+    reducer, data, (d) => seed ?? initialState(d, initialEvidenceEdits),
+  );
   return (
     <StateCtx.Provider value={state}>
       <DispatchCtx.Provider value={dispatch}>{children}</DispatchCtx.Provider>

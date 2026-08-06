@@ -24,7 +24,7 @@ describe("loadData", () => {
     // The fixture is the motivating case, not evidence. If it ever appears as a
     // scored row, every reported number is contaminated.
     expect(d.compounds.has("TAK-994")).toBe(false);
-    expect(d.fixture.claims.length).toBeGreaterThan(0);
+    expect(d.heroCases.get("TAK-994")!.claims!.length).toBeGreaterThan(0);
   });
 
   it("loads the verdict manifest as a cross-check", () => {

@@ -13,7 +13,7 @@ const data = loadData();
 const input = (challenge: string): InterpretInput => ({
   challenge,
   rules: data.ruleset.rules.map((r) => ({ id: r.id, enabled: r.enabled, strength: r.strength })),
-  claims: data.fixture.claims.map((c) => ({ id: c.id, label: c.id })),
+  claims: data.heroCases.get("TAK-994")!.claims!.map((c) => ({ id: c.id, label: c.id })),
 });
 
 describe("interpret - which rung answered", () => {

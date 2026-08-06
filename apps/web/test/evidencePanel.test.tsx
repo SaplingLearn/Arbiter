@@ -12,7 +12,7 @@ describe("EvidencePanel", () => {
   it("lists one row per visible claim, with its stream and provenance", () => {
     renderPanel();
     const rows = screen.getAllByTestId("evidence-row");
-    expect(rows).toHaveLength(data.fixture.claims.length);
+    expect(rows).toHaveLength(data.heroCases.get("TAK-994")!.claims!.length);
     expect(within(rows[0]!).getByTestId("provenance").textContent).toMatch(/literature|database/i);
   });
 
@@ -27,7 +27,7 @@ describe("EvidencePanel", () => {
     // A judge must be able to see that nothing was hidden while another region
     // has the spotlight.
     renderPanel(true);
-    expect(screen.getAllByTestId("evidence-dot")).toHaveLength(data.fixture.claims.length);
+    expect(screen.getAllByTestId("evidence-dot")).toHaveLength(data.heroCases.get("TAK-994")!.claims!.length);
   });
 
   it("badges the fixture as unverified literature", () => {
