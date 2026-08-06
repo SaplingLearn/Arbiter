@@ -23,6 +23,22 @@ export interface Beat {
    * Data changes a beat performs, expressed as the SAME actions a user could
    * dispatch by hand. The tour holds no data of its own, so the guided path and
    * the manual path cannot disagree.
+   *
+   * Every beat sets its OWN `setAsOf`, even a beat whose as-of date is unchanged
+   * from the one before it. Leaving `actions: []` on such a beat was tried and is
+   * wrong, for the same reason `compoundId` is required rather than optional: a
+   * beat with no `setAsOf` of its own INHERITS whatever the previous beat left
+   * behind, and inheritance is direction-dependent. Beat 5 (the record tab) used
+   * to carry `actions: []` — reached forward from beat 4 it inherited
+   * `postMurineStudy`, correctly, but reached backward from beat 6 it inherited
+   * `null`, because beat 6 sets `null` and nothing restores it. That is not
+   * cosmetic on the record beat specifically: `Record.tsx` hashes
+   * `visibleClaims(all, asOf)` into the signed evidence snapshot and stores
+   * `asOfDate: asOf` on the position, so a presenter who steps backward onto this
+   * beat and signs would record a position against a different evidence snapshot
+   * than the one the forward path produces — inside the hash-chained audit log.
+   * Stating every beat's date explicitly means no beat inherits one, so the tour
+   * is correct from any entry point and in both directions.
    */
   actions: Action[];
   line: string;
@@ -50,19 +66,19 @@ export function buildBeats(data: LoadedData): Beat[] {
     {
       n: 1, title: "What happens today", tab: "case",
       compoundId: tak.compoundId, focus: "evidence",
-      actions: [],
+      actions: [{ type: "setAsOf", asOf: preFih }],
       line: "Majority vote, weighted average and every single source all say advance.",
     },
     {
       n: 2, title: "ARBITER's argument", tab: "case",
       compoundId: tak.compoundId, focus: "trace",
-      actions: [],
+      actions: [{ type: "setAsOf", asOf: preFih }],
       line: "Nothing is defeated. Nothing contradicts anything. Each source is discounted for what it cannot license, and most of the weight lands on uncommitted.",
     },
     {
       n: 3, title: "The honest gap, and what would flip it", tab: "case",
       compoundId: tak.compoundId, focus: "trace",
-      actions: [],
+      actions: [{ type: "setAsOf", asOf: preFih }],
       line: "The range is the widest in the set. One claim would have to change to move the verdict.",
     },
     {
@@ -74,7 +90,7 @@ export function buildBeats(data: LoadedData): Beat[] {
     {
       n: 5, title: "The table", tab: "record",
       compoundId: tak.compoundId, focus: null,
-      actions: [],
+      actions: [{ type: "setAsOf", asOf: postMurine }],
       line: "Positions are recorded, including dissent. The named decision owner signs. ARBITER holds no position.",
     },
     {
@@ -89,7 +105,7 @@ export function buildBeats(data: LoadedData): Beat[] {
       // selection to whatever the previous beat happened to set.
       n: 7, title: "What the numbers say", tab: "validation",
       compoundId: tak.compoundId, focus: null,
-      actions: [],
+      actions: [{ type: "setAsOf", asOf: null }],
       line: "Determinism and robustness. Coverage is the finding. The planner recommendation survives ±50% perturbation of every elicited prior.",
     },
   ];

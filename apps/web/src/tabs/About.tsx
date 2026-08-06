@@ -229,13 +229,14 @@ export function AboutTab() {
         <div className="about-grid">
           <div className="prose">
             <p>
-              The demo runs on the keyboard, so nobody has to find a mouse mid-sentence. Seven beats
-              walk one case from the desk before first-in-human through to the recorded sign-off.
+              The demo runs on the keyboard, so nobody has to find a mouse mid-sentence. Eight beats
+              walk one case from the desk before first-in-human through to the recorded sign-off,
+              then a second where the engine commits.
             </p>
             <dl className="keys">
               <div>
                 <dt><kbd className="chip">→</kbd> <kbd className="chip">←</kbd></dt>
-                <dd className="small">Step forward and back through the seven beats.</dd>
+                <dd className="small">Step forward and back through the eight beats.</dd>
               </div>
               <div>
                 <dt><kbd className="chip">?</kbd></dt>

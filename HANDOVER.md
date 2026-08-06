@@ -519,7 +519,7 @@ In dependency order:
    `single:transporter` exactly. If the deck's numbers and `metrics.json` disagree, the
    deck is wrong.
 3. **The recorded walkthrough.** Insurance against a live demo failing. `→` drives all
-   seven beats, so it needs no mouse and no hidden knowledge — any of the three of you
+   eight beats, so it needs no mouse and no hidden knowledge — any of the three of you
    can present it.
 4. **Rehearse, and do the Teams-share read (§3.4) during the first rehearsal.** That
    check is still outstanding and needs a person on a real call.

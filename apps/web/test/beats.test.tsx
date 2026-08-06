@@ -137,3 +137,38 @@ describe("beats carry a compound", () => {
     expect(state.selectedCompoundId).toBe("TAK-994");
   });
 });
+
+describe("no beat inherits its as-of date", () => {
+  // Beat 5 (the record tab) used to carry `actions: []`. Reached FORWARD from
+  // beat 4 it inherited `postMurineStudy`, correctly — but reached BACKWARD from
+  // beat 6 it inherited `null`, because beat 6 sets `null` and nothing restored
+  // it. That is the same class of bug that made `compoundId` required: a beat
+  // with no `setAsOf` of its own inherits whatever the previous beat left behind,
+  // and inheritance is direction-dependent. It is not cosmetic on this beat
+  // specifically — `Record.tsx` hashes `visibleClaims(all, asOf)` into the signed
+  // evidence snapshot and stores `asOfDate: asOf` on the position, so a presenter
+  // stepping backward onto the record beat and signing would have recorded a
+  // position against a different evidence snapshot than the forward path
+  // produces, inside the hash-chained audit log. Beats 1-3 had the identical
+  // defect walking backward from beat 4.
+  it("reaches the same as-of date walking backward as walking forward, at every beat", () => {
+    // Walk all the way forward first, exactly as a presenter does before ever
+    // pressing ←.
+    let s = initialState(data);
+    for (const b of beats) {
+      s = reducer(s, { type: "setTourBeat", beat: b.n, tab: b.tab, focus: b.focus });
+      for (const a of b.actions) s = reducer(s, a);
+    }
+
+    // Then walk backward one beat at a time, and at each beat compare the as-of
+    // date the backward walk reached to the one a pure forward walk to that SAME
+    // beat produces (stateAtBeat). They must agree at every beat, not just the
+    // endpoints.
+    for (let i = beats.length - 1; i >= 0; i--) {
+      const b = beats[i]!;
+      s = reducer(s, { type: "setTourBeat", beat: b.n, tab: b.tab, focus: b.focus });
+      for (const a of b.actions) s = reducer(s, a);
+      expect(s.asOf).toBe(stateAtBeat(i).asOf);
+    }
+  });
+});
