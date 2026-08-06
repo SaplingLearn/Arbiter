@@ -45,6 +45,7 @@ export function RecordTab() {
         reviewerId: name.toLowerCase().replace(/\s+/g, "."),
         displayName: name,
         role: "Safety reviewer",
+        compoundId: selectedCompoundId,
         position,
         rationale: rationale || null,
         // Signing time is a real clock read, which is why it lives in the app and
@@ -106,7 +107,7 @@ export function RecordTab() {
             {/* Truncated on purpose: twelve hex characters is enough to compare two
                 entries by eye, and the full digest is in the exported record. */}
             <div className="small muted">
-              snapshot <span className="mono">{p.evidenceSnapshotHash.slice(0, 12)}</span>… ·
+              {p.compoundId} · snapshot <span className="mono">{p.evidenceSnapshotHash.slice(0, 12)}</span>… ·
               prev <span className="mono">{p.prevRecordHash.slice(0, 12)}</span>… ·
               as of {p.asOfDate ?? "all evidence"} · {p.signatureMethod}
             </div>

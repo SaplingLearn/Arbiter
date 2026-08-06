@@ -12,6 +12,18 @@ export type Region = "evidence" | "trace" | "table";
 /** Master spec section 7a. Hash-chained audit log - never called a blockchain. */
 export interface ReviewerPosition {
   reviewerId: string; displayName: string; role: string;
+  /**
+   * WHAT was signed on. Absent until 2026-08-05, when a second hero case made one
+   * flat chain ambiguous: two positions signed on different compounds were
+   * distinguishable only by their evidence snapshot, which is a digest rather than
+   * a statement.
+   *
+   * It is inside `canonicalRecord` — which enumerates with Object.entries, so this
+   * is covered by construction — and not merely rendered. Rendering alone would
+   * repeat HANDOVER §6.4's defect: a field a reader trusts that tampering does not
+   * disturb.
+   */
+  compoundId: string;
   position: "agree" | "dissent" | "abstain";
   rationale: string | null;
   signedAt: string;
