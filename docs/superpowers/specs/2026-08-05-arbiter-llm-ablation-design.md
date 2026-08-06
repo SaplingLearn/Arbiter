@@ -189,6 +189,22 @@ expected modal rate of **0.433** over 25 runs; across two live verdicts, **0.580
 assumes the scale runs 0→1 will read 0.6 as "somewhat inconsistent" when it is indistinguishable from
 noise.
 
+**Correction, computed 2026-08-06. The floor is now derived exactly rather than simulated, and one of
+the two figures above moves.** `expectedModalRate` in `apps/harness/src/ablation/aggregate.ts`
+enumerates every composition of 25 runs into *k* verdicts and weights each by its multinomial
+probability, so there is no sampling error left to absorb:
+
+| verdicts | simulated (this spec) | exact | verdict on the old figure |
+|---|---|---|---|
+| 3 | 0.433 | **0.432833** | agrees to 3dp |
+| 2 | 0.580 | **0.580590** | **rounds to 0.581 — the last digit was noise** |
+
+The difference is 0.0006 and changes no conclusion, but it is recorded rather than quietly patched for
+the reason §10.5 and §11.3 of HANDOVER set the precedent: a number that moved should say so. Emit the
+exact value in `config.agreementRateFloor`, not `0.58`. The exact computation is also deterministic,
+which the simulated one was not — the same call returns the same bytes forever, so the floor never
+becomes a reason `golden:update` churns.
+
 Compute the floor in the runner from the verdicts actually observed rather than pinning a constant —
 if the model never returns `advance` on this corpus (as ARBITER never does), the operative floor is
 the two-verdict 0.580, not the three-verdict 0.433, and reporting the lower one would flatter the
