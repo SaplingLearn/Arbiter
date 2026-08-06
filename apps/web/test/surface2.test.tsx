@@ -82,7 +82,12 @@ describe("Surface 2 - the live ablation spot check", () => {
     // here; and "untouched" is asserted across a real press of the control, because
     // "nothing happened" is only worth asserting when something was attempted.
     const { container } = renderWith(data);
-    const readRows = () => [...container.querySelectorAll("tbody tr")].map((r) => r.textContent);
+    // Scoped to the baselines table. An unscoped "tbody tr" sweep picks up every
+    // other table on the tab, so this counted 8 rows against 5 baselines the day
+    // one was added beside it - a failure about the selector, not about the guarantee.
+    const readRows = () =>
+      [...container.querySelectorAll('[data-anchor="validation.baselines"] tbody tr')]
+        .map((r) => r.textContent);
 
     const expected = Object.entries(data.metrics.metric1_conflictSubsetAccuracy.baselines)
       .filter(([, b]) => b.nCommitted > 0)

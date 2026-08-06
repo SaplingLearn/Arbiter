@@ -80,6 +80,25 @@ describe("the eight beats", () => {
     }
   });
 
+  it("BEAT 1 - reads the conflict count off the metrics document, not a literal", () => {
+    // Asserting the line CONTAINS "61 of 267" would pass on the hard-coded string
+    // this replaced, which is the HANDOVER section 5.1 trap: a test that reads the
+    // same on both branches. Building the beats from a DIFFERENT metrics document is
+    // what separates a derived line from a typed one - a literal cannot follow.
+    const elsewhere: typeof data = {
+      ...data,
+      metrics: {
+        ...data.metrics,
+        sampleSizes: { ...data.metrics.sampleSizes, scored: 999, conflictSubset: 42 },
+      },
+    };
+    expect(buildBeats(elsewhere)[0]!.line).toContain("42 of 999");
+
+    // And on the real document it agrees with what the harness measured, so the
+    // opening line of the demo cannot drift from the Compounds tab beside it.
+    const m = data.metrics.sampleSizes;
+    expect(beats[0]!.line).toContain(`${m.conflictSubset} of ${m.scored}`);
+  });
 });
 
 describe("beats carry a compound", () => {

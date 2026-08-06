@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   abstentionQuality, calibration, conflictSubsetAccuracy, plannerSensitivity, robustness,
+  streamCoverage,
 } from "../src/metrics.js";
 import ruleset from "../../../rules/ruleset-v1.0.json" with { type: "json" };
 import assayFile from "../../../data/assays.json" with { type: "json" };
@@ -130,16 +131,158 @@ describe("calibration", () => {
 
 describe("abstentionQuality", () => {
   it("reports decline rate inseparably from accuracy", () => {
-    const rows = [
-      verdictRow("a", 1, "do_not_advance"),
-      verdictRow("b", 1, "abstain"),
-      verdictRow("c", 0, "abstain"),
-    ];
-    const q = abstentionQuality(rows);
+    // Each row carries one undiscounted claim it actually reasoned over. A row with
+    // no claims at all has a committed-mass ceiling of zero, which is genuinely
+    // "could never have committed" - so a bare verdict fixture would trip the
+    // structural-forcing guard rather than exercise the decline rate.
+    const rows = ["a", "b", "c"].map((id, i) =>
+      row({
+        compoundId: id, y: i === 2 ? 0 : 1,
+        arbiter: reasoning({
+          verdict: i === 0 ? "do_not_advance" : "abstain",
+          trace: [{ claimId: `${id}:c`, status: "admitted", rationale: "" }],
+        }),
+      }));
+    const claims = new Map(rows.map((r) => [r.compoundId, [{
+      id: `${r.compoundId}:c`, compoundId: r.compoundId, stream: "cytotox" as const,
+      assertion: "toxic" as const, strength: 1, system: "human" as const,
+      measuresKeyEvent: "KE:55", exposureRelevant: true, inApplicabilityDomain: true,
+      klimisch: 2 as const, availableFrom: "2020-01-01",
+      provenance: { kind: "database" as const, source: "t", retrieved: "2026-07-26" },
+    }]]));
+    const q = abstentionQuality(rows, claims, RS);
     expect(q.nDeclined).toBe(2);
     expect(q.nCommitted).toBe(1);
     expect(q.declineRate).toBeCloseTo(2 / 3, 10);
     expect(q.singleClassOnCommitted).toBe(true);
+  });
+});
+
+/**
+ * nStructurallyForced separates the two kinds of abstention, which mean opposite
+ * things to a toxicologist. "The evidence could have settled this and did not"
+ * invites more of the same assay. "No strength of the evidence this compound
+ * carries could ever have settled it" says the assay class itself is the wrong
+ * instrument, and running more of it is wasted money.
+ *
+ * HANDOVER section 2 measures the second group at most of the corpus, which is
+ * why the decline rate is not the engine being timid.
+ */
+/**
+ * Stream coverage is the most concrete explanation of the decline rate in the
+ * whole chain: the engine adjudicates BETWEEN sources, and on this corpus most
+ * compounds have only one. It is also what explains the reported tie - a baseline
+ * built on a stream present on a handful of compounds is scored over exactly
+ * those compounds, so "ties the best baseline" is a comparison over a set the
+ * evidence base chose, not the pipelines.
+ */
+describe("streamCoverage", () => {
+  const c = (id: string, compoundId: string, stream: EvidenceClaim["stream"]): EvidenceClaim => ({
+    id, compoundId, stream, assertion: "toxic", strength: 1, system: "human",
+    measuresKeyEvent: "KE:55", exposureRelevant: true, inApplicabilityDomain: true,
+    klimisch: 2, availableFrom: "2020-01-01",
+    provenance: { kind: "database", source: "t", retrieved: "2026-07-26" },
+  });
+
+  it("counts claims AND distinct compounds per stream, over the scored rows only", () => {
+    // Both counts, because they answer different questions: claims says how much
+    // evidence exists, compounds says how much of the set it can speak to. A stream
+    // with many claims on few compounds is not broad coverage.
+    const rows = [verdictRow("a", 1, "abstain"), verdictRow("b", 1, "abstain")];
+    const claims = new Map([
+      ["a", [c("a1", "a", "qsar"), c("a2", "a", "cytotox")]],
+      ["b", [c("b1", "b", "qsar")]],
+      // Not in `rows`, so it must not be counted - scoring anything outside the
+      // test split is the leakage this whole document exists to rule out.
+      ["z", [c("z1", "z", "transporter")]],
+    ]);
+    const cov = streamCoverage(rows, claims);
+    expect(cov.qsar).toEqual({ claims: 2, compounds: 2 });
+    expect(cov.cytotox).toEqual({ claims: 1, compounds: 1 });
+    expect(cov.transporter).toBeUndefined();
+  });
+
+  it("counts a compound once per stream however many claims it carries there", () => {
+    const rows = [verdictRow("a", 1, "abstain")];
+    const claims = new Map([["a", [c("a1", "a", "cytotox"), c("a2", "a", "cytotox")]]]);
+    expect(streamCoverage(rows, claims).cytotox).toEqual({ claims: 2, compounds: 1 });
+  });
+});
+
+describe("abstentionQuality: structurally forced abstentions", () => {
+  const claim = (over: Partial<EvidenceClaim> & { id: string; compoundId: string }): EvidenceClaim => ({
+    stream: "cytotox", assertion: "toxic", strength: 1, system: "human",
+    measuresKeyEvent: "KE:55", exposureRelevant: true, inApplicabilityDomain: true,
+    klimisch: 2, availableFrom: "2020-01-01",
+    provenance: { kind: "database", source: "t", retrieved: "2026-07-26" },
+    ...over,
+  });
+
+  /** Discounted by R2 (0.15) and R3 (0.15) to 2.25% of stated confidence. */
+  const structuralSafe = (id: string, compoundId: string) =>
+    claim({ id, compoundId, stream: "qsar", assertion: "safe", measuresKeyEvent: null, exposureRelevant: null });
+
+  const rowWith = (id: string, v: Verdict, claimIds: string[]) =>
+    row({
+      compoundId: id, y: 1,
+      arbiter: reasoning({
+        verdict: v,
+        trace: claimIds.map((cid) => ({ claimId: cid, status: "admitted" as const, rationale: "" })),
+      }),
+    });
+
+  it("counts a compound no strength of its own evidence could have rescued", () => {
+    // One QSAR claim surviving at 0.0225. Even granted full confidence it cannot
+    // reach the 0.5 of committed mass the registered threshold demands, so the
+    // abstention was settled before a single value was read.
+    const claims = new Map([["a", [structuralSafe("c1", "a")]]]);
+    const q = abstentionQuality([rowWith("a", "abstain", ["c1"])], claims, RS);
+    expect(q.nStructurallyForced).toBe(1);
+  });
+
+  it("does NOT count a compound whose evidence could have committed and did not", () => {
+    // An undiscounted claim reaches 1.0, comfortably past the bar. This compound
+    // abstained on what its evidence actually said, not on what it could not say -
+    // exactly the distinction the field exists to draw, so conflating the two
+    // would make the number worthless.
+    const claims = new Map([["a", [claim({ id: "c1", compoundId: "a" })]]]);
+    const q = abstentionQuality([rowWith("a", "abstain", ["c1"])], claims, RS);
+    expect(q.nDeclined).toBe(1);
+    expect(q.nStructurallyForced).toBe(0);
+  });
+
+  it("ignores defeated and ambiguous claims, which commit no mass to begin with", () => {
+    // A defeated claim is excluded from fusion and an ambiguous one is vacuous, so
+    // neither can lift a compound over the bar. Counting either would understate
+    // the forced set by crediting mass that never existed.
+    const claims = new Map([["a", [
+      claim({ id: "beaten", compoundId: "a" }),
+      claim({ id: "vague", compoundId: "a", assertion: "ambiguous" }),
+      structuralSafe("weak", "a"),
+    ]]]);
+    const q = abstentionQuality([row({
+      compoundId: "a", y: 1,
+      arbiter: reasoning({
+        verdict: "abstain",
+        trace: [
+          { claimId: "beaten", status: "defeated", rationale: "" },
+          { claimId: "vague", status: "admitted", rationale: "" },
+          { claimId: "weak", status: "admitted", rationale: "" },
+        ],
+      }),
+    })], claims, RS);
+    expect(q.nStructurallyForced).toBe(1);
+  });
+
+  it("THROWS if a compound it called forced actually committed", () => {
+    // The bound is an over-estimate by construction, so a committed compound
+    // inside the forced set means the arithmetic is wrong and every conclusion
+    // drawn from the field is void. HANDOVER section 6.4's recurring lesson is
+    // that a silently wrong number looks exactly like a working pipeline - so
+    // this fails the run rather than writing the field.
+    const claims = new Map([["a", [structuralSafe("c1", "a")]]]);
+    expect(() => abstentionQuality([rowWith("a", "do_not_advance", ["c1"])], claims, RS))
+      .toThrow(/structurally forced/i);
   });
 });
 

@@ -30,6 +30,20 @@ export interface GoldenNumbers {
   widthDiscriminates: boolean;
   declineRate: number;
   balancedAccuracyOnCommitted: number;
+  /**
+   * Golden-filed because it is quoted at a judge. It is derived from the ruleset's
+   * threshold and every claim's discount factors, so a rule strength that moved
+   * would move this even where it left the verdicts alone.
+   */
+  nStructurallyForced: number;
+  /**
+   * Golden-filed because the Validation tab reports it and because it is the one
+   * projection that would catch a change in the DATA layer rather than the engine.
+   * Every other number here moves when a rule or a model moves; this one moves when
+   * a stream gains or loses compounds, which is the change `data/prep` can make
+   * silently.
+   */
+  streamCoverage: Record<string, { claims: number; compounds: number }>;
   plannerMeanUnchangedFraction: number;
 }
 
@@ -94,6 +108,14 @@ export function extractGolden(raw: unknown): GoldenNumbers {
     widthDiscriminates: m.metric3_calibration.widthDiscriminates,
     declineRate: m.metric4_abstentionQuality.declineRate,
     balancedAccuracyOnCommitted: m.metric4_abstentionQuality.balancedAccuracyOnCommitted,
+    nStructurallyForced: m.metric4_abstentionQuality.nStructurallyForced,
+    // Re-sorted here rather than trusted from the producer: this file's whole job
+    // is byte-stability, and a projection that inherits key order from its input
+    // churns on a reordering that moved no number.
+    streamCoverage: Object.fromEntries(
+      Object.keys(m.sampleSizes.streamCoverage).sort()
+        .map((k) => [k, m.sampleSizes.streamCoverage[k]!]),
+    ),
     plannerMeanUnchangedFraction: m.metric5_plannerSensitivity.meanUnchangedFraction,
   };
 }

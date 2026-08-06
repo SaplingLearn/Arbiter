@@ -136,10 +136,39 @@ export const MetricsProvenanceSchema = z.object({
   note: z.string().min(1),
 });
 
-export const MetricsSampleSizesSchema = z.object({
-  scored: z.number().int().min(0),
-  conflictSubset: z.number().int().min(0),
+export const StreamCoverageSchema = z.object({
+  claims: z.number().int().min(0),
+  // A stream cannot speak to more compounds than it has claims, and cannot appear
+  // in the record at all without one. Both bounds are what make a zero here a
+  // loading failure rather than a stream that happens to be quiet.
+  compounds: z.number().int().min(1),
 });
+
+export const MetricsSampleSizesSchema = z
+  .object({
+    scored: z.number().int().min(0),
+    conflictSubset: z.number().int().min(0),
+    streamCoverage: z.record(z.string().min(1), StreamCoverageSchema),
+  })
+  .refine(
+    (s) => Object.values(s.streamCoverage).every((c) => c.compounds <= c.claims),
+    {
+      message:
+        "A stream cannot cover more compounds than it has claims. More compounds than claims means " +
+        "the two counters were fed different sets, so neither describes the evidence base.",
+      path: ["streamCoverage"],
+    },
+  )
+  .refine(
+    (s) => Object.values(s.streamCoverage).every((c) => c.compounds <= s.scored),
+    {
+      message:
+        "A stream cannot cover more compounds than were scored. This is the leakage guard in " +
+        "numeric form: coverage counted outside the test split would exceed the split it is " +
+        "reported against.",
+      path: ["streamCoverage"],
+    },
+  );
 
 export const ConflictSubsetAccuracySchema = z.object({
   n: z.number().int().min(0),
@@ -205,6 +234,8 @@ export const AbstentionQualitySchema = z.object({
   singleClassOnCommitted: z.boolean(),
   nDeclined: z.number().int().min(0),
   nCommitted: z.number().int().min(0),
+  nStructurallyForced: z.number().int().min(0),
+  structurallyForcedNote: z.string().min(1),
 });
 
 export const PlannerSensitivitySchema = z.object({
@@ -239,6 +270,16 @@ export const MetricsDocumentSchema = z
         "Declined plus committed must account for every scored compound. A shortfall means rows " +
         "vanished between the two figures, and the decline rate reported beside the accuracy is wrong.",
       path: ["metric4_abstentionQuality", "nDeclined"],
+    },
+  )
+  .refine(
+    (m) => m.metric4_abstentionQuality.nStructurallyForced <= m.metric4_abstentionQuality.nDeclined,
+    {
+      message:
+        "Structurally forced abstentions are a subset of the declined set. More forced than declined " +
+        "means the ceiling is not an upper bound on committed mass, so the field cannot be read as " +
+        "\"could never have committed\" and neither can the remainder be read as \"could have\".",
+      path: ["metric4_abstentionQuality", "nStructurallyForced"],
     },
   );
 

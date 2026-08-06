@@ -41,14 +41,29 @@ export interface Beat {
    * is correct from any entry point and in both directions.
    */
   actions: Action[];
+  /**
+   * Already resolved against the data. `buildBeats` receives `LoadedData`, so a
+   * beat that quotes a measured figure interpolates it here rather than carrying a
+   * thunk the renderer has to call.
+   *
+   * This replaced a `string | ((d: LoadedData) => string)` union and a `beatLine(b, d)`
+   * resolver, which existed only because `BEATS` was a module constant with no
+   * access to the data. That constraint is gone; the union's reason for existing
+   * went with it. What the union was FOR is kept and is not negotiable — see beat 0.
+   */
   line: string;
 }
 
 /**
- * Built from `data` rather than declared as a constant so the milestone dates come
- * from the hero case itself. They were previously duplicated here as literals, which
- * is one edit to `tak994.json` away from a tour that sets an as-of date the as-of bar
- * does not offer.
+ * Built from `data` rather than declared as a constant, for two reasons that arrived
+ * independently and turned out to be the same reason.
+ *
+ * The milestone dates come from the hero case itself; they were previously duplicated
+ * here as literals, which is one edit to `tak994.json` away from a tour that sets an
+ * as-of date the as-of bar does not offer. And beat 0's figures come from
+ * `metrics.json`, because they used to be a hard-coded "61 of 267" — the one retyped
+ * number left in the app, in the first sentence a judge hears, on the screen that
+ * shows the hero case was not cherry-picked.
  */
 export function buildBeats(data: LoadedData): Beat[] {
   const tak = data.heroCases.get("TAK-994")!;
@@ -56,12 +71,15 @@ export function buildBeats(data: LoadedData): Beat[] {
   const postMurine = tak.asOfMilestones["postMurineStudy"]!;
   const cyclo = data.heroCases.get(CYCLOSPORINE)!;
 
+  const n = data.metrics.sampleSizes;
+
   return [
     {
       n: 0, title: "The desk, before first-in-human", tab: "compounds",
       compoundId: tak.compoundId, focus: null,
       actions: [{ type: "setAsOf", asOf: preFih }],
-      line: "61 of 267 scored compounds have streams in genuine conflict. This case is one of them.",
+      line: `${n.conflictSubset} of ${n.scored} scored compounds have streams in genuine `
+        + "conflict. This case is one of them.",
     },
     {
       n: 1, title: "What happens today", tab: "case",

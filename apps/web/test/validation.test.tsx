@@ -7,6 +7,35 @@ import { loadData } from "../src/data/load.js";
 const data = loadData();
 const renderTab = () => render(<StoreProvider data={data}><ValidationTab /></StoreProvider>);
 
+describe("ValidationTab: what the baselines table is scored over", () => {
+  it("renders per-stream coverage from the metrics document", () => {
+    // Every row derived, in the order and with the counts the harness measured.
+    // A stream added or dropped by data/prep must appear here rather than leaving
+    // a table that silently describes a different evidence base.
+    renderTab();
+    const cov = screen.getByTestId("stream-coverage").textContent ?? "";
+    const streams = data.metrics.sampleSizes.streamCoverage;
+    expect(Object.keys(streams).length).toBeGreaterThan(0);
+    for (const [name, c] of Object.entries(streams)) {
+      expect(cov).toContain(name);
+      expect(cov).toContain(String(c.compounds));
+    }
+  });
+
+  it("says the thinnest stream is what the tied baseline is scored over", () => {
+    // The load-bearing claim on this screen. `single:transporter` commits on 4
+    // compounds because 4 is every compound it has - so "ARBITER ties the best
+    // baseline" is a comparison over a set the evidence base chose. A judge who
+    // works that out unaided has found something we did not say.
+    renderTab();
+    const streams = data.metrics.sampleSizes.streamCoverage;
+    const thinnest = Object.entries(streams).sort((a, b) => a[1].compounds - b[1].compounds)[0]!;
+    const note = screen.getByTestId("coverage-caveat").textContent ?? "";
+    expect(note).toContain(thinnest[0]);
+    expect(note).toContain(String(thinnest[1].compounds));
+  });
+});
+
 describe("ValidationTab", () => {
   it("shows n and coverage BEFORE any accuracy figure", () => {
     renderTab();

@@ -123,7 +123,10 @@ function validMetrics(): MetricsDocument {
       scoredSplit: "test",
       note: "Scored on test, which neither the fit nor the calibration touched.",
     },
-    sampleSizes: { scored: 10, conflictSubset: 4 },
+    sampleSizes: {
+      scored: 10, conflictSubset: 4,
+      streamCoverage: { qsar: { claims: 10, compounds: 10 }, transporter: { claims: 2, compounds: 2 } },
+    },
     metric1_conflictSubsetAccuracy: {
       n: 4,
       positiveRate: 0.75,
@@ -177,6 +180,8 @@ function validMetrics(): MetricsDocument {
       singleClassOnCommitted: true,
       nDeclined: 8,
       nCommitted: 2,
+      nStructurallyForced: 5,
+      structurallyForcedNote: "A floor, not a point estimate.",
     },
     metric5_plannerSensitivity: {
       nCompoundsWithRecommendation: 4,
