@@ -42,6 +42,13 @@ data/out/*
 !data/out/tak994.json
 !data/out/cid-cache.json
 
+# The re-pulled Tox21 tested concentrations (Task 4): a live PubChem pull keyed
+# to the AIDs pinned in stream-tox21.json. Same reproducibility reasoning as the
+# streams above - the margin Task 5 computes from this is only re-derivable if
+# the numbers it was computed from are in git, not just on the machine that ran
+# the pull.
+!data/out/tox21-concentrations.json
+
 # results/results.json IS the deliverable, not build output: it is the artifact a
 # reviewer re-derives the reported numbers from. 676KB.
 results/*
