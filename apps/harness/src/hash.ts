@@ -23,4 +23,7 @@ export function rulesetHash(ruleset: unknown): string {
  * node:crypto; keeping the names available here means load.ts and hash.test.ts
  * did not have to move, and there is still exactly one definition.
  */
-export { canonicalJson, PRE_REGISTERED_HASH, projectForHash } from "./preregistration.js";
+export {
+  canonicalJson, PRE_REGISTERED_EXPOSURE_POLICY_HASH, PRE_REGISTERED_HASH,
+  projectExposurePolicyForHash, projectForHash,
+} from "./preregistration.js";

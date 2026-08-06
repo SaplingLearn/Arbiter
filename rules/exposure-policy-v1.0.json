@@ -1,0 +1,9 @@
+{
+  "version": "1.0",
+  "registeredAt": "2026-08-06",
+  "marginFactor": 100,
+  "basis": "unbound",
+  "statement": "A negative in-vitro finding is treated as exposure-relevant only where the assay's top tested concentration is at least 100x the drug's maximum unbound plasma concentration. Below that multiple the negative is recorded as exposure-inadequate; where either quantity is unavailable the margin is recorded as never established.",
+  "rationale": "100x is the conventional in-vitro safety margin over unbound clinical exposure. Unbound rather than total, because an in-vitro assay doses nominal media concentration while Cmax,total is predominantly protein-bound; comparing a nominal concentration against total plasma concentration overstates the achieved margin by up to two orders of magnitude for a highly bound drug.",
+  "appliesToStreams": ["cytotox", "transporter"]
+}

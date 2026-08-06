@@ -52,3 +52,34 @@ export function projectForHash(rs: {
  */
 export const PRE_REGISTERED_HASH =
   "ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136";
+
+/**
+ * The exposure policy's pre-registration surface.
+ *
+ * Excludes `version`, `registeredAt` (metadata) and `statement`, `rationale`
+ * (prose), mirroring how projectForHash treats the ruleset. Includes
+ * `appliesToStreams`, which IS a decision: it says which streams the margin
+ * governs, and widening it later would change which claims R3 discounts.
+ */
+export function projectExposurePolicyForHash(p: {
+  marginFactor: unknown;
+  basis: unknown;
+  appliesToStreams: unknown;
+}): Record<string, unknown> {
+  return {
+    marginFactor: p.marginFactor,
+    basis: p.basis,
+    appliesToStreams: p.appliesToStreams,
+  };
+}
+
+/**
+ * Registered 2026-08-06, BEFORE the first margin was computed.
+ *
+ * The margin factor is not a knob to be tried at several values and reported at
+ * the best one - that is the same failure as tuning abstentionGapThreshold. The
+ * M-sensitivity curve is a disclosure reported beside the headline, never the
+ * headline itself.
+ */
+export const PRE_REGISTERED_EXPOSURE_POLICY_HASH =
+  "43f1d1e914feb10c4c9e7da35c45009d34686a34e84b46d9446ea8d5da1979ba";
