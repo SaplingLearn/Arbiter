@@ -45,7 +45,7 @@ Copied verbatim from the spec (`docs/superpowers/specs/2026-08-06-arbiter-cmax-e
 | `apps/harness/src/baselines.ts` | modify | Add `cmaxThreshold` — the "is this just a Cmax rule in a costume" answer. |
 | `apps/harness/test/baselines.test.ts` | modify | Test the new baseline, including that it abstains without a Cmax. |
 | `apps/harness/src/main.ts:29` | modify | Wire `single:cmax-threshold` into the baseline table. |
-| `apps/web/test/load.test.ts` | modify | Both directions of the `load.ts:46` fixture gate. |
+| `apps/web/test/exposureGate.test.ts` | **verify only** | Already covers the gate in 6 tests. Must still pass once corpus claims carry `exposureRelevant: true`. Do not add duplicates. |
 
 **Task order note.** Tasks 1–3 need no network access and are most of the work. Task 4 is the first step that touches the internet. Task 7 is the only one that moves a reported number, and it is deliberately last-but-one so everything it depends on is already tested.
 
@@ -1087,7 +1087,9 @@ Run: `git diff --exit-code data/out/stream-tox21.json data/out/compounds.json da
 Expected: exit 0. **The frozen artifacts must not have moved.**
 
 Run: `npm run validate:evidence`
-Expected: passes. This is the authoritative cross-language check that Python emits what the zod schema accepts — if `exposureMargin` is rejected as an unknown key, add it to `EvidenceClaimSchema` in the engine's schema file (a data field, not engine logic) and re-run.
+Expected: passes.
+
+**`exposureMargin` is deliberately NOT added to `EvidenceClaimSchema`.** Verified on zod 3.25.76: `EvidenceClaimSchema` is a plain `z.object()` with no `.strict()`, and zod strips unknown keys rather than rejecting them — so the field passes validation and is simply absent on the TypeScript side. That is the intended outcome. It exists as an audit record inside `evidence.json`, read by the Python test that enforces the HANDOVER §3.1 prohibition ("no flag without a margin standing behind it"); nothing in TypeScript consumes it. Modifying `packages/engine/src` to type a field no TypeScript code reads would breach a Global Constraint to no benefit.
 
 - [ ] **Step 5: Commit and push**
 
@@ -1332,53 +1334,15 @@ git push origin ablation-spec
 
 **Files:**
 - Modify: `HANDOVER.md` §2, §3.1, and the §3 work-item table
-- Modify: `apps/web/test/load.test.ts`
 
-- [ ] **Step 1: Close the `load.ts:46` test gap in both directions**
+- [ ] **Step 1: Confirm the existing exposure-gate tests still hold**
 
-Append to `apps/web/test/load.test.ts`. The exemption at `load.ts:47` exists specifically for this pipeline, and it has never been tested:
+**An earlier draft of this task added tests to `apps/web/test/load.test.ts`, claiming the `load.ts:47` corpus exemption "has never been tested". Both halves were wrong.** That file does not exist, and `apps/web/test/exposureGate.test.ts` already covers the gate in six tests — including, at lines 55-58, an isolation of the exact `source !== "fixture"` clause the draft claimed was uncovered, with a comment explaining why the sibling test cannot isolate it. Writing near-duplicate tests in a second file would give a future change to the gate two places to update.
 
-```ts
-import { assertExposureBacked, DataLoadError } from "../src/data/load";
+So this step **verifies rather than adds.** After Task 5, corpus claims genuinely carry `exposureRelevant: true` for the first time — which is precisely the condition tests 4 and 5 assert is exempt, so they should hold unchanged:
 
-describe("assertExposureBacked", () => {
-  const safeClaim = {
-    id: "X:cytotox", compoundId: "X", stream: "cytotox", assertion: "safe",
-    strength: 0.9, system: "human", measuresKeyEvent: "KE:HEPATOCYTE-DEATH",
-    exposureRelevant: true, inApplicabilityDomain: true, klimisch: 2,
-    availableFrom: "2010-01-01",
-    provenance: { kind: "database", source: "t", retrieved: "2026-08-06" },
-  } as never;
-
-  it("throws for a FIXTURE asserting exposure with no cited Cmax", () => {
-    expect(() => assertExposureBacked({
-      compoundId: "X", displayName: "X", source: "fixture", subtitle: "",
-      claims: [safeClaim], asOfMilestones: {}, citationStatus: null,
-      splitDisclosure: null, exposure: null,
-    } as never)).toThrow(DataLoadError);
-  });
-
-  it("permits a CORPUS claim to assert exposure - the pipeline computes a margin", () => {
-    expect(() => assertExposureBacked({
-      compoundId: "X", displayName: "X", source: "corpus", subtitle: "",
-      claims: [safeClaim], asOfMilestones: {}, citationStatus: null,
-      splitDisclosure: null, exposure: null,
-    } as never)).not.toThrow();
-  });
-
-  it("permits a fixture that DOES cite a Cmax", () => {
-    expect(() => assertExposureBacked({
-      compoundId: "X", displayName: "X", source: "fixture", subtitle: "",
-      claims: [safeClaim], asOfMilestones: {}, citationStatus: null,
-      splitDisclosure: null,
-      exposure: { cmax: 0.9, basis: "free", citation: "cited" },
-    } as never)).not.toThrow();
-  });
-});
-```
-
-Run: `npx vitest run apps/web/test/load.test.ts`
-Expected: PASS. Then change `hero.source !== "fixture"` to `hero.source === "fixture"` in `load.ts:47` and confirm the corpus test fails. Revert.
+Run: `npx vitest run apps/web/test/exposureGate.test.ts`
+Expected: 6 passed. **If the last test fails, TAK-994's murine claim has been disturbed by the pipeline change — stop and investigate rather than editing the test.**
 
 - [ ] **Step 2: Rewrite HANDOVER §2**
 
