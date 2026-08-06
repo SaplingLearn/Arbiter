@@ -59,7 +59,7 @@ function setAt(obj: unknown, path: string[], value: unknown): unknown {
 }
 
 describe("evidenceSnapshot binds the WHOLE claim, not a chosen tuple", () => {
-  const fixture = data.fixture.claims;
+  const fixture = data.heroCases.get("TAK-994")!.claims!;
   const ruleset = data.ruleset;
 
   /**

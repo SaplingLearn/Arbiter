@@ -4,6 +4,7 @@ import {
   type AssayOperator, type EvidenceClaim, type Rule, type RuleId, type Ruleset,
 } from "@arbiter/engine";
 import type { LoadedData } from "../data/load.js";
+import { BOOT_CASE } from "../data/heroCases.js";
 import type { TabId } from "../router.js";
 
 export type Region = "evidence" | "trace" | "table";
@@ -77,7 +78,7 @@ export interface AppState {
   data: LoadedData;
   ruleset: Ruleset;                            // editable working copy
   /** The evidence working copy, keyed by claim id. `data.claimsByCompound` and
-   *  `data.fixture.claims` stay immutable, exactly as `data.ruleset` does. */
+   *  every hero case's `claims` stay immutable, exactly as `data.ruleset` does. */
   evidenceEdits: Record<string, EvidenceEdit>;
   asOf: string | null;
   selectedCompoundId: string;
@@ -116,7 +117,7 @@ export function initialState(
     ruleset: data.ruleset,
     evidenceEdits: initialEvidenceEdits,
     asOf: null,
-    selectedCompoundId: data.fixture.compoundId,
+    selectedCompoundId: BOOT_CASE,
     tour: { beat: 0, tab: "case", focus: null },
     positions: [],
     motion: true,
@@ -144,16 +145,20 @@ export function visibleClaims(all: EvidenceClaim[], asOf: string | null): Eviden
  * directly and that is the correct behaviour, not an oversight - see §9.1 on the
  * polarity below.
  *
- * The fixture wins over the bundled corpus for TAK-994 deliberately: the compound
+ * A FIXTURE-backed hero case wins over the bundled corpus deliberately: TAK-994
  * appears in BOTH `data/out/evidence.json` and `data/out/tak994.json`, and the
  * fixture is the hand-curated literature case the demo runs on. The two copies
  * agree today; the precedence is kept so that they may stop agreeing without the
  * Case tab silently switching source.
+ *
+ * A CORPUS-backed hero case has `claims: null` and falls straight through to the
+ * corpus, so it has no second copy to disagree with. One `??` chain covers both:
+ * null claims are indistinguishable from an absent case, which is exactly right.
  */
 function registeredClaims(data: LoadedData, compoundId: string): EvidenceClaim[] {
-  return compoundId === data.fixture.compoundId
-    ? data.fixture.claims
-    : (data.claimsByCompound.get(compoundId) ?? []);
+  return data.heroCases.get(compoundId)?.claims
+    ?? data.claimsByCompound.get(compoundId)
+    ?? [];
 }
 
 /**

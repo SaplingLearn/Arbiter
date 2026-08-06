@@ -139,7 +139,7 @@ describe("Preflight", () => {
   it("WARNS when the evidence on screen carries live edits", async () => {
     // The direction that matters. An implementation that hardcoded data-ok="true"
     // passes the previous test and fails this one.
-    const claim = data.fixture.claims[0]!;
+    const claim = data.heroCases.get("TAK-994")!.claims![0]!;
     const { container } = render(
       <StoreProvider data={data} initialEvidenceEdits={{ [claim.id]: { klimisch: 4 } }}>
         <Preflight />
@@ -157,7 +157,7 @@ describe("Preflight", () => {
     // computed style keeps this test honest about what the component controls -
     // the actual colour is CSS (`app.css`'s `.check[data-tone="note"]` rule), which
     // this design's Check component renders through a class, not an inline style.
-    const claim = data.fixture.claims[0]!;
+    const claim = data.heroCases.get("TAK-994")!.claims![0]!;
     const { container } = render(
       <StoreProvider data={data} initialEvidenceEdits={{ [claim.id]: { klimisch: 4 } }}>
         <Preflight />
@@ -174,7 +174,7 @@ describe("Preflight", () => {
     // editing a field and editing it back must clear the warning, not leave it
     // stuck. The registered klimisch for this claim is known from the fixture, so
     // setting the edit to that same value is "edited back", not "never edited".
-    const claim = data.fixture.claims[0]!;
+    const claim = data.heroCases.get("TAK-994")!.claims![0]!;
     const { container } = render(
       <StoreProvider data={data} initialEvidenceEdits={{ [claim.id]: { klimisch: claim.klimisch } }}>
         <Preflight />

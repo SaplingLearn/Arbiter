@@ -18,7 +18,7 @@ function stateAtBeat(n: number): AppState {
 }
 
 const caseReasoning = (s: AppState) =>
-  reason(visibleClaims(data.fixture.claims, s.asOf), s.ruleset, "", data.assays);
+  reason(visibleClaims(data.heroCases.get("TAK-994")!.claims!, s.asOf), s.ruleset, "", data.assays);
 
 describe("the seven beats", () => {
   it("has exactly seven, indexed 0..6", () => {
@@ -28,7 +28,7 @@ describe("the seven beats", () => {
 
   it("BEAT 2 - every baseline says advance on the pre-first-in-human evidence", () => {
     const s = stateAtBeat(1);
-    const claims = visibleClaims(data.fixture.claims, s.asOf);
+    const claims = visibleClaims(data.heroCases.get("TAK-994")!.claims!, s.asOf);
     expect(majorityVote(claims).verdict).toBe("advance");
     expect(weightedAverage(claims).verdict).toBe("advance");
   });
@@ -80,7 +80,7 @@ describe("the seven beats", () => {
 
   it("replaying the tour twice gives the identical state", () => {
     expect(JSON.stringify(stateAtBeat(6).asOf)).toBe(JSON.stringify(stateAtBeat(6).asOf));
-    expect(reasonVerdictOnly(visibleClaims(data.fixture.claims, stateAtBeat(6).asOf), data.ruleset).verdict)
-      .toBe(reasonVerdictOnly(visibleClaims(data.fixture.claims, stateAtBeat(6).asOf), data.ruleset).verdict);
+    expect(reasonVerdictOnly(visibleClaims(data.heroCases.get("TAK-994")!.claims!, stateAtBeat(6).asOf), data.ruleset).verdict)
+      .toBe(reasonVerdictOnly(visibleClaims(data.heroCases.get("TAK-994")!.claims!, stateAtBeat(6).asOf), data.ruleset).verdict);
   });
 });

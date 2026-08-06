@@ -290,7 +290,11 @@ export function Preflight() {
 
         <Check id="check-evidence" tone="info">
           Evidence: {data.claimsByCompound.size} compounds with claims, {data.testSplit.length} scored;
-          fixture citations {data.fixture.citationStatus}
+          {" "}{[...data.heroCases.values()].filter((h) => h.source === "fixture").length} literature
+          {" "}fixture(s), citations{" "}
+          {[...new Set([...data.heroCases.values()]
+            .map((h) => h.citationStatus)
+            .filter((s): s is string => s !== null))].join(", ") || "none"}
         </Check>
 
         <Check

@@ -16,18 +16,16 @@ export function CaseHeader() {
   const dispatch = useDispatch();
   const r = useCaseReasoning();
 
-  const isFixture = selectedCompoundId === data.fixture.compoundId;
+  const hero = data.heroCases.get(selectedCompoundId);
   const all = workingClaims(state, selectedCompoundId);
   const shown = visibleClaims(all, asOf);
   const hidden = all.length - shown.length;
   const compound = data.compounds.get(selectedCompoundId);
-  const name = isFixture ? "TAK-994" : (compound?.name ?? selectedCompoundId);
-  // TAK-994 was terminated in Phase 2 and never approved, so it is absent from
-  // DILIrank by construction - it is the motivating case, not benchmark evidence.
-  const compoundClass = isFixture
-    ? "Literature fixture · outside the DILIrank benchmark"
-    : (compound?.dilirankLabel ?? "DILIrank class not recorded");
-  const milestones = Object.entries(data.fixture.asOfMilestones);
+  const name = hero?.displayName ?? compound?.name ?? selectedCompoundId;
+  const compoundClass = hero?.subtitle
+    ?? compound?.dilirankLabel
+    ?? "DILIrank class not recorded";
+  const milestones = Object.entries(hero?.asOfMilestones ?? {});
 
   return (
     <header className="case-header">

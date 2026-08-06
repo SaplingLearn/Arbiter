@@ -52,7 +52,7 @@ describe("Surface 1 rung 1", () => {
       }), { status: 200, headers: { "content-type": "application/json" } });
     }));
 
-    const claims = data.fixture.claims;
+    const claims = data.heroCases.get("TAK-994")!.claims!;
     await withLive(async ({ interpret }) => {
       await interpret({
         challenge: "The rat study should not carry this much weight",

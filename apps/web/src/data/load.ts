@@ -3,16 +3,10 @@ import {
   type AssayOperator, type EvidenceClaim, type MetricsDocument, type Ruleset, type Verdict,
 } from "@arbiter/engine";
 import { RAW } from "./bundle.js";
+import type { HeroCase } from "./heroCases.js";
 
 export interface CompoundRow {
   compoundId: string; name: string; smiles: string; dilirankLabel: string; y: number;
-}
-
-export interface FixtureDoc {
-  compoundId: string;
-  claims: EvidenceClaim[];
-  asOfMilestones: Record<string, string>;
-  citationStatus: string;
 }
 
 export interface LoadedData {
@@ -22,7 +16,9 @@ export interface LoadedData {
   ruleset: Ruleset;
   assays: AssayOperator[];
   metrics: MetricsDocument;
-  fixture: FixtureDoc;
+  /** Every demonstrated compound, keyed by compound id. Replaces the singular
+   *  `fixture`. TAK-994 is one entry, not a privileged field. */
+  heroCases: Map<string, HeroCase>;
   manifest: Map<string, { verdict: Verdict; belief: number }>;
 }
 
@@ -81,6 +77,19 @@ export function loadData(): LoadedData {
     fixtureClaims.push(parsed.data as EvidenceClaim);
   }
 
+  const heroCases = new Map<string, HeroCase>();
+  heroCases.set(RAW.fixture.compoundId, {
+    compoundId: RAW.fixture.compoundId,
+    displayName: RAW.fixture.name,
+    source: "fixture",
+    subtitle: "Literature fixture · outside the DILIrank benchmark",
+    claims: fixtureClaims,
+    asOfMilestones: RAW.fixture.asOfMilestones,
+    citationStatus: RAW.fixture.citationStatus,
+    splitDisclosure: null,
+    exposure: null,
+  });
+
   return {
     claimsByCompound,
     compounds,
@@ -88,12 +97,7 @@ export function loadData(): LoadedData {
     ruleset,
     assays: RAW.assays.assays as AssayOperator[],
     metrics: parsedMetrics.data,
-    fixture: {
-      compoundId: RAW.fixture.compoundId,
-      claims: fixtureClaims,
-      asOfMilestones: RAW.fixture.asOfMilestones,
-      citationStatus: RAW.fixture.citationStatus,
-    },
+    heroCases,
     manifest,
   };
 }

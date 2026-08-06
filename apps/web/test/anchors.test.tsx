@@ -145,7 +145,7 @@ describe("every declared anchor resolves in the DOM", () => {
 
   it("gives every evidence claim and every trace step its own anchor", () => {
     renderTab("case");
-    for (const c of data.fixture.claims) expect(at(evidenceClaim(c.id)).length, c.id).toBe(1);
+    for (const c of data.heroCases.get("TAK-994")!.claims!) expect(at(evidenceClaim(c.id)).length, c.id).toBe(1);
     // The fixture's ids carry a colon, so these are the prefix-slice cases in the DOM.
     expect(at(traceStep("TAK-994:toxicogenomics-murine")).length).toBe(1);
     expect(at(traceStep("TAK-994:qsar")).length).toBe(1);
