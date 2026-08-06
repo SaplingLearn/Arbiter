@@ -54,7 +54,7 @@ without presenting itself as a shipped Pfizer product.
 ### In scope
 
 Hepatotoxicity (drug-induced liver injury) only. Four evidence streams plus rodent/non-rodent in-vivo.
-The seven-beat guided demo. The Deliberation Room. Live rule editing. Counterfactual. Value-of-information
+The eight-beat guided demo. The Deliberation Room. Live rule editing. Counterfactual. Value-of-information
 planner. Three AI surfaces with full fallback ladders. Review-ready evidence package export. Validation
 harness with four baselines.
 
@@ -116,7 +116,7 @@ statement is bounded to mid-2026 and re-checked before presenting.
 
 ---
 
-## 3. The demo — seven beats, 240 seconds
+## 3. The demo — eight beats, 270 seconds
 
 TAK-994 is run as a **two-pass replay** driven by an evidence `availableFrom` date and an "as of" control in
 the UI. Pass 1 uses only evidence that existed before first-in-human dosing. Pass 2 adds what was learned
@@ -130,7 +130,8 @@ later.
 | 4 | The honest gap, and what would flip it | 30s | Belief–plausibility gap opens from centre — the widest in the set. Then the exhaustive counterfactual. |
 | 5 | The experiment it asks for | 50s | Planner asks for a **human BSEP assay at matched exposure** — cost 12, resolving R3, the rule the verdict rests on. Reveal: Takeda ran a **murine** CYP-induction study instead, during Phase 2, after three participants met Hy's Law. Feed that study in: belief in toxicity moves **0.000 → 0.090** and ARBITER **still declines** — because it is a mouse. It was still asking for the human assay. |
 | 6 | The table | 35s | Challenge in plain English → interpreted → proposed change shown → applied → re-run → delta. Positions recorded including one dissent; the named decision owner signs. ARBITER holds no position. |
-| 7 | What the numbers say | 20s | Determinism *and* robustness. LLM variance. Planner recommendation unchanged under ±50% prior perturbation: **0.992**. Conflict-subset accuracy vs four baselines with n, intervals, and coverage — **and coverage is currently the finding**: see §8. |
+| 7 | When it does commit | 30s | Same rules, same engine. On Cyclosporine the human streams disagree at the mechanism — and it commits: belief 0.886, gap 0.098, conflict mass 0.122 — the only rendered case where conflict mass is non-zero and means something. |
+| 8 | What the numbers say | 20s | Determinism *and* robustness. LLM variance. Planner recommendation unchanged under ±50% prior perturbation: **0.992**. Conflict-subset accuracy vs four baselines with n, intervals, and coverage — **and coverage is currently the finding**: see §8. |
 
 ### Why the two-pass structure is mandatory, not stylistic
 
@@ -175,7 +176,7 @@ audience watches the range move rather than a word change.
 - Beat 3: *"You are not being asked to trust this. You are being asked to read it."*
 - Beat 3: *"Note what it did not do. It did not say this drug is toxic. It said it cannot tell you yet."*
 - Beat 3 (the mechanism line): *"Nothing here contradicts anything. That is the point. Four studies agreed — and not one of them measured a human endpoint at a clinically relevant dose. Agreement on a question none of them asked is not evidence."*
-- Beat 7 (honesty line): *"TAK-994 is why we built this. It is not evidence that it works. The evidence is
+- Beat 8 (honesty line): *"TAK-994 is why we built this. It is not evidence that it works. The evidence is
   the benchmark, and the rules never saw it."*
 
 ---
@@ -905,7 +906,7 @@ the UI still renders and degrades to the **correct rung** of its ladder.
 
 ### Visual regression
 
-A Playwright walk of all seven beats with screenshots, run before submission, to catch layout breaks that
+A Playwright walk of all eight beats with screenshots, run before submission, to catch layout breaks that
 would otherwise be found on stage.
 
 ### Explicitly not tested
