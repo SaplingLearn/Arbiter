@@ -142,19 +142,27 @@ export function IntakeTab() {
   }
 
   return (
-    <section className="prose stack">
-      <p className="label">Your compound</p>
-      <h2 className="display">Intake</h2>
+    // `stack`, NOT `prose stack`. `.prose` caps width at a reading measure, which
+    // is right for the intro and wrong for a form: it wrapped every four-across
+    // field row into one field per line. The prose block below keeps the measure
+    // where it belongs.
+    <section className="stack">
+      <div className="prose stack">
+        <p className="label">Your compound</p>
+        <h2 className="display">Intake</h2>
 
-      <p className="lede">
-        ARBITER adjudicates between sources that disagree, so it needs evidence rather than a
-        molecule. A structure on its own yields one structural prediction, which R2 discounts for
-        measuring no mechanism — not enough to license any decision.
-      </p>
-      <p className="small muted">
-        Nothing entered here leaves this browser, is written to the benchmark, or changes a reported
-        number. It is session-local and disappears on reload.
-      </p>
+        <p className="lede">
+          ARBITER adjudicates between sources that disagree, so it needs evidence rather than a
+          molecule. A structure on its own yields one structural prediction, which R2 discounts for
+          measuring no mechanism — not enough to license any decision.
+        </p>
+        <p className="small muted">
+          Nothing entered here leaves this browser, is written to the benchmark, or changes a
+          reported number. It is session-local and disappears on reload. A custom compound also
+          gets <strong>no structural prediction</strong>: the QSAR model is fitted during data
+          preparation and is not shipped, so it cannot score a molecule it has never seen.
+        </p>
+      </div>
 
       <div className="panel stack">
         <h3 className="subtitle">Compound</h3>

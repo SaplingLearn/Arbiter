@@ -1508,8 +1508,9 @@ claims is told why *before* being disappointed rather than after.
 classifier in-process and never persists it, so scoring an unseen molecule would need the
 model and the conformal threshold serialised, plus a real applicability-domain
 determination. Given R2 discounts that stream to 6% or 1% anyway, losing it costs a user
-almost nothing — **but the UI does not say so yet, and it should.** An absent stream a user
-cannot see is the kind of silent gap §6.4 keeps warning about.
+almost nothing — and **the intake screen now says so in as many words**, because an absent
+stream a user cannot see is the kind of silent gap §6.4 keeps warning about. Added when
+running the app surfaced it; the first draft of this section listed it as still open.
 
 **Nothing is persisted.** Intake is session-local and disappears on reload. That is spec §2,
 not an oversight.
