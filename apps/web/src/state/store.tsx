@@ -312,13 +312,18 @@ const StateCtx = createContext<AppState | null>(null);
 const DispatchCtx = createContext<Dispatch<Action> | null>(null);
 
 export function StoreProvider(
-  { data, initialEvidenceEdits, children }:
-    { data: LoadedData; initialEvidenceEdits?: Record<string, EvidenceEdit>; children: ReactNode },
+  { data, initialEvidenceEdits, initialState: seed, children }:
+    { data: LoadedData; initialEvidenceEdits?: Record<string, EvidenceEdit>;
+      initialState?: AppState; children: ReactNode },
 ) {
-  // The seed prop exists so a test that wants to render with edited evidence
-  // already in place can pass it here, rather than dispatching reclassifyClaim
-  // through act() in every test that needs one.
-  const [state, dispatch] = useReducer(reducer, data, (d) => initialState(d, initialEvidenceEdits));
+  // The seed props exist so a test that wants to render with edited evidence, or
+  // a whole state (a different selectedCompoundId, say), already in place can
+  // pass it here, rather than dispatching actions through act() in every test
+  // that needs one. `initialState` (the whole state) wins over
+  // `initialEvidenceEdits` (just the evidence overlay) when both are given.
+  const [state, dispatch] = useReducer(
+    reducer, data, (d) => seed ?? initialState(d, initialEvidenceEdits),
+  );
   return (
     <StateCtx.Provider value={state}>
       <DispatchCtx.Provider value={dispatch}>{children}</DispatchCtx.Provider>
