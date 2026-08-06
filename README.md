@@ -164,11 +164,10 @@ CI runs all of it on every push. The whole block was executed on 2026-08-06 from
 | Lint / typecheck / `web:build` | clean |
 | Vitest | **552 tests across 55 files** |
 | Playwright | **12 tests** |
+| Pytest (`data/prep`) | **32 tests across 4 files** — run separately, see below |
 | `golden:update` | **no diff — no reported number has moved** |
 | Bundle | **1,152 kB raw / 199 kB gzipped**, one self-contained file |
 | Ruleset hash | `ed073a8a…` matches pre-registration |
-
-The Python suite is not part of that sweep and was last measured 2026-07-28 (32 tests). See below.
 
 **On Windows, `golden:update` will make the golden file look modified when it is not** — the script writes LF, git's `autocrlf` rewrites to CRLF, and `git status` reports a modification with an empty `git diff`. Confirm it is nothing before hunting:
 
@@ -190,7 +189,9 @@ pip install -r data/prep/requirements.txt
 cd data/prep && python -m pytest
 ```
 
-`data/prep/README.md` documents the pipeline order. `rdkit` is the heavy dependency. **These tests do not run in CI**, and two of them guard the split-before-fitting claim — run them by hand after touching `data/prep/`.
+32 tests across 4 files, passing as of 2026-08-06 on Python 3.12.4 from a fresh venv with the pinned `requirements.txt`. `data/prep/README.md` documents the pipeline order. `rdkit` is the heavy dependency and the one most likely to fight a fresh environment, though it installed clean here.
+
+**These tests do not run in CI**, so that figure is a hand measurement, not a guarded one. `test_qsar_leakage.py` protects the strongest methodological claim in the project — that the split was fixed before any model was fitted, which is the condition under which every reported number is valid at all. A leak reintroduced into `data/prep/` today would be caught by nothing automatic. **Run this suite by hand after any change under `data/prep/`.**
 
 ---
 
@@ -254,7 +255,7 @@ Note that `.superpowers/` is gitignored, so the SDD ledger and per-task review r
 | Engine | Complete; deterministic; ruleset hash `ed073a8a…` unchanged |
 | Web app | Six tabs, eight demo beats, two hero cases; ships as one self-contained `index.html` |
 | Phases | 1 complete · 2 complete · 3 built except Surface 2 (specified, deliberately not built) · multi-case complete |
-| Verified | 2026-08-06 — lint, typecheck, build, 552 vitest, 12 Playwright, golden all green (HANDOVER §8.2) |
+| Verified | 2026-08-06 — lint, typecheck, build, 552 vitest, 12 Playwright, 32 pytest, golden all green (HANDOVER §8.2) |
 | Open | LLM ablation specified but unimplemented; hero case 3 specified but not built; Cmax data is the constraint on the headline |
 
 Submission due 16 August 2026.

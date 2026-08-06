@@ -73,9 +73,13 @@ not re-run.
 **Re-run on 2026-08-06 from `cde62f5` on branch `ablation-spec`, with `main` merged in:** the
 whole block above was executed. Lint clean, typecheck clean, `web:build` clean, **552** vitest
 tests across 55 files, **12** Playwright tests, `golden:update` still produces no diff — the
-multi-case merge moved no reported number either. Full table in §8.2. **The Python side was
-again not re-run**, so the 32-test figure above is still the 2026-07-28 measurement and nothing
-newer; `data/prep/` is untouched since.
+multi-case merge moved no reported number either. Full table in §8.2.
+
+**The Python side was re-run too, for the first time since 2026-07-28: 32 passed across the
+four files, in 1.18s.** Same 32 as the original measurement — `data/prep/` has not been
+touched, and the suite confirms it rather than the count merely being carried forward. Built
+from a fresh `.venv` on Python 3.12.4 with the pinned `requirements.txt`, which installed
+clean; `rdkit==2024.9.4` did not fight the environment on this machine. `.venv/` is gitignored.
 
 If a command here fails for you, it is drift since that date, not a typo — say so in this
 file when you fix it.
@@ -994,7 +998,7 @@ observed, not carried forward from §8.1.
 
 | | |
 |---|---|
-| Tests | **552 vitest across 55 files; 12 Playwright** |
+| Tests | **552 vitest across 55 files; 12 Playwright; 32 pytest across 4 files** |
 | Lint | clean |
 | Typecheck | clean |
 | `web:build` | clean, one self-contained file |
@@ -1012,6 +1016,12 @@ a second hero case and an eighth beat, not a new dependency.
 hash to `fcc5cb987d5263f4cc0a266c253beaf0827ef2c09740cef3ed7bd82453192fb3`, so nothing moved.
 Recorded because §0 predicts this and a future reader should see the prediction confirmed
 rather than wonder whether the row was checked properly.
+
+**The 32 pytest tests are in this table because they were run, not because §0 quoted them.**
+They are still absent from CI (§3.5d is unchanged and still the fix worth doing), so this
+figure is a hand measurement that will go stale the moment someone touches `data/prep/`
+without repeating it. `test_qsar_leakage.py` — the one guarding that the split was fixed
+before any model was fitted — passes 9 of the 32.
 
 ---
 
