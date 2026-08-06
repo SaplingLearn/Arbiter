@@ -1371,7 +1371,7 @@ cd data/prep && $PY -m pytest
 - [ ] **Step 5: Commit and push**
 
 ```bash
-git add HANDOVER.md apps/web/test/load.test.ts
+git add HANDOVER.md
 git commit -m "Rewrite HANDOVER 2 and 3.1 on the measured exposure axis
 
 3.1 was the item ranked first and time-critical and had never been started. It
