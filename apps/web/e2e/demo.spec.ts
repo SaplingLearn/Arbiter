@@ -5,12 +5,12 @@ test("the demo walks end to end on the keyboard alone", async ({ page }) => {
   await expect(page.getByTestId("verdict")).toContainText(/abstain/i);
 
   // Drive the whole tour with the arrow key a presenter actually uses.
-  for (let i = 0; i < 6; i++) await page.keyboard.press("ArrowRight");
+  for (let i = 0; i < 7; i++) await page.keyboard.press("ArrowRight");
   await expect(page).toHaveURL(/#\/validation/);
   await expect(page.getByTestId("single-class-warning")).toBeVisible();
 
   // And back, without the app losing its footing.
-  for (let i = 0; i < 6; i++) await page.keyboard.press("ArrowLeft");
+  for (let i = 0; i < 7; i++) await page.keyboard.press("ArrowLeft");
   await expect(page).toHaveURL(/#\/compounds/);
 });
 

@@ -131,8 +131,10 @@ function dispatchable(p: Proposal): Action | null {
  * plausible. A hardcoded allow-list would be a second copy of the corpus that drifts
  * the first time a new key event is ingested; reading the corpus cannot drift.
  *
- * The fixture is folded in beside the corpus because `workingClaims` prefers it for
- * TAK-994, so it is part of the loaded evidence in exactly the sense that matters.
+ * Fixture-backed hero cases are folded in beside the corpus because `workingClaims`
+ * prefers their own claims, so they are part of the loaded evidence in exactly the
+ * sense that matters. Corpus-backed cases have `claims: null` and are already
+ * covered by the loop above.
  */
 export function loadedKeyEvents(data: LoadedData): Set<string> {
   const out = new Set<string>();
@@ -140,7 +142,7 @@ export function loadedKeyEvents(data: LoadedData): Set<string> {
     for (const c of cs) if (c.measuresKeyEvent !== null) out.add(c.measuresKeyEvent);
   };
   for (const cs of data.claimsByCompound.values()) add(cs);
-  add(data.fixture.claims);
+  for (const hero of data.heroCases.values()) if (hero.claims !== null) add(hero.claims);
   return out;
 }
 

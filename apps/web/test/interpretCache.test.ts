@@ -6,7 +6,7 @@ import CACHE from "../src/ai/cache/interpretations.json";
 
 const data = loadData();
 const ruleIds = new Set(data.ruleset.rules.map((r) => r.id));
-const claimsById = new Map(data.fixture.claims.map((c) => [c.id, c]));
+const claimsById = new Map(data.heroCases.get("TAK-994")!.claims!.map((c) => [c.id, c]));
 
 describe("the authored interpretation cache", () => {
   it("carries the thirteen entries design section 13 registers", () => {

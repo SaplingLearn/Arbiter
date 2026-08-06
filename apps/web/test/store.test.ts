@@ -67,15 +67,17 @@ describe("workingClaims", () => {
     // Identity, not just equality. The selector must not allocate a fresh array on
     // every render or useCaseReasoning's memo never holds and the Case tab re-runs
     // the engine on unrelated actions such as the motion toggle.
-    expect(workingClaims(base, base.data.fixture.compoundId)).toBe(base.data.fixture.claims);
+    const hero = base.data.heroCases.get("TAK-994")!;
+    expect(workingClaims(base, hero.compoundId)).toBe(hero.claims);
   });
 
   it("prefers the hand-curated fixture over the bundled corpus for TAK-994", () => {
     // TAK-994 exists in BOTH data/out/evidence.json and data/out/tak994.json. The
     // four call sites all preferred the fixture; the unified selector must keep
     // that precedence even though the two copies happen to agree today.
-    const claims = workingClaims(base, base.data.fixture.compoundId);
-    expect(claims).toBe(base.data.fixture.claims);
+    const hero = base.data.heroCases.get("TAK-994")!;
+    const claims = workingClaims(base, hero.compoundId);
+    expect(claims).toBe(hero.claims);
     expect(claims).not.toBe(base.data.claimsByCompound.get("TAK-994"));
   });
 
@@ -94,12 +96,12 @@ describe("workingClaims", () => {
   });
 
   it("never mutates the registered evidence", () => {
-    // data.claimsByCompound and data.fixture.claims are immutable exactly as
+    // data.claimsByCompound and every hero case's claims are immutable exactly as
     // data.ruleset is (§9). An overlay that wrote through would make Reset a lie
     // and would poison the library table via the map both surfaces share.
     const next = reducer(base, { type: "reclassifyClaim", claimId: MURINE, edit: { system: "human" } });
     void workingClaims(next, "TAK-994");
-    expect(base.data.fixture.claims.find((c) => c.id === MURINE)!.system).toBe("rodent");
+    expect(base.data.heroCases.get("TAK-994")!.claims!.find((c) => c.id === MURINE)!.system).toBe("rodent");
   });
 });
 

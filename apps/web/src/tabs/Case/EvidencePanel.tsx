@@ -11,7 +11,7 @@ export function EvidencePanel({ collapsed, onExpand }: { collapsed: boolean; onE
   const state = useAppState();
   const { data, asOf, selectedCompoundId, evidenceEdits } = state;
   const r = useCaseReasoning();
-  const isFixture = selectedCompoundId === data.fixture.compoundId;
+  const citationStatus = data.heroCases.get(selectedCompoundId)?.citationStatus ?? null;
   const claims = visibleClaims(workingClaims(state, selectedCompoundId), asOf);
   const stepFor = (id: string) => r.trace.find((s) => s.claimId === id);
 
@@ -37,9 +37,9 @@ export function EvidencePanel({ collapsed, onExpand }: { collapsed: boolean; onE
       {/* .caveat, not the 13px used for incidental captions. UNVERIFIED citations
           is a disclosure, and it was measured as the smallest text on the Case tab -
           the caveat least likely to survive a compressed share. */}
-      {isFixture && (
+      {citationStatus !== null && (
         <p data-testid="citation-status" data-anchor="evidence.citationStatus" className="caveat case-caveat">
-          Literature fixture · citations {data.fixture.citationStatus}
+          Literature fixture · citations {citationStatus}
         </p>
       )}
       <ul className="evidence-list">

@@ -108,7 +108,7 @@ describe("TablePanel - the request", () => {
     }
 
     const whole = JSON.stringify(input);
-    for (const c of data.fixture.claims) {
+    for (const c of data.heroCases.get("TAK-994")!.claims!) {
       expect(whole).not.toContain(c.provenance.source);
     }
     expect(whole).not.toContain("UNVERIFIED");

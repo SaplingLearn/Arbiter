@@ -3,6 +3,7 @@ import { evidenceSnapshot, recordHash } from "../src/record/chain.js";
 import { reason, type EvidenceClaim, type Reasoning } from "@arbiter/engine";
 import type { ReviewerPosition } from "../src/state/store.js";
 import { loadData } from "../src/data/load.js";
+import { CYCLOSPORINE } from "../src/data/heroCases.js";
 
 const claims = [
   { id: "b", assertion: "safe", strength: 0.5 },
@@ -59,7 +60,7 @@ function setAt(obj: unknown, path: string[], value: unknown): unknown {
 }
 
 describe("evidenceSnapshot binds the WHOLE claim, not a chosen tuple", () => {
-  const fixture = data.fixture.claims;
+  const fixture = data.heroCases.get("TAK-994")!.claims!;
   const ruleset = data.ruleset;
 
   /**
@@ -158,6 +159,7 @@ function makePosition(overrides: Partial<ReviewerPosition> = {}): ReviewerPositi
     reviewerId: "jack.he",
     displayName: "Jack He",
     role: "Safety reviewer",
+    compoundId: "TAK-994",
     position: "agree",
     rationale: "Looks consistent with the evidence on screen.",
     signedAt: "2026-07-28T00:00:00.000Z",
@@ -200,6 +202,7 @@ describe("recordHash", () => {
       reviewerId: "jack.he",
       displayName: "Jack He",
       role: "Safety reviewer",
+      compoundId: "TAK-994",
       position: "agree",
       rationale: "Same rationale.",
       signedAt: "2026-07-28T00:00:00.000Z",
@@ -218,6 +221,7 @@ describe("recordHash", () => {
       signedAt: "2026-07-28T00:00:00.000Z",
       rationale: "Same rationale.",
       position: "agree",
+      compoundId: "TAK-994",
       role: "Safety reviewer",
       displayName: "Jack He",
       reviewerId: "jack.he",
@@ -242,5 +246,19 @@ describe("recordHash", () => {
     expect(tamperedHashA).not.toBe(hashA);
     // B's stored prevRecordHash no longer matches the recomputed hash of (tampered) A.
     expect(b.prevRecordHash).not.toBe(tamperedHashA);
+  });
+
+  it("covers compoundId in the record hash", async () => {
+    const base: ReviewerPosition = {
+      reviewerId: "jack.he", displayName: "Jack He", role: "Safety reviewer",
+      position: "agree", rationale: null, signedAt: "2026-08-05T10:00:00.000Z",
+      rulesetHash: "a".repeat(64), evidenceSnapshotHash: "b".repeat(64),
+      asOfDate: null, signatureMethod: "demo-persona", prevRecordHash: "0".repeat(64),
+      compoundId: "TAK-994",
+    };
+    const tampered = { ...base, compoundId: CYCLOSPORINE };
+    // If compoundId were outside the canonical form, these would be equal and a
+    // reviewer's subject could be rewritten without breaking the chain.
+    expect(await recordHash(tampered)).not.toBe(await recordHash(base));
   });
 });

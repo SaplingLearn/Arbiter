@@ -42,22 +42,30 @@ test("the built artifact works opened from the filesystem, with no server", asyn
   expect(failures).toEqual([]);
 });
 
-test("all seven beats walk on the keyboard alone, from the filesystem", async ({ page }) => {
+test("all eight beats walk on the keyboard alone, from the filesystem", async ({ page }) => {
   // The plan's acceptance criterion is the walk on the ARTIFACT, not on localhost.
   // demo.spec.ts covers the served build; this is the one that matches the ZIP a
   // judge opens.
   await page.goto(`${artifact}#/case`);
 
   const seen: string[] = [];
-  for (let beat = 1; beat <= 7; beat++) {
-    const footer = await page.getByText(/Beat \d of 7/).textContent();
+  for (let beat = 1; beat <= 8; beat++) {
+    const footer = await page.getByText(/Beat \d of 8/).textContent();
     seen.push(footer ?? "");
-    expect(footer).toContain(`Beat ${beat} of 7`);
-    if (beat < 7) await page.keyboard.press("ArrowRight");
+    expect(footer).toContain(`Beat ${beat} of 8`);
+    if (beat === 7) {
+      // Beat n=6, "When it does commit", is the only beat that names the second
+      // hero case. If TourFooter's go() ever stopped dispatching selectCompound,
+      // this would still be rendering TAK-994's verdict (abstain) instead of
+      // switching to Cyclosporine, which commits. This is the assertion that
+      // catches that — the walk above only checks tabs, not verdicts.
+      await expect(page.getByTestId("verdict")).toContainText(/do not advance/i);
+    }
+    if (beat < 8) await page.keyboard.press("ArrowRight");
   }
 
-  // Seven DISTINCT beats, not the same one re-rendered seven times.
-  expect(new Set(seen).size).toBe(7);
+  // Eight DISTINCT beats, not the same one re-rendered eight times.
+  expect(new Set(seen).size).toBe(8);
   await expect(page).toHaveURL(/#\/validation/);
 });
 

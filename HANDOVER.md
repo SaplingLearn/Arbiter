@@ -3,6 +3,8 @@
 **Written 2026-07-28. Branch `arbiter-round1` merged to `main`.**
 **Updated 2026-07-29 for Phase 3 (branch `phase3`, 14 tasks). The Phase 3 record is
 §10 — read it with §3.3, which it corrects.**
+**Updated 2026-08-05 for the multi-case work (branch `multi-case-spec`, seven tasks). The
+record is §11.**
 Pfizer Digital & Technology Hackathon 2026, Round 1.
 Team: Jack He, Andres Lopez, Jose Cruz-Lopez.
 
@@ -38,7 +40,7 @@ npm ci
 npm run web:dev            # http://localhost:5173
 ```
 
-Keys: `→`/`←` step the seven demo beats, `M` motion kill switch, `?` pre-flight panel,
+Keys: `→`/`←` step the eight demo beats, `M` motion kill switch, `?` pre-flight panel,
 `Esc` clear focus.
 
 ### Verify everything
@@ -683,7 +685,7 @@ In dependency order:
    `single:transporter` exactly. If the deck's numbers and `metrics.json` disagree, the
    deck is wrong.
 3. **The recorded walkthrough.** Insurance against a live demo failing. `→` drives all
-   seven beats, so it needs no mouse and no hidden knowledge — any of the three of you
+   eight beats, so it needs no mouse and no hidden knowledge — any of the three of you
    can present it.
 4. **Rehearse, and do the Teams-share read (§3.4) during the first rehearsal.** That
    check is still outstanding and needs a person on a real call.
@@ -721,16 +723,21 @@ changing it after seeing results is exactly what pre-registration exists to prev
 
 If you change it: new version, new hash, written reason, and re-run everything.
 
-### 4.2 Two known minor test weaknesses
+### 4.2 One known minor test weakness, and one removed
 
 Recorded rather than silently fixed:
 
-- The "replaying the tour twice gives identical state" test is **tautological** — it
-  compares a computation to itself.
 - BEAT 5's belief-movement assertion checks transition *shape* rather than pinning the
   POST_MURINE claim.
 
-Neither is load-bearing. Both are honest to fix if you are in there.
+Not load-bearing. Honest to fix if you are in there.
+
+**Removed, 2026-08-05 (final multi-case review, §5.1):** the "replaying the tour twice
+gives identical state" test in `apps/web/test/beats.test.tsx` compared a computation to
+itself and could not fail under any implementation — it read as a determinism guard that
+was not one. The determinism property it gestured at is already covered by the engine's
+own determinism tests (`packages/engine`), so nothing was rescued into a replacement; the
+test was deleted outright rather than repaired.
 
 ### 4.3 `check-errors` in the pre-flight panel is untested
 
@@ -838,7 +845,7 @@ comments — read them before touching it:
    there is nothing for CORS to block.
 
 **The guard: `apps/web/e2e/static-file.spec.ts`** opens `dist/index.html` over `file://`
-and asserts the verdict renders, the stylesheet applied, Web Crypto works, all seven
+and asserts the verdict renders, the stylesheet applied, Web Crypto works, all eight
 beats walk, and nothing is requested over the network. With the plugin disabled it fails
 while every localhost test still passes. **That asymmetry is the point — do not delete
 this spec.**
@@ -1180,3 +1187,195 @@ Two more were promoted to findings and fixed above (§10.2, §10.3).
 **canonical-JSON** digest computed by `apps/harness/src/preregistration.ts`, not a raw-byte
 `sha256sum` of the file. Running `sha256sum rules/ruleset-v1.0.json` produces a different
 number and does not mean the ruleset has drifted.
+
+---
+
+## 11. Multi-case — the record, copied out of the gitignored ledger
+
+**Why this section exists.** Same reason as §10. Seven tasks ran through
+`.superpowers/sdd/2026-08-05-arbiter-multi-case/progress.md`, which is gitignored, and the
+plan for this work says explicitly: "HANDOVER §7 is explicit that conclusions living only in
+a gitignored ledger are lost; this plan is a tracked file but the *measurements* belong
+there." This is that copy, done as the work closed rather than found by a final review.
+
+### 11.1 What shipped
+
+The singular literature fixture became a **map of hero cases** (`LoadedData.heroCases`),
+keyed by `compoundId`, with `registeredClaims()` falling through from a fixture's own claims
+to the corpus by set membership rather than one hardcoded equality. TAK-994 is hero case 1,
+unchanged in substance. **Cyclosporine is hero case 2**, corpus-backed — it carries no claims
+of its own and resolves through the same `claimsByCompound` lookup the library table uses, so
+the Case tab and the Compounds table read one source and cannot disagree. The loader now
+**refuses to build** if a literature-fixture claim sets `exposureRelevant: true` without a
+cited `exposure` block (`cmax`, `basis`, `citation`) — the exposure gate that stands in for
+hero case 3, which is specified but not built (§11.6). `ReviewerPosition` and
+`canonicalRecord` both gained `compoundId`, so which compound a signed position is about is
+now inside the hash, not merely displayed beside it. The tour grew from seven beats to
+**eight**: beats gained a required `compoundId`, `TourFooter.go()` dispatches
+`selectCompound` before a beat's own actions when it differs from the current selection, and
+the new beat (n:6, between the record beat and the validation beat) narrates Cyclosporine.
+
+### 11.2 The measurements that drove the design
+
+These are the reusable part — they are why the work is shaped the way it is, not merely
+what got built.
+
+Measured across the 267-compound test split: **260 abstain / 7 do_not_advance / 0 advance.**
+TAK-994 abstains too. So the naive plan — author two more literature fixtures in the shape of
+the first — would have produced a demo that says *the same thing three times* and hands a
+judge the "you abstain on 97% of everything" objection on three screens instead of one. The
+second case had to show the engine doing something the first one does not.
+
+Cyclosporine does. Measured, all-evidence:
+
+| | TAK-994 | Cyclosporine |
+|---|---|---|
+| verdict | abstain | do_not_advance |
+| belief | 0.090 | **0.886** |
+| gap | **0.910** | 0.098 |
+| conflict mass | 0.000 | **0.122** |
+
+Cyclosporine is the only rendered case where conflict mass is non-zero and means something —
+Dempster–Shafer conflict is a headline concept in the architecture and no rendered case had
+ever exercised it before this work. The claim driving its verdict is `transporter:toxic`, and
+cyclosporine's real hepatotoxicity is BSEP-mediated, so the engine is right for the right
+reason.
+
+### 11.3 Two things measured false during design — recorded because §10 sets that precedent
+
+Both were inferred from stream polarity rather than read off a trace, and both were caught
+only by actually running the engine. The spec that shipped this work records both corrections
+in place rather than quietly fixing them, and this section carries them across for the same
+reason §10.5/§10.6 carried across the phase-3 misreadings: **an unverified claim spends
+credibility even when the surrounding work is sound.**
+
+- **"Cyclosporine's safe claim is defeated by its toxic claim" was false.** Nothing on
+  Cyclosporine is defeated. The `cytotox:safe` claim is admitted with its weight reduced to
+  15% (an R3 discount — outside the clinically relevant exposure range); the `qsar` claim is
+  **downweighted** by R4 (outside the model's applicability domain), not defeated; the
+  `transporter:toxic` claim is admitted unchallenged. The safe and toxic human streams
+  coexist and produce conflict mass — that is what makes the case interesting — but "a defeat
+  is visible" was the stated reason for choosing Cyclosporine, and it was wrong.
+- **"The demo never shows a defeat" was also false.** It was nearly written into the spec as
+  Cyclosporine's justification. Measured: TAK-994 at all-evidence carries **four R3 defeats**
+  once the murine study is visible — a positive finding at clinically relevant exposure
+  outranks a negative one whose exposure margin was never established. The claim is true only
+  of the pre-first-in-human pass (0 defeats, belief 0.000, gap 0.761), which is the as-of date
+  beat 2 actually runs at. Cyclosporine's real contribution is not "a defeat is finally
+  visible" — it is a *contested* case with non-zero conflict mass that *commits*, which
+  TAK-994 has never done at any as-of date.
+
+### 11.4 No test-split compound is both severe-DILI and defeat-bearing
+
+Scanning all 890 compounds for *severe DILI, contested, with a defeat in the trace* returns
+exactly four, and none is in the test split:
+
+| compound | split | verdict | belief | defeat |
+|---|---|---|---|---|
+| Troglitazone | train | do_not_advance | 0.890 | R2 |
+| Tolvaptan | train | do_not_advance | 0.886 | R2 |
+| Ritonavir | train | do_not_advance | 0.891 | R2 |
+| Posaconazole | calibration | do_not_advance | 0.886 | R2 |
+
+The three test-split compounds that *do* show a defeat (Mifepristone, Irbesartan, Glyburide)
+are all `vLess-DILI-concern`, numerically identical to each other, and widely-prescribed drugs
+on which a rendered `do_not_advance` reads badly to anyone who knows them — however correct
+it is under the registered binarisation policy. **The choice was forced: a visible defeat
+costs either a train-split disclosure or a bad-optics compound. There is no free option.**
+Troglitazone is recorded as the alternate, not a rejection — it is the canonical DILI
+withdrawal and does show the R2 defeat, but shipping it needs a rendered split-provenance
+badge, not a footnote, and was left for a future case.
+
+### 11.5 The as-of replay is inert on corpus evidence
+
+Every QSAR claim in the corpus carries `availableFrom: 2000-01-01`; every Tox21 claim carries
+`2010-01-01`. A corpus-backed hero case therefore has no two-pass story — there is no earlier
+date at which less evidence existed. This is a property of the streams, not a defect, and it
+is why **Cyclosporine has no as-of milestones**: the as-of bar renders the "All evidence"
+control alone and no milestone buttons for it, which is the correct behaviour for a case with
+nothing to hide at an earlier date, not a missing feature.
+
+### 11.6 Hero case 3 is specified but not built
+
+The `advance` slot — the strongest available answer to "your system abstains on 97% of
+cases" — is confirmed *reachable*: a hypothetical claim set of safe human evidence carrying
+`exposureRelevant: true` returns `advance` at belief 0.000, plausibility 0.014, gap 0.014.
+That is a statement about the engine, not evidence about any compound, and it must never be
+presented as one. Reaching it on a real compound needs a clinical Cmax, which is HANDOVER
+§3.1's data-acquisition problem, and **the 2 August data freeze has passed** — later than it
+was when §3.1 was written.
+
+Rather than restate the prohibition on faking it, the loader now makes it unrepresentable:
+`apps/web/src/data/load.ts` **throws `DataLoadError`** if any literature-fixture claim sets
+`exposureRelevant: true` while its document has no `exposure` block (`cmax`, `basis`,
+`citation`). This converts a discipline into a build failure — it cannot be forgotten under
+time pressure at 11pm on 14 August, and hero case 3 can drop in the day the data exists and
+cannot be faked before then. TAK-994's murine claim (the corpus's only pre-existing
+`exposureRelevant: true`) is `assertion: "toxic"`, so the gate is written against *safe*
+claims specifically and continues to load unchanged — asserted by a test, not by inspection.
+
+### 11.7 Zero reinstatements fire anywhere in the corpus
+
+60 of the 267 test-split compounds carry a defeated claim. Not one produces the reinstatement
+path in `argue.ts:119-133`. **That code is core product and no data in this project has ever
+exercised it.** Constructing evidence specifically to light it up was considered and rejected
+for this work — it is close to choosing the answer, and it was not attempted without a real
+compound behind it (spec §14).
+
+### 11.8 The plan deviation and its ruling
+
+Task 6's review raised two Important findings; one was a plan-mandated defect in the plan
+itself, and the controller ruled on it rather than deferring it.
+
+**The finding.** The plan's beat table specified `actions: []` on beats 1, 2, 3 and 5, which
+meant those beats inherited whatever as-of date the previous beat left behind — and
+inheritance is direction-dependent. The record beat (then beat 5) hashes `asOf` into the
+signed position via `Record.tsx`'s `visibleClaims(all, asOf)` and stores `asOfDate: asOf` on
+the position itself, so this reached into the hash-chained audit record, not just the
+display: walking the tour backward from the new Cyclosporine beat left the record beat's
+`asOf` at `null` (inherited from the beat ahead of it) instead of `postMurineStudy`, so the
+backward walk would have signed a different evidence snapshot than the forward walk signed on
+the same beat.
+
+**The ruling.** The plan had already made `compoundId` **required** on every beat specifically
+so that no beat inherits its subject. Permitting `asOf` to inherit on the one beat whose value
+is hashed into the audit log was internally inconsistent with that decision. Ruling: **fix
+it, deviating from the plan text** — the fix applies the plan's own stated principle
+(no inherited fields on a beat that gets hashed) consistently rather than selectively.
+
+**The fix**, in `apps/web/src/tour/beats.ts`: every beat now sets its own `setAsOf` action
+explicitly (beats 0-3 → the pre-first-in-human date, beats 4-5 → the post-murine date, beats
+6-7 → `null`). Forward playback is provably unchanged, since each beat's explicit date is
+exactly the date it used to inherit walking forward; only the backward path changes. Verified
+by reverting the record beat's `actions` to `[]` and re-running the new backward-walk test:
+`expected null to be '2023-01-01'`. Restoring the explicit action turned it green.
+
+**Widened beyond the reviewer's report.** The reviewer's finding named one beat. The fix
+covers five (beats 1-3 and 7 in addition to 5), because stepping back from the Cyclosporine
+beat to beat 3 left `postMurineStudy` set under a line that claims the pre-first-in-human
+state, and beat 7's own `actions: []` was the identical class of defect one step further —
+the identical defect in both cases, just not yet observed on those beats. Surfaced to the
+user in the task's final report rather than silently expanded.
+
+### 11.9 Deferred minor findings — real, and still open
+
+None load-bearing. All honest to fix if you are in the file.
+
+| # | task | finding |
+|---|---|---|
+| 1 | 1 | `CaseHeader` lost the comment explaining why TAK-994 is absent from DILIrank; the reasoning survives in `data/out/tak994.json`'s `excludedBecause`. |
+| 2 | 1 | `Preflight` prints hardcoded "fixture(s)" regardless of count. |
+| 3 | 1 (plan defect) | `task-1-brief`'s "Interfaces / Produces" line names a `buildHeroCases(raw, corpusIds)` helper its own Step 3/4 code does not build; inline construction in `loadData()` shipped instead. |
+| 4 | 2 | The "All evidence" click in `caseHeader.test.tsx` is inert for the assertion that follows it (milestones render regardless of `asOf`). Inherited from the brief. |
+| 5 | 4 | The exposure gate checks `hero.exposure !== null` for **presence** only, so a fixture could pass it with `{ cmax: 0, basis: "free", citation: "" }`. Plan-mandated; hardening `FixtureExposure`'s content is a future task. |
+| 6 | 4 | `exposureRelevant === null` is not directly exercised in `exposureGate.test.ts` (only `false`/`true`). Behaviour is correct; the real null→true transition is covered in practice by the Step 5 ablation. |
+| 7 | 5 | No test exercises `Record.tsx`'s own wiring — `sign()` populating `compoundId`, or the row rendering it. Outside the brief's stated test scope; verified by code read. |
+| 8 | 6 | `beats.ts` uses the bare literal `"TAK-994"` where `BOOT_CASE` exists; `asOfMilestones` is `Record<string,string>`, so a renamed key yields `undefined` silently. |
+| 9 | 6 | "Replaying the tour twice gives identical state" compares an expression to itself and cannot fail. Pre-existing, already recorded in §4.2 above. |
+| 10 | 6 | The new `describe` block re-parses the dataset (a shadowed `loadData`); "names a compound on every beat" is vacuous if beats were empty, guarded only indirectly. |
+| 11 | 7 | Importing `validate-evidence.ts` in a test prints its JSON summary to stdout — inherent to the load-bearing "check runs at import" property, benign, but the task report should have disclosed it and did not. |
+| 12 | 7 | `findLeakedFixtures`'s parameters shadow the module-scope consts of the same name. |
+
+The one Important finding besides §11.8 (Task 6, the About/HANDOVER beat-count text) is
+already folded into the shipped commits and this document's own beat-count references — not
+listed above because it left no open residue.
