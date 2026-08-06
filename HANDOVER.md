@@ -28,8 +28,14 @@ It is two things in one repo:
 - **A pure reasoning engine** (`packages/engine`) — Dempster–Shafer belief fusion plus
   defeasible argumentation over six pre-registered rules R1–R6. No clock, no
   randomness, no I/O. Deterministic to a single hash across 1000 runs.
-- **A five-tab web app** (`apps/web`) that runs that engine **in the browser** and
-  ships as one self-contained `index.html`.
+- **A six-tab web app** (`apps/web`) that runs that engine **in the browser** and
+  ships as one self-contained `index.html`. The tabs are About, Compounds, Case,
+  Ruleset, Validation, Record — `TAB_IDS` in `apps/web/src/router.ts` is the source
+  of truth, and the nav renders from it. **This said "five-tab" until 2026-08-06.**
+  The master spec designed five (Compounds · Case · Ruleset · Validation · Record);
+  About arrived later the same day this document was written, in 606356b on branch
+  `ui-redesign`, and the count here was never updated. The specs are right as of
+  their own dates — this line was not.
 
 Plus `apps/harness` (the benchmark runner) and `data/prep` (Python ingestion).
 
@@ -902,7 +908,8 @@ apps/harness/             Benchmark runner. Node only.
   src/metrics.ts          The five metrics, with their honesty caveats in comments
   src/coverage-report.ts  The working behind §2 (npm run coverage:report)
 
-apps/web/                 Five-tab app. Engine runs in the BROWSER.
+apps/web/                 Six-tab app. Engine runs in the BROWSER.
+  src/router.ts           TAB_IDS - the tab list's source of truth
   vite.config.ts          inlineEverything - read §6.1 before touching
   e2e/static-file.spec.ts The file:// guard. Do not delete.
   src/ui/Preflight.tsx    The ? panel: real checks, not captions
