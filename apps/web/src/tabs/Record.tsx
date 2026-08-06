@@ -18,7 +18,7 @@ const GENESIS = "0".repeat(64);
  */
 export function RecordTab() {
   const state = useAppState();
-  const { ruleset, asOf, selectedCompoundId, positions } = state;
+  const { data, ruleset, asOf, selectedCompoundId, positions } = state;
   const dispatch = useDispatch();
   const r = useCaseReasoning();
   const [name, setName] = useState("Jack He");
@@ -98,21 +98,33 @@ export function RecordTab() {
       </fieldset>
 
       <ol className="position-list">
-        {positions.map((p, i) => (
-          <li key={i} data-testid="position-row" data-anchor={recordPosition(i)} className="position-row">
-            <div>
-              <strong>{p.displayName}</strong> — {p.position}
-              {p.rationale ? ` · ${p.rationale}` : ""}
-            </div>
-            {/* Truncated on purpose: twelve hex characters is enough to compare two
-                entries by eye, and the full digest is in the exported record. */}
-            <div className="small muted">
-              {p.compoundId} · snapshot <span className="mono">{p.evidenceSnapshotHash.slice(0, 12)}</span>… ·
-              prev <span className="mono">{p.prevRecordHash.slice(0, 12)}</span>… ·
-              as of {p.asOfDate ?? "all evidence"} · {p.signatureMethod}
-            </div>
-          </li>
-        ))}
+        {positions.map((p, i) => {
+          // The HASHED value stays `p.compoundId` (an InChIKey) — this only picks what
+          // gets RENDERED beside it. The audit log is the one surface whose entire
+          // point is being readable by a later reviewer, so a bare
+          // "PMATZTZNYRCHOR-CGLBZJNRSA-N" here (while every other surface says
+          // "Cyclosporine") defeats that purpose. Hero case name first, then the
+          // corpus compound table, then fall back to the id itself.
+          const compoundLabel =
+            data.heroCases.get(p.compoundId)?.displayName ?? data.compounds.get(p.compoundId)?.name ?? p.compoundId;
+          return (
+            <li key={i} data-testid="position-row" data-anchor={recordPosition(i)} className="position-row">
+              <div>
+                <strong>{p.displayName}</strong> — {p.position}
+                {p.rationale ? ` · ${p.rationale}` : ""}
+              </div>
+              {/* Truncated on purpose: twelve hex characters is enough to compare two
+                  entries by eye, and the full digest is in the exported record. */}
+              <div className="small muted">
+                {compoundLabel}
+                {compoundLabel !== p.compoundId ? ` (${p.compoundId})` : ""} · snapshot{" "}
+                <span className="mono">{p.evidenceSnapshotHash.slice(0, 12)}</span>… ·
+                prev <span className="mono">{p.prevRecordHash.slice(0, 12)}</span>… ·
+                as of {p.asOfDate ?? "all evidence"} · {p.signatureMethod}
+              </div>
+            </li>
+          );
+        })}
       </ol>
 
       <hr className="rule" />

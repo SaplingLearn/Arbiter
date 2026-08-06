@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reason, reasonVerdictOnly } from "@arbiter/engine";
+import { reason } from "@arbiter/engine";
 import { buildBeats } from "../src/tour/beats.js";
 import { CYCLOSPORINE } from "../src/data/heroCases.js";
 import { initialState, reducer, visibleClaims, type AppState } from "../src/state/store.js";
@@ -80,11 +80,6 @@ describe("the eight beats", () => {
     }
   });
 
-  it("replaying the tour twice gives the identical state", () => {
-    expect(JSON.stringify(stateAtBeat(7).asOf)).toBe(JSON.stringify(stateAtBeat(7).asOf));
-    expect(reasonVerdictOnly(visibleClaims(data.heroCases.get("TAK-994")!.claims!, stateAtBeat(7).asOf), data.ruleset).verdict)
-      .toBe(reasonVerdictOnly(visibleClaims(data.heroCases.get("TAK-994")!.claims!, stateAtBeat(7).asOf), data.ruleset).verdict);
-  });
 });
 
 describe("beats carry a compound", () => {

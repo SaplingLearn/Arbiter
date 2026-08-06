@@ -1,8 +1,12 @@
+import { createElement } from "react";
+import { act, renderHook } from "@testing-library/react";
 import { reason } from "@arbiter/engine";
 import { describe, expect, it } from "vitest";
 import { loadData } from "../src/data/load.js";
 import { CYCLOSPORINE } from "../src/data/heroCases.js";
-import { initialState, workingClaims } from "../src/state/store.js";
+import { initialState, StoreProvider, useDispatch, workingClaims } from "../src/state/store.js";
+import { useCaseReasoning } from "../src/engine/useCaseReasoning.js";
+import { useLibraryVerdicts } from "../src/engine/useLibraryVerdicts.js";
 
 describe("hero cases", () => {
   const data = loadData();
@@ -49,18 +53,26 @@ describe("hero case 2 — Cyclosporine", () => {
   // THE test of this task. The Case tab and the Compounds table are different code
   // paths - useCaseReasoning vs useLibraryVerdicts - and the guarantee is that a
   // corpus-backed hero case cannot make them disagree. Comparing one selector to
-  // itself would prove nothing, so both are computed independently here.
+  // itself would prove nothing: because Cyclosporine carries `claims: null`,
+  // `workingClaims(...)` resolves to the SAME array reference as
+  // `data.claimsByCompound.get(...)`, so two direct `reason()` calls on those two
+  // expressions guard only that evidence-source fallback, not the two hooks. A
+  // regression inside `useLibraryVerdicts` (say, switching it to `workingClaims`,
+  // which would let one compound's evidence edit move a corpus statistic) would be
+  // invisible to that comparison. Routed instead through the REAL hooks, sharing
+  // one store, with a real `selectCompound` dispatch switching the Case tab onto
+  // Cyclosporine - not two calls to the same selector (design spec §11, test 2).
   it("shows the same verdict on the Case tab as in the library table", () => {
-    const viaCase = reason(
-      workingClaims(initialState(data), CYCLOSPORINE),
-      data.ruleset, "", data.assays,
-    );
-    const viaLibrary = reason(
-      data.claimsByCompound.get(CYCLOSPORINE)!,
-      data.ruleset, "", data.assays,
-    );
-    expect(viaCase.verdict).toBe(viaLibrary.verdict);
-    expect(viaCase.belief).toBe(viaLibrary.belief);
+    function useBoth() {
+      return { dispatch: useDispatch(), caseReasoning: useCaseReasoning(), library: useLibraryVerdicts() };
+    }
+    const { result } = renderHook(() => useBoth(), {
+      wrapper: ({ children }) => createElement(StoreProvider, { data, children }),
+    });
+
+    act(() => result.current.dispatch({ type: "selectCompound", compoundId: CYCLOSPORINE }));
+
+    expect(result.current.caseReasoning.verdict).toBe(result.current.library.get(CYCLOSPORINE)!.verdict);
   });
 
   it("commits, is contested, and carries non-zero conflict mass", () => {

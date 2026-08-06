@@ -239,25 +239,29 @@ milestone buttons. Cyclosporine has none, per §3.4.
 
 ## 8. The tour
 
-**One tour. Beats gain an optional `compoundId`.**
+**One tour. Beats gain a required `compoundId`.**
 
 ```ts
 export interface Beat {
   n: number;
   title: string;
   tab: TabId;
-  compoundId?: string;   // dispatched via selectCompound when it differs from current
+  compoundId: string;   // dispatched via selectCompound when it differs from current
   focus: Region | null;
   actions: Action[];
   line: string;
 }
 ```
 
-`TourFooter.go()` dispatches `selectCompound` before the beat's own actions when `compoundId` is present and
-differs. This is chosen over one-tour-per-drug and over a case picker because both are more machinery than a
-240-second demo needs, and because it closes a latent bug on the way: **no beat dispatches `selectCompound`
-today**, so clicking a library row and then pressing `→` narrates TAK-994's script over another compound's
-numbers.
+An optional field was tried and is wrong: with only the contrast beat naming a compound, pressing ← off it
+leaves Cyclosporine selected while the next beat back narrates TAK-994. Required means every beat states its
+subject and none inherits one, so the tour is correct from any entry point and in both directions.
+
+`TourFooter.go()` dispatches `selectCompound` before the beat's own actions when `compoundId` differs from the
+one currently selected. This is chosen over one-tour-per-drug and over a case picker because both are more
+machinery than a 240-second demo needs, and because it closes a latent bug on the way: **no beat dispatches
+`selectCompound` today**, so clicking a library row and then pressing `→` narrates TAK-994's script over
+another compound's numbers.
 
 `beats.ts:18-19` currently duplicates the fixture's milestone dates as module literals `PRE_FIH` and
 `POST_MURINE`. They are read from the hero case instead, so the tour and the as-of bar cannot drift apart.

@@ -550,16 +550,21 @@ changing it after seeing results is exactly what pre-registration exists to prev
 
 If you change it: new version, new hash, written reason, and re-run everything.
 
-### 4.2 Two known minor test weaknesses
+### 4.2 One known minor test weakness, and one removed
 
 Recorded rather than silently fixed:
 
-- The "replaying the tour twice gives identical state" test is **tautological** — it
-  compares a computation to itself.
 - BEAT 5's belief-movement assertion checks transition *shape* rather than pinning the
   POST_MURINE claim.
 
-Neither is load-bearing. Both are honest to fix if you are in there.
+Not load-bearing. Honest to fix if you are in there.
+
+**Removed, 2026-08-05 (final multi-case review, §5.1):** the "replaying the tour twice
+gives identical state" test in `apps/web/test/beats.test.tsx` compared a computation to
+itself and could not fail under any implementation — it read as a determinism guard that
+was not one. The determinism property it gestured at is already covered by the engine's
+own determinism tests (`packages/engine`), so nothing was rescued into a replacement; the
+test was deleted outright rather than repaired.
 
 ### 4.3 `check-errors` in the pre-flight panel is untested
 
@@ -667,7 +672,7 @@ comments — read them before touching it:
    there is nothing for CORS to block.
 
 **The guard: `apps/web/e2e/static-file.spec.ts`** opens `dist/index.html` over `file://`
-and asserts the verdict renders, the stylesheet applied, Web Crypto works, all seven
+and asserts the verdict renders, the stylesheet applied, Web Crypto works, all eight
 beats walk, and nothing is requested over the network. With the plugin disabled it fails
 while every localhost test still passes. **That asymmetry is the point — do not delete
 this spec.**
@@ -1170,10 +1175,11 @@ by reverting the record beat's `actions` to `[]` and re-running the new backward
 `expected null to be '2023-01-01'`. Restoring the explicit action turned it green.
 
 **Widened beyond the reviewer's report.** The reviewer's finding named one beat. The fix
-covers four (beats 1-3 in addition to 5), because stepping back from the Cyclosporine beat to
-beat 3 left `postMurineStudy` set under a line that claims the pre-first-in-human state — the
-identical class of defect, just not yet observed on those beats. Surfaced to the user in the
-task's final report rather than silently expanded.
+covers five (beats 1-3 and 7 in addition to 5), because stepping back from the Cyclosporine
+beat to beat 3 left `postMurineStudy` set under a line that claims the pre-first-in-human
+state, and beat 7's own `actions: []` was the identical class of defect one step further —
+the identical defect in both cases, just not yet observed on those beats. Surfaced to the
+user in the task's final report rather than silently expanded.
 
 ### 11.9 Deferred minor findings — real, and still open
 
