@@ -54,7 +54,7 @@ Each rule works twice: as a **defeat rule** in the argumentation graph, and as a
 
 The ruleset lives in `rules/ruleset-v1.0.json` and is hashed to `ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136`. **The harness refuses to run if the computed hash differs.** That is the whole methodological claim: no rule was tuned after seeing a result.
 
-### 2. A six-tab web app (`apps/web`)
+### 2. A seven-tab web app (`apps/web`)
 
 Runs that same engine **in the browser** and ships as one self-contained `index.html` that works over `file://`.
 
@@ -66,6 +66,7 @@ Runs that same engine **in the browser** and ships as one self-contained `index.
 | **Validation** | The benchmark, the baselines, and the honesty warnings |
 | **Record** | Positions, sign-off, and the hash-chained audit log |
 | **About** | Framing, scope, and what the numbers do and do not say |
+| **Intake** | Enter your own compound's evidence and see whether it could decide |
 
 An **eight-beat guided demo** (`→`/`←` to step) walks two hero cases: **TAK-994**, where the engine abstains and says exactly what evidence would change that, and **Cyclosporine**, where it commits to *do not advance* with non-zero Dempster–Shafer conflict mass, driven by a `transporter:toxic` claim — cyclosporine's real hepatotoxicity is BSEP-mediated, so the engine is right for the right reason.
 
@@ -162,11 +163,11 @@ CI runs all of it on every push. The whole block was executed on 2026-08-06 from
 | | |
 |---|---|
 | Lint / typecheck / `web:build` | clean |
-| Vitest | **552 tests across 55 files** |
+| Vitest | **623 tests across 60 files** |
 | Playwright | **12 tests** |
 | Pytest (`data/prep`) | **32 tests across 4 files** — run separately, see below |
 | `golden:update` | **no diff — no reported number has moved** |
-| Bundle | **1,152 kB raw / 199 kB gzipped**, one self-contained file |
+| Bundle | **1,164 kB raw / 202 kB gzipped**, one self-contained file |
 | Ruleset hash | `ed073a8a…` matches pre-registration |
 
 **On Windows, `golden:update` will make the golden file look modified when it is not** — the script writes LF, git's `autocrlf` rewrites to CRLF, and `git status` reports a modification with an empty `git diff`. Confirm it is nothing before hunting:
@@ -253,9 +254,11 @@ Note that `.superpowers/` is gitignored, so the SDD ledger and per-task review r
 |---|---|
 | Endpoint | Hepatotoxicity (DILI) only |
 | Engine | Complete; deterministic; ruleset hash `ed073a8a…` unchanged |
-| Web app | Six tabs, eight demo beats, two hero cases; ships as one self-contained `index.html` |
+| Web app | Seven tabs, eight demo beats, two hero cases; ships as one self-contained `index.html` |
 | Phases | 1 complete · 2 complete · 3 built except Surface 2 (specified, deliberately not built) · multi-case complete |
-| Verified | 2026-08-06 — lint, typecheck, build, 552 vitest, 12 Playwright, 32 pytest, golden all green (HANDOVER §8.2) |
+| Intake | Custom compounds — validation, advisor, and form built; CSV upload and AI extraction not (HANDOVER §12) |
+| Ablation | Aggregation, prompt and resume built and tested; no live run — needs a key and a provider decision |
+| Verified | 2026-08-06 — lint, typecheck, build, 623 vitest, 12 Playwright, 32 pytest, golden all green (HANDOVER §8.3) |
 | Open | LLM ablation specified but unimplemented; hero case 3 specified but not built; Cmax data is the constraint on the headline |
 
 Submission due 16 August 2026.

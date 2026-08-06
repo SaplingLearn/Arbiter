@@ -28,14 +28,20 @@ It is two things in one repo:
 - **A pure reasoning engine** (`packages/engine`) — Dempster–Shafer belief fusion plus
   defeasible argumentation over six pre-registered rules R1–R6. No clock, no
   randomness, no I/O. Deterministic to a single hash across 1000 runs.
-- **A six-tab web app** (`apps/web`) that runs that engine **in the browser** and
+- **A seven-tab web app** (`apps/web`) that runs that engine **in the browser** and
   ships as one self-contained `index.html`. The tabs are About, Compounds, Case,
-  Ruleset, Validation, Record — `TAB_IDS` in `apps/web/src/router.ts` is the source
-  of truth, and the nav renders from it. **This said "five-tab" until 2026-08-06.**
-  The master spec designed five (Compounds · Case · Ruleset · Validation · Record);
-  About arrived later the same day this document was written, in 606356b on branch
-  `ui-redesign`, and the count here was never updated. The specs are right as of
-  their own dates — this line was not.
+  Ruleset, Validation, Record, Intake — `TAB_IDS` in `apps/web/src/router.ts` is the
+  source of truth, and the nav renders from it. **This said "five-tab" until
+  2026-08-06.** The master spec designed five (Compounds · Case · Ruleset ·
+  Validation · Record); About arrived later the same day this document was written,
+  in 606356b on branch `ui-redesign`, and the count was never updated. Intake was
+  added 2026-08-06 (§12). The specs are right as of their own dates — that line was
+  not.
+
+  **Intake is the most cuttable surface in the app and is meant to be.** Removing it
+  from `TAB_IDS` is the whole of removing it from the nav; `TAB_LABEL` in `App.tsx`
+  is a total `Record<TabId, string>`, so the typecheck names the other end for you.
+  Nothing in the eight-beat demo touches it.
 
 Plus `apps/harness` (the benchmark runner) and `data/prep` (Python ingestion).
 
@@ -919,8 +925,10 @@ apps/harness/             Benchmark runner. Node only.
   src/metrics.ts          The five metrics, with their honesty caveats in comments
   src/coverage-report.ts  The working behind §2 (npm run coverage:report)
 
-apps/web/                 Six-tab app. Engine runs in the BROWSER.
+apps/web/                 Seven-tab app. Engine runs in the BROWSER.
   src/router.ts           TAB_IDS - the tab list's source of truth
+  src/intake/             Custom-compound validation + the reachability advisor
+  src/tabs/Intake.tsx     The intake form. Cuttable; see §0.
   vite.config.ts          inlineEverything - read §6.1 before touching
   e2e/static-file.spec.ts The file:// guard. Do not delete.
   src/ui/Preflight.tsx    The ? panel: real checks, not captions
@@ -989,6 +997,24 @@ recovery map — which is the same argument that keeps `data/out/` and `results/
 One untracked file left deliberately:
 `documents/Drug Induced Liver Injury Rank (DILIrank 2.0) Dataset FDA.xlsx`. Committing a
 data file is an owner's call, not mine.
+
+### 8.3 State after the ablation groundwork and intake (2026-08-06, later the same day)
+
+§8.2 recorded a sweep from `cde62f5`. Three commits landed after it — the ablation
+aggregation and prompt, the intake spec with its validation and advisor, and the intake
+UI — so its test and bundle figures are superseded. The rest of §8.2 still holds.
+
+| | |
+|---|---|
+| Tests | **623 vitest across 60 files; 12 Playwright** (was 552/55) |
+| Lint / typecheck / `web:build` | clean |
+| Bundle | **1,164 kB raw / 202 kB gzipped** (was 1,152 / 199) |
+| Ruleset hash | `ed073a8a…` unchanged; nothing under `rules/` or `results/` touched |
+| Tabs | seven — Intake added |
+
+The bundle grew 12 kB raw for the intake form. `golden:update` was **not** re-run, because
+none of this work reads or writes `results/` — that separation is the point of intake spec
+§6, and §12 records the test that enforces it.
 
 ### 8.2 State on branch `ablation-spec` with `main` merged in (2026-08-06)
 
@@ -1430,3 +1456,63 @@ None load-bearing. All honest to fix if you are in the file.
 The one Important finding besides §11.8 (Task 6, the About/HANDOVER beat-count text) is
 already folded into the shipped commits and this document's own beat-count references — not
 listed above because it left no open residue.
+
+---
+
+## 12. Custom compound intake — what shipped and what did not
+
+Specced in `docs/superpowers/specs/2026-08-06-arbiter-custom-compound-intake-design.md`.
+Build-order steps 1, 2 and 4 are done; step 3 (CSV/JSON upload) and step 5 (AI extraction)
+are not.
+
+**The reframe is the load-bearing part.** A user uploads evidence, not a molecule. Given a
+structure alone the pipeline can manufacture one QSAR claim, R2 discounts it to 6% or 1%,
+and the ceiling is 0.01 against a bar of 0.5 — so a "paste a SMILES" form would abstain on
+everything, correctly, and look broken doing it. That is the same situation 140 corpus
+compounds are already in.
+
+**Two guards are enforced in the reducer, not in the form.** `addCustomCompound` refuses a
+compound id colliding with the corpus or a hero case, refuses an empty claim set, and
+refuses claims filed under a different compound. A form-only check is one a second call site
+can skip. `workingClaims` additionally resolves bundled claims FIRST, so a custom compound
+cannot shadow the demo path however its id is spelled — the guard refuses the collision at
+the door, and the resolution order makes the door redundant.
+
+**Custom compounds are invisible to anything corpus-shaped.** They live in `AppState`, not
+`LoadedData`, so `useLibraryVerdicts` and the 267-row table cannot see them. This is §9.1's
+polarity extended: registered is the default, working is the opt-in.
+
+**The advisor answers "could this ever commit" before any confidence value is read**, reusing
+the ceiling argument §2 already makes for 254 of the 260 declines. A user entering three weak
+claims is told why *before* being disappointed rather than after.
+
+### 12.1 Three things found during the build
+
+- **The intake spec's first draft said the exposure gate applies to every claim. It does
+  not.** `assertExposureBacked` gates SAFE claims only, and the asymmetry *is* R3 — a toxic
+  finding needs no margin to be defensible. Applying it symmetrically would reject legitimate
+  toxic evidence and misstate the rule in code. Corrected in spec §4.2.
+- **A test passed against a deliberately broken implementation.** The advisor's corpus sweep
+  did not catch a ceiling scaled by stated strength, because every committing compound
+  commits at a strength high enough to clear the bar anyway. Replaced with a case that does
+  catch it: a full-confidence ceiling of 1.0 at stated strength 0.4 must read as
+  *reachable-but-not-yet*, never *give up*. Same lesson as §10.5 — a test that cannot fail is
+  worse than no test, and the only way to know is to break the code and watch.
+- **`validateIntake` reported only zod's first issue**, which hid the defect under test more
+  than once: whichever issue zod happened to order first was the only one visible. It now
+  reports every issue, which is also the better form behaviour.
+
+### 12.2 What is deliberately absent
+
+**No QSAR claim is generated for a custom compound.** `qsar_stream.py:123` fits the
+classifier in-process and never persists it, so scoring an unseen molecule would need the
+model and the conformal threshold serialised, plus a real applicability-domain
+determination. Given R2 discounts that stream to 6% or 1% anyway, losing it costs a user
+almost nothing — **but the UI does not say so yet, and it should.** An absent stream a user
+cannot see is the kind of silent gap §6.4 keeps warning about.
+
+**Nothing is persisted.** Intake is session-local and disappears on reload. That is spec §2,
+not an oversight.
+
+**Nothing here is on the critical path.** §3's list is unchanged, the eight-beat demo does not
+touch Intake, and the tab is one line in `TAB_IDS` away from not existing.

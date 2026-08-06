@@ -1,4 +1,10 @@
-export const TAB_IDS = ["about", "compounds", "case", "ruleset", "validation", "record"] as const;
+/**
+ * `intake` is last on purpose: it is the newest surface and the most cuttable.
+ * Removing it from this array is the whole of removing it from the app - the nav
+ * renders from here and `TAB_LABEL` in App.tsx is a total Record, so the
+ * typecheck names the other end for you.
+ */
+export const TAB_IDS = ["about", "compounds", "case", "ruleset", "validation", "record", "intake"] as const;
 export type TabId = (typeof TAB_IDS)[number];
 
 /**

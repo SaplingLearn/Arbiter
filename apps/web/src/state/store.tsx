@@ -104,6 +104,22 @@ export interface AppState {
    * the next statement (spec section 8).
    */
   pendingAnchor: string | null;
+  /**
+   * Compounds a user entered themselves, keyed by compound id. SESSION-LOCAL and
+   * deliberately so (intake spec §6).
+   *
+   * They live in state rather than in `LoadedData` because `LoadedData` is the
+   * bundled, pre-registered corpus and this is not that. The consequence that
+   * matters is a polarity, the same one §9.1 already draws for evidence edits:
+   * `useLibraryVerdicts` and everything else corpus-shaped reads
+   * `data.claimsByCompound` directly and therefore CANNOT see a custom compound.
+   * Only `workingClaims` resolves them, and calling it is the opt-in.
+   *
+   * A custom compound reaching `results/` or the 267-row library table would
+   * contaminate reported numbers invisibly - the same failure `findLeakedFixtures`
+   * exists to catch from a different source.
+   */
+  customCompounds: Record<string, EvidenceClaim[]>;
 }
 
 export type Action =
@@ -118,7 +134,8 @@ export type Action =
   | { type: "setFocus"; focus: Region | null }
   | { type: "addPosition"; position: ReviewerPosition }
   | { type: "toggleMotion" }
-  | { type: "setPendingAnchor"; anchorId: string | null };
+  | { type: "setPendingAnchor"; anchorId: string | null }
+  | { type: "addCustomCompound"; compoundId: string; claims: EvidenceClaim[] };
 
 export function initialState(
   data: LoadedData,
@@ -134,6 +151,7 @@ export function initialState(
     positions: [],
     motion: true,
     pendingAnchor: null,
+    customCompounds: {},
   };
 }
 
@@ -207,8 +225,22 @@ function findClaim(data: LoadedData, claimId: string): EvidenceClaim | null {
  * The untouched array is returned BY REFERENCE so `useCaseReasoning`'s memo holds
  * across unrelated actions.
  */
+/**
+ * Bundled claims if there are any, otherwise a custom compound's.
+ *
+ * BUNDLED WINS, deliberately. A custom compound therefore cannot shadow a hero
+ * case or a corpus compound however its id is spelled, which makes the demo path
+ * unreachable from intake by construction rather than by the reducer's guard
+ * alone. The guard refuses the collision at the door; this makes the door
+ * redundant.
+ */
+function resolveClaims(state: AppState, compoundId: string): EvidenceClaim[] {
+  const bundled = registeredClaims(state.data, compoundId);
+  return bundled.length > 0 ? bundled : (state.customCompounds[compoundId] ?? []);
+}
+
 export function workingClaims(state: AppState, compoundId: string): EvidenceClaim[] {
-  const registered = registeredClaims(state.data, compoundId);
+  const registered = resolveClaims(state, compoundId);
   let touched = false;
   const out = registered.map((c) => {
     const edit = state.evidenceEdits[c.id];
@@ -317,6 +349,22 @@ export function reducer(s: AppState, a: Action): AppState {
     // Presentational, like setFocus. The hash is still what switches the tab -
     // this only records what to do once it has.
     case "setPendingAnchor": return { ...s, pendingAnchor: a.anchorId };
+
+    case "addCustomCompound": {
+      // Intake spec §6, enforced HERE rather than in the form. A form-only check
+      // is a check a second call site can skip; the reducer is the one path every
+      // caller goes through. Refusing the transition is the reducer's equivalent
+      // of throwing, exactly as reclassifyClaim refuses an invalid merge.
+      const id = a.compoundId.trim();
+      if (id === "") return s;
+      if (registeredClaims(s.data, id).length > 0) return s;
+      if (s.data.compounds.has(id)) return s;
+      if (a.claims.length === 0) return s;
+      // Every claim must be about the compound it is filed under, or the Record
+      // tab would hash a position against evidence carrying a different id.
+      if (a.claims.some((c) => c.compoundId !== id)) return s;
+      return { ...s, customCompounds: { ...s.customCompounds, [id]: a.claims } };
+    }
   }
 }
 

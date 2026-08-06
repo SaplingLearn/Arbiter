@@ -40,8 +40,13 @@ export function validateIntake(raw: unknown[], exposure: ExposureCitation | null
   raw.forEach((r, i) => {
     const parsed = EvidenceClaimSchema.safeParse(r);
     if (!parsed.success) {
-      const issue = parsed.error.issues[0];
-      errors.push(`claim ${i + 1}: ${issue?.path.join(".") || "(root)"}: ${issue?.message ?? "invalid"}`);
+      // EVERY issue, not just the first. Reporting one at a time makes a user fix
+      // a field, resubmit, and be told about the next one - and it hid the defect
+      // under test here more than once, because whichever issue zod happened to
+      // order first was the only one anybody saw.
+      for (const issue of parsed.error.issues) {
+        errors.push(`claim ${i + 1}: ${issue.path.join(".") || "(root)"}: ${issue.message}`);
+      }
       return;
     }
     const claim = parsed.data as EvidenceClaim;

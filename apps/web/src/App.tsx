@@ -8,6 +8,7 @@ import { CompoundsTab } from "./tabs/Compounds.js";
 import { RulesetTab } from "./tabs/Ruleset.js";
 import { ValidationTab } from "./tabs/Validation.js";
 import { RecordTab } from "./tabs/Record.js";
+import { IntakeTab } from "./tabs/Intake.js";
 import { TourFooter } from "./tour/TourFooter.js";
 import { NavigatorBar } from "./ai/NavigatorBar.js";
 import { useAnchorScroll } from "./ai/useAnchorScroll.js";
@@ -50,6 +51,7 @@ const TAB_LABEL: Record<TabId, string> = {
   ruleset: "Ruleset",
   validation: "Validation",
   record: "Record",
+  intake: "Intake",
 };
 
 function AppShell({ tab }: { tab: TabId }) {
@@ -118,6 +120,7 @@ function AppShell({ tab }: { tab: TabId }) {
             : tab === "compounds" ? <CompoundsTab />
             : tab === "ruleset" ? <RulesetTab />
             : tab === "validation" ? <ValidationTab />
+            : tab === "intake" ? <IntakeTab />
             : <RecordTab />}
         </div>
       </main>
