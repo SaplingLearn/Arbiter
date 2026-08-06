@@ -52,7 +52,7 @@ Keys: `→`/`←` step the eight demo beats, `M` motion kill switch, `?` pre-fli
 ### Verify everything
 
 ```bash
-npm run lint && npm run typecheck && npm test      # 513 tests, 52 files
+npm run lint && npm run typecheck && npm test      # 552 tests, 55 files
 npm run web:build && npm run e2e                   # 12 Playwright tests
 npm run golden:update && git diff --exit-code results/   # must produce NO diff
 ```
@@ -69,6 +69,13 @@ path deliberately unresolvable is `progress.md`, for the reason in §7.
 **513** vitest tests across 52 files, **12** Playwright tests, `golden:update` still produces
 no diff — Phase 3 moved no reported number. The Python side is untouched by Phase 3 and was
 not re-run.
+
+**Re-run on 2026-08-06 from `cde62f5` on branch `ablation-spec`, with `main` merged in:** the
+whole block above was executed. Lint clean, typecheck clean, `web:build` clean, **552** vitest
+tests across 55 files, **12** Playwright tests, `golden:update` still produces no diff — the
+multi-case merge moved no reported number either. Full table in §8.2. **The Python side was
+again not re-run**, so the 32-test figure above is still the 2026-07-28 measurement and nothing
+newer; `data/prep/` is untouched since.
 
 If a command here fails for you, it is drift since that date, not a typo — say so in this
 file when you fix it.
@@ -978,6 +985,33 @@ recovery map — which is the same argument that keeps `data/out/` and `results/
 One untracked file left deliberately:
 `documents/Drug Induced Liver Injury Rank (DILIrank 2.0) Dataset FDA.xlsx`. Committing a
 data file is an owner's call, not mine.
+
+### 8.2 State on branch `ablation-spec` with `main` merged in (2026-08-06)
+
+**The whole sweep in §0 was executed on 2026-08-06**, from commit `cde62f5`, after merging
+`origin/main` (the multi-case work, PR #16) into `ablation-spec`. Every row below was
+observed, not carried forward from §8.1.
+
+| | |
+|---|---|
+| Tests | **552 vitest across 55 files; 12 Playwright** |
+| Lint | clean |
+| Typecheck | clean |
+| `web:build` | clean, one self-contained file |
+| `golden:update` | **produces no diff — the multi-case merge moved no reported number** |
+| Bundle | **1,152 kB raw / 199 kB gzipped** (`dist/index.html`, 102 modules) |
+| Ruleset hash | `ed073a8a…` unchanged; `rules/ruleset-v1.0.json` untouched |
+| Phase | 1 complete, 2 complete, 3 built except Surface 2, multi-case complete |
+
+The bundle grew 8 kB raw over §8.1 and gzips to the same 199 kB — the multi-case work added
+a second hero case and an eighth beat, not a new dependency.
+
+**The `golden:update` row was confirmed against the Windows CRLF trap, not merely observed.**
+`git diff --exit-code results/` exited 0 while `git status` reported
+`M results/golden/metrics.golden.json` — precisely the phantom §0 warns about. Both sides
+hash to `fcc5cb987d5263f4cc0a266c253beaf0827ef2c09740cef3ed7bd82453192fb3`, so nothing moved.
+Recorded because §0 predicts this and a future reader should see the prediction confirmed
+rather than wonder whether the row was checked properly.
 
 ---
 

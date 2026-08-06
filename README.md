@@ -157,7 +157,18 @@ npm run web:build && npm run e2e
 npm run golden:update && git diff --exit-code results/   # must produce NO diff
 ```
 
-CI runs all of it on every push. As of 2026-08-06 the test suite is **552 vitest tests across 55 files**, and typecheck is clean.
+CI runs all of it on every push. The whole block was executed on 2026-08-06 from `cde62f5`:
+
+| | |
+|---|---|
+| Lint / typecheck / `web:build` | clean |
+| Vitest | **552 tests across 55 files** |
+| Playwright | **12 tests** |
+| `golden:update` | **no diff — no reported number has moved** |
+| Bundle | **1,152 kB raw / 199 kB gzipped**, one self-contained file |
+| Ruleset hash | `ed073a8a…` matches pre-registration |
+
+The Python suite is not part of that sweep and was last measured 2026-07-28 (32 tests). See below.
 
 **On Windows, `golden:update` will make the golden file look modified when it is not** — the script writes LF, git's `autocrlf` rewrites to CRLF, and `git status` reports a modification with an empty `git diff`. Confirm it is nothing before hunting:
 
@@ -243,6 +254,7 @@ Note that `.superpowers/` is gitignored, so the SDD ledger and per-task review r
 | Engine | Complete; deterministic; ruleset hash `ed073a8a…` unchanged |
 | Web app | Six tabs, eight demo beats, two hero cases; ships as one self-contained `index.html` |
 | Phases | 1 complete · 2 complete · 3 built except Surface 2 (specified, deliberately not built) · multi-case complete |
+| Verified | 2026-08-06 — lint, typecheck, build, 552 vitest, 12 Playwright, golden all green (HANDOVER §8.2) |
 | Open | LLM ablation specified but unimplemented; hero case 3 specified but not built; Cmax data is the constraint on the headline |
 
 Submission due 16 August 2026.
