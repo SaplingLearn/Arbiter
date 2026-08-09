@@ -214,6 +214,67 @@ Both are stated, separately. *"Cholestatic mechanism present; at 150 mg/day with
 margin and a reversible pattern, not disqualifying"* is useful. *"Do not advance"* about
 irbesartan is not.
 
+### 3.5 The web application — a new app, not a conversion
+
+**`apps/web` is replaced rather than migrated.** This is not a redesign of screens; the
+program is a different kind of program.
+
+Today's app is a **viewer for an engine running in the browser**, with its data compiled
+into the bundle — which is exactly why it can ship as one self-contained `index.html`.
+The redesign is a **client for a multi-user service**: documents live server-side,
+positions are submitted and locked, other participants' answers appear on reveal,
+adjudication runs remotely. The screens change because the workflow changed.
+
+**Built alongside, not in place.** The existing app keeps running untouched until the
+replacement is complete. Converting in place produces a long stretch where neither
+works, and the old app is the only working demonstration that exists.
+
+#### What carries over
+
+The expensive parts, which is most of the accumulated work: **design tokens and CSS,
+component primitives, the motion system and its kill switch, the accessibility work, the
+error boundaries**, and — most valuable — **the signing and hash-chain code
+(`record/chain.ts`)**, which is independent of who reasons and needs no change.
+`packages/engine` carries over as the consistency harness (§7.1).
+
+#### What does not
+
+| tab | why |
+|---|---|
+| **Case** | Built around browser-side reasoning over bundled claims. That flow no longer exists. |
+| **Compounds** | A 267-row table of the corpus being replaced. |
+| **Validation** | Displays the metrics §0 retired. |
+| **Ruleset** | Live per-session rule editing, removed by §5.2. |
+| **Intake** | Hand-entered claims, replaced by document upload. |
+| **The eight-beat tour** | Tied to the old hero cases and the old flow. |
+
+#### The screens
+
+Seven, and they are a **sequence** rather than a set of views. The workflow *is* the
+information architecture:
+
+```
+  login
+    |
+  cases            which are open, which need your position
+    |
+  documents        upload, extraction status, approve the findings
+    |
+  inventory        present / absent / inconclusive. neutral, unranked.
+    |              everyone reads this BEFORE answering (section 3.1)
+  your position    your call, your reasoning, checkboxes for what you
+    |              cite. LOCKS on submit; you cannot see anyone else.
+  reveal           every position, once all participants have submitted
+    |
+  verdict          the AI's reasoning, which arguments held and why,
+    |              the crux, the experiment that would settle it
+  sign             one named person. hash-chained.
+```
+
+The linearity is a feature. Seven tabs presented seven parallel views and left the order
+to the reader; this presents one path with a defined order, and the order is what §3.1
+exists to protect.
+
 ---
 
 ## 4. Data
@@ -548,6 +609,61 @@ Feed the approval-package documents, ask for a verdict, compare against §4.5's 
 **Both directions are mandatory.** A one-sided replay measures only willingness to say
 "danger".
 
+### 7.2a Falsifiability — the prompt is a model parameter
+
+**The trap this section exists to close:** with an AI decider, every wrong answer can be
+attributed to the prompt. Tweak, rerun, get a better number, declare success — and the
+prompt has now been fitted to the test set. That is the same leakage
+`test_qsar_leakage.py` already guards for the QSAR model, moved from weights to wording.
+**Once the prompt is understood as a model parameter, the discipline is one this project
+already has.**
+
+Six mechanisms, all of which must be in place before the first reported run.
+
+**1. A held-out split, sealed.** Each group in §4.5 divides into development and
+held-out cases. Prompt iteration happens against development only. **Held-out cases run
+exactly once, after the prompt is frozen.** A large development-to-held-out gap is not a
+disappointment to be explained — it *is* the measurement that the prompt was overfitted.
+
+**2. The prompt is versioned and hashed.** Every change mints a version. Every reported
+number names the version that produced it. **No result may be reported from a prompt
+edited after that result was seen.** Identical rule to `rules/ruleset-v1.0.json`,
+identical reason, and enforced the same way: the harness records the prompt hash beside
+every verdict.
+
+**3. Thresholds are pre-committed, in git, before the first run.** Maximum flip rate,
+maximum group 1 misses, maximum group 2 false alarms, maximum group 3 false alarms —
+written down and committed with a timestamp. A result then clears the bar or it does
+not, and there is nothing to negotiate afterwards.
+
+**4. The reasoning is graded, not only the verdict.** With ten to fifteen cases,
+verdict-only scoring is close to meaningless — chance alone reaches 70%. Because the
+model must cite findings and address every registered rule, **whether it flagged for a
+defensible reason is checkable.** Troglitazone flagged on an irrelevant citation is
+**scored as a failure, not a pass.** Right-for-the-wrong-reason is precisely the failure
+mode that survives prompt-tweaking, because tweaking teaches a model to say the right
+words without reasoning better.
+
+**5. All three groups are reported from the same prompt version, always.** Never a group
+in isolation. A change that improves group 1 and degrades group 2 has not made the system
+smarter — **it has made it more trigger-happy, which is the defect §0 found in the
+original engine.** Joint reporting surfaces that immediately.
+
+**6. Iteration is bounded and logged.** A fixed budget of prompt revisions against the
+development set, each recorded with its result. Unbounded iteration is the mechanism by
+which the system turns unfalsifiable, and a visible revision count is what prevents it.
+
+**What distinguishes a prompt defect from a design defect**, decided in advance so the
+question is not settled by whoever is most invested:
+
+| | |
+|---|---|
+| **Prompt defect** | The model had the information and reasoned poorly, or misread the output contract. Fixable within budget. |
+| **Design defect** | The model lacked the information to answer at all (§4.2), or answers the same case differently across runs (§7.1), or reaches correct verdicts on incorrect reasoning (mechanism 4). **Not fixable by wording.** |
+
+**§7.1's flip rate is structurally immune to this trap** — if one prompt gives one case
+two answers, no rewording addresses it. That is why it is measured first.
+
 ### 7.3 Recoverability
 
 Binary and demonstrable: select any signed position, reconstruct the evidence, the
@@ -570,25 +686,22 @@ unsound is more credible than one that shipped the number.
 | **3** | **The inventory** — present / absent / inconclusive, flat and unranked | §3.1's "before" half. Small, and it is the honest half of the product. |
 | **4** | **Backend and accounts** — Postgres, identity, document storage, the API | Blocking for anything multi-party. Runs in parallel with 2–3; shares no code with them. |
 | **5** | **AI adjudication** — verdict, severity, per-rule disclosure, citations, deterministic verification, §6.6's unanimity check | The product. |
-| **6** | **Blind deliberation** — submit, lock, reveal, adjudicate, sign | Needs 4 and 5. |
-| **7** | **Cited positions** — positions cite findings; unsupported ones are labelled | Small once 6 exists. The beat group 3 was assembled for. |
-| **8** | **Consistency harness** — flip-rate over repeated runs | Must land before any presentation quotes a number. |
-| **9** | **The three groups** — assemble and replay. Group 2 free, group 3 a category-E filter, group 1 manual document collection | Slow, highest evidential value. Start collecting during 2–5. |
+| **6** | **The consistency probe** — one case, twenty runs, count the disagreements | **Moved up deliberately.** An hour's work the day adjudication first runs. It is the one result that can invalidate the architecture rather than the prompt (§7.2a), so it must not sit behind six phases built on the assumption that it passes. |
+| **7** | **Falsifiability scaffolding** — held-out split sealed, prompt versioning and hashing, thresholds committed | §7.2a. Must precede any reported number, so it precedes phase 9. |
+| **8** | **Blind deliberation** — submit, lock, reveal, adjudicate, sign; positions cite findings and unsupported ones are labelled | Needs 4 and 5. Carries the beat group 3 was assembled for. |
+| **9** | **The three groups** — assemble and replay. Group 2 free, group 3 a category-E filter, group 1 document collection from approval packages | Highest evidential value. Start collecting during 2–5. |
 | **10** | **Rule proposal and versioning** | Last: the only phase with no consumer waiting on it. |
 
-**Two tracks, deliberately.** Phases 2–3 and 5 are AI work; phase 4 is backend work.
-They share nothing and should run in parallel.
+**Two tracks, deliberately.** Phases 2–3 and 5 are AI work; phase 4 is backend work and
+the new app. They share nothing and run in parallel.
 
-**Timeline honesty.** Submission is 16 August; this is written on 9 August. Phases 1–3
-plus a partial 5 are a realistic seven days if nothing else competes, and that is already
-optimistic with phase 4 in the same window. **Phases 6–10 are after.** This is the plan
-for the product, not the submission. What ships on the 16th is a subset, described as a
-subset.
+**Sequencing constraints that are real**, as distinct from preference:
 
-**If the blind deliberation must be shown on the 16th**, the honest shortcut is one
-screen with several accounts submitting in turn. It demonstrates blind submission,
-reveal, adjudication and cited positions completely — it just does not demonstrate three
-people at three desks. Say which one is being shown.
+- **1 before everything.** The target cannot move after a score has been seen.
+- **6 immediately after 5.** §7.2a — find out whether the approach is stable before
+  building on it.
+- **7 before 9.** No number is reported without the scaffolding that makes it falsifiable.
+- **4 before 8.** Blind submission needs somewhere to lock a position.
 
 ---
 
@@ -622,3 +735,10 @@ people at three desks. Say which one is being shown.
    judgments after.
 9. **Dissent is never deleted, and no headcount decides anything.** §6.4, §6.5. One named
    person signs.
+10. **No number is reported from a prompt version edited after that number was seen.**
+    §7.2a. The prompt is a model parameter; tuning it against the test set is leakage.
+11. **Held-out cases are run once.** A second run against a revised prompt makes them
+    development cases permanently, and they cannot be restored.
+12. **A correct verdict on incorrect reasoning is scored as a failure.** §7.2a. It is the
+    failure mode that survives prompt-tweaking, and verdict-only scoring records it as a
+    success.
