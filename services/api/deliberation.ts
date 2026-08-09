@@ -130,8 +130,17 @@ export function openCase(init: {
   ownerId: string;
   participantIds: string[];
 }): DeliberationCase {
+  // Built field by field, NOT by spreading `init`. Spreading looked equivalent and
+  // was not: callers pass a wider object (the service passes findings and a
+  // timestamp alongside), TypeScript's excess-property check does not fire through a
+  // spread, and the case silently carried fields its own type does not declare -
+  // out over the API and into the persisted snapshot. A type that disagrees with the
+  // value it describes is worse than no type.
   return {
-    ...init,
+    caseId: init.caseId,
+    compoundLabel: init.compoundLabel,
+    context: init.context,
+    ownerId: init.ownerId,
     // Deduplicated and sorted: a participant listed twice would make "all have
     // submitted" unreachable, and the case would never lock.
     participantIds: [...new Set(init.participantIds)].sort(),

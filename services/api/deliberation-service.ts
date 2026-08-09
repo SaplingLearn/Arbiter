@@ -43,9 +43,15 @@ export class DeliberationService {
     const c = openCase(init);
     this.store.append({
       at: init.at, kind: "case_opened", caseId: c.caseId, actorId: c.ownerId,
+      // The findings go in WHOLE, not as a list of ids. They are published to every
+      // participant anyway - the inventory is built from them - so nothing is
+      // disclosed here that the blind phase protects, and it is what lets a case
+      // survive a restart. Storing ids only looked tidier and was a defect: on
+      // reload the service would have had no findings, every citation would have
+      // failed as unknown, and the failure would have looked like the participant's.
       payload: {
         compoundLabel: c.compoundLabel, context: c.context,
-        participantIds: c.participantIds, findingIds: init.findings.map((f) => f.id).sort(),
+        participantIds: c.participantIds, findings: init.findings,
       },
     });
 
@@ -68,6 +74,23 @@ export class DeliberationService {
   private readonly findings = new Map<string, CoveringFinding[]>();
   private readonly inventories = new Map<string, Inventory>();
 
+  /**
+   * The case's findings, recovered from the log when this process did not open it.
+   *
+   * The log is the record and the maps above are a cache, so a cache miss reads
+   * back rather than returning empty. Returning empty is what a restart used to do,
+   * and it turned every citation into `unknown_finding_id` - an error that names
+   * the participant for a fault that was the server's.
+   */
+  private findingsOf(caseId: string): CoveringFinding[] {
+    const cached = this.findings.get(caseId);
+    if (cached !== undefined) return cached;
+    const opened = this.store.entries(caseId).find((e) => e.kind === "case_opened");
+    const recovered = ((opened?.payload as { findings?: CoveringFinding[] } | undefined)?.findings) ?? [];
+    this.findings.set(caseId, recovered);
+    return recovered;
+  }
+
   /** The inventory as published. Never recomputed - see `open`. */
   inventory(caseId: string): Inventory | null {
     const cached = this.inventories.get(caseId);
@@ -80,7 +103,7 @@ export class DeliberationService {
     const c = this.store.getCase(caseId);
     if (c === null) return { ok: false, error: { kind: "not_open", detail: `No case ${caseId}.` } };
 
-    const known = new Set((this.findings.get(caseId) ?? []).map((f) => f.id));
+    const known = new Set(this.findingsOf(caseId).map((f) => f.id));
     const next = submitPosition(c, p, known);
     if (!next.ok) return next;
 
@@ -135,7 +158,7 @@ export class DeliberationService {
       compoundLabel: c.compoundLabel,
       context: c.context,
       rules,
-      findings: (this.findings.get(caseId) ?? []).map((f) => ({
+      findings: this.findingsOf(caseId).map((f) => ({
         id: f.id, label: f.label, assertion: f.assertion, detail: f.detail,
         ...(f.sourceDocument === undefined ? {} : { sourceDocument: f.sourceDocument }),
         ...(f.sourcePage === undefined ? {} : { sourcePage: f.sourcePage }),

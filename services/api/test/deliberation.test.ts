@@ -48,6 +48,18 @@ const submitAll = (c: DeliberationCase, calls: Record<string, Call>, cite = true
 };
 
 describe("openCase", () => {
+  it("carries no field its own type does not declare", () => {
+    // Regression. `openCase` used to spread its argument, and callers pass a wider
+    // object - so findings and a timestamp rode along, out over the API and into the
+    // persisted snapshot, invisible to the type.
+    const wide = { caseId: "c", compoundLabel: "X", context: "", ownerId: "o", participantIds: ["ann"], findings: [{ id: "f1" }], at: "t" };
+    const c = openCase(wide);
+    expect(Object.keys(c).sort()).toEqual([
+      "adjudication", "caseId", "closedEarly", "compoundLabel", "context",
+      "ownerId", "participantIds", "positions", "signature", "status",
+    ]);
+  });
+
   it("deduplicates participants, or the case could never lock", () => {
     const c = openCase({ caseId: "c", compoundLabel: "X", context: "", ownerId: "o", participantIds: ["ann", "ann", "bea"] });
     expect(c.participantIds).toEqual(["ann", "bea"]);
