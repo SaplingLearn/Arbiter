@@ -293,6 +293,19 @@ sitaxentan.
 A one-directional set measures only willingness to say "danger" — the exact failure §0
 found. **All three groups are required.**
 
+**Scope, decided 2026-08-09 and closed.** The set is drugs that *injure* the liver, not
+drugs that *treat* it. None of the fifteen is a liver medicine — they are a diabetes
+pill, an antibiotic, a painkiller, an antidepressant, a blood thinner. That is the point:
+the liver metabolises nearly everything swallowed, so DILI is a risk carried by drugs for
+every indication, and **the teams it happens to are the ones not watching for it.**
+TAK-994 is a narcolepsy drug. Narrowing scope to liver-targeted medicines would put the
+anchor case out of scope and shrink the claim to a problem people already watch closely.
+
+Considered and not taken: a fourth group of liver-disease drugs (obeticholic acid and
+similar), where patients begin with abnormal liver chemistry and separating drug injury
+from disease progression is genuinely harder. A real problem and a possible later group —
+**not a replacement for this set.**
+
 #### Group 1 — approved, then withdrawn for liver injury
 
 **tolcapone, troglitazone, trovafloxacin, bromfenac, nefazodone, ximelagatran,
