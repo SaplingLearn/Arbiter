@@ -1658,6 +1658,25 @@ TAK-994's real nonclinical package, all four say advance, and the system names t
 **eight questions nobody asked** — six of them the entire consequence half. That is
 what happened.
 
+### 13.4b How to run it
+
+```
+npm run deliberate:demo     # the whole flow in the terminal, no server, no key
+npm run api                 # the deliberation service on 127.0.0.1:8787
+npm run deliberate:dev      # the client on :5174, proxying /api
+```
+
+The demo and the client seed from the **same** `data/probe-case.json`, so the
+terminal and the screen cannot disagree about what the evidence is. With no
+`ANTHROPIC_API_KEY` the adjudication step runs against the stub and is labelled
+`source: "stub"` in the response body, in the terminal output, and in a banner on
+the screen. **Everything else is real** — the inventory, the sealing, the blind
+view, the unanimity check and the audit are deterministic code over real evidence.
+
+In the client, switch persona and submit, then switch again: the first answer is not
+on screen, because the server never sent it. The network tab confirms it — the
+response is `{"own":null,"others":[{"submitted":true}],"revealed":null}`.
+
 ### 13.5 The three rules that matter most going forward
 
 1. **The prompt is a model parameter.** Tuning it against the test set is the same
