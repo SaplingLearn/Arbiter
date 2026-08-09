@@ -31,6 +31,17 @@ export interface ChecklistItem {
   whatItBlocks: string;
   /** Omitted means "applies to everything" - see `not_applicable` below. */
   appliesTo?: Modality[];
+  /**
+   * Why the question does not arise, shown INSTEAD OF `whatItBlocks` when the state
+   * is not_applicable.
+   *
+   * They answer different questions and are not interchangeable. `whatItBlocks` says
+   * what goes wrong when a question is unanswered; for a question that does not
+   * arise, nothing goes wrong. Rendering the gap sentence beside an n/a badge made
+   * four non-issues read as four untested liabilities - the exact false alarm this
+   * state was added to prevent.
+   */
+  whyNotApplicable?: string;
 }
 
 export interface EvidenceChecklist {
@@ -77,6 +88,9 @@ export interface InventoryEntry {
   field: string;
   whatItBlocks: string;
   state: InventoryState;
+  /** Present exactly when the state is `not_applicable`. The renderer shows this in
+   *  place of `whatItBlocks`, never alongside it. */
+  whyNotApplicable?: string;
   /** Empty when the state is `absent` or `not_applicable`. Non-empty otherwise. */
   findingIds: string[];
 }
@@ -150,6 +164,9 @@ export function buildInventory(
       field: item.field,
       whatItBlocks: item.whatItBlocks,
       state,
+      ...(state === "not_applicable" && item.whyNotApplicable !== undefined
+        ? { whyNotApplicable: item.whyNotApplicable }
+        : {}),
       // Sorted so the entry is a stable object: the same evidence produces the same
       // inventory regardless of the order findings were loaded in. The inventory is
       // hashed into the deliberation log, so load order must not change the hash.
@@ -199,6 +216,7 @@ export function isChecklist(u: unknown): u is EvidenceChecklist {
     if (typeof i?.["id"] !== "string" || i["id"].trim() === "") return false;
     if (i["half"] !== "mechanism" && i["half"] !== "consequence") return false;
     if (typeof i?.["field"] !== "string" || typeof i?.["whatItBlocks"] !== "string") return false;
+    if (i["whyNotApplicable"] !== undefined && typeof i["whyNotApplicable"] !== "string") return false;
     const a = i["appliesTo"];
     if (a !== undefined) {
       if (!Array.isArray(a) || a.length === 0) return false;

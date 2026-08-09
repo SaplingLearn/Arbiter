@@ -22,8 +22,25 @@ export interface InventoryEntry {
   half: "mechanism" | "consequence";
   field: string;
   whatItBlocks: string;
+  /** Shown INSTEAD of whatItBlocks when the state is not_applicable. */
+  whyNotApplicable?: string;
   state: InventoryState;
   findingIds: string[];
+}
+
+export interface CaseSummary {
+  name: string;
+  label: string;
+  shape: string;
+  usable: boolean;
+}
+
+export interface Refusal {
+  name: string;
+  label: string;
+  document: string;
+  splitterReason: string;
+  measurement: string;
 }
 
 export interface Inventory {
@@ -104,6 +121,8 @@ async function call<T>(method: string, path: string, actor: string, body?: unkno
 }
 
 export const api = {
+  catalogue: () => call<CaseSummary[]>("GET", "/api/cases-catalogue", "anonymous"),
+
   openCase: (actor: string, b: {
     caseId: string; compoundLabel: string; context: string;
     participantIds: string[]; findings: unknown[]; at: string;

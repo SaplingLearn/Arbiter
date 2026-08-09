@@ -3,7 +3,7 @@ import { DeliberationService } from "./deliberation-service.js";
 import { MemoryStore, commitmentFor, verifySeals } from "./store.js";
 import { disagreementReport, positionBasis, type Position } from "./deliberation.js";
 import type { EvidenceChecklist } from "./inventory.js";
-import { isCaseName, loadCase, type CaseName } from "./cases.js";
+import { CATALOGUE, isCaseName, loadCase, refusalFor, type CaseName } from "./cases.js";
 import { handleAdjudicate } from "./adjudicate.js";
 import { completeFromEnv } from "./interpret.js";
 import { stubComplete } from "./probe.js";
@@ -11,11 +11,19 @@ import { stubComplete } from "./probe.js";
 /**
  * A full blind deliberation, played end to end on real evidence.
  *
- * TWO CASES: `npm run deliberate:demo` (TAK-994) and `npm run deliberate:demo --
- * nipocalimab`. They are deliberately different shapes. TAK-994 is a thin package a
- * room agreed about; nipocalimab is a rich one a room splits over. A demo that only
- * ever showed the first would be showing that the tool can find gaps, which is the
- * easy half.
+ * FIVE CASES, THREE THAT RUN AND TWO THAT REFUSE:
+ *
+ *   npm run deliberate:demo                 TAK-994 - thin package, room agreed
+ *   npm run deliberate:demo nipocalimab     rich package, room splits three ways
+ *   npm run deliberate:demo slynd           a 505(b)(2) with almost nothing to cite
+ *   npm run deliberate:demo tolcapone       REFUSED - scanned images, no text
+ *   npm run deliberate:demo troglitazone    REFUSED - labelling supplement, no review
+ *
+ * The shapes are deliberately different. A demo that only ever ran TAK-994 would be
+ * showing that the tool can find gaps, which is the easy half. The two refusals are
+ * listed rather than hidden because two of four collected documents being unusable
+ * IS the finding (HANDOVER §13.3), and because a refusal you can route around is
+ * decorative.
  *
  * WHY THIS EXISTS. Every part of §6 except the adjudication sentence is deterministic
  * code, so the whole mechanism can be demonstrated, and audited, before an API key
@@ -55,7 +63,11 @@ ${"=".repeat(78)}`;
  * the reveal, the person signing can see it rests on nothing, and can still choose
  * to follow it.
  */
-const POSITIONS: Record<CaseName, Position[]> = {
+/** Only the runnable cases have panels. `Partial` rather than `Record`, because a
+ *  refused document has no case to hold positions about, and inventing four
+ *  opinions about a document nobody can read would be the exact fabrication the
+ *  refusal exists to prevent. */
+const POSITIONS: Partial<Record<CaseName, Position[]>> = {
   tak994: [
   {
     participantId: "a.silva (tox)",
@@ -131,17 +143,76 @@ const POSITIONS: Record<CaseName, Position[]> = {
       submittedAt: T(4),
     },
   ],
+
+  /**
+   * Slynd: the case where there is almost nothing to cite, which is what spec §6.5
+   * needs in order to be tested at all. Three of these four positions cannot rest on
+   * a finding because the package contains none - and the three states they land in
+   * are exactly the point.
+   */
+  slynd: [
+    {
+      participantId: "a.silva (tox)",
+      call: "advance",
+      reasoning: "The bridge is the argument and it is a legitimate one: exposure at or below an approved comparator, established by a comparative BA study. The Division did not ask for new nonclinical work and I am not going to invent a reason they should have.",
+      citedFindingIds: ["SLY:scientific-bridge"],
+      external: [],
+      submittedAt: T(1),
+    },
+    {
+      participantId: "b.mehta (dmpk)",
+      call: "cannot_conclude",
+      reasoning: "I cannot answer a liver question from this document. There is nothing in it that measured a liver endpoint - the answers, if they exist, are in NDA 21676, and that is not what we were handed.",
+      citedFindingIds: [],
+      external: [],
+      submittedAt: T(2),
+    },
+    {
+      participantId: "c.lindqvist (clinical)",
+      call: "do_not_advance",
+      reasoning: "Combined oral contraceptives have a known association with cholestasis and with hepatic adenoma on long exposure. This is chronic dosing in healthy women, which is the least forgiving setting there is.",
+      citedFindingIds: [],
+      external: [{ claim: "Combined oral contraceptives carry a recognised association with cholestasis and hepatic adenoma at long exposure.", source: "Class literature; not in this package." }],
+      submittedAt: T(3),
+    },
+    {
+      participantId: "d.abara (project)",
+      call: "advance",
+      reasoning: "This has been on the market as Yaz for years. I do not see the problem.",
+      citedFindingIds: [],
+      external: [],
+      submittedAt: T(4),
+    },
+  ],
 };
 
 async function main(): Promise<void> {
   const arg = process.argv[2] ?? "tak994";
   if (!isCaseName(arg)) {
-    console.error(`Unknown case "${arg}". Use tak994 or nipocalimab.`);
+    console.error(`Unknown case "${arg}". Use one of: ${CATALOGUE.map((c) => c.name).join(", ")}.`);
     process.exitCode = 1;
     return;
   }
+  const refused = refusalFor(arg);
+  if (refused !== null) {
+    console.log(bar(`REFUSED - ${refused.label}`));
+    console.log(`  Document   : ${refused.document}`);
+    console.log(`  Splitter   : ${refused.splitterReason}`);
+    console.log(`  Measured   : ${refused.measurement}`);
+    console.log("\n  Listed rather than hidden. Two of the four documents collected cannot");
+    console.log("  produce a case, and that ratio IS the finding - it is what killed the plan");
+    console.log("  to replay the drugs withdrawn for hepatotoxicity (HANDOVER 13.3). A picker");
+    console.log("  showing only what worked would imply every document works.\n");
+    return;
+  }
+
   const kase = loadCase(arg);
   const positions = POSITIONS[arg];
+  if (positions === undefined) {
+    console.error(`No panel is written for "${arg}".`);
+    process.exitCode = 1;
+    return;
+  }
   const CASE_ID = kase.caseId;
 
   const checklist = JSON.parse(readFileSync("rules/evidence-checklist-v1.0.json", "utf8")) as EvidenceChecklist;
@@ -165,6 +236,10 @@ async function main(): Promise<void> {
 
   // ---- 1. The inventory, before anybody speaks -----------------------------
   console.log(bar("1. THE INVENTORY, published to everyone before anybody answers"));
+  if (kase.documentScope !== undefined) {
+    console.log(`  ${kase.documentScope}
+`);
+  }
   console.log("Flat, unranked, no verdict. Ordered by checklist id and by nothing else,\n" +
     "because ordering gaps by severity would nudge the room before it has spoken.\n");
   const MARK: Record<string, string> = {
@@ -184,10 +259,20 @@ async function main(): Promise<void> {
     console.log("  are built for small molecules. Listing those as gaps is the same false alarm as");
     console.log("  flagging an approved BSEP inhibitor - it fills the missing list with items");
     console.log("  nobody can ever supply, which is how the real gaps stop being read.");
-  } else {
-    console.log("  That shape is the whole finding. The mechanism half of this package is largely");
-    console.log("  answered and the consequence half is empty, which is why 'is there a route to");
-    console.log("  liver injury' and 'is it severe enough to stop' had to become two questions.");
+  } else if (kase.documentScope === undefined) {
+    // Computed, not asserted. This line used to claim the mechanism half was
+    // "largely answered", which was true of TAK-994 and false of every other case -
+    // a narration that describes one fixture rather than the data in front of it.
+    const gaps = (half: "mechanism" | "consequence"): number =>
+      inventory.entries.filter((e) => e.state === "absent" && e.half === half).length;
+    const total = (half: "mechanism" | "consequence"): number =>
+      inventory.entries.filter((e) => e.half === half && e.state !== "not_applicable").length;
+    console.log(`  Mechanism side: ${gaps("mechanism")} of ${total("mechanism")} unanswered. Consequence side: ${gaps("consequence")} of ${total("consequence")}.`);
+    if (gaps("consequence") > gaps("mechanism")) {
+      console.log("  The consequence half is the emptier one, which is the shape that produced");
+      console.log("  the measured defect: a mechanism finding alone was allowed to say 'do not");
+      console.log("  advance' about drugs that are approved and prescribed.");
+    }
   }
 
   // ---- 2. The blind phase --------------------------------------------------

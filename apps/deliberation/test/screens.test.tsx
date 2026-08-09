@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { InventoryPanel, Reveal, Verdict, Waiting, basisOf } from "../src/screens.js";
+import { InventoryPanel, Refused, Reveal, Verdict, Waiting, basisOf } from "../src/screens.js";
 import type { Adjudication, BlindView, Inventory, Position } from "../src/api.js";
 
 const inv: Inventory = {
@@ -20,7 +20,12 @@ const biologicInv: Inventory = {
   modality: "biologic",
   entries: [
     ...inv.entries,
-    { itemId: "M3", half: "mechanism", field: "Reactive metabolite", whatItBlocks: "Idiosyncratic route unexamined.", state: "not_applicable", findingIds: [] },
+    {
+      itemId: "M3", half: "mechanism", field: "Reactive metabolite",
+      whatItBlocks: "Idiosyncratic route unexamined.",
+      whyNotApplicable: "An antibody is catabolised to amino acids by normal protein turnover, so there is no reactive metabolite to trap.",
+      state: "not_applicable", findingIds: [],
+    },
   ],
 };
 
@@ -52,6 +57,25 @@ describe("InventoryPanel", () => {
     expect(screen.getByText(/do not arise for a biologic/)).toBeInTheDocument();
   });
 
+  it("shows why a question does not arise INSTEAD OF what a gap would block", () => {
+    // The defect this fixes: an n/a row kept rendering "The main route to
+    // idiosyncratic injury is unexamined", so four non-issues read as four untested
+    // liabilities - exactly the false alarm the state was added to prevent.
+    render(<InventoryPanel inv={biologicInv} />);
+    expect(screen.getByText(/catabolised to amino acids/)).toBeInTheDocument();
+    expect(screen.queryByText(/Idiosyncratic route unexamined/)).toBeNull();
+  });
+
+  it("renders a document-scope note when the document limits what can be read", () => {
+    render(<InventoryPanel inv={inv} documentScope="NO NEW NONCLINICAL STUDIES were conducted." />);
+    expect(screen.getByText(/NO NEW NONCLINICAL STUDIES/)).toBeInTheDocument();
+  });
+
+  it("renders no scope note when there is none", () => {
+    const { container } = render(<InventoryPanel inv={inv} />);
+    expect(container.querySelector(".concern")).toBeNull();
+  });
+
   it("says nothing about modality when every question applies", () => {
     const { container } = render(<InventoryPanel inv={inv} />);
     expect(container.textContent).not.toContain("do not arise");
@@ -60,6 +84,27 @@ describe("InventoryPanel", () => {
   it("says what each gap blocks, so a gap is a consequence and not a scold", () => {
     render(<InventoryPanel inv={inv} />);
     expect(screen.getByText(/R3 cannot be applied/)).toBeInTheDocument();
+  });
+});
+
+describe("Refused", () => {
+  const refusal = {
+    name: "tolcapone",
+    label: "Tolcapone (Tasmar) - FDA medical review, 1998",
+    document: "data/raw/approval-packages/tolcapone-20697-medical-review-p1.pdf",
+    splitterReason: "48 of 48 pages carry almost no extractable text - this is a scanned document and needs OCR before anything can read it. REFUSED.",
+    measurement: "48 pages, 48 embedded images, 0 extractable characters.",
+  };
+
+  it("shows the splitter's own reason and the measurement behind it", () => {
+    render(<Refused r={refusal} />);
+    expect(screen.getByText(/needs OCR before anything can read it/)).toBeInTheDocument();
+    expect(screen.getByText(/0 extractable characters/)).toBeInTheDocument();
+  });
+
+  it("says plainly that nothing will build a case anyway", () => {
+    render(<Refused r={refusal} />);
+    expect(screen.getByText(/nothing here\s+will quietly build one anyway/)).toBeInTheDocument();
   });
 });
 

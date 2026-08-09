@@ -163,6 +163,36 @@ describe("deliberation API", () => {
     for (const e of sealed) expect(JSON.stringify(e.payload)).not.toContain("Because.");
   });
 
+  it("serves the catalogue without an actor, because it names no positions", async () => {
+    const res = await fetch(`${base}/api/cases-catalogue`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { name: string; usable: boolean }[];
+    expect(body.filter((c) => !c.usable).map((c) => c.name)).toEqual(["tolcapone", "troglitazone"]);
+  });
+
+  it("returns 422 and the splitter's reason for a document it cannot process", async () => {
+    // 422, not 404 or 500: the case exists and is named in the catalogue; the
+    // DOCUMENT cannot be processed. Falling back to an empty case would make
+    // split_review.py's refusal decorative.
+    const r = await call("POST", "/api/demo", "owner", { case: "tolcapone", participantIds: ["ann"], at: "t" });
+    expect(r.status).toBe(422);
+    expect(r.body.error).toBe("document_refused");
+    expect(r.body.splitterReason).toContain("needs OCR");
+  });
+
+  it("rejects a case name that is not in the catalogue", async () => {
+    const r = await call("POST", "/api/demo", "owner", { case: "aspirin", participantIds: ["ann"], at: "t" });
+    expect(r.status).toBe(400);
+    expect(r.body.error).toBe("unknown_case");
+  });
+
+  it("seeds a usable case and returns its document scope", async () => {
+    const r = await call("POST", "/api/demo", "owner", { case: "slynd", participantIds: ["ann"], at: "t" });
+    expect(r.status).toBe(201);
+    expect(r.body.documentScope).toContain("NO NEW NONCLINICAL STUDIES");
+    expect(r.body.inventory.modality).toBe("small_molecule");
+  });
+
   it("404s an unknown route and an unknown case rather than guessing", async () => {
     expect((await call("GET", "/api/nope", "owner")).status).toBe(404);
     expect((await call("GET", "/api/cases/ghost/inventory", "owner")).status).toBe(404);

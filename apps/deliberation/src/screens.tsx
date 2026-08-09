@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type UnanimityReport } from "./api.js";
+import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type UnanimityReport } from "./api.js";
 
 /**
  * The screens of the deliberation, in the order §3.5 fixes them:
@@ -23,7 +23,31 @@ const CALL_LABEL: Record<string, string> = {
 };
 
 /** ------------------------------------------------------------------ inventory */
-export function InventoryPanel({ inv }: { inv: Inventory }): ReactElement {
+export function Refused({ r }: { r: Refusal }): ReactElement {
+  return (
+    <section>
+      <h2>{r.label}</h2>
+      <div className="stub">
+        This document cannot produce a case. The splitter refused it, and nothing here
+        will quietly build one anyway.
+      </div>
+      <h3>What data/prep/split_review.py said</h3>
+      <p className="mono">{r.splitterReason}</p>
+      <h3>Measured</h3>
+      <p>{r.measurement}</p>
+      <h3>Why it is on this list at all</h3>
+      <p className="muted">
+        Two of the four documents collected cannot be used, and that ratio is the
+        finding — it is what killed the plan to replay the drugs withdrawn for
+        hepatotoxicity. A picker showing only what worked would imply every document
+        works.
+      </p>
+      <p className="mono small muted">{r.document}</p>
+    </section>
+  );
+}
+
+export function InventoryPanel({ inv, documentScope }: { inv: Inventory; documentScope?: string | null }): ReactElement {
   const absent = inv.entries.filter((e) => e.state === "absent").length;
   const consequenceAbsent = inv.entries.filter((e) => e.state === "absent" && e.half === "consequence").length;
   const na = inv.entries.filter((e) => e.state === "not_applicable").length;
@@ -36,13 +60,24 @@ export function InventoryPanel({ inv }: { inv: Inventory }): ReactElement {
         ordered by checklist id and by nothing else, because ordering gaps by importance
         would push the room before it has spoken.
       </p>
+      {documentScope !== undefined && documentScope !== null && (
+        <div className="concern">{documentScope}</div>
+      )}
       <div className="inv">
         {inv.entries.map((e) => (
           <div className="inv-row" key={e.itemId}>
             <div className={`state ${e.state}`}>{e.state === "not_applicable" ? "n/a" : e.state}</div>
             <div>
               <strong>{e.field}</strong>
-              <div className="small muted">{e.whatItBlocks}</div>
+              {/* One or the other, never both. `whatItBlocks` says what goes wrong
+                  when a question is unanswered - the wrong sentence entirely for a
+                  question that does not arise, and showing it beside an n/a badge
+                  made four non-issues read as four untested liabilities. */}
+              <div className="small muted">
+                {e.state === "not_applicable"
+                  ? (e.whyNotApplicable ?? "Does not apply to this kind of drug.")
+                  : e.whatItBlocks}
+              </div>
               {e.findingIds.length > 0 && <div className="mono muted">{e.findingIds.join(", ")}</div>}
             </div>
           </div>

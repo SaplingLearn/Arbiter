@@ -1,0 +1,59 @@
+{
+  "_note": "A THIRD case, and the thinnest possible package that is still legitimate. Slynd is a 505(b)(2) that conducted no new nonclinical studies at all, relying on the Agency's prior findings for Yaz. Extracted by hand from the nonclinical chapter of the FDA multi-discipline review.",
+  "_source": {
+    "document": "FDA NDA 211367 Multi-disciplinary Review and Evaluation - Slynd (drospirenone)",
+    "localFile": "data/raw/approval-packages/modern-fda-multidiscipline-211367.pdf",
+    "totalPages": 132,
+    "chapterUsed": "5. Nonclinical Pharmacology/Toxicology, PDF pages 28-29, cut mechanically by data/prep/split_review.py",
+    "extract": "data/out/reviews/modern-fda-multidiscipline-211367.nonclinical.txt"
+  },
+  "_extractedBy": "hand, 2026-08-09. Quotes verbatim from the extract above.",
+  "_whyThisCompound": "It is the case where there is nothing to cite. Spec section 6.5 says an objection on such a compound 'lands in the third state visibly', and section 4.5 says that is the whole reason group 3 exists - but you cannot test it on a package full of findings. This one has almost none, and the reason it has almost none is legitimate rather than negligent.",
+  "_onTheTwoPageChapter": "The chapter really is two pages, and data/prep/split_review.py once had a page-count floor that would have called that a failed split. It was wrong: the floor was replaced by a substance check that names the APPLICATION rather than blaming the splitter. A 505(b)(2) with an established scientific bridge is supposed to be short.",
+
+  "caseId": "slynd-drospirenone",
+  "compoundLabel": "Slynd (drospirenone 4 mg) - prevention of pregnancy",
+  "context": "505(b)(2) progestin-only oral contraceptive, referencing Yaz (NDA 21676) as the listed drug. Chronic daily dosing in healthy women. Decision point: does this package support the liver-safety position, or does it only point at one?",
+  "modality": "small_molecule",
+
+  "documentScope": "THIS PACKAGE CONTAINS NO NEW NONCLINICAL STUDIES, AND THAT IS NOT AN OVERSIGHT. \"The Applicant has not conducted any new nonclinical pharmacology or toxicology studies with LF111. No additional nonclinical studies were required or requested by the Division\", pending a scientific bridge established by a comparative bioavailability study against Yaz. The liver questions below are therefore unanswered BY THIS DOCUMENT; where they are answered at all, they are answered in NDA 21676. An inventory reports on the package in front of it, so it says absent - read that as 'not here', not as 'nobody ever looked'.",
+
+  "findings": [
+    {
+      "id": "SLY:no-new-nonclinical",
+      "label": "No new nonclinical studies conducted (505(b)(2) reliance)",
+      "assertion": "ambiguous",
+      "detail": "\"The Applicant refers to the Agency's previous findings of safety and efficacy for the nonclinical pharmacology, pharmacokinetics, and toxicology of the DRSP component of Yaz (NDA 21676)\". General toxicology, safety pharmacology, ADME and reproductive toxicology all record that no new studies were run. The reviewer concludes \"there are no nonclinical concerns\" - a conclusion about the adequacy of the bridge, not a measurement of this product.",
+      "sourceDocument": "FDA NDA 211367",
+      "sourcePage": 28,
+      "covers": []
+    },
+    {
+      "id": "SLY:scientific-bridge",
+      "label": "The scientific bridge to the listed drug",
+      "assertion": "safe",
+      "detail": "\"The scientific bridge between LF111 and Yaz is provided by a comparative clinical bioavailability (BA) study (CF111/103A)\", in which DRSP exposure after multiple doses of LF111 \"was less than or comparable to the reference drug\". Exposure at or below an approved comparator is the entire safety argument here, and it is an exposure argument rather than an organ-specific one.",
+      "sourceDocument": "FDA NDA 211367",
+      "sourcePage": 28,
+      "covers": ["C1"]
+    },
+    {
+      "id": "SLY:genotoxicity-referenced",
+      "label": "Genetic toxicology, from the referenced NDA",
+      "assertion": "safe",
+      "detail": "\"A complete battery of genetic toxicology studies has been conducted under the referenced NDA with DRSP in vitro and in vivo, and no evidence of mutagenic activity was observed.\" Reported here, performed elsewhere.",
+      "sourceDocument": "FDA NDA 211367",
+      "sourcePage": 29,
+      "covers": []
+    },
+    {
+      "id": "SLY:carcinogenicity-referenced",
+      "label": "Carcinogenicity findings quoted from the Yaz labelling",
+      "assertion": "ambiguous",
+      "detail": "24-month mouse study up to 10 mg/kg/day DRSP, \"two times the maximum clinical exposure (based on AUC)\", showed increased harderian gland carcinomas at the high dose. A rat study at 10 mg/kg/day, \"10 times the maximum clinical exposure\", showed increased benign and total adrenal pheochromocytomas. Neither is hepatic, and both are quoted from another product's labelling rather than measured here - recorded because they are the only animal tumour data in the document.",
+      "sourceDocument": "FDA NDA 211367",
+      "sourcePage": 29,
+      "covers": []
+    }
+  ]
+}

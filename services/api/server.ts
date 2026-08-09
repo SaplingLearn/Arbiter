@@ -9,7 +9,7 @@ import type { CoveringFinding, EvidenceChecklist, Modality } from "./inventory.j
 import { handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
 import { completeFromEnv } from "./interpret.js";
 import { stubComplete } from "./probe.js";
-import { isCaseName, loadCase } from "./cases.js";
+import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
 
 /**
  * The deliberation API. Spec §3.3 - "the web app stops owning data and reads
@@ -87,7 +87,7 @@ export function makeHandler(deps: ServerDeps) {
     // Every route below except case creation and the raw adjudicate surface needs
     // to know who is asking - the blind view is computed FROM the viewer, so an
     // unattributed request has no correct answer and must not get a default one.
-    const needsActor = !(parts[1] === "adjudicate");
+    const needsActor = !(parts[1] === "adjudicate" || parts[1] === "cases-catalogue");
     if (needsActor && actor.trim() === "") {
       return json(res, 401, { error: "no_actor", detail: "Set x-arbiter-user. A blind view has no meaning without a viewer." });
     }
@@ -106,20 +106,33 @@ export function makeHandler(deps: ServerDeps) {
       // a demonstration is how a demonstration comes to use findings that are not the
       // ones in the repository. This calls the SAME loader `npm run deliberate:demo`
       // calls, so the screen and the terminal cannot disagree about the evidence.
+      // GET /api/cases-catalogue - every case, including the ones that refuse.
+      if (parts[1] === "cases-catalogue" && method === "GET") {
+        return json(res, 200, CATALOGUE);
+      }
+
       if (parts[1] === "demo" && method === "POST") {
         const b = body as { case?: unknown; participantIds: string[]; at: string };
-        if (!isCaseName(b.case)) return json(res, 400, { error: "unknown_case", detail: 'case must be "tak994" or "nipocalimab".' });
+        if (!isCaseName(b.case)) {
+          return json(res, 400, { error: "unknown_case", detail: `case must be one of: ${CATALOGUE.map((c) => c.name).join(", ")}.` });
+        }
+        // 422, not 404 or 500. The case exists and is named in the catalogue; the
+        // DOCUMENT cannot be processed, and the client renders that reason verbatim.
+        // Falling back to an empty case would make split_review.py's refusal
+        // decorative, which is the one thing it must never be.
+        const refused = refusalFor(b.case);
+        if (refused !== null) return json(res, 422, { error: "document_refused", ...refused });
         const loaded = loadCase(b.case);
         const existing = deps.service.inventory(loaded.caseId);
         if (existing !== null) {
-          return json(res, 200, { caseId: loaded.caseId, alreadyOpen: true, inventory: existing, compoundLabel: loaded.compoundLabel, context: loaded.context, provenance: loaded.provenance });
+          return json(res, 200, { caseId: loaded.caseId, alreadyOpen: true, inventory: existing, compoundLabel: loaded.compoundLabel, context: loaded.context, provenance: loaded.provenance, documentScope: loaded.documentScope ?? null });
         }
         const { inventory } = deps.service.open({
           caseId: loaded.caseId, compoundLabel: loaded.compoundLabel, context: loaded.context,
           ownerId: actor, participantIds: b.participantIds,
           findings: loaded.findings, modality: loaded.modality, at: b.at,
         });
-        return json(res, 201, { caseId: loaded.caseId, alreadyOpen: false, inventory, compoundLabel: loaded.compoundLabel, context: loaded.context, provenance: loaded.provenance });
+        return json(res, 201, { caseId: loaded.caseId, alreadyOpen: false, inventory, compoundLabel: loaded.compoundLabel, context: loaded.context, provenance: loaded.provenance, documentScope: loaded.documentScope ?? null });
       }
 
       if (parts[1] !== "cases") return json(res, 404, { error: "not_found" });

@@ -1653,7 +1653,20 @@ be made without leaving a trace, and an `UPDATE` leaves nothing behind.
 `DeliberationStore` is the seam.
 
 **§6.6 turned out to need no model at all.** Unanimity plus an unanswered question
-is a fact about the record. `npm run deliberate:demo` shows it: four scientists read
+is a fact about the record. Its non-unanimous counterpart, `disagreementReport`, is
+the same kind of arithmetic: who called what, which findings two camps cite, and
+which only one camp cites. On the nipocalimab case **nothing is contested** — not one
+finding is cited by two camps, so it is not four people reading one result two ways,
+it is four people reading four different parts of the document. §6.3 calls that
+talking past each other.
+
+**The inventory has a fourth state, `not_applicable`,** added when the nipocalimab
+case exposed the gap: an antibody has no reactive metabolite, no transporter
+interaction and no QSAR model, and calling those "absent" fills the missing-evidence
+list with items nobody can supply. Declared per checklist item and per case, never
+inferred. Items restricted by modality must also supply `whyNotApplicable`, because
+`whatItBlocks` is the wrong sentence for a question that does not arise — rendering
+it beside an n/a badge made four non-issues read as four untested liabilities. `npm run deliberate:demo` shows it: four scientists read
 TAK-994's real nonclinical package, all four say advance, and the system names the
 **eight questions nobody asked** — six of them the entire consequence half. That is
 what happened.
@@ -1661,10 +1674,28 @@ what happened.
 ### 13.4b How to run it
 
 ```
-npm run deliberate:demo     # the whole flow in the terminal, no server, no key
-npm run api                 # the deliberation service on 127.0.0.1:8787
-npm run deliberate:dev      # the client on :5174, proxying /api
+npm run deliberate:demo [case]   # the whole flow in the terminal, no server, no key
+npm run api                      # the deliberation service on 127.0.0.1:8787
+npm run deliberate:dev           # the client on :5174, proxying /api
 ```
+
+**Five cases from four collected documents, and two of them refuse.**
+
+| case | shape |
+|---|---|
+| `tak994` (default) | Thin package, room agreed. 8 of 12 questions unanswered. |
+| `nipocalimab` | Rich package, room splits three ways. Biologic, so 4 questions do not apply. |
+| `slynd` | A 505(b)(2) with no new nonclinical studies at all. Almost nothing to cite — the only case that can test §6.5. |
+| `tolcapone` | **REFUSED** — 48 pages, 48 images, **0 extractable characters.** |
+| `troglitazone` | **REFUSED** — 133 pages of readable text, **zero occurrences of "hepat"**, no tox review. It is a labelling supplement. |
+
+The refusals are listed rather than hidden. Two of four documents being unusable **is
+the finding** (§13.3), and `loadCase` throws on a refused name — if a refused document
+could still become a case, `split_review.py`'s refusal would be decorative. The client
+shows the splitter's own sentence, not a paraphrase.
+
+**Correction to §13.3:** tolcapone's extractable-character count is **0**, not 47.
+Re-measured 2026-08-09 with PyMuPDF across all 48 pages.
 
 The demo and the client seed from the **same** `data/probe-case.json`, so the
 terminal and the screen cannot disagree about what the evidence is. With no

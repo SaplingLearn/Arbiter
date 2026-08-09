@@ -20,7 +20,8 @@
       "whatItBlocks": "The most common route to cholestatic injury is untested. A cholestatic pattern later seen in humans could not have been anticipated from the package.",
       "appliesTo": [
         "small_molecule"
-      ]
+      ],
+      "whyNotApplicable": "A monoclonal antibody does not enter hepatocytes or interact with bile-salt export pumps; transporter inhibition is a small-molecule liability."
     },
     {
       "id": "M3",
@@ -29,7 +30,8 @@
       "whatItBlocks": "The main route to idiosyncratic injury is unexamined. Idiosyncratic injury is what withdrew most of the drugs this system exists to catch.",
       "appliesTo": [
         "small_molecule"
-      ]
+      ],
+      "whyNotApplicable": "An antibody is catabolised to amino acids by normal protein turnover. There is no cytochrome-P450 metabolism and therefore no reactive metabolite to trap."
     },
     {
       "id": "M4",
@@ -38,7 +40,8 @@
       "whatItBlocks": "A key event in the liver-injury pathway is unmeasured, so rule R2 cannot distinguish direct pathway evidence from structural correlation.",
       "appliesTo": [
         "small_molecule"
-      ]
+      ],
+      "whyNotApplicable": "Mitochondrial toxicity assays measure a small molecule crossing into the mitochondrion. A 150 kDa protein does not get there."
     },
     {
       "id": "M5",
@@ -57,7 +60,8 @@
       "whatItBlocks": "Rule R4 cannot be applied: a structural prediction with no stated domain cannot be down-weighted for being outside it, so it is either trusted blindly or discarded blindly.",
       "appliesTo": [
         "small_molecule"
-      ]
+      ],
+      "whyNotApplicable": "QSAR and structural-alert models are trained on small-molecule chemistry. An antibody has no scoreable structure, and a model run outside its applicability domain is exactly what rule R4 exists to exclude."
     },
     {
       "id": "C1",
@@ -120,5 +124,6 @@
       ]
     }
   ],
-  "_whyAppliesTo": "Some questions do not arise for some kinds of drug, and reporting them as gaps is the same false alarm as flagging an approved BSEP inhibitor. A monoclonal antibody is catabolised to amino acids, so it has no reactive metabolite; it does not interact with hepatobiliary transporters; and QSAR models are built for small molecules. Those are NOT unanswered questions, they are questions that do not apply, and an inventory that cannot tell the difference teaches people to ignore it. Regulators already make this distinction explicitly - this document's own genotoxicity section reads 'No genotoxicity studies were conducted with nipocalimab. This is considered acceptable.' An item with no appliesTo applies to EVERYTHING: a checklist author who forgets the field gets the question asked rather than silently dropped."
+  "_whyAppliesTo": "Some questions do not arise for some kinds of drug, and reporting them as gaps is the same false alarm as flagging an approved BSEP inhibitor. A monoclonal antibody is catabolised to amino acids, so it has no reactive metabolite; it does not interact with hepatobiliary transporters; and QSAR models are built for small molecules. Those are NOT unanswered questions, they are questions that do not apply, and an inventory that cannot tell the difference teaches people to ignore it. Regulators already make this distinction explicitly - this document's own genotoxicity section reads 'No genotoxicity studies were conducted with nipocalimab. This is considered acceptable.' An item with no appliesTo applies to EVERYTHING: a checklist author who forgets the field gets the question asked rather than silently dropped.",
+  "_whyNotApplicableText": "Rendered INSTEAD of whatItBlocks when an item does not apply. They answer different questions - whatItBlocks says what goes wrong when a question is unanswered, which is the wrong sentence entirely for a question that does not arise. Showing the gap text beside an n/a badge made four non-issues read as four untested liabilities, which is the false alarm the state was added to prevent."
 }

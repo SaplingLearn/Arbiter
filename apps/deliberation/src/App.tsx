@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type AuditResult, type BlindView, type Finding, type Inventory, type UnanimityReport } from "./api.js";
-import { Audit, InventoryPanel, PositionForm, Reveal, Verdict, Waiting } from "./screens.js";
+import { api, ApiError, type Adjudication, type AuditResult, type BlindView, type CaseSummary, type Finding, type Inventory, type Refusal, type UnanimityReport } from "./api.js";
+import { Audit, InventoryPanel, PositionForm, Refused, Reveal, Verdict, Waiting } from "./screens.js";
 import "./app.css";
 
 /**
@@ -22,16 +22,6 @@ import "./app.css";
  * that decides whether the reveal is offered.
  */
 
-type CaseName = "tak994" | "nipocalimab";
-
-/** Both cases in the repo, and they test different shapes. tak994 is a thin package
- *  a room agreed about; nipocalimab is a rich one a room splits over. A demo that
- *  only showed the first would only show that the tool can find gaps. */
-const CASES: { name: CaseName; caseId: string; label: string }[] = [
-  { name: "tak994", caseId: "tak994-demo", label: "TAK-994 — thin package, room agreed" },
-  { name: "nipocalimab", caseId: "nipocalimab-imaavy", label: "Nipocalimab — rich package, room split" },
-];
-
 const OWNER = "r.okafor (programme lead)";
 const PANEL = [
   "a.silva (tox)",
@@ -41,7 +31,11 @@ const PANEL = [
 ];
 
 export function App(): ReactElement {
-  const [caseName, setCaseName] = useState<CaseName>("tak994");
+  const [caseName, setCaseName] = useState<string>("tak994");
+  const [catalogue, setCatalogue] = useState<CaseSummary[]>([]);
+  const [refusal, setRefusal] = useState<Refusal | null>(null);
+  const [caseId, setCaseId] = useState<string>("tak994-demo");
+  const [scope, setScope] = useState<string | null>(null);
   const [actor, setActor] = useState(PANEL[0]!);
   const [inventory, setInventory] = useState<Inventory | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
@@ -52,7 +46,7 @@ export function App(): ReactElement {
   const [heading, setHeading] = useState<{ compoundLabel: string; context: string }>({ compoundLabel: "", context: "" });
   const [fatal, setFatal] = useState<string | null>(null);
 
-  const CASE_ID = CASES.find((c) => c.name === caseName)!.caseId;
+  const CASE_ID = caseId;
 
   const refresh = useCallback(async (who: string, caseId: string): Promise<void> => {
     try {
@@ -83,15 +77,24 @@ export function App(): ReactElement {
         setInventory(null);
         setView(null);
         setAdjudication(null);
+        setRefusal(null);
         const seeded = await fetch("/api/demo", {
           method: "POST",
           headers: { "content-type": "application/json", "x-arbiter-user": OWNER },
           body: JSON.stringify({ case: caseName, participantIds: PANEL, at: new Date().toISOString() }),
         });
+        // 422 is not an error path: the document exists and cannot be processed, and
+        // the reason is the thing worth showing.
+        if (seeded.status === 422) {
+          if (!cancelled) setRefusal(await seeded.json() as Refusal);
+          return;
+        }
         if (!seeded.ok) throw new Error(`seed failed: HTTP ${seeded.status}`);
-        const body = await seeded.json() as { inventory: Inventory; caseId: string; compoundLabel: string; context: string };
+        const body = await seeded.json() as { inventory: Inventory; caseId: string; compoundLabel: string; context: string; documentScope: string | null };
         if (cancelled) return;
         setInventory(body.inventory);
+        setCaseId(body.caseId);
+        setScope(body.documentScope);
         setHeading({ compoundLabel: body.compoundLabel, context: body.context });
         setFindings((await api.adjudicationRequest(OWNER, body.caseId)).findings);
         await refresh(PANEL[0]!, body.caseId);
@@ -102,12 +105,31 @@ export function App(): ReactElement {
     return () => { cancelled = true; };
   }, [caseName, refresh]);
 
-  useEffect(() => { void refresh(actor, CASE_ID); }, [actor, CASE_ID, refresh]);
+  useEffect(() => {
+    void (async () => {
+      try { setCatalogue(await api.catalogue()); } catch { /* the fatal panel already covers a dead service */ }
+    })();
+  }, []);
+
+  useEffect(() => { if (refusal === null) void refresh(actor, CASE_ID); }, [actor, CASE_ID, refresh, refusal]);
 
   useEffect(() => {
+    if (refusal !== null) return;
     const t = setInterval(() => { void refresh(actor, CASE_ID); }, 2000);
     return () => clearInterval(t);
-  }, [actor, CASE_ID, refresh]);
+  }, [actor, CASE_ID, refresh, refusal]);
+
+  const picker = (
+    <div className="personas">
+      <span className="small muted">Case:</span>
+      {catalogue.map((c) => (
+        <button key={c.name} className="persona" aria-pressed={caseName === c.name}
+          onClick={() => setCaseName(c.name)} title={c.shape}>
+          {c.usable ? "" : "⃠ "}{c.label}
+        </button>
+      ))}
+    </div>
+  );
 
   if (fatal !== null) {
     return (
@@ -121,7 +143,19 @@ export function App(): ReactElement {
     );
   }
 
-  if (inventory === null || view === null) return <div className="shell"><h1>ARBITER</h1><p className="muted">Loading the case…</p></div>;
+  if (refusal !== null) {
+    return (
+      <div className="shell">
+        <h1>ARBITER</h1>
+        {picker}
+        <Refused r={refusal} />
+      </div>
+    );
+  }
+
+  if (inventory === null || view === null) {
+    return <div className="shell"><h1>ARBITER</h1>{picker}<p className="muted">Loading the case…</p></div>;
+  }
 
   const isOwner = actor === OWNER;
   const submitted = view.own !== null;
@@ -159,14 +193,7 @@ export function App(): ReactElement {
       <h1>{heading.compoundLabel}</h1>
       <p className="muted">{heading.context}</p>
 
-      <div className="personas">
-        <span className="small muted">Case:</span>
-        {CASES.map((c) => (
-          <button key={c.name} className="persona" aria-pressed={caseName === c.name} onClick={() => setCaseName(c.name)}>
-            {c.label}
-          </button>
-        ))}
-      </div>
+      {picker}
 
       <div className="personas">
         <span className="small muted">You are:</span>
@@ -189,7 +216,7 @@ export function App(): ReactElement {
         })}
       </div>
 
-      <InventoryPanel inv={inventory} />
+      <InventoryPanel inv={inventory} documentScope={scope} />
 
       <hr style={{ border: 0, borderTop: "1px solid var(--hairline)", margin: "32px 0" }} />
 

@@ -1,0 +1,1511 @@
+{
+  "probeVersion": 1,
+  "source": "stub",
+  "model": null,
+  "promptVersion": "1.0",
+  "promptHash": "42f548ea1df383145d2ba51a078d3a04d7e83ea61085f41c721ba328ffc29436",
+  "compoundLabel": "TAK-994 (Narcolepsy type 1)",
+  "requestedRuns": 20,
+  "runs": [
+    {
+      "index": 0,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 1,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 2,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 3,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 4,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 5,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 6,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 7,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 8,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 9,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 10,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 11,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 12,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 13,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 14,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 15,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 16,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 17,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 18,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 19,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": null,
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "cannot_conclude",
+          "reasoning": "STUB - no model was called. This is not a result.",
+          "citedFindingIds": [
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter",
+            "TAK-994:qsar",
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R2",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R3",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R5",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "STUB - no model was called.",
+            "citedFindingIds": []
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+          }
+        ],
+        "nextExperiment": null
+      },
+      "verificationFailures": []
+    }
+  ]
+}
