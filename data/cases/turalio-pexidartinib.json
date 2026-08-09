@@ -1,0 +1,98 @@
+{
+  "_note": "The most complete package collected. Turalio carries a BOXED WARNING for hepatotoxicity, so its review had to characterise liver injury properly - dose, exposure margin, injury pattern and reversibility are all stated. 7 of 12 questions present, 1 inconclusive, 4 absent.",
+  "_source": {
+    "document": "FDA NDA 211810 Multi-disciplinary Review and Evaluation - TURALIO (pexidartinib)",
+    "localFile": "data/raw/approval-packages/turalio-211810-multidiscipline.pdf",
+    "totalPages": 264,
+    "chapterUsed": "5. Nonclinical Pharmacology/Toxicology, PDF pages 39-68, cut mechanically by data/prep/split_review.py",
+    "extract": "data/out/reviews/turalio-211810-multidiscipline.nonclinical.txt",
+    "answerKeyWithheld": "data/out/reviews/turalio-211810-multidiscipline.WITHHELD-answer-key.txt"
+  },
+  "_extractedBy": "hand, 2026-08-09. Quotes verbatim from the extract above.",
+
+  "_THIS_CASE_IS_NOT_A_BLIND_PREDICTION_TEST": "Measured 2026-08-09 and it corrects a claim in spec section 4.4. The mechanical nonclinical/clinical cut does NOT guarantee the model is blind to the outcome, because an FDA multi-disciplinary review is written as ONE document by reviewers who already know the clinical result - and this chapter says so out loud: 'The liver is a major target organ clinically, with frequent elevations in transaminases, including serious ones (refer to Section 8.3 of the review for details).' That sentence is the answer key, sitting inside the input. Use this case to exercise the deliberation, never to score prediction. EMA assessment reports are structured with the non-clinical section written before and separately from the clinical one, which is why the nipocalimab case does not carry this warning.",
+
+  "_whyOnlySevenOfTwelve": "Because M1, M2, M4 and M6 - human-cell hepatotoxicity, bile-salt export pump inhibition, mitochondrial toxicity and a structural alert with a stated applicability domain - are not what a regulatory review contains. They are internal screening assays that industry runs and that appear in the sponsor's own reports, not in the Agency's summary of them. That is a finding about the DOCUMENT SOURCE, not about the drug and not about the checklist: a sponsor running ARBITER on their own package would have all four, and a public review will never have them. Do not 'fix' this by deleting the questions.",
+
+  "caseId": "turalio-pexidartinib",
+  "compoundLabel": "Turalio (pexidartinib) - tenosynovial giant cell tumour",
+  "context": "An oral kinase inhibitor taken daily, long term, for a rare and disabling but non-fatal joint tumour. Recommended dose 800 mg daily. Decision point: the animal liver injury appears BELOW the exposure a patient will receive - does the package support advancing, and on what terms?",
+  "modality": "small_molecule",
+
+  "documentScope": "THIS DRUG WAS APPROVED, AND IT CARRIES A BOXED WARNING FOR LIVER INJURY. That is why the package is the most complete one here: a programme that has to defend a liver signal is forced to state the dose, the exposure margin, the type of injury and whether it recovers. Note the shape of the argument below - the liver damage in rats begins at about 0.6 times the exposure a patient gets at the recommended dose. The animals were injured BELOW the human dose, not above it.",
+
+  "findings": [
+    {
+      "id": "TUR:liver-histopathology",
+      "label": "Liver findings, 6-month rat study",
+      "assertion": "toxic",
+      "detail": "\"In the liver, hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase (AST) and alanine aminotransferase (ALT) occurred at doses >=20 mg/kg (approximately 0.6 times the clinical exposure at 800 mg). Additionally, biliary cysts and increased gamma-glutamyl transferase (GGT) levels occurred in female rats at 60 mg/kg.\" The liver is named as a target organ in the rat alongside the reproductive organs, kidney, and lymph/haematopoietic compartments.",
+      "sourceDocument": "FDA NDA 211810",
+      "sourcePage": 26,
+      "covers": ["M5", "C3"]
+    },
+    {
+      "id": "TUR:exposure-margin",
+      "label": "Exposure margins against the 800 mg human dose",
+      "assertion": "toxic",
+      "detail": "The rat liver findings occur at \"approximately 0.6 times the clinical exposure of 154930 ng*h/mL ... at the recommended human dose of 800 mg daily\" - BELOW human exposure. Deaths from treatment-related immunocompromise occurred at 60 mg/kg, \"approximately 1.6 times\" clinical exposure. In the 9-month dog study the highest tested dose of 100 mg/kg reached only \"approximately 0.3 times the human exposure\", so the dog study never tested the clinical range at all.",
+      "sourceDocument": "FDA NDA 211810",
+      "sourcePage": 26,
+      "covers": ["C1", "C2"]
+    },
+    {
+      "id": "TUR:reversibility",
+      "label": "Recovery periods in rat and dog",
+      "assertion": "safe",
+      "detail": "\"With the exception of edema, all findings in rats were partially to fully reversible within the recovery period.\" The dog study carried a 16-week recovery, in which loss of hair and skin pigmentation, eye discharge and emesis \"persisted during the 16-week recovery period\" - so reversibility is characterised, and is not uniform across findings.",
+      "sourceDocument": "FDA NDA 211810",
+      "sourcePage": 27,
+      "covers": ["C4"]
+    },
+    {
+      "id": "TUR:dosing-duration",
+      "label": "Study duration and intended regimen",
+      "assertion": "safe",
+      "detail": "\"GLP-compliant toxicology studies of daily oral pexidartinib of up to six months in Sprague Dawley rats and up to nine months in Beagle dogs\", plus a 2-year rat and 26-week transgenic mouse carcinogenicity study. The indication is a non-fatal, chronically treated tumour, so the human exposure is long-term daily dosing.",
+      "sourceDocument": "FDA NDA 211810",
+      "sourcePage": 26,
+      "covers": ["C6"]
+    },
+    {
+      "id": "TUR:metabolite-unassessed",
+      "label": "The major human metabolite was never toxicologically evaluated",
+      "assertion": "ambiguous",
+      "detail": "\"In humans, the most abundant metabolite of pexidartinib is a result of its N-glucuronidation to ZAAD-1006a... the Applicant did not assess any additional potential off-target effects of this metabolite, which occurs at levels that exceed those of the parent compound in humans. This deficiency resulted in a PMC for additional in vitro screening assays.\" In the rat and dog studies \"systemic exposure of ZAAD-1006a was not assessed, and therefore its toxicological potential was not evaluated\". A 13-week monkey study was added, in which ZAAD-1006a exposure ran \"at least 60-fold higher than exposure to pexidartinib\". The metabolite question was raised, and the reviewer records that it was not answered.",
+      "sourceDocument": "FDA NDA 211810",
+      "sourcePage": 27,
+      "covers": ["M3"]
+    },
+    {
+      "id": "TUR:clinical-forward-reference",
+      "label": "FORWARD REFERENCE - the nonclinical chapter states the clinical outcome",
+      "assertion": "toxic",
+      "detail": "\"The liver is a major target organ clinically, with frequent elevations in transaminases, including serious ones (refer to Section 8.3 of the review for details).\" THIS IS THE ANSWER KEY, INSIDE THE INPUT. It is recorded rather than deleted, because deleting it would hide the reason this case cannot be used to score prediction - an FDA multi-disciplinary review is one document written by people who already knew. It does answer the frequency question, and it answers it with hindsight.",
+      "sourceDocument": "FDA NDA 211810",
+      "sourcePage": 26,
+      "covers": ["C5"]
+    },
+    {
+      "id": "TUR:genotoxicity",
+      "label": "Genetic toxicology and carcinogenicity",
+      "assertion": "safe",
+      "detail": "\"Pexidartinib was not mutagenic in the in vitro bacterial reverse mutation (Ames) test or clastogenic in either the in vitro chromosomal aberrations assay in peripheral human lymphocytes or the in vivo bone marrow micronucleus assay in rats.\" Negative for carcinogenicity in a 2-year rat and 26-week transgenic mouse study. Genotoxicity is not a hepatotoxicity endpoint and covers no question on this checklist; recorded because a reader would want to know it was clean.",
+      "sourceDocument": "FDA NDA 211810",
+      "sourcePage": 27,
+      "covers": []
+    },
+    {
+      "id": "TUR:kinase-selectivity",
+      "label": "Off-target kinase and receptor screening",
+      "assertion": "safe",
+      "detail": "\"Pexidartinib did not induce biologically relevant off target activity in vitro against any other kinases in a 226-kinase panel or across a panel (n=71) of receptors, ion channels, transporters, and enzymes.\" The transporter panel is a pharmacology screen, not a hepatobiliary transporter inhibition study, and the review does not report a bile-salt export pump result - so this does not answer M2.",
+      "sourceDocument": "FDA NDA 211810",
+      "sourcePage": 25,
+      "covers": []
+    }
+  ]
+}

@@ -10,7 +10,7 @@ describe("the case catalogue", () => {
     // A picker showing only what worked would imply every document works. Two of
     // four cannot be used, and that ratio is the finding.
     expect(CATALOGUE.filter((c) => !c.usable).map((c) => c.name)).toEqual(["tolcapone", "troglitazone"]);
-    expect(CATALOGUE.filter((c) => c.usable).length).toBe(3);
+    expect(CATALOGUE.filter((c) => c.usable).length).toBe(4);
   });
 
   it("accepts every catalogue name and nothing else", () => {
@@ -33,7 +33,7 @@ describe("the case catalogue", () => {
   });
 
   it("loads all three usable cases with provenance attached", () => {
-    for (const name of ["tak994", "nipocalimab", "slynd"] as const) {
+    for (const name of ["tak994", "nipocalimab", "slynd", "turalio"] as const) {
       const c = loadCase(name);
       expect(c.findings.length).toBeGreaterThan(0);
       expect(c.provenance.length).toBeGreaterThan(20);
@@ -48,11 +48,16 @@ describe("the case catalogue", () => {
   });
 
   it("produces the three shapes the cases were chosen for", () => {
-    const shape = (name: "tak994" | "nipocalimab" | "slynd"): Record<string, number> => {
+    const shape = (name: "tak994" | "nipocalimab" | "slynd" | "turalio"): Record<string, number> => {
       const c = loadCase(name);
       const inv = buildInventory(c.findings, CHECKLIST, c.modality);
       const n = (s: string): number => inv.entries.filter((e) => e.state === s).length;
-      return { present: n("present"), absent: n("absent"), na: n("not_applicable") };
+      const half = (h: "mechanism" | "consequence", st: string): number =>
+        inv.entries.filter((e) => e.half === h && e.state === st).length;
+      return {
+        present: n("present"), absent: n("absent"), na: n("not_applicable"),
+        consequencePresent: half("consequence", "present"), mechanismAbsent: half("mechanism", "absent"),
+      };
     };
     // Thin: most questions unanswered.
     expect(shape("tak994").absent).toBe(8);
@@ -62,6 +67,23 @@ describe("the case catalogue", () => {
     expect(shape("nipocalimab").na).toBe(4);
     // Almost nothing to cite - the case §6.5 needs to be testable at all.
     expect(shape("slynd").present).toBe(1);
+    // The most complete package, and the exact mirror of TAK-994: every consequence
+    // question answered, most mechanism questions not. A regulatory review states
+    // dose, margin, pattern and reversibility; it does not carry the screening
+    // assays, which live in the sponsor's own reports.
+    expect(shape("turalio").consequencePresent).toBe(6);
+    expect(shape("turalio").mechanismAbsent).toBe(4);
+  });
+
+  it("keeps the leaked clinical outcome visible rather than deleting it", () => {
+    // Turalio's nonclinical chapter cross-references the clinical result, so the
+    // answer key sits inside the input. The finding is RECORDED and labelled, because
+    // deleting it would hide the reason this case cannot score prediction.
+    const t = loadCase("turalio");
+    const leak = t.findings.find((f) => f.id === "TUR:clinical-forward-reference");
+    expect(leak).toBeDefined();
+    expect(leak!.label).toContain("FORWARD REFERENCE");
+    expect(leak!.detail).toContain("ANSWER KEY, INSIDE THE INPUT");
   });
 
   it("carries a document-scope note exactly where the document limits what can be read", () => {

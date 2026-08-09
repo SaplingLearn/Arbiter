@@ -1686,6 +1686,7 @@ npm run deliberate:dev           # the client on :5174, proxying /api
 | `tak994` (default) | Thin package, room agreed. 8 of 12 questions unanswered. |
 | `nipocalimab` | Rich package, room splits three ways. Biologic, so 4 questions do not apply. |
 | `slynd` | A 505(b)(2) with no new nonclinical studies at all. Almost nothing to cite — the only case that can test §6.5. |
+| `turalio` | The most complete package. Boxed warning for liver injury; **all 6 consequence questions present**, 4 mechanism questions absent. |
 | `tolcapone` | **REFUSED** — 48 pages, 48 images, **0 extractable characters.** |
 | `troglitazone` | **REFUSED** — 133 pages of readable text, **zero occurrences of "hepat"**, no tox review. It is a labelling supplement. |
 
@@ -1696,6 +1697,49 @@ shows the splitter's own sentence, not a paraphrase.
 
 **Correction to §13.3:** tolcapone's extractable-character count is **0**, not 47.
 Re-measured 2026-08-09 with PyMuPDF across all 48 pages.
+
+### 13.4c The mechanical cut does not guarantee blindness — measured, and it is a correction
+
+§13.3 and spec §4.4 claim the modern-review split gives a prediction test with "no
+hindsight contamination, because the cut is mechanical." **That is false for FDA
+multi-discipline reviews**, and the Turalio chapter says so in its own words:
+
+> *"The liver is a major target organ **clinically**, with frequent elevations in
+> transaminases, including serious ones (refer to Section 8.3 of the review for
+> details)."*
+
+That sentence is in the **nonclinical** chapter. An FDA multi-disciplinary review is
+**one document written by reviewers who already knew the clinical outcome**, and the
+nonclinical section cross-references it. Cutting at the chapter boundary moves the
+pages, not the knowledge.
+
+**Consequences, and they are not symmetrical:**
+
+- `turalio` is a **deliberation** case, never a prediction case. The forward
+  reference is kept as a labelled finding rather than deleted, because deleting it
+  would hide why.
+- **EMA assessment reports do not have this problem** in the same way — the
+  non-clinical section is written separately and before the clinical one. `nipocalimab`
+  carries no such warning.
+- Any future prediction scoring must **grep the nonclinical extract for clinical
+  cross-references first** and exclude documents that contain them. That check does
+  not exist yet.
+
+### 13.4d Why no package answers all twelve
+
+The best available document answers **7 of 12, plus 1 inconclusive**. The four it
+never answers are `M1` human-cell hepatotoxicity, `M2` BSEP inhibition, `M4`
+mitochondrial toxicity and `M6` structural alert with a stated applicability domain.
+
+**That is a fact about the document source, not about the checklist or the drug.**
+Those four are internal screening assays; industry runs them and they sit in the
+sponsor's own study reports, not in the Agency's summary. A sponsor running ARBITER
+on their own package has all four. A public regulatory review never will.
+
+**Do not "fix" this by deleting the questions.** The shape is also informative on its
+own: Turalio answers **every consequence question and almost no mechanism question**,
+which is the exact mirror of TAK-994, and between them the two cases show that the
+two halves of §3.4 fail independently.
 
 The demo and the client seed from the **same** `data/probe-case.json`, so the
 terminal and the screen cannot disagree about what the evidence is. With no

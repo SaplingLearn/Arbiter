@@ -150,6 +150,51 @@ const POSITIONS: Partial<Record<CaseName, Position[]>> = {
    * a finding because the package contains none - and the three states they land in
    * are exactly the point.
    */
+  /**
+   * Turalio: the most complete package, and the one where the numbers point the wrong
+   * way. Rat liver injury begins at about 0.6x the exposure a patient receives, so
+   * rule R3's usual question - was the clean result run at a relevant exposure? -
+   * inverts: the POSITIVE result was found below the clinical range.
+   *
+   * The real drug was approved with a boxed warning and a REMS. Nobody here is
+   * arguing it should not have been; they are arguing about what has to be true for
+   * that to be the right call.
+   */
+  turalio: [
+    {
+      participantId: "a.silva (tox)",
+      call: "do_not_advance",
+      reasoning: "Necrotizing inflammation and raised AST and ALT in rat liver starting at 0.6 times the clinical exposure. I have never seen an argument for advancing where the animal injury begins below the human dose, and the dog study topped out at 0.3 times, so the second species never tested the range at all.",
+      citedFindingIds: ["TUR:liver-histopathology", "TUR:exposure-margin"],
+      external: [],
+      submittedAt: T(1),
+    },
+    {
+      participantId: "b.mehta (dmpk)",
+      call: "cannot_conclude",
+      reasoning: "The most abundant human metabolite was never toxicologically evaluated, and it runs at least 60-fold above parent in monkey. The liver signal we are arguing about may not even be the parent compound's. That is answerable, and until it is answered I do not know what we are weighing.",
+      citedFindingIds: ["TUR:metabolite-unassessed"],
+      external: [],
+      submittedAt: T(2),
+    },
+    {
+      participantId: "c.lindqvist (clinical)",
+      call: "advance",
+      reasoning: "Mixed hepatocellular and biliary, and reversible in the recovery period bar the edema. This is a disabling tumour with no alternative, and a reversible transaminase signal with a defined pattern is monitorable. Advance with hepatic monitoring and a stopping rule, not unconditionally.",
+      citedFindingIds: ["TUR:liver-histopathology", "TUR:reversibility", "TUR:dosing-duration"],
+      external: [],
+      submittedAt: T(3),
+    },
+    {
+      participantId: "d.abara (project)",
+      call: "advance",
+      reasoning: "Genotox is clean and carcinogenicity is negative in both species. The programme has been through this and I think we are overreading a rat finding.",
+      citedFindingIds: ["TUR:genotoxicity"],
+      external: [],
+      submittedAt: T(4),
+    },
+  ],
+
   slynd: [
     {
       participantId: "a.silva (tox)",
@@ -338,6 +383,12 @@ async function main(): Promise<void> {
       for (const f of d.oneSided) console.log(`    ${f.findingId.padEnd(34)} (${f.call})`);
     }
     console.log("");
+    if (d.contested.length > 0) {
+      console.log(`  ${d.contested.length === 1 ? "That finding is" : "Those findings are"} what the room actually disagrees about - cited by camps that`);
+      console.log("  reached opposite conclusions from it. Everything else on the list is evidence");
+      console.log("  one side raised and the other did not answer. An adjudication starts here.");
+      console.log("");
+    }
     if (d.contested.length === 0) {
       console.log("  NOTHING IS CONTESTED, and that is the finding. Not one piece of evidence is");
       console.log("  cited by two camps - so this is not four people reading the same result two");
@@ -346,10 +397,12 @@ async function main(): Promise<void> {
       console.log("  says it is usually most of a disagreement. Here it is all of it.");
       console.log("");
     }
-    console.log("  The crux is in the document, not in the room: the applicant proposed a 44x");
-    console.log("  margin, the assessor refused the NOAEL it rested on and lowered it to 6.7x on");
-    console.log("  Cmax. Rule R3 turns on which of those stands, and no position says which one");
-    console.log("  it is using. THAT is the question to settle, and it is answerable.");
+    if (arg === "nipocalimab") {
+      console.log("  The crux is in the document, not in the room: the applicant proposed a 44x");
+      console.log("  margin, the assessor refused the NOAEL it rested on and lowered it to 6.7x on");
+      console.log("  Cmax. Rule R3 turns on which of those stands, and no position says which one");
+      console.log("  it is using. THAT is the question to settle, and it is answerable.");
+    }
   }
 
   // ---- 5. Adjudication -----------------------------------------------------

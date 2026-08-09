@@ -9,9 +9,9 @@ import type { AdjudicateRequest } from "./adjudicate.js";
  * about what the evidence is, and the first person to notice would be someone in the
  * audience holding a printout.
  *
- * FIVE ENTRIES, AND TWO OF THEM REFUSE.
+ * SIX ENTRIES, AND TWO OF THEM REFUSE.
  *
- * Four regulatory documents were collected; two produce cases and two cannot, and
+ * Five regulatory documents were collected; three produce cases and two cannot, and
  * the two that cannot are listed here rather than quietly dropped. A picker that
  * showed only what worked would suggest every document works, and the measured
  * reality - that most historical packages are unreadable - is the finding that
@@ -23,7 +23,7 @@ import type { AdjudicateRequest } from "./adjudicate.js";
  * refusal would be decorative.
  */
 
-export type CaseName = "tak994" | "nipocalimab" | "slynd" | "tolcapone" | "troglitazone";
+export type CaseName = "tak994" | "nipocalimab" | "slynd" | "turalio" | "tolcapone" | "troglitazone";
 
 export interface CaseSummary {
   name: CaseName;
@@ -78,6 +78,7 @@ export const CATALOGUE: CaseSummary[] = [
   { name: "tak994", label: "TAK-994 (narcolepsy)", shape: "Thin package, room agreed. 8 of 12 questions unanswered.", usable: true },
   { name: "nipocalimab", label: "Nipocalimab / Imaavy (myasthenia gravis)", shape: "Rich package, room splits three ways. Biologic, so 4 questions do not apply.", usable: true },
   { name: "slynd", label: "Slynd / drospirenone (contraception)", shape: "A 505(b)(2) with no new nonclinical studies at all. Almost nothing to cite.", usable: true },
+  { name: "turalio", label: "Turalio / pexidartinib (giant cell tumour)", shape: "The most complete package here. Boxed warning for liver injury; the animal damage starts BELOW human exposure.", usable: true },
   { name: "tolcapone", label: "Tolcapone / Tasmar (1998 review)", shape: "REFUSED - scanned images, zero extractable text.", usable: false },
   { name: "troglitazone", label: "Troglitazone / Rezulin (1997 package)", shape: "REFUSED - readable, but it is a labelling supplement with no tox review.", usable: false },
 ];
@@ -128,6 +129,7 @@ export function loadCase(name: CaseName): LoadedCase {
 
   if (name === "nipocalimab") return fromFile(name, "data/cases/nipocalimab-imaavy.json");
   if (name === "slynd") return fromFile(name, "data/cases/slynd-drospirenone.json");
+  if (name === "turalio") return fromFile(name, "data/cases/turalio-pexidartinib.json");
 
   const probe = JSON.parse(readFileSync("data/probe-case.json", "utf8")) as {
     compoundLabel: string; context: string;
