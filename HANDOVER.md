@@ -1752,6 +1752,20 @@ In the client, switch persona and submit, then switch again: the first answer is
 on screen, because the server never sent it. The network tab confirms it — the
 response is `{"own":null,"others":[{"submitted":true}],"revealed":null}`.
 
+### 13.4e The completion plan
+
+`docs/superpowers/specs/2026-08-09-arbiter-completion-plan.md` — what to do the day
+an API key exists, as five sequential gates, each of which can stop the project.
+
+It **supersedes spec §8's build order**, which predates four measurements that change
+the ordering: the leakage finding (§13.4c), the four questions no regulatory review
+answers (§13.4d), the four extraction manifests that now exist, and the 2-of-5
+document failure rate.
+
+**If only one thing gets done: Gate 0**, the consistency probe. An hour, about a
+dollar, no answer key, and it is the only measurement that can show the architecture
+is wrong before another month is built on it.
+
 ### 13.5 The three rules that matter most going forward
 
 1. **The prompt is a model parameter.** Tuning it against the test set is the same
