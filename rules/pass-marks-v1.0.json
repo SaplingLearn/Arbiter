@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "registeredAt": "2026-08-09",
+  "registrationNote": "COMMITTED BEFORE ANY AI RESULT EXISTED. No model has been called at the time this file is written - there is no API key configured in this repository. That is the entire point: a pass mark decided after seeing a score is not a pass mark, it is a description. Spec section 7.2a. Changing any number here mints a new version and every result already reported under v1.0 stays reported under v1.0.",
+
+  "consistency": {
+    "maxFlipRate": 0.10,
+    "runsPerCase": 20,
+    "rationale": "Twenty runs of one case. At most two may disagree with the modal verdict. The bar is set by what the claim needs rather than by what a model is likely to achieve: the product promises the same evidence yields the same recommendation, and a system that changes its mind on one case in five cannot make that promise however well it reads a document. Chance alone agrees a third of the time across three verdicts, so anything below roughly 0.67 agreement is not merely weak - it is indistinguishable from guessing.",
+    "onFailure": "This is a DESIGN defect, not a prompt defect. Spec section 7.2a. Do not respond by rewriting the prompt and re-running; record the number, and reconsider whether an AI decider can carry the consistency claim at all."
+  },
+
+  "ruleStability": {
+    "minAgreement": 0.80,
+    "rationale": "Per-rule position agreement, measured alongside the verdict. A stable verdict over shuffling reasoning is not a pass - it is the right-answer-wrong-reason failure with a different shape, and it is what a reviewer would be signing. Set below the verdict bar deliberately: individual rule positions may legitimately be finer-grained judgements than the verdict they roll up into."
+  },
+
+  "extraction": {
+    "maxHallucinationRate": 0.0,
+    "minRecall": 0.85,
+    "rationale": "Measured against the human manifest required by spec section 4.4a - without one, a finding absent from the output cannot be told apart from a finding absent from the document. Hallucination is reporting something the document does not contain, and its ceiling is ZERO rather than small. A missed finding is a gap a reviewer can see; an invented one is a gap they cannot, and it is the failure that most directly destroys the product's reason to exist. Recall at 0.85 is deliberately the softer bar - a miss is recoverable at the approval step, where a human is already reading the list."
+  },
+
+  "groups": {
+    "group1_documentedLiverSignal": {
+      "maxMissed": 0.20,
+      "note": "Failing to flag, AND failing to state what is missing, both count as a miss. Stating 'cannot conclude, here is what would settle it' is a PASS - it is the honest answer and the product's most valuable output."
+    },
+    "group2_realMechanismFineInPractice": {
+      "maxFalseAlarm": 0.20,
+      "note": "Five compounds, so at most one. Reporting the mechanism is correct and expected; calling it disqualifying is the false alarm. This group is the direct measurement of the defect found on 2026-08-09, where the rate was 5 of 5."
+    },
+    "group3_genuinelyClean": {
+      "maxFalseAlarm": 0.10,
+      "note": "The tightest bar on the board. A system that cannot leave a clean drug alone is not usable, and unlike group 2 there is no mechanism here to half-excuse the flag."
+    }
+  },
+
+  "reportingRules": [
+    "All three groups are reported together, from one prompt version, always. A change that improves group 1 while degrading group 2 has not made the system smarter - it has made it more trigger-happy, which is the defect section 0 of the redesign spec measured.",
+    "Every reported number names the prompt version and hash that produced it.",
+    "Held-out cases are run once. A second run against a revised prompt makes them development cases permanently and they cannot be restored.",
+    "No accuracy figure is quoted without its denominator and its class balance. That omission is what produced the 0.750 headline."
+  ],
+
+  "iterationBudget": {
+    "maxPromptRevisions": 5,
+    "rationale": "Against development cases only. Each revision is logged with its result. Unbounded iteration is the mechanism by which a system becomes unfalsifiable, and a visible revision count is what prevents it - on revision twelve, the number that matters is twelve, not whatever score it finally reached."
+  }
+}
