@@ -458,14 +458,52 @@ the group can outvote the accountable owner and nobody is accountable.**
 
 Recording a position requires citing the findings it relies on. The system checks
 deterministically that the cited findings exist in this case and are relevant to the
-rule invoked. **A position citing nothing is stored and displayed as unsupported.**
+rule invoked.
+
+#### Two fields, doing different jobs
+
+**What you cite is a selection.** Checkboxes against the approved findings, placed
+beside the inventory the participant is already reading. **Not free text**, and the
+reason is load-bearing: a selected citation points at a specific object, so the check is
+deterministic. A *typed* citation would have to be run through a model to decide whether
+it referred to anything real — and then **a model is gatekeeping dissent**, which §6.4
+forbids for the same reason vote tallies are forbidden.
+
+**Why you cite it is prose.** *"The transporter result is real, but this assay overcalls
+for phenothiazines and the margin is 40×."* No structure captures that, and it is the
+part a later reader actually needs.
+
+Citation granularity is the whole finding, not a span within it. Finer granularity is
+friction with no payoff.
+
+#### Three states, not two
+
+| state | meaning |
+|---|---|
+| **Cited** | points at findings in this case. Checkable. |
+| **External** | points at something outside the case documents — a paper, prior experience with the chemical class. The claim is stated and a source may be attached. |
+| **Unsupported** | cites nothing at all. |
+
+**External is not a weaker form of cited.** It is *asserted, not yet in evidence*, and it
+is useful precisely because it is testable: *"this assay overcalls for phenothiazines"*
+is a claim someone can go and verify. **An external citation joins the missing-evidence
+list** rather than evaporating, and attaching its source promotes it to a finding.
+
+Without this state the design fails in a specific way: a scientist relying on genuine
+expertise not present in the uploaded documents would either have to click an adjacent
+finding and misrepresent themselves, or be marked unsupported while being right. **Both
+outcomes teach people to route around the citation requirement, and a requirement people
+route around is worse than none.**
+
+#### What unsupported does and does not mean
 
 **Unsupported does not mean deleted and does not mean overruled.** Dissent is preserved
 permanently — that is the record's purpose. What changes is that the *basis* of every
 position is visible: the person signing can see three positions citing specific findings
 and one citing nothing. **They still decide. They can no longer do it without noticing.**
 
-On a group-3 compound there is nothing available to cite, which is why that group exists.
+On a group-3 compound there is nothing to cite *and* nothing external to point at, so an
+objection lands in the third state visibly. That is why the group exists.
 
 ### 6.6 Unanimity is not correctness — the feature that matters most
 
