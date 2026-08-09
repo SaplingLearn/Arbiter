@@ -374,6 +374,55 @@ export function unanimityCheck(c: DeliberationCase, inv: Inventory): UnanimityRe
 }
 
 /**
+ * Where the room actually split, and on what. §6.3's "the one disagreement that
+ * changes the answer", in the part that needs no model.
+ *
+ * Plain arithmetic over the positions: who called what, and which findings only one
+ * side is resting on. It is deliberately NOT a judgment about who is right - it
+ * reports the shape of the disagreement and stops, because deciding which reading of
+ * a finding is correct is exactly the work the adjudication and the signer do.
+ *
+ * `contested` is the useful column. A finding both sides cite is common ground being
+ * read two ways; a finding only one side cites is evidence the other side has not
+ * engaged with, and those are different conversations.
+ */
+export interface DisagreementReport {
+  split: { call: Call; participantIds: string[] }[];
+  /** Cited by more than one camp - the same evidence, read differently. */
+  contested: string[];
+  /** Cited by exactly one camp - evidence the others did not answer. */
+  oneSided: { findingId: string; call: Call }[];
+}
+
+export function disagreementReport(c: DeliberationCase): DisagreementReport | null {
+  const calls = [...new Set(c.positions.map((p) => p.call))].sort();
+  if (calls.length < 2) return null;
+
+  const split = calls.map((call) => ({
+    call,
+    participantIds: c.positions.filter((p) => p.call === call).map((p) => p.participantId).sort(),
+  }));
+
+  const campsByFinding = new Map<string, Set<Call>>();
+  for (const p of c.positions) {
+    for (const id of p.citedFindingIds) {
+      const set = campsByFinding.get(id) ?? new Set<Call>();
+      set.add(p.call);
+      campsByFinding.set(id, set);
+    }
+  }
+
+  const contested: string[] = [];
+  const oneSided: { findingId: string; call: Call }[] = [];
+  for (const [findingId, camps] of [...campsByFinding].sort(([a], [b]) => (a < b ? -1 : 1))) {
+    if (camps.size > 1) contested.push(findingId);
+    else oneSided.push({ findingId, call: [...camps][0]! });
+  }
+
+  return { split, contested, oneSided };
+}
+
+/**
  * External claims become missing evidence rather than evaporating. §6.5.
  *
  * "This assay overcalls for phenothiazines" is not a weaker citation; it is a claim

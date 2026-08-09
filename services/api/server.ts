@@ -5,10 +5,11 @@ import { resolve } from "node:path";
 import { DeliberationService } from "./deliberation-service.js";
 import { FileStore } from "./store.js";
 import type { Position } from "./deliberation.js";
-import type { CoveringFinding, EvidenceChecklist } from "./inventory.js";
+import type { CoveringFinding, EvidenceChecklist, Modality } from "./inventory.js";
 import { handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
 import { completeFromEnv } from "./interpret.js";
 import { stubComplete } from "./probe.js";
+import { isCaseName, loadCase } from "./cases.js";
 
 /**
  * The deliberation API. Spec §3.3 - "the web app stops owning data and reads
@@ -99,39 +100,37 @@ export function makeHandler(deps: ServerDeps) {
         return json(res, r.status, r.body);
       }
 
-      // POST /api/demo - seed the TAK-994 case from the files on disk.
+      // POST /api/demo - seed a named case from the files on disk.
       //
-      // The client cannot read data/probe-case.json, and hand-typing six findings
-      // into a browser to start a demonstration is how a demonstration comes to use
-      // findings that are not the ones in the repository. This reads the SAME files
-      // `npm run deliberate:demo` reads, so the screen and the terminal cannot
-      // disagree about what the evidence is.
+      // The client cannot read data/, and hand-typing findings into a browser to start
+      // a demonstration is how a demonstration comes to use findings that are not the
+      // ones in the repository. This calls the SAME loader `npm run deliberate:demo`
+      // calls, so the screen and the terminal cannot disagree about the evidence.
       if (parts[1] === "demo" && method === "POST") {
-        const probe = JSON.parse(readFileSync("data/probe-case.json", "utf8")) as {
-          compoundLabel: string; context: string;
-          findings: { id: string; label: string; assertion: "toxic" | "safe" | "ambiguous"; detail: string }[];
-        };
-        const cov = JSON.parse(readFileSync("data/probe-case-coverage.json", "utf8")) as { coverage: Record<string, string[]> };
-        const b = body as { caseId: string; participantIds: string[]; at: string };
-        const existing = deps.service.inventory(b.caseId);
-        if (existing !== null) return json(res, 200, { caseId: b.caseId, alreadyOpen: true, inventory: existing });
+        const b = body as { case?: unknown; participantIds: string[]; at: string };
+        if (!isCaseName(b.case)) return json(res, 400, { error: "unknown_case", detail: 'case must be "tak994" or "nipocalimab".' });
+        const loaded = loadCase(b.case);
+        const existing = deps.service.inventory(loaded.caseId);
+        if (existing !== null) {
+          return json(res, 200, { caseId: loaded.caseId, alreadyOpen: true, inventory: existing, compoundLabel: loaded.compoundLabel, context: loaded.context, provenance: loaded.provenance });
+        }
         const { inventory } = deps.service.open({
-          caseId: b.caseId, compoundLabel: probe.compoundLabel, context: probe.context,
+          caseId: loaded.caseId, compoundLabel: loaded.compoundLabel, context: loaded.context,
           ownerId: actor, participantIds: b.participantIds,
-          findings: probe.findings.map((f) => ({ ...f, covers: cov.coverage[f.id] ?? [] })),
-          at: b.at,
+          findings: loaded.findings, modality: loaded.modality, at: b.at,
         });
-        return json(res, 201, { caseId: b.caseId, alreadyOpen: false, inventory });
+        return json(res, 201, { caseId: loaded.caseId, alreadyOpen: false, inventory, compoundLabel: loaded.compoundLabel, context: loaded.context, provenance: loaded.provenance });
       }
 
       if (parts[1] !== "cases") return json(res, 404, { error: "not_found" });
 
       // POST /api/cases
       if (parts.length === 2 && method === "POST") {
-        const b = body as { caseId: string; compoundLabel: string; context: string; participantIds: string[]; findings: CoveringFinding[]; at: string };
+        const b = body as { caseId: string; compoundLabel: string; context: string; participantIds: string[]; findings: CoveringFinding[]; modality?: Modality; at: string };
         const { case: c, inventory } = deps.service.open({
           caseId: b.caseId, compoundLabel: b.compoundLabel, context: b.context,
-          ownerId: actor, participantIds: b.participantIds, findings: b.findings, at: b.at,
+          ownerId: actor, participantIds: b.participantIds, findings: b.findings,
+          ...(b.modality === undefined ? {} : { modality: b.modality }), at: b.at,
         });
         return json(res, 201, { case: c, inventory });
       }

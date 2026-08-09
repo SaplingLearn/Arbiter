@@ -1,15 +1,21 @@
 import { readFileSync } from "node:fs";
 import { DeliberationService } from "./deliberation-service.js";
 import { MemoryStore, commitmentFor, verifySeals } from "./store.js";
-import { positionBasis, type Position } from "./deliberation.js";
-import type { CoveringFinding, EvidenceChecklist } from "./inventory.js";
+import { disagreementReport, positionBasis, type Position } from "./deliberation.js";
+import type { EvidenceChecklist } from "./inventory.js";
+import { isCaseName, loadCase, type CaseName } from "./cases.js";
 import { handleAdjudicate } from "./adjudicate.js";
 import { completeFromEnv } from "./interpret.js";
 import { stubComplete } from "./probe.js";
-import type { AdjudicateRequest } from "./adjudicate.js";
 
 /**
- * A full blind deliberation, played end to end on the real TAK-994 evidence.
+ * A full blind deliberation, played end to end on real evidence.
+ *
+ * TWO CASES: `npm run deliberate:demo` (TAK-994) and `npm run deliberate:demo --
+ * nipocalimab`. They are deliberately different shapes. TAK-994 is a thin package a
+ * room agreed about; nipocalimab is a rich one a room splits over. A demo that only
+ * ever showed the first would be showing that the tool can find gaps, which is the
+ * easy half.
  *
  * WHY THIS EXISTS. Every part of §6 except the adjudication sentence is deterministic
  * code, so the whole mechanism can be demonstrated, and audited, before an API key
@@ -29,31 +35,15 @@ import type { AdjudicateRequest } from "./adjudicate.js";
  * as one.
  */
 
-const CASE_ID = "demo-tak994";
 const OWNER = "r.okafor (programme lead)";
 
 /** Fixed, because a demo whose output changes run to run cannot be diffed. */
 const T = (n: number): string => `2026-08-09T${String(9 + n).padStart(2, "0")}:00:00Z`;
 
-interface ProbeCase {
-  compoundLabel: string;
-  context: string;
-  rules: AdjudicateRequest["rules"];
-  findings: { id: string; label: string; assertion: "toxic" | "safe" | "ambiguous"; detail: string }[];
-}
-
-const bar = (s: string): string => `\n${"=".repeat(78)}\n${s}\n${"=".repeat(78)}`;
-
-function loadFindings(): { findings: CoveringFinding[]; probe: ProbeCase } {
-  const probe = JSON.parse(readFileSync("data/probe-case.json", "utf8")) as ProbeCase;
-  const cov = JSON.parse(readFileSync("data/probe-case-coverage.json", "utf8")) as {
-    checklistVersion: string; coverage: Record<string, string[]>;
-  };
-  return {
-    probe,
-    findings: probe.findings.map((f) => ({ ...f, covers: cov.coverage[f.id] ?? [] })),
-  };
-}
+const bar = (t: string): string => `
+${"=".repeat(78)}
+${t}
+${"=".repeat(78)}`;
 
 /**
  * Four positions. Every one is a real reading of the evidence in the case, and
@@ -65,7 +55,8 @@ function loadFindings(): { findings: CoveringFinding[]; probe: ProbeCase } {
  * the reveal, the person signing can see it rests on nothing, and can still choose
  * to follow it.
  */
-const POSITIONS: Position[] = [
+const POSITIONS: Record<CaseName, Position[]> = {
+  tak994: [
   {
     participantId: "a.silva (tox)",
     call: "advance",
@@ -98,42 +89,106 @@ const POSITIONS: Position[] = [
     external: [],
     submittedAt: T(4),
   },
-];
+  ],
+
+  /**
+   * Nipocalimab: a room that does NOT agree, which is the ordinary case and the one
+   * TAK-994 cannot demonstrate. The split is real and it is in the document - the
+   * applicant claimed a 44x margin, the assessor rejected the NOAEL it rested on and
+   * lowered the margin to 6.7x on Cmax. Rule R3 turns on which of those you accept.
+   */
+  nipocalimab: [
+    {
+      participantId: "a.silva (tox)",
+      call: "advance",
+      reasoning: "The NOAEL was set on the absence of clinically relevant serum chemistry and histology changes, and both pivotal studies carried recovery phases of 8 and 9 weeks with IgG returning to baseline. For a liver question that is the shape you want.",
+      citedFindingIds: ["IMA:repeat-dose-chemistry", "IMA:reversibility"],
+      external: [],
+      submittedAt: T(1),
+    },
+    {
+      participantId: "b.mehta (dmpk)",
+      call: "cannot_conclude",
+      reasoning: "We are being asked to accept two different margins from one document. The applicant proposed 44x; the assessor did not support that NOAEL and lowered it to 100 mg/kg, giving 10.8x on AUC and 6.7x on Cmax. R3 turns entirely on which one we are standing behind, and nobody has said which.",
+      citedFindingIds: ["IMA:margin-applicant", "IMA:margin-chmp"],
+      external: [],
+      submittedAt: T(2),
+    },
+    {
+      participantId: "c.lindqvist (clinical)",
+      call: "do_not_advance",
+      reasoning: "There are mononuclear cell infiltrates in the liver at every dose down to 20 mg/kg. I accept the argument that foreign biologics raise the background rate in monkeys, but it is an argument, not a measurement, and there is no human-cell work and no characterisation of what an injury would look like if it happened.",
+      citedFindingIds: ["IMA:liver-mononuclear-infiltrates"],
+      external: [],
+      submittedAt: T(3),
+    },
+    {
+      participantId: "d.abara (project)",
+      call: "advance",
+      reasoning: "Anti-FcRn antibodies have been through this discussion before and the liver has never been the issue for the class. The infiltrate finding reads as background to me.",
+      citedFindingIds: [],
+      external: [{ claim: "Hepatic findings have not been class-limiting for anti-FcRn antibodies.", source: "Comparator programmes named in the report (efgartigimod, rozanolixizumab); not assessed for liver endpoints in this document." }],
+      submittedAt: T(4),
+    },
+  ],
+};
 
 async function main(): Promise<void> {
+  const arg = process.argv[2] ?? "tak994";
+  if (!isCaseName(arg)) {
+    console.error(`Unknown case "${arg}". Use tak994 or nipocalimab.`);
+    process.exitCode = 1;
+    return;
+  }
+  const kase = loadCase(arg);
+  const positions = POSITIONS[arg];
+  const CASE_ID = kase.caseId;
+
   const checklist = JSON.parse(readFileSync("rules/evidence-checklist-v1.0.json", "utf8")) as EvidenceChecklist;
-  const { findings, probe } = loadFindings();
   const store = new MemoryStore();
   const svc = new DeliberationService(store, checklist);
 
   console.log(bar("ARBITER - blind deliberation, played end to end"));
-  console.log(`Case      : ${probe.compoundLabel}`);
-  console.log(`Context   : ${probe.context}`);
+  console.log(`Case      : ${kase.compoundLabel}`);
+  console.log(`Context   : ${kase.context}`);
+  console.log(`Modality  : ${kase.modality}`);
+  console.log(`Evidence  : ${kase.provenance}`);
   console.log(`Owner     : ${OWNER}`);
-  console.log(`Panel     : ${POSITIONS.map((p) => p.participantId).join(", ")}`);
+  console.log(`Panel     : ${positions.map((p) => p.participantId).join(", ")}`);
   console.log(`Checklist : evidence-checklist v${checklist.version} (${checklist.items.length} questions)`);
 
   const { inventory } = svc.open({
-    caseId: CASE_ID, compoundLabel: probe.compoundLabel, context: probe.context,
-    ownerId: OWNER, participantIds: POSITIONS.map((p) => p.participantId),
-    findings, at: T(0),
+    caseId: CASE_ID, compoundLabel: kase.compoundLabel, context: kase.context,
+    ownerId: OWNER, participantIds: positions.map((p) => p.participantId),
+    findings: kase.findings, modality: kase.modality, at: T(0),
   });
 
   // ---- 1. The inventory, before anybody speaks -----------------------------
   console.log(bar("1. THE INVENTORY, published to everyone before anybody answers"));
   console.log("Flat, unranked, no verdict. Ordered by checklist id and by nothing else,\n" +
     "because ordering gaps by severity would nudge the room before it has spoken.\n");
+  const MARK: Record<string, string> = {
+    present: "[present]      ", inconclusive: "[inconclusive] ",
+    absent: "[ABSENT]       ", not_applicable: "[n/a]          ",
+  };
   for (const e of inventory.entries) {
-    const mark = e.state === "present" ? "[present]     " : e.state === "inconclusive" ? "[inconclusive]" : "[ABSENT]      ";
-    console.log(`  ${mark} ${e.itemId}  ${e.field}`);
-    if (e.findingIds.length > 0) console.log(`                       from: ${e.findingIds.join(", ")}`);
+    console.log(`  ${MARK[e.state]} ${e.itemId}  ${e.field}`);
+    if (e.findingIds.length > 0) console.log(`                        from: ${e.findingIds.join(", ")}`);
   }
-  const absentCount = inventory.entries.filter((e) => e.state === "absent").length;
-  const mechAbsent = inventory.entries.filter((e) => e.state === "absent" && e.half === "mechanism").length;
-  console.log(`\n  ${absentCount} of ${inventory.entries.length} questions unanswered - ${mechAbsent} on the mechanism side, ${absentCount - mechAbsent} on the consequence side.`);
-  console.log("  That shape is the whole finding. The mechanism half of this package is largely");
-  console.log("  answered and the consequence half is empty, which is why 'is there a route to");
-  console.log("  liver injury' and 'is it severe enough to stop' had to become two questions.");
+  const count = (st: string): number => inventory.entries.filter((e) => e.state === st).length;
+  console.log(`\n  present ${count("present")}  |  inconclusive ${count("inconclusive")}  |  ABSENT ${count("absent")}  |  not applicable ${count("not_applicable")}`);
+  if (count("not_applicable") > 0) {
+    console.log(`  ${count("not_applicable")} questions do not arise for a ${kase.modality.replace("_", " ")}, and are marked n/a rather`);
+    console.log("  than missing. A monoclonal antibody is catabolised to amino acids, so it has no");
+    console.log("  reactive metabolite; it does not inhibit hepatobiliary transporters; QSAR models");
+    console.log("  are built for small molecules. Listing those as gaps is the same false alarm as");
+    console.log("  flagging an approved BSEP inhibitor - it fills the missing list with items");
+    console.log("  nobody can ever supply, which is how the real gaps stop being read.");
+  } else {
+    console.log("  That shape is the whole finding. The mechanism half of this package is largely");
+    console.log("  answered and the consequence half is empty, which is why 'is there a route to");
+    console.log("  liver injury' and 'is it severe enough to stop' had to become two questions.");
+  }
 
   // ---- 2. The blind phase --------------------------------------------------
   console.log(bar("2. THE BLIND PHASE - positions are sealed as they arrive"));
@@ -147,21 +202,21 @@ async function main(): Promise<void> {
   // answered and two have not, because a view taken once everyone is in would
   // demonstrate nothing - the interesting question is what a participant can see
   // about colleagues who HAVE already submitted.
-  submit(POSITIONS[0]!);
-  submit(POSITIONS[1]!);
+  submit(positions[0]!);
+  submit(positions[1]!);
 
-  console.log("\n  Paused here. a.silva has submitted; c.lindqvist and d.abara have not.");
-  console.log("  What b.mehta can see at this moment:");
-  const midView = svc.view(CASE_ID, "b.mehta (dmpk)")!;
+  console.log(`\n  Paused here. ${positions[0]!.participantId} has submitted; ${positions[2]!.participantId} and ${positions[3]!.participantId} have not.`);
+  console.log(`  What ${positions[1]!.participantId} can see at this moment:`);
+  const midView = svc.view(CASE_ID, positions[1]!.participantId)!;
   console.log(`    own       : ${midView.own?.call} - "${midView.own?.reasoning.slice(0, 52)}…"`);
   for (const o of midView.others) console.log(`    ${o.participantId.padEnd(26)}: ${o.submitted ? "submitted" : "not yet"}`);
   console.log(`    revealed  : ${midView.revealed === null ? "null - nothing of anyone else's position is returned at all" : "LEAK"}`);
   console.log("\n  Enforced by not returning the data, not by asking the screen to hide it.");
   console.log("  Not even a running tally of calls: a tally drags as hard as the positions do.");
-  console.log("  a.silva's answer is in the store and is not in that object.\n");
+  console.log(`  ${positions[0]!.participantId}'s answer is in the store and is not in that object.\n`);
 
-  submit(POSITIONS[2]!);
-  submit(POSITIONS[3]!);
+  submit(positions[2]!);
+  submit(positions[3]!);
 
   // ---- 3. Reveal -----------------------------------------------------------
   const revealed = svc.reveal(CASE_ID, OWNER, T(5), "all_in");
@@ -175,18 +230,46 @@ async function main(): Promise<void> {
     if (positionBasis(p) === "unsupported") console.log("    cites nothing. Preserved, never deleted and never overruled - the signer can see it.");
   }
 
-  // ---- 4. The beat ---------------------------------------------------------
+  // ---- 4. What the record says about itself --------------------------------
   const u = svc.unanimity(CASE_ID)!;
-  console.log(bar("4. UNANIMITY IS NOT CORRECTNESS"));
-  console.log(`  Unanimous: ${u.unanimous}   Shared call: ${u.call}`);
-  console.log("  No model ran to produce what follows. It is a fact about the record.\n");
-  for (const c of u.concerns) console.log(`  * ${c}\n`);
-  console.log("  This is TAK-994. A room that agreed, a package that looked complete, and a");
-  console.log("  gap nobody named. Hepatotoxicity appeared later, in humans.");
+  const d = disagreementReport(revealed.value);
+  console.log(bar(u.unanimous ? "4. UNANIMITY IS NOT CORRECTNESS" : "4. WHERE THE ROOM SPLIT, AND ON WHAT"));
+  console.log("  No model ran to produce what follows. It is arithmetic over the record.\n");
+
+  if (u.unanimous) {
+    console.log(`  Unanimous: true   Shared call: ${u.call}\n`);
+    for (const c of u.concerns) console.log(`  * ${c}\n`);
+    console.log("  This is TAK-994. A room that agreed, a package that looked complete, and a");
+    console.log("  gap nobody named. Hepatotoxicity appeared later, in humans.");
+  } else if (d !== null) {
+    for (const g of d.split) console.log(`  ${g.call.toUpperCase().padEnd(17)} ${g.participantIds.join(", ")}`);
+    console.log("");
+    if (d.contested.length > 0) {
+      console.log("  Cited by more than one camp - the same evidence, read two ways:");
+      for (const f of d.contested) console.log(`    ${f}`);
+    }
+    if (d.oneSided.length > 0) {
+      console.log("  Cited by one camp only - evidence the other side did not answer:");
+      for (const f of d.oneSided) console.log(`    ${f.findingId.padEnd(34)} (${f.call})`);
+    }
+    console.log("");
+    if (d.contested.length === 0) {
+      console.log("  NOTHING IS CONTESTED, and that is the finding. Not one piece of evidence is");
+      console.log("  cited by two camps - so this is not four people reading the same result two");
+      console.log("  ways, it is four people looking at four different parts of the document and");
+      console.log("  reporting what they saw. Spec 6.3 calls that talking past each other, and");
+      console.log("  says it is usually most of a disagreement. Here it is all of it.");
+      console.log("");
+    }
+    console.log("  The crux is in the document, not in the room: the applicant proposed a 44x");
+    console.log("  margin, the assessor refused the NOAEL it rested on and lowered it to 6.7x on");
+    console.log("  Cmax. Rule R3 turns on which of those stands, and no position says which one");
+    console.log("  it is using. THAT is the question to settle, and it is answerable.");
+  }
 
   // ---- 5. Adjudication -----------------------------------------------------
   const live = completeFromEnv();
-  const req = svc.adjudicationRequest(CASE_ID, probe.rules)!;
+  const req = svc.adjudicationRequest(CASE_ID, kase.rules)!;
   console.log(bar(`5. ADJUDICATION  [${live === null ? "STUB - NO API KEY - NOT A RESULT" : "LIVE MODEL"}]`));
   console.log(`  Gaps handed to the adjudicator: ${req.absent.length}`);
   console.log(`  ...of which came from a participant's external claim: ${req.absent.filter((a) => a.field.startsWith("External claim")).length}`);
@@ -206,7 +289,7 @@ async function main(): Promise<void> {
     console.log(`               ${a.consequence.reasoning}`);
   }
   if (live === null) {
-    console.log("\n  THE TWO LINES ABOVE CAME FROM A STUB AND MEAN NOTHING ABOUT TAK-994. The");
+    console.log(`\n  THE TWO LINES ABOVE CAME FROM A STUB AND SAY NOTHING ABOUT ${kase.compoundLabel.split(" ")[0]!}. The`);
     console.log("  stub is deliberately fixed, so it tells you the wiring works and nothing");
     console.log("  else. Sections 1-4, 6 and 7 are real: deterministic code over real evidence.");
   }
@@ -216,7 +299,9 @@ async function main(): Promise<void> {
   // ---- 6. Sign -------------------------------------------------------------
   const signed = svc.signOff(CASE_ID, {
     by: OWNER, at: T(7), agreesWithAdjudication: false,
-    reason: "Holding for an exposure margin and a reactive-metabolite study before first-in-human. The panel was unanimous and I am overriding it; the four positions and this reason stay on the record.",
+    reason: arg === "tak994"
+      ? "Holding for an exposure margin and a reactive-metabolite study before first-in-human. The panel was unanimous and I am overriding it; the four positions and this reason stay on the record."
+      : "Proceeding on the assessor's NOAEL of 100 mg/kg, not the applicant's 300. That is the margin this decision rests on and it is now on the record as such. The hepatic infiltrate finding is accepted as background; c.lindqvist dissented, and that dissent stands.",
   });
   console.log(bar("6. ONE NAMED PERSON SIGNS"));
   if (signed.ok) {

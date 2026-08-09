@@ -15,7 +15,7 @@
  */
 
 export type Call = "advance" | "do_not_advance" | "cannot_conclude";
-export type InventoryState = "present" | "inconclusive" | "absent";
+export type InventoryState = "present" | "inconclusive" | "absent" | "not_applicable";
 
 export interface InventoryEntry {
   itemId: string;
@@ -28,6 +28,7 @@ export interface InventoryEntry {
 
 export interface Inventory {
   checklistVersion: string;
+  modality: "small_molecule" | "biologic";
   entries: InventoryEntry[];
   unmappedFindingIds: string[];
 }

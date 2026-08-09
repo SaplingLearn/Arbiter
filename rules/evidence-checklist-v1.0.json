@@ -7,73 +7,118 @@
       "id": "M1",
       "half": "mechanism",
       "field": "Human-cell hepatotoxicity result",
-      "whatItBlocks": "Rule R1 cannot be applied at all. Animal in vivo evidence has nothing to be weighed against, so a clean rodent study carries the whole question by default."
+      "whatItBlocks": "Rule R1 cannot be applied at all. Animal in vivo evidence has nothing to be weighed against, so a clean rodent study carries the whole question by default.",
+      "appliesTo": [
+        "small_molecule",
+        "biologic"
+      ]
     },
     {
       "id": "M2",
       "half": "mechanism",
       "field": "Bile-salt export pump / hepatobiliary transporter inhibition",
-      "whatItBlocks": "The most common route to cholestatic injury is untested. A cholestatic pattern later seen in humans could not have been anticipated from the package."
+      "whatItBlocks": "The most common route to cholestatic injury is untested. A cholestatic pattern later seen in humans could not have been anticipated from the package.",
+      "appliesTo": [
+        "small_molecule"
+      ]
     },
     {
       "id": "M3",
       "half": "mechanism",
       "field": "Reactive metabolite or covalent binding assessment",
-      "whatItBlocks": "The main route to idiosyncratic injury is unexamined. Idiosyncratic injury is what withdrew most of the drugs this system exists to catch."
+      "whatItBlocks": "The main route to idiosyncratic injury is unexamined. Idiosyncratic injury is what withdrew most of the drugs this system exists to catch.",
+      "appliesTo": [
+        "small_molecule"
+      ]
     },
     {
       "id": "M4",
       "half": "mechanism",
       "field": "Mitochondrial toxicity result",
-      "whatItBlocks": "A key event in the liver-injury pathway is unmeasured, so rule R2 cannot distinguish direct pathway evidence from structural correlation."
+      "whatItBlocks": "A key event in the liver-injury pathway is unmeasured, so rule R2 cannot distinguish direct pathway evidence from structural correlation.",
+      "appliesTo": [
+        "small_molecule"
+      ]
     },
     {
       "id": "M5",
       "half": "mechanism",
       "field": "Repeat-dose in vivo liver findings",
-      "whatItBlocks": "There is no whole-organism observation, so nothing tests whether an in vitro signal survives absorption, distribution and clearance."
+      "whatItBlocks": "There is no whole-organism observation, so nothing tests whether an in vitro signal survives absorption, distribution and clearance.",
+      "appliesTo": [
+        "small_molecule",
+        "biologic"
+      ]
     },
     {
       "id": "M6",
       "half": "mechanism",
       "field": "Structural alert or QSAR assessment, with applicability domain stated",
-      "whatItBlocks": "Rule R4 cannot be applied: a structural prediction with no stated domain cannot be down-weighted for being outside it, so it is either trusted blindly or discarded blindly."
+      "whatItBlocks": "Rule R4 cannot be applied: a structural prediction with no stated domain cannot be down-weighted for being outside it, so it is either trusted blindly or discarded blindly.",
+      "appliesTo": [
+        "small_molecule"
+      ]
     },
     {
       "id": "C1",
       "half": "consequence",
       "field": "Projected human daily dose",
-      "whatItBlocks": "Severity cannot be scaled. Dose is the single strongest available predictor of whether a mechanism becomes an injury."
+      "whatItBlocks": "Severity cannot be scaled. Dose is the single strongest available predictor of whether a mechanism becomes an injury.",
+      "appliesTo": [
+        "small_molecule",
+        "biologic"
+      ]
     },
     {
       "id": "C2",
       "half": "consequence",
       "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
-      "whatItBlocks": "Rule R3 cannot be applied to any reassuring result. A clean assay run below the exposure humans will see is not evidence of safety, and without this field the two are indistinguishable."
+      "whatItBlocks": "Rule R3 cannot be applied to any reassuring result. A clean assay run below the exposure humans will see is not evidence of safety, and without this field the two are indistinguishable.",
+      "appliesTo": [
+        "small_molecule",
+        "biologic"
+      ]
     },
     {
       "id": "C3",
       "half": "consequence",
       "field": "Injury pattern: hepatocellular, cholestatic or mixed",
-      "whatItBlocks": "The consequence question cannot be answered in kind. Hepatocellular injury and a cholestatic enzyme rise carry different prognoses and different stopping rules."
+      "whatItBlocks": "The consequence question cannot be answered in kind. Hepatocellular injury and a cholestatic enzyme rise carry different prognoses and different stopping rules.",
+      "appliesTo": [
+        "small_molecule",
+        "biologic"
+      ]
     },
     {
       "id": "C4",
       "half": "consequence",
       "field": "Reversibility on withdrawal",
-      "whatItBlocks": "The difference between a monitorable signal and a programme-stopping one is unstated. Reversible transaminase elevation is managed; irreversible injury is not."
+      "whatItBlocks": "The difference between a monitorable signal and a programme-stopping one is unstated. Reversible transaminase elevation is managed; irreversible injury is not.",
+      "appliesTo": [
+        "small_molecule",
+        "biologic"
+      ]
     },
     {
       "id": "C5",
       "half": "consequence",
       "field": "Expected frequency and the population that would be exposed",
-      "whatItBlocks": "A rate that matters cannot be distinguished from one that does not, and the size of the population that would carry the risk is unknown."
+      "whatItBlocks": "A rate that matters cannot be distinguished from one that does not, and the size of the population that would carry the risk is unknown.",
+      "appliesTo": [
+        "small_molecule",
+        "biologic"
+      ]
     },
     {
       "id": "C6",
       "half": "consequence",
       "field": "Intended dosing duration",
-      "whatItBlocks": "Chronic dosing in an otherwise healthy population and short-course dosing in serious disease tolerate entirely different signals, and nothing distinguishes them."
+      "whatItBlocks": "Chronic dosing in an otherwise healthy population and short-course dosing in serious disease tolerate entirely different signals, and nothing distinguishes them.",
+      "appliesTo": [
+        "small_molecule",
+        "biologic"
+      ]
     }
-  ]
+  ],
+  "_whyAppliesTo": "Some questions do not arise for some kinds of drug, and reporting them as gaps is the same false alarm as flagging an approved BSEP inhibitor. A monoclonal antibody is catabolised to amino acids, so it has no reactive metabolite; it does not interact with hepatobiliary transporters; and QSAR models are built for small molecules. Those are NOT unanswered questions, they are questions that do not apply, and an inventory that cannot tell the difference teaches people to ignore it. Regulators already make this distinction explicitly - this document's own genotoxicity section reads 'No genotoxicity studies were conducted with nipocalimab. This is considered acceptable.' An item with no appliesTo applies to EVERYTHING: a checklist author who forgets the field gets the question asked rather than silently dropped."
 }

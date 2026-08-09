@@ -89,6 +89,67 @@ describe("buildInventory", () => {
   });
 });
 
+describe("not_applicable - questions that do not arise", () => {
+  const MODAL: EvidenceChecklist = {
+    version: "t",
+    items: [
+      { id: "A1", half: "mechanism", field: "Reactive metabolite", whatItBlocks: "b", appliesTo: ["small_molecule"] },
+      { id: "A2", half: "mechanism", field: "In vivo liver", whatItBlocks: "b", appliesTo: ["small_molecule", "biologic"] },
+      { id: "A3", half: "consequence", field: "Dose", whatItBlocks: "b" },
+    ],
+  };
+
+  it("marks a small-molecule-only question not applicable for a biologic", () => {
+    const inv = buildInventory([], MODAL, "biologic");
+    expect(inv.entries.find((e) => e.itemId === "A1")?.state).toBe("not_applicable");
+    expect(inv.entries.find((e) => e.itemId === "A2")?.state).toBe("absent");
+  });
+
+  it("asks every question of a small molecule", () => {
+    const inv = buildInventory([], MODAL, "small_molecule");
+    expect(inv.entries.every((e) => e.state === "absent")).toBe(true);
+  });
+
+  it("treats an item with no declared modality as applying to everything", () => {
+    // Fail-loud default: forgetting the field asks the question rather than
+    // silently dropping it.
+    expect(buildInventory([], MODAL, "biologic").entries.find((e) => e.itemId === "A3")?.state).toBe("absent");
+  });
+
+  it("defaults to small_molecule, the conservative case", () => {
+    expect(buildInventory([], MODAL).entries.find((e) => e.itemId === "A1")?.state).toBe("absent");
+  });
+
+  it("stays not applicable even if a finding wrongly declares coverage", () => {
+    // Applicability is checked BEFORE coverage. One stray `covers` entry must not
+    // silently reinstate a question that does not arise.
+    const inv = buildInventory([finding("f1", { covers: ["A1"] })], MODAL, "biologic");
+    const a1 = inv.entries.find((e) => e.itemId === "A1");
+    expect(a1?.state).toBe("not_applicable");
+    expect(a1?.findingIds).toEqual([]);
+  });
+
+  it("records the modality on the inventory itself", () => {
+    expect(buildInventory([], MODAL, "biologic").modality).toBe("biologic");
+  });
+
+  it("keeps not-applicable items off the list handed to the model", () => {
+    // Telling a model a monoclonal antibody is missing its QSAR assessment invites
+    // it to recommend an experiment nobody can run.
+    const absent = absentForAdjudication(buildInventory([], MODAL, "biologic"));
+    expect(absent.map((a) => a.field)).toEqual(["In vivo liver", "Dose"]);
+  });
+
+  it("rejects a checklist declaring an unknown modality", () => {
+    expect(isChecklist({ version: "x", items: [
+      { id: "A", half: "mechanism", field: "f", whatItBlocks: "w", appliesTo: ["peptide"] },
+    ] })).toBe(false);
+    expect(isChecklist({ version: "x", items: [
+      { id: "A", half: "mechanism", field: "f", whatItBlocks: "w", appliesTo: [] },
+    ] })).toBe(false);
+  });
+});
+
 describe("absentForAdjudication", () => {
   it("sends the humans' gap list to the model, inconclusive items included and labelled", () => {
     const inv = buildInventory([

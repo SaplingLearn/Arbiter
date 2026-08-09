@@ -4,7 +4,7 @@ import {
   type BlindView, type DeliberationCase, type Position, type Result, type Signature,
   type UnanimityReport,
 } from "./deliberation.js";
-import { absentForAdjudication, buildInventory, type CoveringFinding, type EvidenceChecklist, type Inventory } from "./inventory.js";
+import { absentForAdjudication, buildInventory, type CoveringFinding, type EvidenceChecklist, type Inventory, type Modality } from "./inventory.js";
 import { commitmentFor, verifyChain, verifySeals, type DeliberationStore, type LogEntry } from "./store.js";
 import type { AdjudicateRequest } from "./adjudicate.js";
 
@@ -38,6 +38,9 @@ export class DeliberationService {
     ownerId: string;
     participantIds: string[];
     findings: CoveringFinding[];
+    /** Decides which checklist questions apply at all. Defaults to the conservative
+     *  case: a small molecule is asked every question. */
+    modality?: Modality;
     at: string;
   }): { case: DeliberationCase; inventory: Inventory } {
     const c = openCase(init);
@@ -52,10 +55,11 @@ export class DeliberationService {
       payload: {
         compoundLabel: c.compoundLabel, context: c.context,
         participantIds: c.participantIds, findings: init.findings,
+        modality: init.modality ?? "small_molecule",
       },
     });
 
-    const inventory = buildInventory(init.findings, this.checklist);
+    const inventory = buildInventory(init.findings, this.checklist, init.modality ?? "small_molecule");
     // The inventory is logged as it was PUBLISHED, not recomputed at read time.
     // Findings can be corrected later, and a position must remain readable against
     // the account of the evidence its author actually saw. Recomputing would let a

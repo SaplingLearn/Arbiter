@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  allSubmitted, closeEarly, externalClaimsAsGaps, lock, openCase, positionBasis, sign,
+  allSubmitted, closeEarly, disagreementReport, externalClaimsAsGaps, lock, openCase, positionBasis, sign,
   submitPosition, unanimityCheck, visibleTo,
   type Call, type DeliberationCase, type Position,
 } from "../deliberation.js";
@@ -353,6 +353,59 @@ describe("unanimityCheck - agreement is not correctness", () => {
     // The report carries the shared call and concerns about it. There is nowhere in
     // the type to put a tally, and that is the design (§6.4).
     expect(Object.keys(r).sort()).toEqual(["call", "concerns", "unanimous"]);
+  });
+});
+
+describe("disagreementReport - the crux, without a model", () => {
+  it("returns nothing when the room agrees, because there is no split to describe", () => {
+    const c = submitAll(CASE, { ann: "advance", bea: "advance", cal: "advance" });
+    expect(disagreementReport(c)).toBeNull();
+  });
+
+  it("groups participants by call, sorted so the output is stable", () => {
+    let c = submitAll(CASE, { ann: "advance", bea: "do_not_advance" });
+    c = submitAll(c, { cal: "advance" });
+    const d = disagreementReport(c)!;
+    expect(d.split).toEqual([
+      { call: "advance", participantIds: ["ann", "cal"] },
+      { call: "do_not_advance", participantIds: ["bea"] },
+    ]);
+  });
+
+  it("separates evidence both camps cite from evidence only one camp cites", () => {
+    // The distinction is the useful one: a finding both sides cite is common ground
+    // read two ways; a finding only one side cites is evidence nobody answered.
+    const known = new Set(["shared", "mine"]);
+    let c = CASE;
+    for (const [who, call, ids] of [
+      ["ann", "advance", ["shared"]],
+      ["bea", "do_not_advance", ["shared", "mine"]],
+    ] as const) {
+      const r = submitPosition(c, pos(who, { call, citedFindingIds: [...ids] }), known);
+      if (!r.ok) throw new Error(r.error.detail);
+      c = r.value;
+    }
+    const d = disagreementReport(c)!;
+    expect(d.contested).toEqual(["shared"]);
+    expect(d.oneSided).toEqual([{ findingId: "mine", call: "do_not_advance" }]);
+  });
+
+  it("reports nothing contested when the camps cite disjoint evidence", () => {
+    const known = new Set(["a", "b"]);
+    let c = CASE;
+    const first = submitPosition(c, pos("ann", { call: "advance", citedFindingIds: ["a"] }), known);
+    if (!first.ok) throw new Error("expected ok");
+    const second = submitPosition(first.value, pos("bea", { call: "do_not_advance", citedFindingIds: ["b"] }), known);
+    if (!second.ok) throw new Error("expected ok");
+    const d = disagreementReport(second.value)!;
+    expect(d.contested).toEqual([]);
+    expect(d.oneSided).toHaveLength(2);
+  });
+
+  it("never says who is right - it has nowhere to put that", () => {
+    let c = submitAll(CASE, { ann: "advance", bea: "do_not_advance" });
+    c = submitAll(c, { cal: "advance" });
+    expect(Object.keys(disagreementReport(c)!).sort()).toEqual(["contested", "oneSided", "split"]);
   });
 });
 

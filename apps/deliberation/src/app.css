@@ -66,6 +66,9 @@ p { margin: var(--s2) 0; max-width: var(--measure); }
 .state.present { color: var(--clean); border: 1px solid var(--clean); }
 .state.absent { color: var(--toxic); border: 1px solid var(--toxic); }
 .state.inconclusive { color: var(--ambiguous); border: 1px solid var(--ambiguous); }
+/* Muted on purpose: a question that does not arise should recede, not compete with
+   the gaps that do. */
+.state.not_applicable { color: var(--muted); border: 1px dashed var(--hairline); }
 
 /* ---- forms ------------------------------------------------------------- */
 label { display: block; font: 600 var(--t-small)/1.6 var(--sans); margin-top: var(--s4); }

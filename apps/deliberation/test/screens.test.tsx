@@ -6,11 +6,21 @@ import type { Adjudication, BlindView, Inventory, Position } from "../src/api.js
 
 const inv: Inventory = {
   checklistVersion: "1.0",
+  modality: "small_molecule",
   unmappedFindingIds: [],
   entries: [
     { itemId: "C2", half: "consequence", field: "Exposure margin", whatItBlocks: "R3 cannot be applied.", state: "absent", findingIds: [] },
     { itemId: "M1", half: "mechanism", field: "Human-cell result", whatItBlocks: "R1 cannot be applied.", state: "present", findingIds: ["f1"] },
     { itemId: "M6", half: "mechanism", field: "Structural alert", whatItBlocks: "R4 cannot be applied.", state: "inconclusive", findingIds: ["f2"] },
+  ],
+};
+
+const biologicInv: Inventory = {
+  ...inv,
+  modality: "biologic",
+  entries: [
+    ...inv.entries,
+    { itemId: "M3", half: "mechanism", field: "Reactive metabolite", whatItBlocks: "Idiosyncratic route unexamined.", state: "not_applicable", findingIds: [] },
   ],
 };
 
@@ -32,6 +42,19 @@ describe("InventoryPanel", () => {
     const { container } = render(<InventoryPanel inv={inv} />);
     const fields = [...container.querySelectorAll(".inv-row strong")].map((n) => n.textContent);
     expect(fields).toEqual(["Exposure margin", "Human-cell result", "Structural alert"]);
+  });
+
+  it("renders a not-applicable question as n/a, not as a gap", () => {
+    // Four of twelve questions do not arise for a monoclonal antibody. Showing them
+    // as absent would fill the missing list with items nobody can ever supply.
+    render(<InventoryPanel inv={biologicInv} />);
+    expect(screen.getByText("n/a")).toBeInTheDocument();
+    expect(screen.getByText(/do not arise for a biologic/)).toBeInTheDocument();
+  });
+
+  it("says nothing about modality when every question applies", () => {
+    const { container } = render(<InventoryPanel inv={inv} />);
+    expect(container.textContent).not.toContain("do not arise");
   });
 
   it("says what each gap blocks, so a gap is a consequence and not a scold", () => {

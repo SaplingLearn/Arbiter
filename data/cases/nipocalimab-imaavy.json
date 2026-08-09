@@ -1,0 +1,103 @@
+{
+  "_note": "A SECOND deliberation case, built because the TAK-994 case leaves 8 of 12 questions absent and a mostly-empty inventory cannot test much. Every finding here is extracted by hand from the nonclinical chapter of a real EMA assessment report, and every one carries the page it came from.",
+  "_source": {
+    "document": "EMA/CHMP/290491/2025 - Imaavy (nipocalimab) assessment report",
+    "localFile": "data/raw/approval-packages/ema-epar-sample-imaavy.pdf",
+    "totalPages": 178,
+    "chapterUsed": "2.5 Non-clinical aspects, PDF pages 33-50, cut mechanically by data/prep/split_review.py",
+    "extract": "data/out/reviews/ema-epar-sample-imaavy.nonclinical.txt",
+    "answerKeyWithheld": "data/out/reviews/ema-epar-sample-imaavy.WITHHELD-answer-key.txt"
+  },
+  "_extractedBy": "hand, 2026-08-09. This is the human manifest spec section 4.4a requires: without one there is nothing to score extraction against when it is built. Quotes are verbatim from the extract above. Where the assessor and the applicant disagree, BOTH are recorded as separate findings - reconciling them is the deliberation's job, not the extractor's.",
+  "_whyThisCompound": "It is not a liver drug and has no liver signal, which is the point. Group 3 in spec section 4.5 exists to test whether an objection with nothing behind it is visibly unsupported, and that needs a case where there is genuinely nothing to cite. It also happens to be a monoclonal antibody, which is what forced the `not_applicable` inventory state: four of the twelve questions do not arise for a biologic at all.",
+  "_honestLimit": "This is ONE document and one modality. It is not group 3 - group 3 is a LiverTox category-E set that has not been assembled. Do not report anything computed from this case as a group result.",
+
+  "caseId": "nipocalimab-imaavy",
+  "compoundLabel": "Nipocalimab (Imaavy) - generalised myasthenia gravis",
+  "context": "Fully human IgG1 anti-FcRn monoclonal antibody. Chronic weekly IV dosing in adults with generalised myasthenia gravis. Decision point: does the nonclinical package support the liver-safety position for chronic dosing?",
+  "modality": "biologic",
+
+  "findings": [
+    {
+      "id": "IMA:repeat-dose-chemistry",
+      "label": "Repeat-dose toxicity, cynomolgus monkey (2, 4 and 26 weeks)",
+      "assertion": "safe",
+      "detail": "Three GLP repeat-dose studies, IV weekly at 0/20/100/306 (4-week) and 0/20/100/300 mg/kg plus 50 mg/kg Q2W (26-week). The 4-week NOAEL was set at 306 mg/kg \"based on the absence of findings in clinically relevant changes in serum clinical chemistry and histological parameters, as well as the ability of serum IgG to recover to pre-dose levels after repeated\" dosing.",
+      "sourceDocument": "EMA/CHMP/290491/2025",
+      "sourcePage": 36,
+      "covers": ["M5"]
+    },
+    {
+      "id": "IMA:liver-mononuclear-infiltrates",
+      "label": "Mononuclear cell infiltrates in liver across repeat-dose studies",
+      "assertion": "ambiguous",
+      "detail": "\"minimal to mild levels of mononuclear cell infiltrates in e.g. brain, liver and lungs were also observed across repeat-dose studies (>=20 mg/kg)\". The assessor accepted the applicant's evaluation that such infiltrates \"may occur spontaneously in monkeys\" and that foreign biologics \"may increase the incidence and/or severity\". A hepatic histological finding present at every dose, attributed to an anti-drug immune response rather than to hepatotoxicity.",
+      "sourceDocument": "EMA/CHMP/290491/2025",
+      "sourcePage": 44,
+      "covers": ["M5"]
+    },
+    {
+      "id": "IMA:margin-applicant",
+      "label": "Exposure margin as proposed by the applicant",
+      "assertion": "safe",
+      "detail": "Applicant set the 26-week NOAEL at the top dose, 300 mg/kg/week. AUC0-96h of 486,000 ug.h/mL compared against a population-simulated clinical AUC0-14days of 918 ug.day/mL from the Phase III dosing scheme: \"This approach resulted in a safety margin of 44x to the clinical setting.\"",
+      "sourceDocument": "EMA/CHMP/290491/2025",
+      "sourcePage": 37,
+      "covers": ["C1", "C2"]
+    },
+    {
+      "id": "IMA:margin-chmp",
+      "label": "Exposure margin after the assessor rejected the applicant's NOAEL",
+      "assertion": "ambiguous",
+      "detail": "\"The suggested NOAEL in the 26-week is not supported.\" Because nipocalimab could not be ruled out in the systemic lymphoproliferation seen in a euthanised monkey, \"the NOAEL should be lowered to 100 mg/kg providing safety margins of 10.8 and 6.7 based on AUC0-last and Cmax, respectively.\" A fourfold reduction in the claimed margin, decided in the document itself.",
+      "sourceDocument": "EMA/CHMP/290491/2025",
+      "sourcePage": 48,
+      "covers": ["C2"]
+    },
+    {
+      "id": "IMA:reversibility",
+      "label": "Recovery phases in both pivotal studies",
+      "assertion": "safe",
+      "detail": "\"Pivotal GLP-compliant repeat-dose studies consisted of 4- and 26-week studies in which reversibility was evaluated for 9 and 8 weeks, respectively.\" Receptor occupancy reversal was dose dependent with slower recovery at the highest doses, and IgG showed \"recovery to baseline levels during the recovery phase of the study.\"",
+      "sourceDocument": "EMA/CHMP/290491/2025",
+      "sourcePage": 38,
+      "covers": ["C4"]
+    },
+    {
+      "id": "IMA:dosing-duration",
+      "label": "Intended dosing duration and regimen",
+      "assertion": "safe",
+      "detail": "Chronic weekly IV administration; the pivotal nonclinical study ran 26 weeks with an 8-week recovery, and the clinical comparator exposure is drawn from the Phase III dosing scheme. Chronic dosing in a non-fatal autoimmune indication, so tolerance for a progressive liver signal is low.",
+      "sourceDocument": "EMA/CHMP/290491/2025",
+      "sourcePage": 38,
+      "covers": ["C6"]
+    },
+    {
+      "id": "IMA:albumin-cholesterol",
+      "label": "Dose-dependent decrease in albumin, increase in cholesterol",
+      "assertion": "ambiguous",
+      "detail": "\"Nipocalimab-related, dose dependent decreases in albumin and increases in cholesterol levels were observed in all repeat dose toxicity studies\". Albumin is a liver synthetic marker, so this LOOKS hepatic - but FcRn recycles albumin as well as IgG, so a fall is an expected on-target consequence of the mechanism. The assessor notes the change \"may be secondary (e.g. to an immune response towards nipocalimab)\" and that a similar pattern appears clinically. Covers no checklist question: it is neither a liver-injury finding nor an answer to one.",
+      "sourceDocument": "EMA/CHMP/290491/2025",
+      "sourcePage": 45,
+      "covers": []
+    },
+    {
+      "id": "IMA:hepatic-distribution",
+      "label": "Tissue distribution: predominantly hepatic",
+      "assertion": "ambiguous",
+      "detail": "\"a significant fraction of both antibodies distributed primarily to the liver while exhibiting minimal accumulation in kidney or excretion in urine.\" Distribution to an organ is exposure, not injury, and the document reports no hepatic consequence of it. Recorded because a reader who found it later would want to know it had been seen.",
+      "sourceDocument": "EMA/CHMP/290491/2025",
+      "sourcePage": 42,
+      "covers": []
+    },
+    {
+      "id": "IMA:genotoxicity-waived",
+      "label": "Genotoxicity and carcinogenicity studies not conducted",
+      "assertion": "safe",
+      "detail": "\"No genotoxicity studies were conducted with nipocalimab. This is considered acceptable.\" Nipocalimab \"does not cross-react with rodent FcRn, precluding the conduct of traditional carcinogenicity studies\", so carcinogenic potential was assessed by weight of evidence under ICH S6(R1). A worked example of a justified absence, which is a different thing from a gap - and the reason the inventory needed a not_applicable state.",
+      "sourceDocument": "EMA/CHMP/290491/2025",
+      "sourcePage": 38,
+      "covers": []
+    }
+  ]
+}

@@ -22,11 +22,15 @@ import type { Finding } from "./adjudicate.js";
  * output mitigates that, it does not eliminate it.
  */
 
+export type Modality = "small_molecule" | "biologic";
+
 export interface ChecklistItem {
   id: string;
   half: "mechanism" | "consequence";
   field: string;
   whatItBlocks: string;
+  /** Omitted means "applies to everything" - see `not_applicable` below. */
+  appliesTo?: Modality[];
 }
 
 export interface EvidenceChecklist {
@@ -49,8 +53,23 @@ export interface EvidenceChecklist {
  * how "we ran the study" comes to read the same as "we have the answer".
  *
  * `absent` means no finding claims to cover the item at all.
+ *
+ * `not_applicable` means the question does not arise for this kind of drug, and it is
+ * the difference between a gap and a category error. A monoclonal antibody is
+ * catabolised to amino acids, so it has no reactive metabolite to assess; it does not
+ * inhibit hepatobiliary transporters; QSAR models are built for small molecules.
+ * Listing those as unanswered would be the same false alarm as calling an approved
+ * BSEP inhibitor disqualifying - it fills the missing-evidence list with items nobody
+ * can ever supply, and a list like that gets ignored wholesale, taking the real gaps
+ * with it.
+ *
+ * DECLARED, NOT INFERRED, exactly like coverage: the checklist item names the
+ * modalities it applies to and the case names its modality. Nothing here reasons
+ * about whether a compound "looks like" a biologic. An item with NO declared
+ * modality applies to everything, so forgetting the field asks the question rather
+ * than silently dropping it.
  */
-export type InventoryState = "present" | "inconclusive" | "absent";
+export type InventoryState = "present" | "inconclusive" | "absent" | "not_applicable";
 
 export interface InventoryEntry {
   itemId: string;
@@ -58,12 +77,13 @@ export interface InventoryEntry {
   field: string;
   whatItBlocks: string;
   state: InventoryState;
-  /** Empty exactly when state is `absent`. Non-empty otherwise. */
+  /** Empty when the state is `absent` or `not_applicable`. Non-empty otherwise. */
   findingIds: string[];
 }
 
 export interface Inventory {
   checklistVersion: string;
+  modality: Modality;
   entries: InventoryEntry[];
   /** Findings that declared coverage of an id the checklist does not contain. */
   unmappedFindingIds: string[];
@@ -92,6 +112,7 @@ export interface CoveringFinding extends Finding {
 export function buildInventory(
   findings: CoveringFinding[],
   checklist: EvidenceChecklist,
+  modality: Modality = "small_molecule",
 ): Inventory {
   const known = new Set(checklist.items.map((i) => i.id));
   const byItem = new Map<string, CoveringFinding[]>();
@@ -111,11 +132,18 @@ export function buildInventory(
 
   const entries: InventoryEntry[] = checklist.items.map((item) => {
     const covering = byItem.get(item.id) ?? [];
-    const state: InventoryState = covering.length === 0
-      ? "absent"
-      : covering.every((f) => f.assertion === "ambiguous")
-        ? "inconclusive"
-        : "present";
+    const applies = item.appliesTo === undefined || item.appliesTo.includes(modality);
+    // Applicability is checked BEFORE coverage, and deliberately not after: an item
+    // that does not apply is not-applicable even if some finding declared it, because
+    // the declaration would be the mistake. Checking coverage first would let one
+    // stray `covers` entry silently reinstate a question that does not arise.
+    const state: InventoryState = !applies
+      ? "not_applicable"
+      : covering.length === 0
+        ? "absent"
+        : covering.every((f) => f.assertion === "ambiguous")
+          ? "inconclusive"
+          : "present";
     return {
       itemId: item.id,
       half: item.half,
@@ -125,7 +153,7 @@ export function buildInventory(
       // Sorted so the entry is a stable object: the same evidence produces the same
       // inventory regardless of the order findings were loaded in. The inventory is
       // hashed into the deliberation log, so load order must not change the hash.
-      findingIds: covering.map((f) => f.id).sort(),
+      findingIds: applies ? covering.map((f) => f.id).sort() : [],
     };
   });
 
@@ -133,6 +161,7 @@ export function buildInventory(
 
   return {
     checklistVersion: checklist.version,
+    modality,
     entries,
     unmappedFindingIds: [...unmapped].sort(),
   };
@@ -149,7 +178,10 @@ export function buildInventory(
  */
 export function absentForAdjudication(inv: Inventory): { field: string; whatItBlocks: string }[] {
   return inv.entries
-    .filter((e) => e.state !== "present")
+    // `not_applicable` is excluded, and that exclusion is the point of the state.
+    // Telling the model a monoclonal antibody is missing its QSAR assessment invites
+    // it to recommend an experiment nobody can run.
+    .filter((e) => e.state !== "present" && e.state !== "not_applicable")
     .map((e) => ({
       field: e.state === "inconclusive" ? `${e.field} (tested, inconclusive)` : e.field,
       whatItBlocks: e.whatItBlocks,
@@ -167,6 +199,11 @@ export function isChecklist(u: unknown): u is EvidenceChecklist {
     if (typeof i?.["id"] !== "string" || i["id"].trim() === "") return false;
     if (i["half"] !== "mechanism" && i["half"] !== "consequence") return false;
     if (typeof i?.["field"] !== "string" || typeof i?.["whatItBlocks"] !== "string") return false;
+    const a = i["appliesTo"];
+    if (a !== undefined) {
+      if (!Array.isArray(a) || a.length === 0) return false;
+      if (!a.every((m) => m === "small_molecule" || m === "biologic")) return false;
+    }
     // Duplicate ids would make an item's state depend on which copy won, and the
     // inventory's exhaustiveness claim ("every item lands in exactly one state")
     // would quietly become false.

@@ -22,7 +22,16 @@ import "./app.css";
  * that decides whether the reveal is offered.
  */
 
-const CASE_ID = "tak994-demo";
+type CaseName = "tak994" | "nipocalimab";
+
+/** Both cases in the repo, and they test different shapes. tak994 is a thin package
+ *  a room agreed about; nipocalimab is a rich one a room splits over. A demo that
+ *  only showed the first would only show that the tool can find gaps. */
+const CASES: { name: CaseName; caseId: string; label: string }[] = [
+  { name: "tak994", caseId: "tak994-demo", label: "TAK-994 — thin package, room agreed" },
+  { name: "nipocalimab", caseId: "nipocalimab-imaavy", label: "Nipocalimab — rich package, room split" },
+];
+
 const OWNER = "r.okafor (programme lead)";
 const PANEL = [
   "a.silva (tox)",
@@ -32,6 +41,7 @@ const PANEL = [
 ];
 
 export function App(): ReactElement {
+  const [caseName, setCaseName] = useState<CaseName>("tak994");
   const [actor, setActor] = useState(PANEL[0]!);
   const [inventory, setInventory] = useState<Inventory | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
@@ -39,15 +49,21 @@ export function App(): ReactElement {
   const [unanimity, setUnanimity] = useState<UnanimityReport | null>(null);
   const [adjudication, setAdjudication] = useState<{ adjudication: Adjudication; source: "stub" | "live" } | null>(null);
   const [audit, setAudit] = useState<AuditResult | null>(null);
+  const [heading, setHeading] = useState<{ compoundLabel: string; context: string }>({ compoundLabel: "", context: "" });
   const [fatal, setFatal] = useState<string | null>(null);
 
-  const refresh = useCallback(async (who: string): Promise<void> => {
+  const CASE_ID = CASES.find((c) => c.name === caseName)!.caseId;
+
+  const refresh = useCallback(async (who: string, caseId: string): Promise<void> => {
     try {
-      const v = await api.view(who, CASE_ID);
+      const v = await api.view(who, caseId);
       setView(v);
       if (v.status !== "open") {
-        setUnanimity(await api.unanimity(who, CASE_ID));
-        setAudit(await api.audit(who, CASE_ID));
+        setUnanimity(await api.unanimity(who, caseId));
+        setAudit(await api.audit(who, caseId));
+      } else {
+        setUnanimity(null);
+        setAudit(null);
       }
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) return;
@@ -58,34 +74,40 @@ export function App(): ReactElement {
   // Boot: seed the case from the files on disk, then load. The client never
   // hand-builds findings - a demonstration whose evidence was typed into a browser
   // is a demonstration of something other than the repository's data.
+  // Runs on boot and whenever the case changes - NOT on a persona switch, which
+  // would be a POST per click. The refresh effect below covers the actor.
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
       try {
+        setInventory(null);
+        setView(null);
+        setAdjudication(null);
         const seeded = await fetch("/api/demo", {
           method: "POST",
           headers: { "content-type": "application/json", "x-arbiter-user": OWNER },
-          body: JSON.stringify({ caseId: CASE_ID, participantIds: PANEL, at: new Date().toISOString() }),
+          body: JSON.stringify({ case: caseName, participantIds: PANEL, at: new Date().toISOString() }),
         });
         if (!seeded.ok) throw new Error(`seed failed: HTTP ${seeded.status}`);
-        setInventory((await seeded.json()).inventory as Inventory);
-        setFindings((await api.adjudicationRequest(OWNER, CASE_ID)).findings);
-        // PANEL[0], not `actor`. Boot must run exactly once - re-seeding on every
-        // persona switch would be a POST per click - and reading `actor` here would
-        // make it a dependency of an effect that must not re-run. The effect below
-        // refreshes on every actor change, so nothing is missed.
-        await refresh(PANEL[0]!);
+        const body = await seeded.json() as { inventory: Inventory; caseId: string; compoundLabel: string; context: string };
+        if (cancelled) return;
+        setInventory(body.inventory);
+        setHeading({ compoundLabel: body.compoundLabel, context: body.context });
+        setFindings((await api.adjudicationRequest(OWNER, body.caseId)).findings);
+        await refresh(PANEL[0]!, body.caseId);
       } catch (e) {
-        setFatal(e instanceof Error ? e.message : String(e));
+        if (!cancelled) setFatal(e instanceof Error ? e.message : String(e));
       }
     })();
-  }, [refresh]);
+    return () => { cancelled = true; };
+  }, [caseName, refresh]);
 
-  useEffect(() => { void refresh(actor); }, [actor, refresh]);
+  useEffect(() => { void refresh(actor, CASE_ID); }, [actor, CASE_ID, refresh]);
 
   useEffect(() => {
-    const t = setInterval(() => { void refresh(actor); }, 2000);
+    const t = setInterval(() => { void refresh(actor, CASE_ID); }, 2000);
     return () => clearInterval(t);
-  }, [actor, refresh]);
+  }, [actor, CASE_ID, refresh]);
 
   if (fatal !== null) {
     return (
@@ -109,7 +131,7 @@ export function App(): ReactElement {
     void (async () => {
       try {
         await api.reveal(OWNER, CASE_ID, mode, new Date().toISOString());
-        await refresh(actor);
+        await refresh(actor, CASE_ID);
       } catch (e) { setFatal(e instanceof Error ? e.message : String(e)); }
     })();
   };
@@ -118,7 +140,7 @@ export function App(): ReactElement {
     void (async () => {
       try {
         setAdjudication(await api.adjudicate(OWNER, CASE_ID, new Date().toISOString()));
-        await refresh(actor);
+        await refresh(actor, CASE_ID);
       } catch (e) { setFatal(e instanceof Error ? e.message : String(e)); }
     })();
   };
@@ -127,15 +149,24 @@ export function App(): ReactElement {
     void (async () => {
       try {
         await api.sign(OWNER, CASE_ID, { at: new Date().toISOString(), agreesWithAdjudication: agrees, reason });
-        await refresh(actor);
+        await refresh(actor, CASE_ID);
       } catch (e) { setFatal(e instanceof Error ? e.message : String(e)); }
     })();
   };
 
   return (
     <div className="shell">
-      <h1>TAK-994</h1>
-      <p className="muted">Narcolepsy type 1. Chronic oral dosing in otherwise healthy adults. Decision: advance toward first-in-human?</p>
+      <h1>{heading.compoundLabel}</h1>
+      <p className="muted">{heading.context}</p>
+
+      <div className="personas">
+        <span className="small muted">Case:</span>
+        {CASES.map((c) => (
+          <button key={c.name} className="persona" aria-pressed={caseName === c.name} onClick={() => setCaseName(c.name)}>
+            {c.label}
+          </button>
+        ))}
+      </div>
 
       <div className="personas">
         <span className="small muted">You are:</span>
@@ -163,7 +194,7 @@ export function App(): ReactElement {
       <hr style={{ border: 0, borderTop: "1px solid var(--hairline)", margin: "32px 0" }} />
 
       {step === "position" && (
-        <PositionForm actor={actor} caseId={CASE_ID} findings={findings} onDone={() => void refresh(actor)} />
+        <PositionForm actor={actor} caseId={CASE_ID} findings={findings} onDone={() => void refresh(actor, CASE_ID)} />
       )}
       {step === "waiting" && <Waiting view={view} isOwner={isOwner} onReveal={onReveal} />}
 

@@ -26,6 +26,7 @@ const CALL_LABEL: Record<string, string> = {
 export function InventoryPanel({ inv }: { inv: Inventory }): ReactElement {
   const absent = inv.entries.filter((e) => e.state === "absent").length;
   const consequenceAbsent = inv.entries.filter((e) => e.state === "absent" && e.half === "consequence").length;
+  const na = inv.entries.filter((e) => e.state === "not_applicable").length;
 
   return (
     <section>
@@ -38,7 +39,7 @@ export function InventoryPanel({ inv }: { inv: Inventory }): ReactElement {
       <div className="inv">
         {inv.entries.map((e) => (
           <div className="inv-row" key={e.itemId}>
-            <div className={`state ${e.state}`}>{e.state}</div>
+            <div className={`state ${e.state}`}>{e.state === "not_applicable" ? "n/a" : e.state}</div>
             <div>
               <strong>{e.field}</strong>
               <div className="small muted">{e.whatItBlocks}</div>
@@ -51,6 +52,9 @@ export function InventoryPanel({ inv }: { inv: Inventory }): ReactElement {
         Checklist v{inv.checklistVersion}. {absent} of {inv.entries.length} questions unanswered
         {consequenceAbsent > 0 && <>, {consequenceAbsent} of them on the consequence side — dose, exposure margin,
           injury pattern, reversibility. A mechanism can be real and still not be a reason to stop.</>}
+        {na > 0 && <> {na} do not arise for a {inv.modality.replace("_", " ")} and are marked n/a rather than
+          missing — an antibody has no reactive metabolite and no QSAR model, and listing those as gaps
+          would fill the list with items nobody can supply.</>}
       </p>
     </section>
   );
