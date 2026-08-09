@@ -110,3 +110,9 @@ data/raw/approval-packages/
 # and two copies of a pinned dataset is how "which version produced this result"
 # stops having one answer. The tracked copy is the one under data/raw.
 documents/
+
+# Uploaded documents and the account store. Both are runtime state that belongs to
+# whoever runs the service, and the account file holds password hashes - a repo is
+# not where those live, even scrypted, even for a demo team.
+results/documents/
+*.users.json

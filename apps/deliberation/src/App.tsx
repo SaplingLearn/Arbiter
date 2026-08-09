@@ -1,76 +1,120 @@
 import { useCallback, useEffect, useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type AuditResult, type BlindView, type CaseSummary, type Finding, type Inventory, type Refusal, type UnanimityReport } from "./api.js";
-import { Audit, InventoryPanel, PositionForm, Refused, Reveal, Verdict, Waiting } from "./screens.js";
+import {
+  api, ApiError,
+  type Adjudication, type AuditResult, type BlindView, type CaseSummary,
+  type Finding, type Inventory, type Person, type Refusal, type StoredDocument,
+  type UnanimityReport,
+} from "./api.js";
+import { Audit, Documents, InventoryPanel, PositionForm, Refused, Reveal, SignIn, Verdict, Waiting } from "./screens.js";
 import "./app.css";
 
 /**
  * The deliberation client.
  *
- * WHY THERE IS A PERSONA SWITCHER AND NOT A LOGIN. There is no authentication in
- * this build — identity is an `x-arbiter-user` header the server takes at its word
- * (services/api/server.ts says so at length). Rendering a password box over that
- * would be a lie told in the most convincing possible place, so the switcher is
- * labelled for what it is.
+ * SIGN IN, THEN SWITCH SEATS. Identity is a bearer token issued against a password,
+ * so a position is attributable to someone who proved they hold one. The token lives
+ * in React state and never in localStorage: closing the tab signs you out, which is
+ * the right behaviour for something that will hold unpublished safety data.
  *
- * It also happens to be the right demonstration device. Blind submission is a
- * property you have to WATCH to believe: switch to one persona, submit, switch to
- * another, and the first answer is not on the screen — because the server never
- * sent it, which the network tab will confirm.
+ * The seat switcher is the demonstration device, and it is a real sign-in rather than
+ * a client-side costume change. Blind submission is a property you have to WATCH to
+ * believe: sign in as one person, submit, sign in as the next, and the first answer
+ * is not on the screen — because the server never sent it, which the network tab
+ * will confirm.
  *
- * POLLING, NOT PUSH. Every two seconds, and §3.3 says polling is sufficient. The one
- * piece of stale state that would matter is whether everyone has submitted, because
- * that decides whether the reveal is offered.
+ * POLLING, NOT PUSH. Every two seconds. The one piece of stale state that would
+ * matter is whether everyone has submitted, because that decides whether the reveal
+ * is offered.
  */
 
-const OWNER = "r.okafor (programme lead)";
-const PANEL = [
-  "a.silva (tox)",
-  "b.mehta (dmpk)",
-  "c.lindqvist (clinical)",
-  "d.abara (project)",
+const DEMO_OWNER = "r.okafor@arbiter.demo";
+const DEMO_PANEL = [
+  "a.silva@arbiter.demo",
+  "b.mehta@arbiter.demo",
+  "c.lindqvist@arbiter.demo",
+  "d.abara@arbiter.demo",
 ];
 
 export function App(): ReactElement {
+  const [token, setToken] = useState<string | null>(null);
+  const [me, setMe] = useState<Person | null>(null);
+  const [people, setPeople] = useState<Person[]>([]);
+
   const [caseName, setCaseName] = useState<string>("tak994");
   const [catalogue, setCatalogue] = useState<CaseSummary[]>([]);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
-  const [caseId, setCaseId] = useState<string>("tak994-demo");
+  const [caseId, setCaseId] = useState<string>("");
   const [scope, setScope] = useState<string | null>(null);
-  const [actor, setActor] = useState(PANEL[0]!);
+  const [heading, setHeading] = useState({ compoundLabel: "", context: "" });
+
   const [inventory, setInventory] = useState<Inventory | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [view, setView] = useState<BlindView | null>(null);
   const [unanimity, setUnanimity] = useState<UnanimityReport | null>(null);
   const [adjudication, setAdjudication] = useState<{ adjudication: Adjudication; source: "stub" | "live" } | null>(null);
   const [audit, setAudit] = useState<AuditResult | null>(null);
-  const [heading, setHeading] = useState<{ compoundLabel: string; context: string }>({ compoundLabel: "", context: "" });
+
+  const [docs, setDocs] = useState<StoredDocument[]>([]);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [fatal, setFatal] = useState<string | null>(null);
 
-  const CASE_ID = caseId;
+  /** Ids are what the record stores; a screen full of `u_9f2a…` is unreadable. */
+  const nameOf = useCallback(
+    (id: string): string => people.find((p) => p.id === id)?.displayName ?? id,
+    [people],
+  );
 
-  const refresh = useCallback(async (who: string, caseId: string): Promise<void> => {
+  const refresh = useCallback(async (t: string, id: string): Promise<void> => {
+    if (id === "") return;
     try {
-      const v = await api.view(who, caseId);
+      const v = await api.view(t, id);
       setView(v);
-      if (v.status !== "open") {
-        setUnanimity(await api.unanimity(who, caseId));
-        setAudit(await api.audit(who, caseId));
-      } else {
+      if (v.status === "open") {
         setUnanimity(null);
         setAudit(null);
+      } else {
+        setUnanimity(await api.unanimity(t, id));
+        setAudit(await api.audit(t, id));
       }
+      setDocs(await api.documents(t, id));
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) return;
       setFatal(e instanceof Error ? e.message : String(e));
     }
   }, []);
 
-  // Boot: seed the case from the files on disk, then load. The client never
-  // hand-builds findings - a demonstration whose evidence was typed into a browser
-  // is a demonstration of something other than the repository's data.
-  // Runs on boot and whenever the case changes - NOT on a persona switch, which
-  // would be a POST per click. The refresh effect below covers the actor.
+  const signedIn = (t: string, user: Person): void => {
+    setToken(t);
+    setMe(user);
+    setFatal(null);
+  };
+
+  const signOut = (): void => {
+    if (token !== null) void api.logout(token).catch(() => undefined);
+    setToken(null);
+    setMe(null);
+    setView(null);
+    setInventory(null);
+    setAdjudication(null);
+  };
+
   useEffect(() => {
+    if (token === null) return;
+    void (async () => {
+      try {
+        setPeople(await api.people(token));
+        setCatalogue(await api.catalogue(token));
+      } catch (e) {
+        setFatal(e instanceof Error ? e.message : String(e));
+      }
+    })();
+  }, [token]);
+
+  // Seeds or opens the selected case. Runs on sign-in and on case change, never on a
+  // re-render: re-seeding on every render would be a POST per render.
+  useEffect(() => {
+    if (token === null || people.length === 0) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -78,46 +122,107 @@ export function App(): ReactElement {
         setView(null);
         setAdjudication(null);
         setRefusal(null);
-        const seeded = await fetch("/api/demo", {
+
+        const participantIds = DEMO_PANEL
+          .map((email) => people.find((p) => p.email === email)?.id)
+          .filter((id): id is string => id !== undefined);
+
+        const res = await fetch("/api/demo", {
           method: "POST",
-          headers: { "content-type": "application/json", "x-arbiter-user": OWNER },
-          body: JSON.stringify({ case: caseName, participantIds: PANEL, at: new Date().toISOString() }),
+          headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+          body: JSON.stringify({ case: caseName, participantIds, at: new Date().toISOString() }),
         });
         // 422 is not an error path: the document exists and cannot be processed, and
         // the reason is the thing worth showing.
-        if (seeded.status === 422) {
-          if (!cancelled) setRefusal(await seeded.json() as Refusal);
+        if (res.status === 422) {
+          if (!cancelled) setRefusal(await res.json() as Refusal);
           return;
         }
-        if (!seeded.ok) throw new Error(`seed failed: HTTP ${seeded.status}`);
-        const body = await seeded.json() as { inventory: Inventory; caseId: string; compoundLabel: string; context: string; documentScope: string | null };
+        if (!res.ok) throw new Error(`Could not open the case: HTTP ${res.status}`);
+        const body = await res.json() as {
+          inventory: Inventory; caseId: string; compoundLabel: string;
+          context: string; documentScope: string | null;
+        };
         if (cancelled) return;
+
         setInventory(body.inventory);
         setCaseId(body.caseId);
         setScope(body.documentScope);
         setHeading({ compoundLabel: body.compoundLabel, context: body.context });
-        setFindings((await api.adjudicationRequest(OWNER, body.caseId)).findings);
-        await refresh(PANEL[0]!, body.caseId);
+        setFindings((await api.adjudicationRequest(token, body.caseId)).findings);
+        await refresh(token, body.caseId);
       } catch (e) {
         if (!cancelled) setFatal(e instanceof Error ? e.message : String(e));
       }
     })();
     return () => { cancelled = true; };
-  }, [caseName, refresh]);
+  }, [token, caseName, people, refresh]);
 
   useEffect(() => {
-    void (async () => {
-      try { setCatalogue(await api.catalogue()); } catch { /* the fatal panel already covers a dead service */ }
-    })();
-  }, []);
-
-  useEffect(() => { if (refusal === null) void refresh(actor, CASE_ID); }, [actor, CASE_ID, refresh, refusal]);
-
-  useEffect(() => {
-    if (refusal !== null) return;
-    const t = setInterval(() => { void refresh(actor, CASE_ID); }, 2000);
+    if (token === null || caseId === "" || refusal !== null) return;
+    const t = setInterval(() => { void refresh(token, caseId); }, 2000);
     return () => clearInterval(t);
-  }, [actor, CASE_ID, refresh, refusal]);
+  }, [token, caseId, refresh, refusal]);
+
+  const upload = (file: File): void => {
+    if (token === null) return;
+    setUploadBusy(true);
+    setUploadError(null);
+    void (async () => {
+      try {
+        const res = await fetch(`/api/cases/${caseId}/documents`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/pdf",
+            "x-filename": file.name,
+            authorization: `Bearer ${token}`,
+          },
+          body: await file.arrayBuffer(),
+        });
+        const body = await res.json() as { detail?: string; error?: string };
+        if (!res.ok) setUploadError(body.detail ?? `Upload failed: ${body.error ?? res.status}`);
+        setDocs(await api.documents(token, caseId));
+      } catch (e) {
+        setUploadError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setUploadBusy(false);
+      }
+    })();
+  };
+
+  if (token === null || me === null) {
+    return (
+      <div className="shell">
+        <h1>ARBITER</h1>
+        <p className="muted">Blind deliberation on drug-safety evidence.</p>
+        <SignIn onSignedIn={signedIn} />
+      </div>
+    );
+  }
+
+  if (fatal !== null) {
+    return (
+      <div className="shell">
+        <h1>ARBITER</h1>
+        <div className="stub">
+          Cannot reach the deliberation service. Start it with <span className="mono">npm run api</span>, then reload.
+          <div className="small" style={{ fontWeight: 400, marginTop: 8 }}>{fatal}</div>
+        </div>
+        <button className="ghost" onClick={signOut}>Sign out</button>
+      </div>
+    );
+  }
+
+  const seats = (
+    <div className="personas">
+      <span className="small muted">Signed in as</span>
+      <strong className="small">{me.displayName}</strong>
+      <button className="ghost" onClick={signOut}>Sign out</button>
+      <span className="small muted" style={{ marginLeft: "auto" }}>
+        Switching seats signs you out and back in — a real token each time, not a costume change.
+      </span>
+    </div>
+  );
 
   const picker = (
     <div className="personas">
@@ -131,60 +236,27 @@ export function App(): ReactElement {
     </div>
   );
 
-  if (fatal !== null) {
-    return (
-      <div className="shell">
-        <h1>ARBITER</h1>
-        <div className="stub">
-          Cannot reach the deliberation service. Start it with <span className="mono">npm run api</span>, then reload.
-          <div className="small" style={{ fontWeight: 400, marginTop: 8 }}>{fatal}</div>
-        </div>
-      </div>
-    );
-  }
-
   if (refusal !== null) {
-    return (
-      <div className="shell">
-        <h1>ARBITER</h1>
-        {picker}
-        <Refused r={refusal} />
-      </div>
-    );
+    return <div className="shell"><h1>ARBITER</h1>{seats}{picker}<Refused r={refusal} /></div>;
   }
 
   if (inventory === null || view === null) {
-    return <div className="shell"><h1>ARBITER</h1>{picker}<p className="muted">Loading the case…</p></div>;
+    return <div className="shell"><h1>ARBITER</h1>{seats}{picker}<p className="muted">Loading the case…</p></div>;
   }
 
-  const isOwner = actor === OWNER;
-  const submitted = view.own !== null;
-  const step = view.status === "open" ? (submitted ? "waiting" : "position") : view.status === "signed" ? "signed" : "reveal";
+  const isOwner = me.email === DEMO_OWNER;
+  const step = view.status === "open"
+    ? (view.own !== null ? "waiting" : "position")
+    : view.status === "signed" ? "signed" : "reveal";
 
-  const onReveal = (mode: "all_in" | "close_early"): void => {
+  const act = (fn: () => Promise<unknown>): void => {
     void (async () => {
       try {
-        await api.reveal(OWNER, CASE_ID, mode, new Date().toISOString());
-        await refresh(actor, CASE_ID);
-      } catch (e) { setFatal(e instanceof Error ? e.message : String(e)); }
-    })();
-  };
-
-  const onAdjudicate = (): void => {
-    void (async () => {
-      try {
-        setAdjudication(await api.adjudicate(OWNER, CASE_ID, new Date().toISOString()));
-        await refresh(actor, CASE_ID);
-      } catch (e) { setFatal(e instanceof Error ? e.message : String(e)); }
-    })();
-  };
-
-  const onSign = (agrees: boolean, reason: string): void => {
-    void (async () => {
-      try {
-        await api.sign(OWNER, CASE_ID, { at: new Date().toISOString(), agreesWithAdjudication: agrees, reason });
-        await refresh(actor, CASE_ID);
-      } catch (e) { setFatal(e instanceof Error ? e.message : String(e)); }
+        await fn();
+        await refresh(token, caseId);
+      } catch (e) {
+        setFatal(e instanceof Error ? e.message : String(e));
+      }
     })();
   };
 
@@ -193,20 +265,8 @@ export function App(): ReactElement {
       <h1>{heading.compoundLabel}</h1>
       <p className="muted">{heading.context}</p>
 
+      {seats}
       {picker}
-
-      <div className="personas">
-        <span className="small muted">You are:</span>
-        {[...PANEL, OWNER].map((p) => (
-          <button key={p} className="persona" aria-pressed={actor === p} onClick={() => setActor(p)}>
-            {p}{view.others.find((o) => o.participantId === p)?.submitted === true && <span className="tick"> ✓</span>}
-            {p === actor && view.own !== null && <span className="tick"> ✓</span>}
-          </button>
-        ))}
-        <span className="small muted" style={{ marginLeft: "auto" }}>
-          Not a login. Identity is a header the server takes at its word — see services/api/server.ts.
-        </span>
-      </div>
 
       <div className="rail">
         {["inventory", "your position", "reveal", "verdict", "sign"].map((s, i) => {
@@ -220,19 +280,35 @@ export function App(): ReactElement {
 
       <hr style={{ border: 0, borderTop: "1px solid var(--hairline)", margin: "32px 0" }} />
 
+      <Documents docs={docs} onUpload={upload} busy={uploadBusy} error={uploadError} />
+
+      <hr style={{ border: 0, borderTop: "1px solid var(--hairline)", margin: "32px 0" }} />
+
       {step === "position" && (
-        <PositionForm actor={actor} caseId={CASE_ID} findings={findings} onDone={() => void refresh(actor, CASE_ID)} />
+        <PositionForm token={token} caseId={caseId} findings={findings}
+          onDone={() => { void refresh(token, caseId); }} />
       )}
-      {step === "waiting" && <Waiting view={view} isOwner={isOwner} onReveal={onReveal} />}
+      {step === "waiting" && (
+        <Waiting view={view} isOwner={isOwner} nameOf={nameOf}
+          onReveal={(mode) => act(() => api.reveal(token, caseId, mode, new Date().toISOString()))} />
+      )}
 
       {(step === "reveal" || step === "signed") && (
         <>
-          <Reveal view={view} unanimity={unanimity} />
-          {adjudication === null && view.status !== "signed" && (
-            <button className="primary" onClick={onAdjudicate}>Adjudicate across the positions</button>
+          <Reveal view={view} unanimity={unanimity} nameOf={nameOf} />
+          {adjudication === null && view.status !== "signed" && isOwner && (
+            <button className="primary"
+              onClick={() => act(async () => {
+                setAdjudication(await api.adjudicate(token, caseId, new Date().toISOString()));
+              })}>
+              Adjudicate across the positions
+            </button>
           )}
           {adjudication !== null && (
-            <Verdict adjudication={adjudication.adjudication} source={adjudication.source} onSign={onSign} />
+            <Verdict adjudication={adjudication.adjudication} source={adjudication.source}
+              onSign={(agrees, reason) => act(() => api.sign(token, caseId, {
+                at: new Date().toISOString(), agreesWithAdjudication: agrees, reason,
+              }))} />
           )}
           {view.status === "signed" && <p className="ok">Signed. The record is closed and every position in it is preserved.</p>}
           {audit !== null && <Audit audit={audit} />}

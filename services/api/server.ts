@@ -10,24 +10,23 @@ import { handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
 import { completeFromEnv } from "./interpret.js";
 import { stubComplete } from "./probe.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
+import { AuthStore, type PublicUser } from "./auth.js";
+import { DocumentStore, MAX_BYTES } from "./documents.js";
+import { can, denial, type CaseAction } from "./access.js";
 
 /**
- * The deliberation API. Spec §3.3 - "the web app stops owning data and reads
- * through the service".
+ * The deliberation API.
  *
- * IDENTITY IS A PERSONA HEADER, AND IT IS NOT AUTHENTICATION.
+ * IDENTITY IS A BEARER TOKEN, ISSUED AGAINST A PASSWORD. Until 2026-08-09 it was an
+ * `x-arbiter-user` header the server took at its word, which meant blind submission
+ * held against the UI and against an honest participant and against nobody else.
+ * `auth.ts` closes that; `access.ts` decides what an identified caller may touch.
  *
- * `x-arbiter-user` names the actor. Anyone who can reach the port can claim to be
- * anyone. That is the `demo-persona` signature method the record model already
- * carries (§3.3), and it is the honest state of this build - but it means the
- * blindness guarantee holds against the UI and against an honest participant, NOT
- * against someone willing to send a different header. Replacing this with real
- * accounts is a prerequisite for any real sponsor data, and §9 already lists
- * uploaded documents as confidential.
- *
- * Because of that, THIS BINDS TO LOOPBACK ONLY. Not a hardening measure - a refusal
- * to make an unauthenticated service reachable by accident. There is no flag to
- * change it; the day real identity lands, the host becomes a parameter.
+ * STILL LOOPBACK ONLY, and that is now a smaller claim than it was. Real
+ * authentication is in place, but there is no TLS here, so a bearer token would
+ * cross the network in clear text. Binding to 127.0.0.1 is what makes that
+ * acceptable rather than negligent. Putting this on a network means terminating TLS
+ * in front of it first, and that decision belongs to whoever deploys it.
  *
  * Every mutating route returns the service's own error kinds. A rejected submission
  * is an ordinary 409, not a 500: submitting twice, or citing something that is not
@@ -38,8 +37,11 @@ const HOST = "127.0.0.1";
 
 export interface ServerDeps {
   service: DeliberationService;
+  auth: AuthStore;
+  documents: DocumentStore;
   rules: AdjudicateRequest["rules"];
   prompt: { system: string[]; userTemplate: string[] };
+  now?: () => number;
 }
 
 const ERROR_STATUS: Record<string, number> = {
@@ -48,92 +50,88 @@ const ERROR_STATUS: Record<string, number> = {
   not_the_owner: 403, no_adjudication: 409, override_needs_reason: 400, already_signed: 409,
 };
 
+const AUTH_STATUS: Record<string, number> = {
+  email_taken: 409, invalid_credentials: 401, weak_password: 400,
+  bad_email: 400, no_session: 401, session_expired: 401,
+};
+
 function json(res: ServerResponse, status: number, body: unknown): void {
   const text = JSON.stringify(body);
   res.writeHead(status, { "content-type": "application/json", "content-length": Buffer.byteLength(text) });
   res.end(text);
 }
 
-async function readBody(req: IncomingMessage): Promise<unknown> {
+async function readRaw(req: IncomingMessage, limit: number): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const c of req) {
     size += (c as Buffer).length;
     // A body limit, because an unbounded read is a way to take the process down
     // with one request and this listens on a socket.
-    if (size > 2_000_000) throw new Error("body_too_large");
+    if (size > limit) throw new Error("body_too_large");
     chunks.push(c as Buffer);
   }
-  if (chunks.length === 0) return undefined;
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  return Buffer.concat(chunks);
+}
+
+function bearer(req: IncomingMessage): string | null {
+  const h = req.headers["authorization"];
+  if (typeof h !== "string") return null;
+  const m = /^Bearer\s+(.+)$/i.exec(h.trim());
+  return m === null ? null : m[1]!;
 }
 
 export function makeHandler(deps: ServerDeps) {
+  const now = deps.now ?? ((): number => Date.now());
+
   return async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const actor = String(req.headers["x-arbiter-user"] ?? "");
     const url = new URL(req.url ?? "/", `http://${HOST}`);
     const parts = url.pathname.split("/").filter((p) => p !== "");
     const method = req.method ?? "GET";
 
     if (parts[0] !== "api") return json(res, 404, { error: "not_found" });
 
-    let body: unknown;
+    // Uploads get the document limit; everything else gets a small JSON limit, so a
+    // 80 MB body cannot be posted at a route that expects a few hundred bytes.
+    const isUpload = parts[3] === "documents" && method === "POST";
+    let raw: Buffer;
     try {
-      body = await readBody(req);
+      raw = await readRaw(req, isUpload ? MAX_BYTES : 2_000_000);
     } catch {
       return json(res, 413, { error: "body_too_large" });
     }
 
-    // Every route below except case creation and the raw adjudicate surface needs
-    // to know who is asking - the blind view is computed FROM the viewer, so an
-    // unattributed request has no correct answer and must not get a default one.
-    const needsActor = !(parts[1] === "adjudicate" || parts[1] === "cases-catalogue");
-    if (needsActor && actor.trim() === "") {
-      return json(res, 401, { error: "no_actor", detail: "Set x-arbiter-user. A blind view has no meaning without a viewer." });
+    let body: unknown;
+    if (!isUpload && raw.length > 0) {
+      try {
+        body = JSON.parse(raw.toString("utf8"));
+      } catch {
+        return json(res, 400, { error: "bad_json" });
+      }
     }
 
     try {
-      // POST /api/adjudicate - the stateless surface, unchanged.
-      if (parts[1] === "adjudicate" && parts.length === 2 && method === "POST") {
-        const live = completeFromEnv();
-        const r = await handleAdjudicate(body, live ?? stubComplete(body as AdjudicateRequest), deps.prompt);
-        return json(res, r.status, r.body);
+      // ---- auth, the only unauthenticated surface ---------------------------
+      if (parts[1] === "auth") {
+        return handleAuth(deps, res, parts[2], method, body, bearer(req), now());
       }
 
-      // POST /api/demo - seed a named case from the files on disk.
-      //
-      // The client cannot read data/, and hand-typing findings into a browser to start
-      // a demonstration is how a demonstration comes to use findings that are not the
-      // ones in the repository. This calls the SAME loader `npm run deliberate:demo`
-      // calls, so the screen and the terminal cannot disagree about the evidence.
-      // GET /api/cases-catalogue - every case, including the ones that refuse.
-      if (parts[1] === "cases-catalogue" && method === "GET") {
-        return json(res, 200, CATALOGUE);
+      // The catalogue names no case contents and no positions, so it is readable by
+      // anyone signed in - but not by anyone at all, because it describes what this
+      // deployment holds.
+      const session = deps.auth.resolve(bearer(req), now());
+      if (!session.ok) {
+        return json(res, AUTH_STATUS[session.error.kind] ?? 401, session.error);
       }
+      const user = session.value;
 
-      if (parts[1] === "demo" && method === "POST") {
-        const b = body as { case?: unknown; participantIds: string[]; at: string };
-        if (!isCaseName(b.case)) {
-          return json(res, 400, { error: "unknown_case", detail: `case must be one of: ${CATALOGUE.map((c) => c.name).join(", ")}.` });
-        }
-        // 422, not 404 or 500. The case exists and is named in the catalogue; the
-        // DOCUMENT cannot be processed, and the client renders that reason verbatim.
-        // Falling back to an empty case would make split_review.py's refusal
-        // decorative, which is the one thing it must never be.
-        const refused = refusalFor(b.case);
-        if (refused !== null) return json(res, 422, { error: "document_refused", ...refused });
-        const loaded = loadCase(b.case);
-        const existing = deps.service.inventory(loaded.caseId);
-        if (existing !== null) {
-          return json(res, 200, { caseId: loaded.caseId, alreadyOpen: true, inventory: existing, compoundLabel: loaded.compoundLabel, context: loaded.context, provenance: loaded.provenance, documentScope: loaded.documentScope ?? null });
-        }
-        const { inventory } = deps.service.open({
-          caseId: loaded.caseId, compoundLabel: loaded.compoundLabel, context: loaded.context,
-          ownerId: actor, participantIds: b.participantIds,
-          findings: loaded.findings, modality: loaded.modality, at: b.at,
-        });
-        return json(res, 201, { caseId: loaded.caseId, alreadyOpen: false, inventory, compoundLabel: loaded.compoundLabel, context: loaded.context, provenance: loaded.provenance, documentScope: loaded.documentScope ?? null });
-      }
+      if (parts[1] === "cases-catalogue" && method === "GET") return json(res, 200, CATALOGUE);
+
+      // Display names for rendering. Ids are what the record stores; a screen full of
+      // `u_9f2a…` is unreadable, and mapping them client-side needs this list.
+      if (parts[1] === "people" && method === "GET") return json(res, 200, deps.auth.list());
+
+      if (parts[1] === "demo" && method === "POST") return handleDemo(deps, res, body, user, now());
 
       if (parts[1] !== "cases") return json(res, 404, { error: "not_found" });
 
@@ -142,15 +140,49 @@ export function makeHandler(deps: ServerDeps) {
         const b = body as { caseId: string; compoundLabel: string; context: string; participantIds: string[]; findings: CoveringFinding[]; modality?: Modality; at: string };
         const { case: c, inventory } = deps.service.open({
           caseId: b.caseId, compoundLabel: b.compoundLabel, context: b.context,
-          ownerId: actor, participantIds: b.participantIds, findings: b.findings,
+          ownerId: user.id, participantIds: b.participantIds, findings: b.findings,
           ...(b.modality === undefined ? {} : { modality: b.modality }), at: b.at,
         });
         return json(res, 201, { case: c, inventory });
       }
 
+      // GET /api/cases - only the ones this account is named on.
+      if (parts.length === 2 && method === "GET") {
+        return json(res, 200, deps.service.casesFor(user.id));
+      }
+
       const caseId = parts[2];
       if (caseId === undefined) return json(res, 404, { error: "not_found" });
       const tail = parts[3];
+
+      // ---- the access boundary ---------------------------------------------
+      //
+      // Checked ONCE, here, before any route runs, and against the case rather than
+      // against the session. A rule applied inside each handler is a rule that is
+      // missing from the handler somebody adds next month.
+      //
+      // A case that does not exist and a case you may not read both return 404. A
+      // 403 would confirm the case exists, which is the one fact an unauthorised
+      // caller is asking for.
+      const kase = deps.service.getCase(caseId);
+      if (kase === null) return json(res, 404, { error: "no_case" });
+      // METHOD AND path, not path alone. Deriving the action from the path made
+      // `GET /positions` a submit and `DELETE /positions` a submit, so a method the
+      // route does not implement was answered with a permission error instead of a
+      // 405 - and a read-shaped request on a write-shaped path was checked against
+      // the wrong rule. Anything that is not a known write is a read.
+      const action: CaseAction = method !== "POST"
+        ? "read"
+        : tail === "positions" ? "submit"
+          : tail === "reveal" ? "reveal"
+            : tail === "adjudicate" ? "adjudicate"
+              : tail === "sign" ? "sign"
+                : "read";
+      if (!can(kase, user.id, "read")) return json(res, 404, { error: "no_case" });
+      if (action !== "read") {
+        const d = denial(kase, user.id, action);
+        if (d !== null) return json(res, 403, { error: "forbidden", ...d });
+      }
 
       if (method === "GET") {
         switch (tail) {
@@ -159,9 +191,9 @@ export function makeHandler(deps: ServerDeps) {
             return inv === null ? json(res, 404, { error: "no_case" }) : json(res, 200, inv);
           }
           case "view": {
-            // THE blind route. It is computed per viewer, and it is the only route
-            // that returns positions before the reveal.
-            const v = deps.service.view(caseId, actor);
+            // THE blind route. Computed per viewer, and the only route that returns
+            // positions before the reveal.
+            const v = deps.service.view(caseId, user.id);
             return v === null ? json(res, 404, { error: "no_case" }) : json(res, 200, v);
           }
           case "unanimity": {
@@ -170,6 +202,8 @@ export function makeHandler(deps: ServerDeps) {
           }
           case "audit":
             return json(res, 200, deps.service.audit(caseId));
+          case "documents":
+            return json(res, 200, deps.documents.forCase(caseId));
           case "adjudication-request": {
             const r = deps.service.adjudicationRequest(caseId, deps.rules);
             return r === null ? json(res, 404, { error: "no_case" }) : json(res, 200, r);
@@ -181,14 +215,27 @@ export function makeHandler(deps: ServerDeps) {
 
       if (method === "POST") {
         switch (tail) {
+          case "documents": {
+            const filename = String(req.headers["x-filename"] ?? "upload.pdf");
+            const r = deps.documents.upload({
+              caseId, filename, bytes: raw, uploadedBy: user.id,
+              at: new Date(now()).toISOString(),
+            });
+            // 422, not 400: the request was well-formed and the DOCUMENT is the
+            // problem. The measurement travels with the refusal so the uploader can
+            // see why while they still have the file in front of them.
+            return r.ok
+              ? json(res, 201, { document: r.document, duplicateOf: r.duplicateOf ?? null })
+              : json(res, r.rejection.kind === "unreadable" ? 422 : 400, { error: r.rejection.kind, ...r.rejection });
+          }
           case "positions": {
-            const r = deps.service.submit(caseId, { ...(body as Position), participantId: actor });
+            const r = deps.service.submit(caseId, { ...(body as Position), participantId: user.id });
             return r.ok ? json(res, 201, { sealed: true }) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
           }
           case "reveal": {
             const b = body as { at: string; mode: "all_in" | "close_early" };
-            const r = deps.service.reveal(caseId, actor, b.at, b.mode);
-            return r.ok ? json(res, 200, deps.service.view(caseId, actor)) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
+            const r = deps.service.reveal(caseId, user.id, b.at, b.mode);
+            return r.ok ? json(res, 200, deps.service.view(caseId, user.id)) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
           }
           case "adjudicate": {
             const request = deps.service.adjudicationRequest(caseId, deps.rules);
@@ -205,7 +252,7 @@ export function makeHandler(deps: ServerDeps) {
           }
           case "sign": {
             const b = body as { at: string; agreesWithAdjudication: boolean; reason: string };
-            const r = deps.service.signOff(caseId, { by: actor, at: b.at, agreesWithAdjudication: b.agreesWithAdjudication, reason: b.reason });
+            const r = deps.service.signOff(caseId, { by: user.id, at: b.at, agreesWithAdjudication: b.agreesWithAdjudication, reason: b.reason });
             return r.ok ? json(res, 200, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
           }
           default:
@@ -220,12 +267,75 @@ export function makeHandler(deps: ServerDeps) {
   };
 }
 
+function handleAuth(
+  deps: ServerDeps, res: ServerResponse, action: string | undefined,
+  method: string, body: unknown, token: string | null, now: number,
+): void {
+  if (action === "register" && method === "POST") {
+    const b = body as { email: string; displayName: string; password: string };
+    const r = deps.auth.register({ email: b.email, displayName: b.displayName, password: b.password, now });
+    return r.ok ? json(res, 201, r.value) : json(res, AUTH_STATUS[r.error.kind] ?? 400, r.error);
+  }
+
+  if (action === "login" && method === "POST") {
+    deps.auth.pruneExpired(now);
+    const b = body as { email: string; password: string };
+    const r = deps.auth.login({ email: b.email, password: b.password, now });
+    return r.ok ? json(res, 200, r.value) : json(res, AUTH_STATUS[r.error.kind] ?? 401, r.error);
+  }
+
+  if (action === "logout" && method === "POST") {
+    if (token !== null) deps.auth.logout(token);
+    // 204 whether or not the token was real. "That token did not exist" is not
+    // information a caller needs and is information an attacker would use.
+    res.writeHead(204).end();
+    return;
+  }
+
+  if (action === "me" && method === "GET") {
+    const r = deps.auth.resolve(token, now);
+    return r.ok ? json(res, 200, r.value) : json(res, AUTH_STATUS[r.error.kind] ?? 401, r.error);
+  }
+
+  return json(res, 404, { error: "not_found" });
+}
+
+function handleDemo(deps: ServerDeps, res: ServerResponse, body: unknown, user: PublicUser, now: number): void {
+  const b = body as { case?: unknown; participantIds: string[]; at: string };
+  if (!isCaseName(b.case)) {
+    return json(res, 400, { error: "unknown_case", detail: `case must be one of: ${CATALOGUE.map((c) => c.name).join(", ")}.` });
+  }
+  // 422, not 404 or 500. The case exists and is named in the catalogue; the DOCUMENT
+  // cannot be processed. Falling back to an empty case would make split_review.py's
+  // refusal decorative, which is the one thing it must never be.
+  const refused = refusalFor(b.case);
+  if (refused !== null) return json(res, 422, { error: "document_refused", ...refused });
+
+  const loaded = loadCase(b.case);
+  const existing = deps.service.inventory(loaded.caseId);
+  const head = {
+    caseId: loaded.caseId, compoundLabel: loaded.compoundLabel, context: loaded.context,
+    provenance: loaded.provenance, documentScope: loaded.documentScope ?? null,
+  };
+  if (existing !== null) return json(res, 200, { ...head, alreadyOpen: true, inventory: existing });
+
+  const { inventory } = deps.service.open({
+    caseId: loaded.caseId, compoundLabel: loaded.compoundLabel, context: loaded.context,
+    ownerId: user.id, participantIds: b.participantIds,
+    findings: loaded.findings, modality: loaded.modality,
+    at: new Date(now).toISOString(),
+  });
+  return json(res, 201, { ...head, alreadyOpen: false, inventory });
+}
+
 export function buildDeps(logPath: string): ServerDeps {
   const checklist = JSON.parse(readFileSync("rules/evidence-checklist-v1.0.json", "utf8")) as EvidenceChecklist;
   const prompt = JSON.parse(readFileSync("prompts/adjudicator-v1.0.json", "utf8")) as { system: string[]; userTemplate: string[] };
   const probe = JSON.parse(readFileSync("data/probe-case.json", "utf8")) as { rules: AdjudicateRequest["rules"] };
   return {
     service: new DeliberationService(new FileStore(logPath), checklist),
+    auth: new AuthStore(`${logPath}.users.json`),
+    documents: new DocumentStore("results/documents"),
     rules: probe.rules,
     prompt,
   };
@@ -249,6 +359,7 @@ if (invokedDirectly) {
   createServer((req, res) => { void makeHandler(deps)(req, res); }).listen(port, HOST, () => {
     console.log(`ARBITER deliberation API on http://${HOST}:${port}`);
     console.log(`Adjudication: ${completeFromEnv() === null ? "STUB (no ANTHROPIC_API_KEY) - responses are labelled source:stub" : "LIVE"}`);
-    console.log("Identity is the x-arbiter-user header. This is NOT authentication and binds to loopback only.");
+    console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token; there is no TLS here, which is why this binds to loopback only.`);
+    if (deps.auth.list().length === 0) console.log("No accounts yet. Run `npm run seed:demo` to create the demonstration team.");
   });
 }

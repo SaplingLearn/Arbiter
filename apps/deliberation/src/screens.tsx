@@ -1,5 +1,5 @@
-import { useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type UnanimityReport } from "./api.js";
+import { useState, type FormEvent, type ReactElement } from "react";
+import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Person, type Position, type Refusal, type StoredDocument, type UnanimityReport } from "./api.js";
 
 /**
  * The screens of the deliberation, in the order §3.5 fixes them:
@@ -23,6 +23,113 @@ const CALL_LABEL: Record<string, string> = {
 };
 
 /** ------------------------------------------------------------------ inventory */
+/** ----------------------------------------------------------------- sign in */
+export function SignIn({ onSignedIn }: { onSignedIn: (token: string, user: Person) => void }): ReactElement {
+  const [email, setEmail] = useState("r.okafor@arbiter.demo");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: FormEvent): Promise<void> => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.login(email, password);
+      onSignedIn(r.token, r.user);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section style={{ maxWidth: 460 }}>
+      <h2>Sign in</h2>
+      <p className="muted">
+        Real accounts, with passwords hashed using scrypt and a bearer token that
+        expires. The token is held in memory only — closing this tab signs you out.
+      </p>
+      <form onSubmit={(e) => { void submit(e); }}>
+        <label htmlFor="email">Email</label>
+        <input id="email" type="text" autoComplete="username"
+          value={email} onChange={(e) => setEmail(e.target.value)} />
+
+        <label htmlFor="password">Password</label>
+        <input id="password" type="password" autoComplete="current-password"
+          value={password} onChange={(e) => setPassword(e.target.value)} />
+
+        <button className="primary" type="submit" disabled={busy || password === ""}>
+          {busy ? "Signing in…" : "Sign in"}
+        </button>
+        {error !== null && <div className="err">{error}</div>}
+      </form>
+
+      <div className="concern" style={{ marginTop: 32 }}>
+        <strong>Demonstration accounts.</strong> Run <span className="mono">npm run seed:demo</span> to
+        create them. All five share the password <span className="mono">arbiter-demo-2026</span>, which is
+        printed here on purpose — the authentication is real and only the secrecy is
+        fake. Delete the account file before this holds anything that matters.
+        <div className="small mono" style={{ marginTop: 8 }}>
+          r.okafor@arbiter.demo — convenes and signs<br />
+          a.silva@arbiter.demo · b.mehta@arbiter.demo · c.lindqvist@arbiter.demo · d.abara@arbiter.demo
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** --------------------------------------------------------------- documents */
+export function Documents({ docs, onUpload, busy, error }: {
+  docs: StoredDocument[];
+  onUpload: (file: File) => void;
+  busy: boolean;
+  error: string | null;
+}): ReactElement {
+  return (
+    <section>
+      <h2>Documents</h2>
+      <p className="muted">
+        A PDF is measured before it is accepted. Two of the first five regulatory
+        documents collected for this project were unusable — one was 48 pages of
+        scanned images with no readable text, one was the wrong document entirely —
+        and neither failure was visible without measuring. An unreadable file is
+        refused here, while you still have it in front of you.
+      </p>
+
+      <label htmlFor="pdf">Upload a study PDF</label>
+      <input id="pdf" type="file" accept="application/pdf"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f !== undefined) onUpload(f); }} />
+      {busy && <p className="small muted">Measuring…</p>}
+      {error !== null && <div className="stub">{error}</div>}
+
+      {docs.length === 0
+        ? <p className="small muted">Nothing uploaded yet.</p>
+        : (
+          <div className="inv" style={{ marginTop: 16 }}>
+            {docs.map((d) => (
+              <div className="inv-row" key={d.id}>
+                <div className={`state ${d.measurement.ok ? "present" : "absent"}`}>
+                  {d.measurement.ok ? "readable" : "refused"}
+                </div>
+                <div>
+                  <strong>{d.filename}</strong>
+                  <div className="small muted">{d.measurement.reason}</div>
+                  {d.measurement.note !== undefined && <div className="small muted">{d.measurement.note}</div>}
+                  <div className="mono small muted">
+                    {d.measurement.pages} pages · {d.measurement.characters?.toLocaleString()} characters
+                    {" · "}{d.measurement.embeddedImages} images
+                    {" · "}liver terms {d.measurement.liverTermHits}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+    </section>
+  );
+}
+
 export function Refused({ r }: { r: Refusal }): ReactElement {
   return (
     <section>
@@ -96,8 +203,8 @@ export function InventoryPanel({ inv, documentScope }: { inv: Inventory; documen
 }
 
 /** -------------------------------------------------------------- your position */
-export function PositionForm({ actor, caseId, findings, onDone }: {
-  actor: string; caseId: string; findings: Finding[]; onDone: () => void;
+export function PositionForm({ token, caseId, findings, onDone }: {
+  token: string; caseId: string; findings: Finding[]; onDone: () => void;
 }): ReactElement {
   const [call, setCall] = useState<"advance" | "do_not_advance" | "cannot_conclude">("advance");
   const [reasoning, setReasoning] = useState("");
@@ -116,7 +223,7 @@ export function PositionForm({ actor, caseId, findings, onDone }: {
     setBusy(true);
     setError(null);
     try {
-      await api.submit(actor, caseId, {
+      await api.submit(token, caseId, {
         call, reasoning, citedFindingIds: cited,
         external: claim.trim() === "" ? [] : [{ claim, ...(source.trim() === "" ? {} : { source }) }],
         submittedAt: new Date().toISOString(),
@@ -192,8 +299,9 @@ export function PositionForm({ actor, caseId, findings, onDone }: {
 }
 
 /** ------------------------------------------------------------------- waiting */
-export function Waiting({ view, isOwner, onReveal }: {
-  view: BlindView; isOwner: boolean; onReveal: (mode: "all_in" | "close_early") => void;
+export function Waiting({ view, isOwner, nameOf, onReveal }: {
+  view: BlindView; isOwner: boolean; nameOf: (id: string) => string;
+  onReveal: (mode: "all_in" | "close_early") => void;
 }): ReactElement {
   const outstanding = view.others.filter((o) => !o.submitted);
   return (
@@ -208,7 +316,7 @@ export function Waiting({ view, isOwner, onReveal }: {
         {view.others.map((o) => (
           <div className="inv-row" key={o.participantId}>
             <div className={`state ${o.submitted ? "present" : "inconclusive"}`}>{o.submitted ? "in" : "waiting"}</div>
-            <div>{o.participantId}</div>
+            <div>{nameOf(o.participantId)}</div>
           </div>
         ))}
       </div>
@@ -219,7 +327,7 @@ export function Waiting({ view, isOwner, onReveal }: {
           </button>
           {outstanding.length > 0 && (
             <p className="small muted">
-              Waiting on {outstanding.map((o) => o.participantId).join(", ")}.{" "}
+              Waiting on {outstanding.map((o) => nameOf(o.participantId)).join(", ")}.{" "}
               <button className="ghost" onClick={() => onReveal("close_early")}>Close without them</button>{" "}
               — their absence is written into the record.
             </p>
@@ -231,14 +339,16 @@ export function Waiting({ view, isOwner, onReveal }: {
 }
 
 /** -------------------------------------------------------------------- reveal */
-export function Reveal({ view, unanimity }: { view: BlindView; unanimity: UnanimityReport | null }): ReactElement {
+export function Reveal({ view, unanimity, nameOf }: {
+  view: BlindView; unanimity: UnanimityReport | null; nameOf: (id: string) => string;
+}): ReactElement {
   return (
     <section>
       <h2>Every position, at once</h2>
       {(view.revealed ?? []).map((p) => (
         <div className="pos" key={p.participantId}>
           <div className="pos-head">
-            <strong>{p.participantId}</strong>
+            <strong>{nameOf(p.participantId)}</strong>
             <span>{CALL_LABEL[p.call]}</span>
             <span className={`basis ${basisOf(p)}`}>{basisOf(p)}</span>
           </div>

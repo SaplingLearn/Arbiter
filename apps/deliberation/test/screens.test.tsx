@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { InventoryPanel, Refused, Reveal, Verdict, Waiting, basisOf } from "../src/screens.js";
+import { Documents, InventoryPanel, Refused, Reveal, SignIn, Verdict, Waiting, basisOf } from "../src/screens.js";
 import type { Adjudication, BlindView, Inventory, Position } from "../src/api.js";
 
 const inv: Inventory = {
@@ -87,6 +87,60 @@ describe("InventoryPanel", () => {
   });
 });
 
+describe("SignIn", () => {
+  it("keeps the button disabled until a password is typed", () => {
+    render(<SignIn onSignedIn={() => {}} />);
+    expect(screen.getByRole("button", { name: /Sign in/ })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "arbiter-demo-2026" } });
+    expect(screen.getByRole("button", { name: /Sign in/ })).toBeEnabled();
+  });
+
+  it("uses a password field, so the value is not shoulder-readable", () => {
+    render(<SignIn onSignedIn={() => {}} />);
+    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
+  });
+
+  it("says plainly that the demo password is published on purpose", () => {
+    // The authentication is real and only the secrecy is fake. A demo account whose
+    // password looks secret is the thing that ends up in production.
+    render(<SignIn onSignedIn={() => {}} />);
+    expect(screen.getByText(/only the secrecy is/)).toBeInTheDocument();
+  });
+});
+
+describe("Documents", () => {
+  const readable = {
+    id: "doc_1", filename: "review.pdf", bytes: 1000, uploadedBy: "u_ann", uploadedAt: "t",
+    measurement: { ok: true, verdict: "readable", reason: "Readable, and it contains toxicology vocabulary.", pages: 178, characters: 494931, embeddedImages: 65, liverTermHits: 23 },
+  };
+  const refused = {
+    id: "doc_2", filename: "scan.pdf", bytes: 1000, uploadedBy: "u_ann", uploadedAt: "t",
+    measurement: { ok: false, verdict: "scanned", reason: "All 48 pages carry almost no extractable text.", pages: 48, characters: 0, embeddedImages: 48, liverTermHits: 0 },
+  };
+
+  it("shows a readable document with its measurement", () => {
+    render(<Documents docs={[readable]} onUpload={() => {}} busy={false} error={null} />);
+    expect(screen.getByText("readable")).toBeInTheDocument();
+    expect(screen.getByText(/178 pages/)).toBeInTheDocument();
+  });
+
+  it("marks a refused document and gives the reason", () => {
+    render(<Documents docs={[refused]} onUpload={() => {}} busy={false} error={null} />);
+    expect(screen.getByText("refused")).toBeInTheDocument();
+    expect(screen.getByText(/almost no extractable text/)).toBeInTheDocument();
+  });
+
+  it("surfaces an upload error where the uploader will see it", () => {
+    render(<Documents docs={[]} onUpload={() => {}} busy={false} error="That file does not start with a PDF header." />);
+    expect(screen.getByText(/does not start with a PDF header/)).toBeInTheDocument();
+  });
+
+  it("explains why an upload is measured before it is accepted", () => {
+    render(<Documents docs={[]} onUpload={() => {}} busy={false} error={null} />);
+    expect(screen.getByText(/measured before it is accepted/)).toBeInTheDocument();
+  });
+});
+
 describe("Refused", () => {
   const refusal = {
     name: "tolcapone",
@@ -117,7 +171,7 @@ describe("Waiting", () => {
   };
 
   it("shows one bit per person and never another position's content", () => {
-    const { container } = render(<Waiting view={view} isOwner={false} onReveal={() => {}} />);
+    const { container } = render(<Waiting nameOf={(id) => id} view={view} isOwner={false} onReveal={() => {}} />);
     expect(screen.getByText("bea")).toBeInTheDocument();
     expect(screen.getByText("in")).toBeInTheDocument();
     expect(screen.getByText("waiting")).toBeInTheDocument();
@@ -126,14 +180,14 @@ describe("Waiting", () => {
   });
 
   it("offers reveal to the owner only", () => {
-    const { rerender } = render(<Waiting view={view} isOwner={false} onReveal={() => {}} />);
+    const { rerender } = render(<Waiting nameOf={(id) => id} view={view} isOwner={false} onReveal={() => {}} />);
     expect(screen.queryByRole("button", { name: /Reveal all positions/ })).toBeNull();
-    rerender(<Waiting view={view} isOwner onReveal={() => {}} />);
+    rerender(<Waiting nameOf={(id) => id} view={view} isOwner onReveal={() => {}} />);
     expect(screen.getByRole("button", { name: /Reveal all positions/ })).toBeInTheDocument();
   });
 
   it("disables reveal while somebody is outstanding, and offers closing early instead", () => {
-    render(<Waiting view={view} isOwner onReveal={() => {}} />);
+    render(<Waiting nameOf={(id) => id} view={view} isOwner onReveal={() => {}} />);
     expect(screen.getByRole("button", { name: /Reveal all positions/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Close without them/ })).toBeInTheDocument();
     expect(screen.getByText(/absence is written into the record/)).toBeInTheDocument();
@@ -141,7 +195,7 @@ describe("Waiting", () => {
 
   it("enables reveal once everyone is in", () => {
     const all: BlindView = { ...view, others: view.others.map((o) => ({ ...o, submitted: true })) };
-    render(<Waiting view={all} isOwner onReveal={() => {}} />);
+    render(<Waiting nameOf={(id) => id} view={all} isOwner onReveal={() => {}} />);
     expect(screen.getByRole("button", { name: /Reveal all positions/ })).toBeEnabled();
   });
 });
@@ -166,7 +220,7 @@ describe("Reveal", () => {
   };
 
   it("labels each position with what it rests on", () => {
-    render(<Reveal view={view} unanimity={null} />);
+    render(<Reveal nameOf={(id) => id} view={view} unanimity={null} />);
     expect(screen.getByText("cited")).toBeInTheDocument();
     expect(screen.getByText("external")).toBeInTheDocument();
     expect(screen.getByText("unsupported")).toBeInTheDocument();
@@ -175,18 +229,18 @@ describe("Reveal", () => {
   it("shows an unsupported position rather than hiding it", () => {
     // Dissent is preserved permanently - that is the record's purpose. What changes
     // is that its basis is visible.
-    render(<Reveal view={view} unanimity={null} />);
+    render(<Reveal nameOf={(id) => id} view={view} unanimity={null} />);
     expect(screen.getByText("cal")).toBeInTheDocument();
   });
 
   it("renders the unanimity concerns and says no model produced them", () => {
-    render(<Reveal view={view} unanimity={{ unanimous: true, call: "advance", concerns: ["nobody tested the exposure margin"] }} />);
+    render(<Reveal nameOf={(id) => id} view={view} unanimity={{ unanimous: true, call: "advance", concerns: ["nobody tested the exposure margin"] }} />);
     expect(screen.getByText(/nobody tested the exposure margin/)).toBeInTheDocument();
     expect(screen.getByText(/Nothing below came from a model/)).toBeInTheDocument();
   });
 
   it("says nothing about unanimity when the room disagreed", () => {
-    const { container } = render(<Reveal view={view} unanimity={{ unanimous: false, call: null, concerns: [] }} />);
+    const { container } = render(<Reveal nameOf={(id) => id} view={view} unanimity={{ unanimous: false, call: null, concerns: [] }} />);
     expect(container.textContent).not.toContain("Everyone agreed");
   });
 });

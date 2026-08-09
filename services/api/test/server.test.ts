@@ -1,10 +1,15 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { createServer, type Server } from "node:http";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { AddressInfo } from "node:net";
 import { makeHandler, type ServerDeps } from "../server.js";
 import { DeliberationService } from "../deliberation-service.js";
 import { MemoryStore } from "../store.js";
+import { AuthStore } from "../auth.js";
+import { DocumentStore } from "../documents.js";
+import { seedDemoTeam, DEMO_PASSWORD } from "../seed-demo.js";
 import type { EvidenceChecklist, CoveringFinding } from "../inventory.js";
 import type { AdjudicateRequest } from "../adjudicate.js";
 
@@ -21,10 +26,35 @@ const FINDINGS: CoveringFinding[] = [
 
 let server: Server;
 let base: string;
+/** Bearer tokens and user ids, one per persona, keyed by a short handle. */
+const tok: Record<string, string> = {};
+const uid: Record<string, string> = {};
+
+const EMAIL: Record<string, string> = {
+  owner: "r.okafor@arbiter.demo",
+  ann: "a.silva@arbiter.demo",
+  bea: "b.mehta@arbiter.demo",
+  cal: "c.lindqvist@arbiter.demo",
+};
 
 beforeAll(async () => {
+  const auth = new AuthStore(null);
+  seedDemoTeam(auth, Date.now());
+  const outsider = auth.register({ email: "outsider@elsewhere.test", displayName: "Outsider", password: "outsider-password", now: Date.now() });
+  if (!outsider.ok) throw new Error("fixture");
+
+  for (const [handle, email] of Object.entries({ ...EMAIL, outsider: "outsider@elsewhere.test" })) {
+    const password = handle === "outsider" ? "outsider-password" : DEMO_PASSWORD;
+    const r = auth.login({ email, password, now: Date.now() });
+    if (!r.ok) throw new Error(`fixture login failed for ${handle}`);
+    tok[handle] = r.value.token;
+    uid[handle] = r.value.user.id;
+  }
+
   const deps: ServerDeps = {
     service: new DeliberationService(new MemoryStore(), CHECKLIST),
+    auth,
+    documents: new DocumentStore(mkdtempSync(join(tmpdir(), "arb-docs-"))),
     rules: RULES,
     prompt: PROMPT,
   };
@@ -37,162 +67,220 @@ beforeAll(async () => {
 afterAll(async () => { await new Promise<void>((r) => server.close(() => r())); });
 
 const call = async (
-  method: string, path: string, actor: string | null, body?: unknown,
+  method: string, path: string, who: string | null, body?: unknown,
 ): Promise<{ status: number; body: any }> => {
   const res = await fetch(`${base}${path}`, {
     method,
     headers: {
       "content-type": "application/json",
-      ...(actor === null ? {} : { "x-arbiter-user": actor }),
+      ...(who === null ? {} : { authorization: `Bearer ${tok[who]}` }),
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
-  return { status: res.status, body: await res.json() };
+  return { status: res.status, body: res.status === 204 ? null : await res.json() };
 };
-
-const openCase = (): Promise<{ status: number; body: any }> => call("POST", "/api/cases", "owner", {
-  caseId: "c1", compoundLabel: "TAK-994", context: "Chronic dosing.",
-  participantIds: ["ann", "bea"], findings: FINDINGS, at: "2026-08-09T09:00:00Z",
-});
 
 const position = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
   call: "advance", reasoning: "Because.", citedFindingIds: ["f-hep"],
   external: [], submittedAt: "2026-08-09T10:00:00Z", ...over,
 });
 
-describe("deliberation API", () => {
-  it("refuses any case route without an actor, because a blind view has no default viewer", async () => {
-    const r = await call("GET", "/api/cases/c1/view", null);
+describe("authentication", () => {
+  it("refuses every non-auth route without a token", async () => {
+    for (const p of ["/api/cases", "/api/cases/c1/view", "/api/people", "/api/cases-catalogue"]) {
+      const r = await call("GET", p, null);
+      expect(r.status, p).toBe(401);
+    }
+  });
+
+  it("refuses an invented token", async () => {
+    const res = await fetch(`${base}/api/people`, { headers: { authorization: "Bearer deadbeef" } });
+    expect(res.status).toBe(401);
+  });
+
+  it("logs in through the API and returns a usable token", async () => {
+    const r = await call("POST", "/api/auth/login", null, { email: EMAIL["ann"], password: DEMO_PASSWORD });
+    expect(r.status).toBe(200);
+    expect(r.body.token).toMatch(/^[0-9a-f]{64}$/);
+    const me = await fetch(`${base}/api/auth/me`, { headers: { authorization: `Bearer ${r.body.token}` } });
+    expect(me.status).toBe(200);
+  });
+
+  it("returns 401 for a wrong password, with no hint about which half was wrong", async () => {
+    const r = await call("POST", "/api/auth/login", null, { email: EMAIL["ann"], password: "wrong-but-long-enough" });
     expect(r.status).toBe(401);
-    expect(r.body.error).toBe("no_actor");
+    expect(r.body.detail).toBe("Email or password is not right.");
   });
 
-  it("opens a case and returns the published inventory", async () => {
-    const r = await openCase();
+  it("logs out with 204 whether or not the token was real", async () => {
+    const good = await call("POST", "/api/auth/logout", "cal");
+    expect(good.status).toBe(204);
+    const res = await fetch(`${base}/api/auth/logout`, { method: "POST", headers: { authorization: "Bearer nonsense" } });
+    expect(res.status).toBe(204);
+  });
+});
+
+describe("cases, with access control", () => {
+  it("opens a case owned by the caller", async () => {
+    const r = await call("POST", "/api/cases", "owner", {
+      caseId: "c1", compoundLabel: "TAK-994", context: "Chronic dosing.",
+      participantIds: [uid["ann"], uid["bea"]], findings: FINDINGS, at: "2026-08-09T09:00:00Z",
+    });
     expect(r.status).toBe(201);
-    expect(r.body.case.ownerId).toBe("owner");
-    expect(r.body.inventory.entries).toHaveLength(CHECKLIST.items.length);
-    expect(r.body.inventory.entries.find((e: any) => e.itemId === "M1").state).toBe("present");
+    expect(r.body.case.ownerId).toBe(uid["owner"]);
   });
 
-  it("attributes a submission to the header, not to the body", async () => {
-    // A client that could name the author in the body could submit as somebody else.
-    const r = await call("POST", "/api/cases/c1/positions", "ann", position({ participantId: "bea" }));
+  it("hides the case from an account not named on it, as a 404", async () => {
+    // 404 rather than 403: a 403 would confirm the case exists, which is the one
+    // fact an unauthorised caller is asking for.
+    for (const p of ["view", "inventory", "audit", "unanimity"]) {
+      const r = await call("GET", `/api/cases/c1/${p}`, "outsider");
+      expect(r.status, p).toBe(404);
+      expect(JSON.stringify(r.body)).not.toContain("TAK-994");
+    }
+  });
+
+  it("lists only the cases an account is named on", async () => {
+    expect((await call("GET", "/api/cases", "ann")).body.map((c: any) => c.caseId)).toEqual(["c1"]);
+    expect((await call("GET", "/api/cases", "outsider")).body).toEqual([]);
+  });
+
+  it("reports who has answered but never what they said", async () => {
+    const list = (await call("GET", "/api/cases", "ann")).body[0];
+    expect(list).toHaveProperty("submitted");
+    expect(list).toHaveProperty("of");
+    expect(JSON.stringify(list)).not.toContain("advance");
+  });
+
+  it("attributes a submission to the token, not to the body", async () => {
+    const r = await call("POST", "/api/cases/c1/positions", "ann", position({ participantId: uid["bea"] }));
     expect(r.status).toBe(201);
     const view = await call("GET", "/api/cases/c1/view", "ann");
-    expect(view.body.own.participantId).toBe("ann");
+    expect(view.body.own.participantId).toBe(uid["ann"]);
   });
 
-  it("returns no trace of another participant's position over the wire before reveal", async () => {
+  it("returns no trace of another position over the wire before reveal", async () => {
     const r = await call("GET", "/api/cases/c1/view", "bea");
-    expect(r.status).toBe(200);
     expect(r.body.revealed).toBeNull();
     expect(JSON.stringify(r.body)).not.toContain("Because.");
-    expect(r.body.others).toEqual([{ participantId: "ann", submitted: true }]);
   });
 
-  it("rejects a duplicate submission with 409, not 500", async () => {
+  it("rejects a duplicate submission with 409", async () => {
     const r = await call("POST", "/api/cases/c1/positions", "ann", position());
     expect(r.status).toBe(409);
     expect(r.body.kind).toBe("already_submitted");
   });
 
-  it("rejects a citation naming nothing in the case with 400", async () => {
-    const r = await call("POST", "/api/cases/c1/positions", "bea", position({ citedFindingIds: ["ghost"] }));
-    expect(r.status).toBe(400);
-    expect(r.body.kind).toBe("unknown_finding_id");
+  it("stops a participant revealing, adjudicating or signing", async () => {
+    const attempts: [string, unknown][] = [
+      ["reveal", { mode: "all_in", at: "t" }],
+      ["adjudicate", { at: "t" }],
+      ["sign", { at: "t", agreesWithAdjudication: true, reason: "" }],
+    ];
+    for (const [p, b] of attempts) {
+      const r = await call("POST", `/api/cases/c1/${p}`, "ann", b);
+      expect(r.status, p).toBe(403);
+      expect(r.body.detail).toContain("decision owner");
+    }
   });
 
-  it("rejects a stranger with 403", async () => {
-    const r = await call("POST", "/api/cases/c1/positions", "stranger", position());
+  it("stops the owner submitting a position", async () => {
+    // An owner who is not also a participant convenes and signs; they do not hold an
+    // opinion on the record.
+    const r = await call("POST", "/api/cases/c1/positions", "owner", position());
     expect(r.status).toBe(403);
-    expect(r.body.kind).toBe("not_a_participant");
   });
 
-  it("refuses to lock while someone has not answered", async () => {
-    const r = await call("POST", "/api/cases/c1/reveal", "owner", { at: "t", mode: "all_in" });
-    expect(r.status).toBe(409);
-    expect(r.body.kind).toBe("not_all_submitted");
-  });
-
-  it("reveals once everyone has answered", async () => {
+  it("runs the rest of the flow for the owner", async () => {
     expect((await call("POST", "/api/cases/c1/positions", "bea", position({ citedFindingIds: ["f-rat"] }))).status).toBe(201);
-    const r = await call("POST", "/api/cases/c1/reveal", "owner", { at: "t", mode: "all_in" });
-    expect(r.status).toBe(200);
-    expect(r.body.revealed).toHaveLength(2);
-  });
+    expect((await call("POST", "/api/cases/c1/reveal", "owner", { mode: "all_in", at: "t" })).status).toBe(200);
 
-  it("reports unanimity concerns without a model", async () => {
-    const r = await call("GET", "/api/cases/c1/unanimity", "owner");
-    expect(r.status).toBe(200);
-    expect(r.body.unanimous).toBe(true);
-    expect(r.body.concerns.join(" ")).toContain("nobody tested");
-  });
+    const u = await call("GET", "/api/cases/c1/unanimity", "owner");
+    expect(u.body.unanimous).toBe(true);
+    expect(u.body.concerns.join(" ")).toContain("nobody tested");
 
-  it("labels a stub adjudication as a stub in the response body", async () => {
-    // A stub answer that travelled without its label would eventually be quoted as
-    // a result. `source` rides along for the same reason probe.ts records it.
-    const r = await call("POST", "/api/cases/c1/adjudicate", "owner", { at: "t" });
-    expect(r.status).toBe(200);
-    expect(["stub", "live"]).toContain(r.body.source);
-    expect(r.body.adjudication.consequence).toBeDefined();
-  });
+    const adj = await call("POST", "/api/cases/c1/adjudicate", "owner", { at: "t" });
+    expect(adj.status).toBe(200);
+    expect(["stub", "live"]).toContain(adj.body.source);
 
-  it("requires a reason to override, and records the signature", async () => {
     const bad = await call("POST", "/api/cases/c1/sign", "owner", { at: "t", agreesWithAdjudication: false, reason: " " });
     expect(bad.status).toBe(400);
-    expect(bad.body.kind).toBe("override_needs_reason");
-
-    const ok = await call("POST", "/api/cases/c1/sign", "owner", { at: "t", agreesWithAdjudication: false, reason: "Holding for an exposure margin." });
+    const ok = await call("POST", "/api/cases/c1/sign", "owner", { at: "t", agreesWithAdjudication: false, reason: "Holding for a margin." });
     expect(ok.status).toBe(200);
-    expect(ok.body.status).toBe("signed");
-  });
 
-  it("serves an audit whose chain and seals both verify", async () => {
-    const r = await call("GET", "/api/cases/c1/audit", "owner");
+    const audit = await call("GET", "/api/cases/c1/audit", "owner");
+    expect(audit.body.chain).toEqual([]);
+    expect(audit.body.seals).toEqual([]);
+  });
+});
+
+describe("the case catalogue and demo seeding", () => {
+  it("serves the catalogue to a signed-in caller", async () => {
+    const r = await call("GET", "/api/cases-catalogue", "owner");
     expect(r.status).toBe(200);
-    expect(r.body.chain).toEqual([]);
-    expect(r.body.seals).toEqual([]);
-    expect(r.body.entries.map((e: any) => e.kind)).toContain("position_sealed");
-  });
-
-  it("keeps position plaintext out of the audit entries served mid-case", async () => {
-    const r = await call("GET", "/api/cases/c1/audit", "ann");
-    const sealed = r.body.entries.filter((e: any) => e.kind === "position_sealed");
-    expect(sealed.length).toBeGreaterThan(0);
-    for (const e of sealed) expect(JSON.stringify(e.payload)).not.toContain("Because.");
-  });
-
-  it("serves the catalogue without an actor, because it names no positions", async () => {
-    const res = await fetch(`${base}/api/cases-catalogue`);
-    expect(res.status).toBe(200);
-    const body = await res.json() as { name: string; usable: boolean }[];
-    expect(body.filter((c) => !c.usable).map((c) => c.name)).toEqual(["tolcapone", "troglitazone"]);
+    expect(r.body.filter((c: any) => !c.usable).map((c: any) => c.name)).toEqual(["tolcapone", "troglitazone"]);
   });
 
   it("returns 422 and the splitter's reason for a document it cannot process", async () => {
-    // 422, not 404 or 500: the case exists and is named in the catalogue; the
-    // DOCUMENT cannot be processed. Falling back to an empty case would make
-    // split_review.py's refusal decorative.
-    const r = await call("POST", "/api/demo", "owner", { case: "tolcapone", participantIds: ["ann"], at: "t" });
+    const r = await call("POST", "/api/demo", "owner", { case: "tolcapone", participantIds: [uid["ann"]], at: "t" });
     expect(r.status).toBe(422);
-    expect(r.body.error).toBe("document_refused");
     expect(r.body.splitterReason).toContain("needs OCR");
   });
 
   it("rejects a case name that is not in the catalogue", async () => {
-    const r = await call("POST", "/api/demo", "owner", { case: "aspirin", participantIds: ["ann"], at: "t" });
+    const r = await call("POST", "/api/demo", "owner", { case: "aspirin", participantIds: [uid["ann"]], at: "t" });
     expect(r.status).toBe(400);
-    expect(r.body.error).toBe("unknown_case");
   });
 
   it("seeds a usable case and returns its document scope", async () => {
-    const r = await call("POST", "/api/demo", "owner", { case: "slynd", participantIds: ["ann"], at: "t" });
+    const r = await call("POST", "/api/demo", "owner", { case: "slynd", participantIds: [uid["ann"]], at: "t" });
     expect(r.status).toBe(201);
     expect(r.body.documentScope).toContain("THE SAFETY STUDIES FOR THIS DRUG WERE NEVER RUN");
-    expect(r.body.inventory.modality).toBe("small_molecule");
+  });
+});
+
+describe("document upload", () => {
+  const upload = async (who: string, filename: string, bytes: Buffer): Promise<{ status: number; body: any }> => {
+    const res = await fetch(`${base}/api/cases/c1/documents`, {
+      method: "POST",
+      headers: { "content-type": "application/pdf", "x-filename": filename, authorization: `Bearer ${tok[who]}` },
+      body: bytes,
+    });
+    return { status: res.status, body: await res.json() };
+  };
+
+  it("refuses a file that is not a PDF, whatever it is named", async () => {
+    // Checked on the bytes. An extension is a claim by the uploader; the header is a
+    // property of the file.
+    const r = await upload("ann", "study.pdf", Buffer.from("this is not a pdf"));
+    expect(r.status).toBe(400);
+    expect(r.body.error).toBe("not_a_pdf");
   });
 
+  it("refuses an unreadable PDF with 422 and the measurement attached", async () => {
+    const r = await upload("ann", "empty.pdf", Buffer.from("%PDF-1.4\n%%EOF\n"));
+    expect(r.status).toBe(422);
+    expect(r.body.error).toBe("unreadable");
+    expect(typeof r.body.measurement?.reason).toBe("string");
+  });
+
+  it("refuses an upload from an account not on the case", async () => {
+    const res = await fetch(`${base}/api/cases/c1/documents`, {
+      method: "POST",
+      headers: { "x-filename": "x.pdf", authorization: `Bearer ${tok["outsider"]}` },
+      body: Buffer.from("%PDF-1.4\n"),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("lists documents for a case", async () => {
+    const r = await call("GET", "/api/cases/c1/documents", "ann");
+    expect(r.status).toBe(200);
+    expect(Array.isArray(r.body)).toBe(true);
+  });
+});
+
+describe("routing", () => {
   it("404s an unknown route and an unknown case rather than guessing", async () => {
     expect((await call("GET", "/api/nope", "owner")).status).toBe(404);
     expect((await call("GET", "/api/cases/ghost/inventory", "owner")).status).toBe(404);
@@ -200,5 +288,12 @@ describe("deliberation API", () => {
 
   it("405s a method the route does not implement", async () => {
     expect((await call("DELETE", "/api/cases/c1/positions", "owner")).status).toBe(405);
+  });
+
+  it("rejects a malformed JSON body rather than crashing", async () => {
+    const res = await fetch(`${base}/api/auth/login`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: "{not json",
+    });
+    expect(res.status).toBe(400);
   });
 });

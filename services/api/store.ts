@@ -169,6 +169,7 @@ export interface DeliberationStore {
   all(): LogEntry[];
   putCase(c: DeliberationCase): void;
   getCase(caseId: string): DeliberationCase | null;
+  allCases(): DeliberationCase[];
 }
 
 /**
@@ -200,6 +201,10 @@ export class MemoryStore implements DeliberationStore {
 
   getCase(caseId: string): DeliberationCase | null {
     return this.cases.get(caseId) ?? null;
+  }
+
+  allCases(): DeliberationCase[] {
+    return [...this.cases.values()];
   }
 }
 

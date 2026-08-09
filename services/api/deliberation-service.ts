@@ -6,6 +6,7 @@ import {
 } from "./deliberation.js";
 import { absentForAdjudication, buildInventory, type CoveringFinding, type EvidenceChecklist, type Inventory, type Modality } from "./inventory.js";
 import { commitmentFor, verifyChain, verifySeals, type DeliberationStore, type LogEntry } from "./store.js";
+import { visibleCases } from "./access.js";
 import type { AdjudicateRequest } from "./adjudicate.js";
 
 /**
@@ -122,6 +123,29 @@ export class DeliberationService {
     });
     this.store.putCase(next.value);
     return next;
+  }
+
+  /** The raw case, for the access check in the server. Deliberately not a view:
+   *  access control asks who is named on the case, which is not a question about
+   *  what a given viewer is allowed to see. */
+  getCase(caseId: string): DeliberationCase | null {
+    return this.store.getCase(caseId);
+  }
+
+  /** Cases this account is named on, owner or participant. Nothing else, ever -
+   *  a list endpoint that leaked case labels would undo the access boundary in the
+   *  one place people go looking. */
+  casesFor(userId: string): { caseId: string; compoundLabel: string; status: string; isOwner: boolean; submitted: number; of: number }[] {
+    return visibleCases(this.store.allCases(), userId).map((c) => ({
+      caseId: c.caseId,
+      compoundLabel: c.compoundLabel,
+      status: c.status,
+      isOwner: c.ownerId === userId,
+      // Counts of WHO HAS ANSWERED, never of what they said. The same rule as the
+      // blind view: a tally of calls drags as hard as the positions themselves.
+      submitted: c.positions.length,
+      of: c.participantIds.length,
+    }));
   }
 
   view(caseId: string, viewerId: string): BlindView | null {
