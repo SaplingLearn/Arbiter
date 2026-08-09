@@ -97,3 +97,10 @@ Thumbs.db
 # LibreOffice / Office transient lock files
 .~lock.*#
 ~$*
+
+# Downloaded regulatory review PDFs. 21MB for four documents and growing, and every
+# one is retrievable from accessdata.fda.gov or ema.europa.eu by the URL recorded in
+# the spec. What must be tracked is the SPLIT output and the human manifest, not the
+# source PDFs - and data/prep/split_review.py refuses anything it cannot split, so a
+# missing source cannot silently become a hand-trimmed one.
+data/raw/approval-packages/
