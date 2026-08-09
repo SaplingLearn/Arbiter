@@ -174,6 +174,12 @@ product needs for study PDFs builds the answer key. One build, two uses.
 **DILIst** (FDA, 1,279 drugs, 768 positive / 511 negative) replaces DILIrank as the
 breadth dataset — larger and far better balanced than the 890 currently in use.
 
+**Precedence, so no compound has two labels.** Where LiverTox carries a monograph, its
+likelihood score is the label and DILIst is ignored for that compound. DILIst supplies
+coverage only where no monograph exists, and any compound labelled from DILIst alone is
+flagged as such in the results so a mixed-provenance figure can never be quoted as a
+single number.
+
 **DILIN** (899 adjudicated patient cases with severity, outcome, latency, formal
 causality scoring) is roadmap. It requires a formal request to the NIDDK repository and
 ships as SAS files. Named here so it is not rediscovered as novel later.
