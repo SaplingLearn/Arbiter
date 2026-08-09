@@ -153,6 +153,48 @@ The output states both, separately. *"Cholestatic mechanism present; at 150 mg/d
 a 40× margin and a reversible pattern, not disqualifying"* is a useful sentence.
 *"Do not advance"* about irbesartan is not.
 
+### 3.1 The backend — the first real one in this project
+
+Until now the app has been a static artifact with no server and no persistence. Accounts,
+shared cases and a live multi-party debate all require state that outlives a page
+refresh, so this is a genuine architectural addition rather than a feature.
+
+| | |
+|---|---|
+| **Identity** | Email/password to start, with the same `signatureMethod` seam the record model already carries (`demo-persona` \| `sso`). SSO changes one field and nothing else. |
+| **Storage** | Postgres. Cases, documents, extracted findings, ruleset versions, per-user lenses, positions, and the hash chain. |
+| **Documents** | Object storage for uploaded PDFs. The extracted findings reference the source document and page, so every finding can be traced back to the sentence it came from. |
+| **API** | The web app stops owning data. It reads and writes through the service. |
+| **Liveness** | Polling on the case view is sufficient. A debate updates within a second or two of a colleague signing; websockets are an optimisation, not a requirement. |
+
+**The record model does not change.** `evidenceSnapshotHash`, `rulesetHash`,
+`prevRecordHash` and preserved dissent were built as though authenticated. Adding real
+identity is what they were designed for.
+
+**Consequence, accepted 2026-08-09:** the single-file `file://` build can no longer
+adjudicate, because adjudication needs the service. `apps/web/e2e/static-file.spec.ts`
+is re-scoped to guard that the app *loads and explains itself* offline rather than that
+it reasons offline.
+
+### 3.2 Absence is a finding, and must be stated
+
+A universal system will constantly be handed incomplete evidence. **Silence about a gap
+is the failure mode this whole project exists to prevent** — TAK-994's package looked
+complete.
+
+So for every case the system states, explicitly, what it looked for and did not find:
+
+> *No exposure data. We searched the uploaded documents for dose, Cmax, and exposure
+> margin and found none. Without it, R3 cannot distinguish a genuinely clean result from
+> one tested below the range that matters — and 2 of your 4 findings are clean results.*
+
+Two rules govern this surface:
+
+1. **Named, not counted.** "3 fields missing" is useless. Which fields, why each matters
+   here, and what it blocks.
+2. **Distinguish absent from negative.** *"No transporter assay was run"* and *"the
+   transporter assay was negative"* are different facts and must never render alike.
+
 ---
 
 ## 4. Data
@@ -207,6 +249,55 @@ adjudication payload. This is the direct descendant of `test_qsar_leakage.py`, w
 guards the same class of error for the split, and it carries the same weight: **if this
 wall fails, every number downstream is void.**
 
+### 4.4 The three test groups
+
+A one-directional test set measures only willingness to say "danger", which is exactly
+the failure §0 found. Three groups, and **all three are required**.
+
+#### Group 1 — preclinical missed it, humans were harmed
+
+Eight drugs were withdrawn for hepatotoxicity between 1997 and 2016: **tolcapone,
+troglitazone, trovafloxacin, bromfenac, nefazodone, ximelagatran, lumiracoxib,
+sitaxentan.** The literature states that **tolcapone, ximelagatran and lumiracoxib
+showed no hepatotoxicity in preclinical animal studies at all.** Add **fialuridine**
+(1993, deaths in an NIH trial, every animal study clean — the most documented failure in
+the field) and **fasiglifam / TAK-875** (Takeda, phase 3 halted 2013 for liver failure).
+
+TAK-994 stays the anchor. **Do not build the set predominantly from Takeda compounds** —
+TAK-875 and TAK-994 together read as picking on one sponsor rather than describing a
+field-wide problem.
+
+#### Group 2 — real mechanism, fine in practice
+
+**Already in the data, free.** ARBITER's five over-calls: **prochlorperazine,
+thioridazine, glyburide, mifepristone, irbesartan.** Every one is a genuine BSEP
+inhibitor; every one is approved and widely prescribed. A system that flags these is
+crying wolf, and §0 is the measurement of what happens when nothing checks for it.
+
+#### Group 3 — genuinely clean, and the reason it matters
+
+**LiverTox category E** is exactly this group, defined by the source itself: *widespread
+use, no credible evidence of liver injury.* Category **E\*** (suspected but unproven) is
+deliberately excluded — the point of this group is that there is nothing to find.
+
+Group 3 is not padding. **It is the only group that can test §5a.3** — whether an
+objection with no evidence behind it is visibly distinguishable from one with evidence.
+On a category-E compound there is nothing for a dissent to cite, which makes it the
+cleanest possible demonstration.
+
+#### What each group proves
+
+| group | passing behaviour |
+|---|---|
+| 1 | flags, or states plainly what is missing and what would find it |
+| 2 | reports the mechanism, declines to call it disqualifying |
+| 3 | commits to no concern, and an unsupported objection is visibly unsupported |
+
+**Honest limit.** Reconstructing "what was known before first human dose" is manual
+literature work and, for the older compounds, partly inference from retrospective
+papers. Expect on the order of ten defensible reconstructions, not fifty. **Report n and
+call it calibration, never accuracy.**
+
 ---
 
 ## 5. The rules, reworked
@@ -252,6 +343,67 @@ covering timing, dechallenge, alternative causes and prior reports. It is built 
 diagnosing a patient rather than screening a candidate, so it does not transfer
 directly — but its *shape* is evidence that "many weighted factors applied as a
 checklist" is how the field actually reasons, and that six is too few.
+
+---
+
+## 5a. Scientists, lenses, and the crux
+
+### 5a.1 A lens per account
+
+Each account owns a **lens** — that person's settings for how much each registered rule
+weighs. It is theirs, it persists, and it applies to every case they open. A lens is a
+first-class object with its own version history, because *"what was Chen's lens when
+Chen signed this"* has to be answerable years later.
+
+Every case is evaluated through **every participating lens at once**. Two outcomes:
+
+- **All lenses agree** → settled. Say so and stop discussing it.
+- **They diverge** → open the crux view.
+
+### 5a.2 The crux view — the primary screen
+
+The observation this rests on: **people who disagree agree about almost everything.** Two
+safety leads agree on eleven judgments out of twelve and burn an hour on the twelfth
+without ever isolating which one it is.
+
+So the screen's job is to locate that one thing and put it in the middle: everything the
+lenses agree on, collapsed to a line each; the specific judgments where they diverge;
+and of those, **which ones actually change the outcome.** A disagreement that changes
+nothing is noted and set aside — that is a result, not a gap.
+
+Then the loop closes: **the crux is handed to the experiment planner**, which already
+answers *"which rule is the verdict resting on, and what evidence would overturn that
+specific rule?"* A disagreement becomes a research question with a named next step.
+
+**Disagreement → the exact question it turns on → the experiment that settles it.** That
+motion is the product.
+
+### 5a.3 A position must cite what it rests on
+
+**New requirement, and the reason group 3 exists.**
+
+Recording a position — agree, dissent, or abstain — requires citing the findings it
+rests on. The system then checks, deterministically, two things: **do the cited findings
+exist in this case**, and **are they relevant to the rule being invoked**. A position
+citing nothing is stored and displayed as **unsupported**.
+
+**Unsupported does not mean deleted, and it does not mean overruled by headcount.**
+Dissent is preserved permanently — that is the record's entire purpose, and §7a of the
+master spec killed vote tallies for a reason that still holds: if a count decides, the
+group can outvote the accountable owner and nobody is accountable.
+
+What changes is that the *basis* of every position is now visible. The decision owner
+signing off can see that three positions cite specific findings and one cites nothing.
+**They still decide. They can no longer do it without noticing.**
+
+On a group-3 compound there is nothing available to cite, which makes the distinction
+unmissable and is exactly why that group is in the test set.
+
+### 5a.4 What is deliberately not built
+
+**No consensus mechanism, no quorum, no threshold to proceed.** A committee advises; one
+named individual signs. Every mechanism that would relieve that person of the decision
+is out of scope on purpose, not for lack of time.
 
 ---
 
@@ -309,17 +461,29 @@ Each phase is independently useful and ends in something demonstrable.
 | # | phase | why here |
 |---|---|---|
 | **1** | **v2.0 re-registration** — new ruleset file, new hash, written rationale, severity-aware target definition | Must precede any measurement, so no one can claim the target moved after seeing a score. Cheap. Blocking. |
-| **2** | **AI extraction** — study PDF and label text in, structured findings out, shown for approval | The capability everything else needs. Also builds the answer key (§4.1). Highest value per day. |
-| **3** | **AI adjudication** — verdict, severity, per-rule disclosure, citations, deterministic verification of every cited number | The product. |
-| **4** | **Consistency harness** — flip-rate measurement over repeated runs | The primary claim. Must land before any presentation quotes a number. |
-| **5** | **The Finding** — plain-English conclusion, what is missing, what to test next; signed into the record | The deliverable a team carries into a meeting. |
-| **6** | **Rule proposal and versioning** — model proposes, team adopts, hash mints | Makes the ruleset an appreciating asset. |
-| **7** | **Historical replay set** | Manual, slow, highest evidential value. Start collecting during 2–5. |
+| **2** | **Document intake** — upload a PDF, AI extracts findings with source page, shown for approval, never auto-accepted | The capability everything else needs, and what makes the system universal — a novel compound is in no database, but its study report is a document. Also builds the answer key (§4.1). |
+| **3** | **AI adjudication** — verdict, severity, per-rule disclosure, citations, deterministic verification of every cited number, and §3.2's named-absence report | The product. |
+| **4** | **Backend and accounts** — Postgres, identity, document storage, the API the app now reads through | Blocking for everything multi-party. Start in parallel with 2; it shares no code with the AI work. |
+| **5** | **Consistency harness** — flip-rate measurement over repeated runs | The primary claim. Must land before any presentation quotes a number. |
+| **6** | **Lenses and the crux view** — per-account rule settings, all lenses evaluated at once, crux isolated and routed to the planner | The live debate. Needs 4. |
+| **7** | **Cited positions** — positions cite findings, unsupported ones are labelled as such, dissent preserved | Small once 4 and 6 exist. The demo beat that group 3 was assembled for. |
+| **8** | **The Finding** — plain-English conclusion, what is missing, what to test next; signed into the record | The deliverable a team carries into a meeting. |
+| **9** | **The three test groups** — assemble groups 1, 2 and 3; group 2 is free, group 3 is a LiverTox category-E filter, group 1 is manual | Manual and slow, highest evidential value. Start collecting during 2–5. |
+| **10** | **Rule proposal and versioning** — model proposes, team adopts, hash mints | Makes the ruleset an appreciating asset. Last because it is the only phase with no consumer waiting on it. |
+
+**Two tracks, deliberately.** Phases 2–3 and 5 are AI work. Phase 4 is backend work. They
+share nothing and should run in parallel rather than in sequence.
 
 **Timeline honesty.** Submission is 16 August; this is written on 9 August. Phases 1–3
-plus a partial 4 are a realistic seven days if nothing else competes. Phases 5–7 are
-after. This document is the plan for the product, not for the submission, and the two
-should not be conflated — what ships on the 16th is a subset, stated as a subset.
+plus a partial 5 are a realistic seven days if nothing else competes, and that is already
+optimistic given phase 4 lands in the same window. **Phases 6–10 are after.** This
+document is the plan for the product, not for the submission, and the two should not be
+conflated — what ships on the 16th is a subset, described as a subset.
+
+**If the live debate must be shown on the 16th**, the honest shortcut is one screen and
+several accounts signing in turn. It demonstrates lenses, crux and cited positions
+completely; it just does not demonstrate three people at three desks. Say which one is
+being shown.
 
 ---
 
@@ -331,8 +495,11 @@ should not be conflated — what ships on the 16th is a subset, stated as a subs
 | **Leakage via LiverTox** | Fatal if it happens. §4.3 makes it structural rather than procedural. |
 | **Fluent wrongness** | An AI given the same six thin fields fails as the engine did, but persuasively. Mitigated only by §4.2 — the redesign is worthless without the new inputs. |
 | **Replay set too small to support a claim** | Likely. Report n and state it as illustrative calibration, never as accuracy. |
-| **Extraction errors propagate** | Every extracted finding is displayed for approval before use. Never auto-accepted. |
+| **Extraction errors propagate** | Every extracted finding is displayed for approval before use, with its source document and page. Never auto-accepted. |
 | **The static ZIP loses the product** | The AI path needs a server. A build with no network cannot adjudicate. This is now an accepted consequence, not a defect to design around — decided 2026-08-09. |
+| **The backend is new territory** | No server, no database and no auth has ever existed in this project, and phase 4 lands in the same week as phases 2–3. Highest schedule risk on the board. Mitigated only by running the two tracks in parallel and by the one-screen fallback for the debate demo. |
+| **Group 1 reconstruction is partly inference** | "What was known before first human dose" is assembled from retrospective literature. Every reconstruction records its sources and what could not be established, and a case that cannot be reconstructed honestly is dropped rather than guessed. |
+| **Uploaded documents may be confidential** | The moment this accepts a real sponsor's study report it is handling unpublished safety data. Access control per case, no document leaves storage except into an adjudication payload, and no third-party model provider is used without that being an explicit, recorded decision. |
 
 ---
 
@@ -348,3 +515,8 @@ should not be conflated — what ships on the 16th is a subset, stated as a subs
    applies to generated text exactly as to hand-written copy.
 6. **Accuracy is never quoted without its denominator and its class balance.** That
    omission is what produced §0.
+7. **"Not measured" and "measured negative" never render alike.** §3.2. The distinction
+   between an assay nobody ran and an assay that came back clean is the difference
+   between a gap and a result, and TAK-994 is what happens when it blurs.
+8. **Dissent is never deleted, and no headcount decides anything.** §5a.3 labels the
+   basis of a position; it does not remove one. One named person signs.
