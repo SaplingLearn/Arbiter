@@ -104,3 +104,9 @@ Thumbs.db
 # source PDFs - and data/prep/split_review.py refuses anything it cannot split, so a
 # missing source cannot silently become a hand-trimmed one.
 data/raw/approval-packages/
+
+# The DILIrank workbook was downloaded a second time into documents/. It is
+# byte-identical to the tracked data/raw/dilirank.xlsx (sha256 1ca1352ff727af68...),
+# and two copies of a pinned dataset is how "which version produced this result"
+# stops having one answer. The tracked copy is the one under data/raw.
+documents/
