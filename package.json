@@ -10,7 +10,7 @@
   "scripts": {
     "test": "vitest run",
     "lint": "eslint packages apps services --ext .ts,.tsx",
-    "typecheck": "tsc -b packages/engine apps/harness && tsc -p apps/web --noEmit && tsc -p services/api --noEmit",
+    "typecheck": "tsc -b packages/engine apps/harness && tsc -p apps/web --noEmit && tsc -p apps/deliberation --noEmit && tsc -p services/api --noEmit",
     "harness": "tsx apps/harness/src/main.ts",
     "validate:evidence": "tsx apps/harness/src/validate-evidence.ts",
     "metrics": "tsx apps/harness/src/run-metrics.ts",
@@ -23,7 +23,9 @@
     "probe": "tsx services/api/probe.ts",
     "probe:report": "tsx apps/harness/src/consistency-report.ts",
     "deliberate:demo": "tsx services/api/deliberation-demo.ts",
-    "api": "tsx services/api/server.ts"
+    "api": "tsx services/api/server.ts",
+    "deliberate:dev": "npm run dev -w @arbiter/deliberation",
+    "deliberate:build": "npm run build -w @arbiter/deliberation"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",

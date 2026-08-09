@@ -99,6 +99,31 @@ export function makeHandler(deps: ServerDeps) {
         return json(res, r.status, r.body);
       }
 
+      // POST /api/demo - seed the TAK-994 case from the files on disk.
+      //
+      // The client cannot read data/probe-case.json, and hand-typing six findings
+      // into a browser to start a demonstration is how a demonstration comes to use
+      // findings that are not the ones in the repository. This reads the SAME files
+      // `npm run deliberate:demo` reads, so the screen and the terminal cannot
+      // disagree about what the evidence is.
+      if (parts[1] === "demo" && method === "POST") {
+        const probe = JSON.parse(readFileSync("data/probe-case.json", "utf8")) as {
+          compoundLabel: string; context: string;
+          findings: { id: string; label: string; assertion: "toxic" | "safe" | "ambiguous"; detail: string }[];
+        };
+        const cov = JSON.parse(readFileSync("data/probe-case-coverage.json", "utf8")) as { coverage: Record<string, string[]> };
+        const b = body as { caseId: string; participantIds: string[]; at: string };
+        const existing = deps.service.inventory(b.caseId);
+        if (existing !== null) return json(res, 200, { caseId: b.caseId, alreadyOpen: true, inventory: existing });
+        const { inventory } = deps.service.open({
+          caseId: b.caseId, compoundLabel: probe.compoundLabel, context: probe.context,
+          ownerId: actor, participantIds: b.participantIds,
+          findings: probe.findings.map((f) => ({ ...f, covers: cov.coverage[f.id] ?? [] })),
+          at: b.at,
+        });
+        return json(res, 201, { caseId: b.caseId, alreadyOpen: false, inventory });
+      }
+
       if (parts[1] !== "cases") return json(res, 404, { error: "not_found" });
 
       // POST /api/cases

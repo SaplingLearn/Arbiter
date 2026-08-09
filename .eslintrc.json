@@ -22,7 +22,7 @@
       // globals to reach for. This also covers the Playwright specs: they run in
       // node, but their page.evaluate callbacks are serialised and executed
       // inside the page.
-      "files": ["apps/web/**/*.ts", "apps/web/**/*.tsx"],
+      "files": ["apps/web/**/*.ts", "apps/web/**/*.tsx", "apps/deliberation/**/*.ts", "apps/deliberation/**/*.tsx"],
       "env": { "browser": true }
     },
     {

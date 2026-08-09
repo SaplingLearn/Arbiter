@@ -1,0 +1,119 @@
+/**
+ * Tokens are imported from apps/web rather than restated. Spec §3.5 lists the
+ * design tokens among the things that carry over, and a second copy of a palette is
+ * two palettes the day one of them is edited.
+ */
+@import "../../web/src/ui/tokens.css";
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font: var(--t-body)/1.55 var(--sans);
+}
+
+.shell { max-width: 1080px; margin: 0 auto; padding: var(--s5) var(--s4) var(--s8); }
+
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; margin: 0; }
+h1 { font-size: var(--t-display); letter-spacing: -0.01em; }
+h2 { font-size: var(--t-title); }
+h3 { font-size: var(--t-body); font-family: var(--sans); text-transform: uppercase;
+     letter-spacing: 0.08em; color: var(--muted); font-size: var(--t-label); }
+p { margin: var(--s2) 0; max-width: var(--measure); }
+.mono { font-family: var(--mono); font-size: var(--t-small); }
+.muted { color: var(--muted); }
+.small { font-size: var(--t-small); }
+
+/* ---- persona bar ------------------------------------------------------- */
+.personas {
+  display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center;
+  padding: var(--s3) var(--s4); background: var(--surface);
+  border: 1px solid var(--hairline); border-radius: var(--radius); margin-bottom: var(--s5);
+}
+.persona {
+  font: var(--t-small)/1 var(--sans); padding: var(--s2) var(--s3);
+  border: 1px solid var(--hairline); background: var(--canvas); color: var(--muted);
+  border-radius: var(--radius-sm); cursor: pointer;
+}
+.persona[aria-pressed="true"] { border-color: var(--pfizer-blue); color: var(--pfizer-blue); font-weight: 600; }
+.persona .tick { color: var(--clean); }
+
+/* ---- step rail --------------------------------------------------------- */
+.rail { display: flex; gap: var(--s1); margin-bottom: var(--s5); flex-wrap: wrap; }
+.rail span {
+  font: var(--t-label)/1 var(--sans); text-transform: uppercase; letter-spacing: 0.08em;
+  padding: var(--s2) var(--s3); border-radius: var(--radius-sm); color: var(--muted);
+  background: var(--surface);
+}
+.rail span.now { background: var(--deep); color: #fff; }
+.rail span.done { color: var(--clean); }
+
+/* ---- inventory --------------------------------------------------------- */
+.inv { border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; }
+.inv-row {
+  display: grid; grid-template-columns: 92px 1fr; gap: var(--s3);
+  padding: var(--s3) var(--s4); border-top: 1px solid var(--hairline-soft); align-items: start;
+}
+.inv-row:first-child { border-top: 0; }
+.state {
+  font: 600 var(--t-label)/1.6 var(--sans); text-transform: uppercase; letter-spacing: 0.06em;
+  text-align: center; border-radius: var(--radius-sm); padding: 2px 0;
+}
+/* Never colour alone: every state carries its word. Read over a compressed
+   screen-share, colour is the first thing to go. */
+.state.present { color: var(--clean); border: 1px solid var(--clean); }
+.state.absent { color: var(--toxic); border: 1px solid var(--toxic); }
+.state.inconclusive { color: var(--ambiguous); border: 1px solid var(--ambiguous); }
+
+/* ---- forms ------------------------------------------------------------- */
+label { display: block; font: 600 var(--t-small)/1.6 var(--sans); margin-top: var(--s4); }
+textarea, input[type="text"] {
+  width: 100%; font: var(--t-body)/1.5 var(--sans); color: var(--ink);
+  padding: var(--s3); border: 1px solid var(--hairline); border-radius: var(--radius-sm);
+  background: var(--canvas);
+}
+textarea { min-height: 96px; resize: vertical; }
+.cite { display: flex; gap: var(--s2); align-items: flex-start; padding: var(--s2) 0; }
+.cite input { margin-top: 4px; }
+
+button.primary {
+  font: 600 var(--t-body)/1 var(--sans); padding: var(--s3) var(--s5);
+  background: var(--pfizer-blue); color: #fff; border: 0; border-radius: var(--radius-sm);
+  cursor: pointer; margin-top: var(--s5);
+}
+button.primary:disabled { background: var(--hairline); color: var(--muted); cursor: not-allowed; }
+button.ghost {
+  font: var(--t-small)/1 var(--sans); padding: var(--s2) var(--s3); background: var(--canvas);
+  color: var(--ink); border: 1px solid var(--hairline); border-radius: var(--radius-sm); cursor: pointer;
+}
+
+/* ---- positions --------------------------------------------------------- */
+.pos { border: 1px solid var(--hairline); border-radius: var(--radius); padding: var(--s4); margin-top: var(--s3); }
+.pos-head { display: flex; gap: var(--s3); align-items: baseline; flex-wrap: wrap; }
+.basis {
+  font: 600 var(--t-label)/1 var(--sans); text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 3px var(--s2); border-radius: var(--radius-sm); border: 1px solid var(--hairline);
+  color: var(--muted);
+}
+.basis.cited { color: var(--clean); border-color: var(--clean); }
+.basis.external { color: var(--ambiguous); border-color: var(--ambiguous); }
+.basis.unsupported { color: var(--toxic); border-color: var(--toxic); }
+
+/* ---- callouts ---------------------------------------------------------- */
+.concern {
+  border-left: 3px solid var(--ambiguous); background: var(--surface);
+  padding: var(--s3) var(--s4); margin: var(--s3) 0; border-radius: 0 var(--radius) var(--radius) 0;
+}
+.stub {
+  border: 1px solid var(--toxic); color: var(--toxic); background: #FFF6F7;
+  padding: var(--s3) var(--s4); border-radius: var(--radius); margin: var(--s4) 0;
+  font: 600 var(--t-small)/1.5 var(--sans);
+}
+.err { color: var(--toxic); font-size: var(--t-small); margin-top: var(--s3); }
+.ok { color: var(--clean); }
+
+table.audit { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: var(--t-small); }
+table.audit th { text-align: left; color: var(--muted); font-weight: 600; padding: var(--s2); border-bottom: 1px solid var(--hairline); }
+table.audit td { padding: var(--s2); border-bottom: 1px solid var(--hairline-soft); }
