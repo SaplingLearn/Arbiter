@@ -56,6 +56,38 @@ July, was **consistent and defensible decisions under conflict.**
 
 ---
 
+### 0a. The re-grade, measured the same day
+
+The target correction was registered as `rules/ruleset-v2.0.json` (hash `984dc08d…`) and
+the existing verdicts re-graded under it. **The expected direction was written into the
+ruleset file before the re-grade ran** — negative, because five of the seven commitments
+are vLess compounds and become false positives. It was.
+
+| full scored split | confusion | balanced accuracy | |
+|---|---|---|---|
+| **v1.0, as shipped** | tp 4 / fp 0 / tn 0 / fn 0 | 0.750 | single-class — half the definition substituted |
+| **v2.0, corrected** | **tp 2 / fp 5 / tn 0 / fn 0** | **0.500** | both classes present; a real number |
+
+Two of seven commitments right, five wrong. And 0.500 is chance.
+
+**The wider result is worse and matters more. Under an honest target, no pipeline clears
+0.601:** majorityVote 0.471, cytotox 0.507, weightedAverage 0.516, qsar 0.601. The v1.0
+scorecard was making a corpus-wide absence of signal look like several systems that had
+some.
+
+`tools/rescore_v2.py` re-grades rather than re-runs — the verdicts are a function of
+evidence and R1–R6, neither of which v2.0 touches, so a re-run is byte-identical by
+construction and re-grading keeps this single-variable. Its metric definitions are
+transcribed from `stats.ts` and it asserts that its v1.0 column reproduces
+`results/metrics.json` exactly before printing. That guard passes.
+
+**Disclosed:** the QSAR stream was fitted against the v1.0 definition, so it is optimised
+for a target v2.0 rejects. Refitting would stop this being single-variable, so the v2.0
+figures are a **lower bound**. It does not touch the headline — the engine commits on
+transporter claims, not QSAR.
+
+---
+
 ## 1. The claim, restated
 
 > When preclinical evidence about a compound conflicts, ARBITER reaches the same
@@ -325,29 +357,86 @@ only. A test asserts no label-derived field appears in any adjudication payload.
 descendant of `test_qsar_leakage.py`, and it carries the same weight: **if this wall
 fails, every number downstream is void.**
 
-### 4.4 Test documents — what is actually available
+### 4.4 Test documents — measured 2026-08-09, and the first plan did not survive
 
-The honest answer to *"is there anything online complete enough to test this?"* is **yes
-for approved drugs, partially for the failures, and never the raw study reports.**
+**An earlier draft of this section claimed the historical withdrawals could be replayed
+from their approval packages. That was checked and it is wrong.** What follows is what
+the files actually contain.
 
-| source | what it is | completeness |
+#### What was tried, and what came back
+
+| attempt | result |
+|---|---|
+| **Troglitazone**, NDA 020720, the retrievable 1997 PDF | Downloads, 133 pages, genuinely text — but it is a **labelling supplement**. Zero occurrences of "hepat", no pharm/tox review. Unusable. |
+| **Tolcapone**, NDA 020697 medical review, 1998 | 48 pages, **every page a scanned image, 47 extractable characters in the whole file.** OCR or nothing. |
+| **Drugs@FDA coverage** | FDA's own documentation: full review documents exist mainly for drugs approved **1998 onward.** Earlier applications carry little more than labels. |
+| **Lumiracoxib, sitaxentan** | **Never FDA-approved** — European only. No FDA package exists to fetch. |
+| **Ximelagatran** | **FDA rejected it.** No approval package. |
+
+So the historical-replay design fails on document availability, not on principle. Recorded
+at this length because the plan read as sound and cost an hour to falsify.
+
+#### What does work, measured on the same day
+
+| | FDA multi-discipline review (2019) | EMA assessment report |
 |---|---|---|
-| **FDA approval packages** (Drugs@FDA, `accessdata.fda.gov`) | The full review package for an approved drug, including the pharmacology/toxicology review | **The best available.** A reviewer's summary of the entire preclinical programme. Confirmed retrievable back to at least 1997 — troglitazone's NDA 20-720 package is public. |
-| **EMA assessment reports** (EPARs) | European equivalent, often more readable, with a formal divergent-opinions appendix where committee members disagreed | Strong, and the divergent-opinions section is recorded scientific disagreement |
-| **FDA advisory committee materials** | Sponsor briefing book, FDA briefing book, full transcript, votes with dissent | Both sides of a real argument about whether a drug should proceed |
-| **Retrospective literature** | Papers reconstructing what was known | The only option for drugs that failed before approval. Partly inference. |
-| **Raw GLP study reports** | The actual tox study PDFs | **Effectively never public.** Proprietary. Do not plan around them. |
+| pages | 132 | 178 |
+| extractable characters | **277,609** | **495,108** |
+| scanned pages | **0** | **0** |
+| coverage | toxicology, carcinogenicity, genotoxicity, repeat-dose, Cmax, safety pharmacology | the same **plus NOAEL, exposure margins and reversibility explicitly** |
 
-**The insight that shapes the test set: a drug approved and later withdrawn has a
-complete public approval package describing exactly what was known at the moment of the
-decision.** Troglitazone was approved in 1997 and withdrawn in 2000. Its approval
-package *is* the evidence at the decision point. Feeding it in and asking whether the
-system flags it is a true prospective replay on complete public documents — no
-reconstruction, no inference, no guessing what the reviewers had.
+**EMA reports are the richer source for nonclinical detail.** Both formats are
+born-digital text, and the FDA multi-discipline format carries a numbered contents with
+**"5. Nonclinical Pharmacology/Toxicology" as its own chapter**, separate from the
+clinical sections.
 
-That is the closest thing to a clean experiment this field allows, and it is available
-today for troglitazone, trovafloxacin, bromfenac, nefazodone, tolcapone, lumiracoxib and
-sitaxentan.
+Raw GLP study reports remain **effectively never public**. Do not plan around them.
+
+#### The experiment this enables, which is better than the one it replaces
+
+A modern review contains **both** the preclinical chapter and what subsequently happened
+in humans. So:
+
+> **Feed the model the nonclinical chapter only.** Animal studies, in vitro data,
+> exposure margins — precisely what a preclinical team holds before first human dose.
+> **Ask it to predict what the clinical chapter found. The answer key is the same file.**
+
+Better than the historical replay on three counts: **no hindsight contamination**,
+because the cut is mechanical rather than a promise to ignore what one knows; **no OCR**;
+and it works in **both directions**, since drugs with liver findings and drugs without
+both have full reviews.
+
+Candidate selection therefore stops being "drugs that failed" and becomes **"drugs where
+the liver answer is known"** — recent approvals carrying liver warnings for §4.5's
+positive direction, recent approvals with clean liver profiles for the negative.
+
+**The cut must be enforced, not promised.** A single sentence of the clinical chapter
+reaching the model turns the exercise into transcription. The split is asserted by a test
+over the extracted text, and a case whose chapters cannot be cleanly separated is dropped
+rather than trimmed by hand.
+
+### 4.4a A human manifest per document, or extraction cannot be scored
+
+**Without this, every extraction result is ambiguous** — a finding absent from the output
+could mean the model missed it or that the document never contained it, and those are
+opposite conclusions.
+
+So before the model sees a document, **a person reads it and lists what it actually
+contains.** Scoring then resolves:
+
+| situation | verdict |
+|---|---|
+| present in the document, absent from the output | **extraction failure** |
+| absent from the document, reported absent | **correct** |
+| absent from the document, reported present | **hallucination — a hard fail** |
+
+That third row is the one that matters and the one no verdict-level metric would ever
+surface.
+
+**The cost is real and sets the size of the test set:** a person reading a 130-page
+review, probably most of a day per compound. That is the honest reason §4.5 is around ten
+cases rather than fifty, and it is not a corner that can be cut — an unmanifested document
+produces numbers that cannot be interpreted in either direction.
 
 ### 4.5 The three test groups
 
@@ -367,21 +456,30 @@ similar), where patients begin with abnormal liver chemistry and separating drug
 from disease progression is genuinely harder. A real problem and a possible later group —
 **not a replacement for this set.**
 
-#### Group 1 — approved, then withdrawn for liver injury
+#### Group 1 — a documented liver signal
 
-**tolcapone, troglitazone, trovafloxacin, bromfenac, nefazodone, ximelagatran,
-lumiracoxib, sitaxentan** — the eight withdrawn between 1997 and 2016. The literature
-states that **tolcapone, ximelagatran and lumiracoxib showed no hepatotoxicity in
-preclinical animal studies at all.**
+**Revised 2026-08-09 after §4.4 was measured.** The original selection was the eight
+drugs withdrawn for hepatotoxicity between 1997 and 2016. **That set cannot be used as
+documents** — two were never FDA-approved, one was rejected, and the packages that do
+exist are either scanned images or the wrong document entirely.
 
-Add **fialuridine** (1993, deaths in an NIH trial, every animal study clean — the most
-documented failure in the field) and **fasiglifam / TAK-875** (phase 3 halted 2013).
-These two failed before approval, so they have no approval package and must be
-reconstructed from literature — weaker evidence, flagged as such.
+The group is therefore selected on **"the liver answer is known and the review is
+readable"**, not on "the drug was withdrawn": **recent approvals (1998 onward, and
+preferably 2015 onward for the multi-discipline format) whose clinical chapter documents
+a liver finding.** The nonclinical chapter is the input, the clinical chapter is the
+answer key, and §4.4's cut keeps them apart.
 
-TAK-994 stays the anchor. **Do not build the set predominantly from Takeda compounds** —
-TAK-875 and TAK-994 together read as picking on one sponsor rather than describing a
-field-wide problem.
+The withdrawn drugs keep a role, but a different one: **as narrative, not as data.**
+Tolcapone, ximelagatran and lumiracoxib showing nothing in preclinical animal studies is
+the argument for why the product should exist. It is not evidence that the product works,
+and must never be presented as though it were.
+
+**fialuridine** and **fasiglifam / TAK-875** are likewise narrative. Both failed before
+approval, so no package exists at all.
+
+TAK-994 stays the anchor for the demo. **Do not build the set predominantly from Takeda
+compounds** — TAK-875 and TAK-994 together read as picking on one sponsor rather than
+describing a field-wide problem.
 
 #### Group 2 — real mechanism, fine in practice
 
@@ -742,3 +840,10 @@ the new app. They share nothing and run in parallel.
 12. **A correct verdict on incorrect reasoning is scored as a failure.** §7.2a. It is the
     failure mode that survives prompt-tweaking, and verdict-only scoring records it as a
     success.
+13. **No document is used for extraction scoring without a human manifest.** §4.4a. An
+    unmanifested document cannot distinguish an extraction miss from absent data, so it
+    produces numbers that cannot be read in either direction.
+14. **A replay case may only see material that predates the decision.** For the
+    chapter-split design that means the clinical chapter never reaches the model, enforced
+    by a test over the extracted text — not by intending to be careful. A case whose
+    chapters will not separate cleanly is dropped, never trimmed by hand.
