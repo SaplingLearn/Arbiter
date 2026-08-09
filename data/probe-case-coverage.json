@@ -1,0 +1,15 @@
+{
+  "_note": "Which checklist question each TAK-994 finding answers. SEPARATE FROM data/probe-case.json on purpose: that file is the pre-registered input to the consistency probe and must not acquire new fields between the pass marks being committed and the first live run.",
+  "_whyThisFileExistsAtAll": "services/api/inventory.ts never infers coverage from a label. Guessing that a finding named `invivo_rodent` answers 'repeat-dose in vivo liver findings' fails silently in the dangerous direction: it marks a question answered that nobody verified, and an answered question never appears on the missing-evidence list again. So coverage is declared, and the declaration is signed.",
+  "_declaredBy": "hand, 2026-08-09, from the stream and key-event fields already present in each finding's detail string. When extraction is built (spec section 4.2) it proposes this mapping and a human approves it; the file keeps the same shape and gains a real signature.",
+  "checklistVersion": "1.0",
+  "coverage": {
+    "TAK-994:invivo_rodent": ["M5"],
+    "TAK-994:invivo_nonrodent": ["M5"],
+    "TAK-994:cytotox": ["M1"],
+    "TAK-994:transporter": ["M2"],
+    "TAK-994:qsar": ["M6"],
+    "TAK-994:toxicogenomics-murine": []
+  },
+  "_onTheEmptyOne": "TAK-994:toxicogenomics-murine measures CYP induction, and the checklist has no CYP-induction question. It is left uncovered rather than filed under the nearest-looking item. Stretching it onto M3 (reactive metabolite) would mark the reactive-metabolite question answered by a study that did not ask it - and M3 is the route to idiosyncratic injury, which is what withdrew most of the drugs this system exists to catch. Adding a checklist item to fit one finding would be the same error from the other end: the checklist lists what a package must answer, and it does not get edited to match what a package happens to contain."
+}

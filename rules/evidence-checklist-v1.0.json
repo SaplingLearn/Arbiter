@@ -1,0 +1,79 @@
+{
+  "_note": "The questions any liver-safety package must answer, independent of compound. This file is the reason the inventory is not hard-coded per drug: it lists QUESTIONS, never expected answers, so it applies unchanged to a novel chemical entity that appears in no database. Versioned and hashable for the same reason the ruleset is - an inventory that reported 'nothing missing' is only meaningful if the list it was checked against is pinned.",
+  "_whyTwoHalves": "Spec section 3.4. The defect measured on 2026-08-09 was that mechanism evidence alone was allowed to produce 'do not advance'. Five of the engine's seven commitments were real bile-transport inhibitors that are approved and prescribed. Splitting the checklist is what makes 'mechanism present, consequence not established' a statable position rather than a missing vocabulary.",
+  "version": "1.0",
+  "items": [
+    {
+      "id": "M1",
+      "half": "mechanism",
+      "field": "Human-cell hepatotoxicity result",
+      "whatItBlocks": "Rule R1 cannot be applied at all. Animal in vivo evidence has nothing to be weighed against, so a clean rodent study carries the whole question by default."
+    },
+    {
+      "id": "M2",
+      "half": "mechanism",
+      "field": "Bile-salt export pump / hepatobiliary transporter inhibition",
+      "whatItBlocks": "The most common route to cholestatic injury is untested. A cholestatic pattern later seen in humans could not have been anticipated from the package."
+    },
+    {
+      "id": "M3",
+      "half": "mechanism",
+      "field": "Reactive metabolite or covalent binding assessment",
+      "whatItBlocks": "The main route to idiosyncratic injury is unexamined. Idiosyncratic injury is what withdrew most of the drugs this system exists to catch."
+    },
+    {
+      "id": "M4",
+      "half": "mechanism",
+      "field": "Mitochondrial toxicity result",
+      "whatItBlocks": "A key event in the liver-injury pathway is unmeasured, so rule R2 cannot distinguish direct pathway evidence from structural correlation."
+    },
+    {
+      "id": "M5",
+      "half": "mechanism",
+      "field": "Repeat-dose in vivo liver findings",
+      "whatItBlocks": "There is no whole-organism observation, so nothing tests whether an in vitro signal survives absorption, distribution and clearance."
+    },
+    {
+      "id": "M6",
+      "half": "mechanism",
+      "field": "Structural alert or QSAR assessment, with applicability domain stated",
+      "whatItBlocks": "Rule R4 cannot be applied: a structural prediction with no stated domain cannot be down-weighted for being outside it, so it is either trusted blindly or discarded blindly."
+    },
+    {
+      "id": "C1",
+      "half": "consequence",
+      "field": "Projected human daily dose",
+      "whatItBlocks": "Severity cannot be scaled. Dose is the single strongest available predictor of whether a mechanism becomes an injury."
+    },
+    {
+      "id": "C2",
+      "half": "consequence",
+      "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+      "whatItBlocks": "Rule R3 cannot be applied to any reassuring result. A clean assay run below the exposure humans will see is not evidence of safety, and without this field the two are indistinguishable."
+    },
+    {
+      "id": "C3",
+      "half": "consequence",
+      "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+      "whatItBlocks": "The consequence question cannot be answered in kind. Hepatocellular injury and a cholestatic enzyme rise carry different prognoses and different stopping rules."
+    },
+    {
+      "id": "C4",
+      "half": "consequence",
+      "field": "Reversibility on withdrawal",
+      "whatItBlocks": "The difference between a monitorable signal and a programme-stopping one is unstated. Reversible transaminase elevation is managed; irreversible injury is not."
+    },
+    {
+      "id": "C5",
+      "half": "consequence",
+      "field": "Expected frequency and the population that would be exposed",
+      "whatItBlocks": "A rate that matters cannot be distinguished from one that does not, and the size of the population that would carry the risk is unknown."
+    },
+    {
+      "id": "C6",
+      "half": "consequence",
+      "field": "Intended dosing duration",
+      "whatItBlocks": "Chronic dosing in an otherwise healthy population and short-course dosing in serious disease tolerate entirely different signals, and nothing distinguishes them."
+    }
+  ]
+}

@@ -1,0 +1,192 @@
+import {
+  attachAdjudication, closeEarly, externalClaimsAsGaps, lock, openCase, sign,
+  submitPosition, unanimityCheck, visibleTo,
+  type BlindView, type DeliberationCase, type Position, type Result, type Signature,
+  type UnanimityReport,
+} from "./deliberation.js";
+import { absentForAdjudication, buildInventory, type CoveringFinding, type EvidenceChecklist, type Inventory } from "./inventory.js";
+import { commitmentFor, verifyChain, verifySeals, type DeliberationStore, type LogEntry } from "./store.js";
+import type { AdjudicateRequest } from "./adjudicate.js";
+
+/**
+ * The deliberation service: the state machine in deliberation.ts, joined to the
+ * append-only log in store.ts.
+ *
+ * SEPARATE FROM BOTH ON PURPOSE. deliberation.ts is pure and knows nothing about
+ * storage, so its rules can be tested without a file. store.ts knows nothing about
+ * deliberation rules, so a Postgres implementation cannot accidentally acquire an
+ * opinion about who may submit. This file is the only place that knows both, and it
+ * is where the ordering guarantee lives: THE SEAL IS WRITTEN BEFORE THE POSITION IS
+ * STORED. If storage succeeded and sealing failed, a position would exist that no
+ * commitment covers, and `verifySeals` would report it as an insertion - so the
+ * write that must not be lost goes first.
+ *
+ * Every mutation returns the same `Result` the pure layer does. Nothing throws for a
+ * rule violation, because a rejected submission is an ordinary outcome that the
+ * caller renders, not an exception.
+ */
+export class DeliberationService {
+  constructor(
+    private readonly store: DeliberationStore,
+    private readonly checklist: EvidenceChecklist,
+  ) {}
+
+  open(init: {
+    caseId: string;
+    compoundLabel: string;
+    context: string;
+    ownerId: string;
+    participantIds: string[];
+    findings: CoveringFinding[];
+    at: string;
+  }): { case: DeliberationCase; inventory: Inventory } {
+    const c = openCase(init);
+    this.store.append({
+      at: init.at, kind: "case_opened", caseId: c.caseId, actorId: c.ownerId,
+      payload: {
+        compoundLabel: c.compoundLabel, context: c.context,
+        participantIds: c.participantIds, findingIds: init.findings.map((f) => f.id).sort(),
+      },
+    });
+
+    const inventory = buildInventory(init.findings, this.checklist);
+    // The inventory is logged as it was PUBLISHED, not recomputed at read time.
+    // Findings can be corrected later, and a position must remain readable against
+    // the account of the evidence its author actually saw. Recomputing would let a
+    // later correction silently change what somebody was answering.
+    this.store.append({
+      at: init.at, kind: "inventory_published", caseId: c.caseId, actorId: c.ownerId,
+      payload: inventory,
+    });
+
+    this.findings.set(c.caseId, init.findings);
+    this.inventories.set(c.caseId, inventory);
+    this.store.putCase(c);
+    return { case: c, inventory };
+  }
+
+  private readonly findings = new Map<string, CoveringFinding[]>();
+  private readonly inventories = new Map<string, Inventory>();
+
+  /** The inventory as published. Never recomputed - see `open`. */
+  inventory(caseId: string): Inventory | null {
+    const cached = this.inventories.get(caseId);
+    if (cached !== undefined) return cached;
+    const entry = this.store.entries(caseId).find((e) => e.kind === "inventory_published");
+    return entry === undefined ? null : (entry.payload as Inventory);
+  }
+
+  submit(caseId: string, p: Position): Result<DeliberationCase> {
+    const c = this.store.getCase(caseId);
+    if (c === null) return { ok: false, error: { kind: "not_open", detail: `No case ${caseId}.` } };
+
+    const known = new Set((this.findings.get(caseId) ?? []).map((f) => f.id));
+    const next = submitPosition(c, p, known);
+    if (!next.ok) return next;
+
+    // Sealed first. The commitment is the only thing that goes in the log while the
+    // case is open: the log stays publishable to a participant mid-deliberation
+    // without revealing an answer, which is what makes the blindness auditable
+    // rather than merely asserted.
+    const stored = next.value.positions.find((x) => x.participantId === p.participantId)!;
+    this.store.append({
+      at: p.submittedAt, kind: "position_sealed", caseId, actorId: p.participantId,
+      payload: { participantId: p.participantId, commitment: commitmentFor(stored) },
+    });
+    this.store.putCase(next.value);
+    return next;
+  }
+
+  view(caseId: string, viewerId: string): BlindView | null {
+    const c = this.store.getCase(caseId);
+    return c === null ? null : visibleTo(c, viewerId);
+  }
+
+  reveal(caseId: string, by: string, at: string, mode: "all_in" | "close_early"): Result<DeliberationCase> {
+    const c = this.store.getCase(caseId);
+    if (c === null) return { ok: false, error: { kind: "not_open", detail: `No case ${caseId}.` } };
+
+    const next = mode === "all_in" ? lock(c) : closeEarly(c, by, at);
+    if (!next.ok) return next;
+
+    this.store.append({
+      at, kind: "revealed", caseId, actorId: by,
+      payload: { positions: next.value.positions, closedEarly: next.value.closedEarly },
+    });
+    this.store.putCase(next.value);
+    return next;
+  }
+
+  /**
+   * The adjudication payload, assembled from the case rather than from a caller.
+   *
+   * The absences sent to the model are the SAME list the humans read (§3.2 via
+   * `absentForAdjudication`), plus every external claim anybody made (§6.5). A
+   * scientist's uncited expertise therefore reaches the model as an open question
+   * rather than being dropped - which is the difference between a citation
+   * requirement people work with and one they route around.
+   */
+  adjudicationRequest(caseId: string, rules: AdjudicateRequest["rules"]): AdjudicateRequest | null {
+    const c = this.store.getCase(caseId);
+    const inv = this.inventory(caseId);
+    if (c === null || inv === null) return null;
+
+    return {
+      compoundLabel: c.compoundLabel,
+      context: c.context,
+      rules,
+      findings: (this.findings.get(caseId) ?? []).map((f) => ({
+        id: f.id, label: f.label, assertion: f.assertion, detail: f.detail,
+        ...(f.sourceDocument === undefined ? {} : { sourceDocument: f.sourceDocument }),
+        ...(f.sourcePage === undefined ? {} : { sourcePage: f.sourcePage }),
+      })),
+      absent: [...absentForAdjudication(inv), ...externalClaimsAsGaps(c)],
+    };
+  }
+
+  adjudicate(caseId: string, adjudication: unknown, at: string, actorId: string): Result<DeliberationCase> {
+    const c = this.store.getCase(caseId);
+    if (c === null) return { ok: false, error: { kind: "not_locked", detail: `No case ${caseId}.` } };
+    const next = attachAdjudication(c, adjudication);
+    if (!next.ok) return next;
+    this.store.append({ at, kind: "adjudicated", caseId, actorId, payload: adjudication });
+    this.store.putCase(next.value);
+    return next;
+  }
+
+  signOff(caseId: string, s: Signature): Result<DeliberationCase> {
+    const c = this.store.getCase(caseId);
+    if (c === null) return { ok: false, error: { kind: "no_adjudication", detail: `No case ${caseId}.` } };
+    const next = sign(c, s);
+    if (!next.ok) return next;
+    this.store.append({ at: s.at, kind: "signed", caseId, actorId: s.by, payload: s });
+    this.store.putCase(next.value);
+    return next;
+  }
+
+  unanimity(caseId: string): UnanimityReport | null {
+    const c = this.store.getCase(caseId);
+    const inv = this.inventory(caseId);
+    return c === null || inv === null ? null : unanimityCheck(c, inv);
+  }
+
+  /**
+   * The audit a sceptic runs: is this log internally consistent, and does every
+   * revealed position match what was sealed while the case was blind?
+   *
+   * Reported together because they answer one question between them. A valid chain
+   * over positions that never matched their commitments proves only that the
+   * tampering was done tidily.
+   */
+  audit(caseId: string): { chain: ReturnType<typeof verifyChain>; seals: ReturnType<typeof verifySeals>; entries: LogEntry[] } {
+    const c = this.store.getCase(caseId);
+    const entries = this.store.entries(caseId);
+    return {
+      // The WHOLE log, not this case's slice: a per-case slice has holes wherever
+      // another case interleaved, and every link across a hole would read as broken.
+      chain: verifyChain(this.store.all()),
+      seals: verifySeals(entries, c?.positions ?? []),
+      entries,
+    };
+  }
+}

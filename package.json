@@ -21,7 +21,8 @@
     "web:build": "npm run build -w @arbiter/web",
     "probe:case": "python tools/build_probe_case.py",
     "probe": "tsx services/api/probe.ts",
-    "probe:report": "tsx apps/harness/src/consistency-report.ts"
+    "probe:report": "tsx apps/harness/src/consistency-report.ts",
+    "deliberate:demo": "tsx services/api/deliberation-demo.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",
