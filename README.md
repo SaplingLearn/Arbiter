@@ -76,6 +76,21 @@ Plus `apps/harness` (benchmark runner, Node only), `services/api` (rung-1 AI sur
 
 ## The result, stated honestly
 
+> **SUPERSEDED 2026-08-09.** The table below was measured against a target that
+> counted **aspirin, amoxicillin, atenolol and amlodipine as hepatotoxic** — 62% of
+> its positive class was DILIrank's *Less*-concern grade. Under that definition a
+> system correctly declining to flag amlodipine scores as wrong.
+>
+> Re-graded against a corrected target (`rules/ruleset-v2.0.json`), **ARBITER scores
+> 0.500 with confusion `tp 2 / fp 5`** — five of its seven commitments are approved,
+> widely prescribed drugs — **and no baseline clears 0.601.** The 0.750 below is
+> sensitivity 1.0 averaged with a 0.5 *convention* for a specificity that was never
+> measured, on n=4.
+>
+> **Do not quote the table below.** See **HANDOVER §13**, `tools/rescore_v2.py`, and
+> `docs/superpowers/specs/2026-08-09-arbiter-ai-redesign-design.md`. It is kept
+> unedited because it is what was believed on 2026-08-06.
+
 **Read this before quoting any number. Do not restate the headline as an accuracy.**
 
 Measured on the test split only — train fitted the QSAR model, calibration set the conformal threshold, and scoring either would be leakage. 267 compounds scored, 61 in the pre-registered conflict subset.

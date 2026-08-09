@@ -18,6 +18,16 @@ result actually is, what is left, and which things you must not touch. Read §0 
 
 ## 0. Sixty-second orientation
 
+> **STOP — 2026-08-09. The headline in §2 did not survive being checked, and §13
+> replaces it.** The benchmark's positive class counted aspirin, amoxicillin and
+> amlodipine as hepatotoxic; the engine had never once identified a safe compound;
+> and five of its seven commitments were approved, widely prescribed drugs. Under a
+> corrected target the engine scores **0.500, and no baseline clears 0.601.**
+> **Read §13 before quoting any number from §2.** The project is being rebuilt
+> around an AI decider — `docs/superpowers/specs/2026-08-09-arbiter-ai-redesign-design.md`.
+> §2 is kept unedited because it is what was believed on 2026-08-06 and the
+> correction is worth more than a tidy document.
+
 ARBITER takes conflicting preclinical toxicity evidence for a compound and produces a
 defensible **decision** — advance, do not advance, or abstain — with the argument that
 led there, the evidence that would change it, and a hash-chained audit log of who
@@ -1517,3 +1527,112 @@ not an oversight.
 
 **Nothing here is on the critical path.** §3's list is unchanged, the eight-beat demo does not
 touch Intake, and the tab is one line in `TAB_IDS` away from not existing.
+
+---
+
+## 13. The 2026-08-09 audit and redesign
+
+**Read this before quoting any number from §2. The headline it reports did not
+survive being checked.**
+
+### 13.1 What was found
+
+Three things, all measured from files in this repo, all reproducible by running
+`python tools/rescore_v2.py`.
+
+**The positive class was not hepatotoxicity.** The v1.0 binarisation counts
+`vMost-DILI-Concern` and `vLess-DILI-Concern` together as positive, which puts
+**330 of 536 positives (62%) in the Less-concern class** — aspirin, amoxicillin,
+atenolol, amlodipine, alprazolam, acyclovir, azithromycin, ampicillin, apixaban,
+anastrozole. DILIrank's severity grades are not wrong; **collapsing them is what
+broke the target.** Under it, a system correctly declining to flag amlodipine
+scores as wrong and a system that flags everything scores well.
+
+**The engine had never identified a safe compound.** Confusion on the conflict
+subset is `tp 4 / fp 0 / tn 0 / fn 0`. Zero true negatives, ever. The reported
+0.750 is sensitivity 1.0 averaged with **a 0.5 convention for a specificity that
+was never measured**, on n=4. `metrics.json` says so itself in fields nobody read:
+`singleClass: true`, `balancedAccuracyCi: null`, raw-accuracy CI **0.51–1.00**.
+
+**It detects mechanism and reports severity.** Of 7 commitments across the test
+split, two are `vMost` (sorafenib, cyclosporine). **The other five are `vLess`:
+prochlorperazine, thioridazine, glyburide, mifepristone, irbesartan** — every one a
+genuine BSEP inhibitor, so the engine found something true and then said *do not
+advance* about approved, widely prescribed drugs. **The ruleset has no vocabulary
+for severity**, so this is structural and no threshold moves it.
+
+### 13.2 The re-grade
+
+`rules/ruleset-v2.0.json`, hash `984dc08d…`, moves `vLess` to the negative class and
+**changes nothing else** — rules, threshold and precedence are byte-identical,
+verified by comparing canonical JSON. v1.0 is untouched and everything signed under
+it stays attached to it. **The expected direction was written into the file before
+the re-grade ran.**
+
+| full scored split | confusion | balanced accuracy |
+|---|---|---|
+| v1.0 as shipped | tp 4 / fp 0 / tn 0 / fn 0 | 0.750, single-class |
+| **v2.0 corrected** | **tp 2 / fp 5 / tn 0 / fn 0** | **0.500** |
+
+**Under an honest target no pipeline clears 0.601** — majorityVote 0.471, cytotox
+0.507, weightedAverage 0.516, qsar 0.601. The old scorecard made a corpus-wide
+absence of signal look like several systems that had some.
+
+`tools/rescore_v2.py` re-grades rather than re-runs, because verdicts are a function
+of evidence and R1–R6 and v2.0 touches neither. It asserts its v1.0 column
+reproduces `metrics.json` exactly before printing; that guard passes. **Disclosed:**
+the QSAR stream was fitted against v1.0, so the v2.0 figures are a lower bound.
+
+### 13.3 The document plan that failed
+
+The redesign first proposed replaying the eight drugs withdrawn for hepatotoxicity
+from their FDA approval packages. **Checked, and it does not work:**
+
+- **Troglitazone's** retrievable 1997 PDF is a *labelling supplement* — 133 pages of
+  real text, zero occurrences of "hepat", no pharm/tox review.
+- **Tolcapone's** 1998 medical review is 48 pages of **scanned images: 47
+  extractable characters in the whole file.**
+- FDA's own documentation: full reviews exist mainly for approvals **1998 onward**.
+- **Lumiracoxib and sitaxentan were never FDA-approved.** Ximelagatran was rejected.
+
+**What works instead**, measured the same day: modern FDA multi-discipline reviews
+(132 pages, 277,609 extractable characters, zero scanned) and EMA assessment reports
+(178 pages, 495,108 characters, zero scanned, and richer — NOAEL, exposure margins
+and reversibility explicit).
+
+That enables a better experiment. A modern review holds **both** the nonclinical
+chapter and what later happened in humans, so the model reads the nonclinical
+chapter and predicts the clinical one **with the answer key in the same file** — no
+hindsight contamination, because the cut is mechanical. `data/prep/split_review.py`
+performs and enforces it, and **refuses rather than trimming by hand.**
+
+### 13.4 What is built, and what is not
+
+| built and tested | |
+|---|---|
+| `rules/ruleset-v2.0.json` | the corrected target, hashed and pinned |
+| `tools/rescore_v2.py` | the re-grade, with a drift guard against `metrics.json` |
+| `tools/build_test_groups.py` → `data/test-groups.json` | group 2 derived from the engine's own commitments |
+| `prompts/adjudicator-v1.0.json` | the prompt as a versioned, hashable artifact |
+| `services/api/adjudicate.ts` | the decision surface, with `verifyAdjudication` inside the handler |
+| `services/api/probe.ts` + `apps/harness/src/consistency-report.ts` | the flip-rate probe, collection split from analysis |
+| `rules/pass-marks-v1.0.json` | the bars, committed **before any model was called** |
+| `data/prep/split_review.py` | the enforced nonclinical/clinical cut |
+
+**Not built:** the backend, the new web app, extraction, the group 1 and 3 document
+sets, and **every AI measurement** — there is no API key in this repo, which is why
+the pass marks could be committed honestly.
+
+### 13.5 The three rules that matter most going forward
+
+1. **The prompt is a model parameter.** Tuning it against the test set is the same
+   leakage `test_qsar_leakage.py` guards for the QSAR weights. Held-out cases run
+   **once**; every number names the prompt hash that produced it.
+2. **A correct verdict on incorrect reasoning is a failure.** On fifteen cases,
+   chance alone reaches 70%. Right-for-the-wrong-reason is exactly what survives
+   prompt-tweaking.
+3. **Run the consistency probe first.** `npm run probe:case && npm run probe && npm
+   run probe:report`. It needs no answer key, it costs about a dollar, and it is the
+   only result that can invalidate the architecture rather than the wording. A
+   failing flip rate is a **design** defect — do not answer it by rewriting the
+   prompt.
