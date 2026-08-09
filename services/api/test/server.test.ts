@@ -189,7 +189,7 @@ describe("deliberation API", () => {
   it("seeds a usable case and returns its document scope", async () => {
     const r = await call("POST", "/api/demo", "owner", { case: "slynd", participantIds: ["ann"], at: "t" });
     expect(r.status).toBe(201);
-    expect(r.body.documentScope).toContain("NO NEW NONCLINICAL STUDIES");
+    expect(r.body.documentScope).toContain("THE SAFETY STUDIES FOR THIS DRUG WERE NEVER RUN");
     expect(r.body.inventory.modality).toBe("small_molecule");
   });
 

@@ -67,7 +67,7 @@ describe("the case catalogue", () => {
   it("carries a document-scope note exactly where the document limits what can be read", () => {
     // Slynd's package contains no new nonclinical studies, which is legitimate and
     // has to be said, or eleven ABSENT rows read as negligence.
-    expect(loadCase("slynd").documentScope).toContain("NO NEW NONCLINICAL STUDIES");
+    expect(loadCase("slynd").documentScope).toContain("THE SAFETY STUDIES FOR THIS DRUG WERE NEVER RUN");
     expect(loadCase("nipocalimab").documentScope).toBeUndefined();
     expect(loadCase("tak994").documentScope).toBeUndefined();
   });

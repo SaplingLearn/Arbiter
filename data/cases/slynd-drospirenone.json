@@ -10,14 +10,11 @@
   "_extractedBy": "hand, 2026-08-09. Quotes verbatim from the extract above.",
   "_whyThisCompound": "It is the case where there is nothing to cite. Spec section 6.5 says an objection on such a compound 'lands in the third state visibly', and section 4.5 says that is the whole reason group 3 exists - but you cannot test it on a package full of findings. This one has almost none, and the reason it has almost none is legitimate rather than negligent.",
   "_onTheTwoPageChapter": "The chapter really is two pages, and data/prep/split_review.py once had a page-count floor that would have called that a failed split. It was wrong: the floor was replaced by a substance check that names the APPLICATION rather than blaming the splitter. A 505(b)(2) with an established scientific bridge is supposed to be short.",
-
   "caseId": "slynd-drospirenone",
   "compoundLabel": "Slynd (drospirenone 4 mg) - prevention of pregnancy",
-  "context": "505(b)(2) progestin-only oral contraceptive, referencing Yaz (NDA 21676) as the listed drug. Chronic daily dosing in healthy women. Decision point: does this package support the liver-safety position, or does it only point at one?",
+  "context": "A new daily contraceptive pill for healthy women. It contains the same active ingredient as Yaz, an older pill the FDA approved in 2006, and it was approved by pointing at that older product's safety record rather than by running fresh studies. Decision point: does this package support a liver-safety position, or does it only point at one?",
   "modality": "small_molecule",
-
-  "documentScope": "THIS PACKAGE CONTAINS NO NEW NONCLINICAL STUDIES, AND THAT IS NOT AN OVERSIGHT. \"The Applicant has not conducted any new nonclinical pharmacology or toxicology studies with LF111. No additional nonclinical studies were required or requested by the Division\", pending a scientific bridge established by a comparative bioavailability study against Yaz. The liver questions below are therefore unanswered BY THIS DOCUMENT; where they are answered at all, they are answered in NDA 21676. An inventory reports on the package in front of it, so it says absent - read that as 'not here', not as 'nobody ever looked'.",
-
+  "documentScope": "THE SAFETY STUDIES FOR THIS DRUG WERE NEVER RUN, AND THAT IS NOT AN OVERSIGHT. Slynd contains drospirenone, the same ingredient as Yaz - a pill the FDA approved in 2006. Rather than repeat that safety work, the company pointed at it, and the FDA agreed on one condition: prove the new pill puts the same amount of drug into the bloodstream. It did, so no new animal or laboratory studies were required. In the reviewer's words: \"The Applicant has not conducted any new nonclinical pharmacology or toxicology studies with LF111. No additional nonclinical studies were required or requested by the Division.\" So the questions below are marked ABSENT because THIS document does not answer them - not because nobody ever looked. Where they are answered, they are answered in the 2006 application (NDA 21676), which is not what we were handed.",
   "findings": [
     {
       "id": "SLY:no-new-nonclinical",
@@ -35,7 +32,9 @@
       "detail": "\"The scientific bridge between LF111 and Yaz is provided by a comparative clinical bioavailability (BA) study (CF111/103A)\", in which DRSP exposure after multiple doses of LF111 \"was less than or comparable to the reference drug\". Exposure at or below an approved comparator is the entire safety argument here, and it is an exposure argument rather than an organ-specific one.",
       "sourceDocument": "FDA NDA 211367",
       "sourcePage": 28,
-      "covers": ["C1"]
+      "covers": [
+        "C1"
+      ]
     },
     {
       "id": "SLY:genotoxicity-referenced",
@@ -55,5 +54,6 @@
       "sourcePage": 29,
       "covers": []
     }
-  ]
+  ],
+  "_onTheScopeNote": "Written for a reader who does not know what a 505(b)(2) is. An earlier version led with the regulatory terms - '505(b)(2)', 'scientific bridge', 'comparative bioavailability' - and the first person to see it on screen asked what it meant. A caveat nobody can parse does not caveat anything, and this one is the only thing standing between eleven ABSENT rows and a reader concluding the sponsor was negligent."
 }

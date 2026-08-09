@@ -67,8 +67,8 @@ describe("InventoryPanel", () => {
   });
 
   it("renders a document-scope note when the document limits what can be read", () => {
-    render(<InventoryPanel inv={inv} documentScope="NO NEW NONCLINICAL STUDIES were conducted." />);
-    expect(screen.getByText(/NO NEW NONCLINICAL STUDIES/)).toBeInTheDocument();
+    render(<InventoryPanel inv={inv} documentScope="THE SAFETY STUDIES FOR THIS DRUG WERE NEVER RUN, and that is not an oversight." />);
+    expect(screen.getByText(/THE SAFETY STUDIES FOR THIS DRUG WERE NEVER RUN/)).toBeInTheDocument();
   });
 
   it("renders no scope note when there is none", () => {
