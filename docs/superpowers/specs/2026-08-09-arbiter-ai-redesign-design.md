@@ -224,7 +224,7 @@ refresh. This is a genuine architectural addition, not a feature.
 | | |
 |---|---|
 | **Identity** | Email/password to start, with the `signatureMethod` seam the record model already carries (`demo-persona` \| `sso`). SSO changes one field. |
-| **Storage** | Postgres. Cases, documents, findings, ruleset versions, positions, the hash chain. |
+| **Storage** | ~~Postgres.~~ **Amended 2026-08-09 — see below.** Cases, documents, findings, ruleset versions, positions, the hash chain. |
 | **Documents** | Object storage. Every finding references its source document and page, so any claim traces back to the sentence it came from. |
 | **API** | The web app stops owning data and reads through the service. |
 | **Liveness** | Polling is sufficient. A position appears within a second or two of being submitted. |
@@ -232,6 +232,37 @@ refresh. This is a genuine architectural addition, not a feature.
 **Consequence, accepted 2026-08-09:** the single-file `file://` build can no longer
 adjudicate. `apps/web/e2e/static-file.spec.ts` is re-scoped to guard that the app loads
 and explains itself offline, not that it reasons offline.
+
+#### Amendment, 2026-08-09 (built): an append-only hash chain, not Postgres
+
+Written down because a later reader trusts this document over the code.
+
+**The property the deliberation needs is not a query engine.** It is that a position
+cannot be written, or rewritten, after its author has seen someone else's — and a
+mutable row cannot demonstrate that, because an `UPDATE` leaves nothing behind. A hash
+chain can: every entry commits to the one before it, so altering an earlier entry breaks
+every hash after it, detectably, by anyone holding the file. `services/api/store.ts`.
+`DeliberationStore` is the seam, and a Postgres implementation satisfies it without any
+caller changing.
+
+The secondary reason is smaller and honest: no database server exists on the machine
+this has to run on, and a demo that cannot start is not a product.
+
+**Two files, and the split is load-bearing.** The log holds commitments; a sibling file
+holds live case state including position plaintext. That is what lets the log be handed
+to a participant, or an auditor, **while a case is still open** without revealing
+anybody's answer. A single store holding both would make every export a reveal.
+
+**What is proved and what is not.** `verifySeals` proves no revealed position differs
+from what was sealed at submit time. It does **not** prove the server never read one
+early — the server holds plaintext because it must hand it to the adjudicator, and no
+server-side scheme changes that. Participants trust the operator on that point. Stating
+it matters more than the guarantee: a reader who believes this is cryptographically
+blind will trust a property nobody built.
+
+**Identity, as built, is `demo-persona` only** — an `x-arbiter-user` header. Anyone who
+can reach the port can claim to be anyone, so the server binds to loopback and has no
+flag to change it. Real accounts are a prerequisite for any real sponsor data (§9).
 
 ### 3.4 The verdict is two questions, not one
 

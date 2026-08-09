@@ -1618,10 +1618,45 @@ performs and enforces it, and **refuses rather than trimming by hand.**
 | `services/api/probe.ts` + `apps/harness/src/consistency-report.ts` | the flip-rate probe, collection split from analysis |
 | `rules/pass-marks-v1.0.json` | the bars, committed **before any model was called** |
 | `data/prep/split_review.py` | the enforced nonclinical/clinical cut |
+| `rules/evidence-checklist-v1.0.json` + `services/api/inventory.ts` | the inventory — twelve questions any package must answer, split mechanism / consequence |
+| `services/api/deliberation.ts` | blind submission, the three citation states, the unanimity check |
+| `services/api/store.ts` | append-only hash-chained log; positions sealed on submit |
+| `services/api/deliberation-service.ts` + `server.ts` | the API. `npm run api` |
+| `npm run deliberate:demo` | the whole flow played on the real TAK-994 evidence |
 
-**Not built:** the backend, the new web app, extraction, the group 1 and 3 document
-sets, and **every AI measurement** — there is no API key in this repo, which is why
-the pass marks could be committed honestly.
+**Not built:** the new web app, extraction, the group 1 and 3 document sets, and
+**every AI measurement** — there is no API key in this repo, which is why the pass
+marks could be committed honestly.
+
+### 13.4a The deliberation, built 2026-08-09 without a key
+
+Spec phases 3, 4 and 8 are done bar the one sentence that needs a model. Three
+things in it are worth knowing before reading the code.
+
+**Blindness is enforced by not returning the data.** `visibleTo` gives a viewer
+their own position and, for everyone else, one bit: submitted or not. Not the call,
+not a running tally — a tally drags as hard as the positions would. The owner is not
+privileged, because an owner who could read early *is* the dynamic §6.2 exists to
+break.
+
+**A position is sealed on submit, and only the commitment goes in the log** while a
+case is open. So the audit trail can be handed to a participant mid-deliberation
+without revealing an answer, and `verifySeals` lets a sceptic prove no position was
+edited after sealing. **It does not prove the server never read one early** — no
+server-side scheme can, and the code says so where it would be tempting to imply
+otherwise. Identity is an `x-arbiter-user` header, which is `demo-persona`, not
+authentication; the server binds to loopback only and has no flag to change it.
+
+**Deviation from spec §3.3, deliberate:** an append-only hash chain rather than
+Postgres. The property this needs is not a query engine, it is that an edit cannot
+be made without leaving a trace, and an `UPDATE` leaves nothing behind.
+`DeliberationStore` is the seam.
+
+**§6.6 turned out to need no model at all.** Unanimity plus an unanswered question
+is a fact about the record. `npm run deliberate:demo` shows it: four scientists read
+TAK-994's real nonclinical package, all four say advance, and the system names the
+**eight questions nobody asked** — six of them the entire consequence half. That is
+what happened.
 
 ### 13.5 The three rules that matter most going forward
 
