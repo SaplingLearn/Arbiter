@@ -57,6 +57,10 @@ results/*
 !results/verdict-manifest.json
 !results/golden/
 !results/golden/metrics.golden.json
+# The v2.0 re-grade. Tracked for the same reason results.json is: it is the
+# artifact behind the claim that the 0.750 headline was an artifact, and a
+# reviewer has to be able to read it without re-running anything.
+!results/rescore-v2.txt
 
 # Playwright output. The e2e run's traces and screenshots are diagnostics for a
 # single run, not artifacts anyone re-derives a number from.

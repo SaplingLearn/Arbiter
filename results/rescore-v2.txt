@@ -1,0 +1,187 @@
+==========================================================================
+TARGET: v1.0 (as shipped)
+  positive = ['vMost-DILI-Concern', 'vLess-DILI-Concern']
+  negative = ['vNo-DILI-Concern']
+==========================================================================
+-- CONFLICT SUBSET (the headline) --
+  ARBITER
+    subset n=61   positives in subset: 90.2%
+    committed          4   coverage 6.6%
+    confusion          tp 4  fp 0  tn 0  fn 0
+    balanced accuracy  0.750   CI      -       single-class: yes
+    raw accuracy CI    0.51-1.00
+
+  baseline majorityVote
+    subset n=61   positives in subset: 90.2%
+    committed          3   coverage 4.9%
+    confusion          tp 3  fp 0  tn 0  fn 0
+    balanced accuracy  0.750   CI      -       single-class: yes
+    raw accuracy CI    0.44-1.00
+
+  baseline single:cytotox
+    subset n=61   positives in subset: 90.2%
+    committed          61   coverage 100.0%
+    confusion          tp 0  fp 0  tn 6  fn 55
+    balanced accuracy  0.500   CI 0.30-0.53   single-class: no
+    raw accuracy CI    0.05-0.20
+
+  baseline single:qsar
+    subset n=61   positives in subset: 90.2%
+    committed          60   coverage 98.4%
+    confusion          tp 54  fp 6  tn 0  fn 0
+    balanced accuracy  0.500   CI 0.47-0.70   single-class: no
+    raw accuracy CI    0.80-0.95
+
+  baseline single:transporter
+    subset n=61   positives in subset: 90.2%
+    committed          4   coverage 6.6%
+    confusion          tp 4  fp 0  tn 0  fn 0
+    balanced accuracy  0.750   CI      -       single-class: yes
+    raw accuracy CI    0.51-1.00
+
+  baseline weightedAverage
+    subset n=61   positives in subset: 90.2%
+    committed          61   coverage 100.0%
+    confusion          tp 51  fp 5  tn 1  fn 4
+    balanced accuracy  0.547   CI 0.43-0.77   single-class: no
+    raw accuracy CI    0.74-0.92
+
+-- FULL SCORED SPLIT --
+  ARBITER
+    subset n=267   positives in subset: 60.3%
+    committed          7   coverage 2.6%
+    confusion          tp 7  fp 0  tn 0  fn 0
+    balanced accuracy  0.750   CI      -       single-class: yes
+    raw accuracy CI    0.65-1.00
+
+  baseline majorityVote
+    subset n=267   positives in subset: 60.3%
+    committed          159   coverage 59.6%
+    confusion          tp 47  fp 25  tn 45  fn 42
+    balanced accuracy  0.585   CI 0.48-0.69   single-class: no
+    raw accuracy CI    0.50-0.65
+
+  baseline single:cytotox
+    subset n=267   positives in subset: 60.3%
+    committed          127   coverage 47.6%
+    confusion          tp 8  fp 1  tn 30  fn 88
+    balanced accuracy  0.526   CI 0.44-0.58   single-class: no
+    raw accuracy CI    0.23-0.38
+
+  baseline single:qsar
+    subset n=267   positives in subset: 60.3%
+    committed          167   coverage 62.5%
+    confusion          tp 94  fp 30  tn 33  fn 10
+    balanced accuracy  0.714   CI 0.62-0.79   single-class: no
+    raw accuracy CI    0.69-0.82
+
+  baseline single:transporter
+    subset n=267   positives in subset: 60.3%
+    committed          4   coverage 1.5%
+    confusion          tp 4  fp 0  tn 0  fn 0
+    balanced accuracy  0.750   CI      -       single-class: yes
+    raw accuracy CI    0.51-1.00
+
+  baseline weightedAverage
+    subset n=267   positives in subset: 60.3%
+    committed          217   coverage 81.3%
+    confusion          tp 95  fp 30  tn 46  fn 46
+    balanced accuracy  0.640   CI 0.54-0.73   single-class: no
+    raw accuracy CI    0.58-0.71
+
+==========================================================================
+TARGET: v2.0 (corrected)
+  positive = ['vMost-DILI-Concern']
+  negative = ['vNo-DILI-Concern', 'vLess-DILI-Concern']
+==========================================================================
+-- CONFLICT SUBSET (the headline) --
+  ARBITER
+    subset n=61   positives in subset: 29.5%
+    committed          4   coverage 6.6%
+    confusion          tp 1  fp 3  tn 0  fn 0
+    balanced accuracy  0.500   CI 0.10-0.78   single-class: no
+    raw accuracy CI    0.05-0.70
+
+  baseline majorityVote
+    subset n=61   positives in subset: 29.5%
+    committed          3   coverage 4.9%
+    confusion          tp 0  fp 3  tn 0  fn 0
+    balanced accuracy  0.250   CI      -       single-class: yes
+    raw accuracy CI    0.00-0.56
+
+  baseline single:cytotox
+    subset n=61   positives in subset: 29.5%
+    committed          61   coverage 100.0%
+    confusion          tp 0  fp 0  tn 43  fn 18
+    balanced accuracy  0.500   CI 0.46-0.59   single-class: no
+    raw accuracy CI    0.58-0.80
+
+  baseline single:qsar
+    subset n=61   positives in subset: 29.5%
+    committed          60   coverage 98.4%
+    confusion          tp 17  fp 43  tn 0  fn 0
+    balanced accuracy  0.500   CI 0.41-0.54   single-class: no
+    raw accuracy CI    0.19-0.41
+
+  baseline single:transporter
+    subset n=61   positives in subset: 29.5%
+    committed          4   coverage 6.6%
+    confusion          tp 1  fp 3  tn 0  fn 0
+    balanced accuracy  0.500   CI 0.10-0.78   single-class: no
+    raw accuracy CI    0.05-0.70
+
+  baseline weightedAverage
+    subset n=61   positives in subset: 29.5%
+    committed          61   coverage 100.0%
+    confusion          tp 17  fp 39  tn 4  fn 1
+    balanced accuracy  0.519   CI 0.39-0.60   single-class: no
+    raw accuracy CI    0.24-0.47
+
+-- FULL SCORED SPLIT --
+  ARBITER
+    subset n=267   positives in subset: 21.7%
+    committed          7   coverage 2.6%
+    confusion          tp 2  fp 5  tn 0  fn 0
+    balanced accuracy  0.500   CI 0.17-0.72   single-class: no
+    raw accuracy CI    0.08-0.64
+
+  baseline majorityVote
+    subset n=267   positives in subset: 21.7%
+    committed          159   coverage 59.6%
+    confusion          tp 13  fp 59  tn 68  fn 19
+    balanced accuracy  0.471   CI 0.35-0.60   single-class: no
+    raw accuracy CI    0.43-0.59
+
+  baseline single:cytotox
+    subset n=267   positives in subset: 21.7%
+    committed          127   coverage 47.6%
+    confusion          tp 3  fp 6  tn 84  fn 34
+    balanced accuracy  0.507   CI 0.45-0.59   single-class: no
+    raw accuracy CI    0.60-0.76
+
+  baseline single:qsar
+    subset n=267   positives in subset: 21.7%
+    committed          167   coverage 62.5%
+    confusion          tp 29  fp 95  tn 40  fn 3
+    balanced accuracy  0.601   CI 0.49-0.67   single-class: no
+    raw accuracy CI    0.34-0.49
+
+  baseline single:transporter
+    subset n=267   positives in subset: 21.7%
+    committed          4   coverage 1.5%
+    confusion          tp 1  fp 3  tn 0  fn 0
+    balanced accuracy  0.500   CI 0.10-0.78   single-class: no
+    raw accuracy CI    0.05-0.70
+
+  baseline weightedAverage
+    subset n=267   positives in subset: 21.7%
+    committed          217   coverage 81.3%
+    confusion          tp 30  fp 95  tn 72  fn 20
+    balanced accuracy  0.516   CI 0.41-0.62   single-class: no
+    raw accuracy CI    0.40-0.54
+
+==========================================================================
+DRIFT GUARD - the v1.0 column must reproduce results/metrics.json exactly
+  shipped    balancedAccuracy 0.75  confusion {'tp': 4, 'fp': 0, 'tn': 0, 'fn': 0}
+  recomputed balancedAccuracy 0.75  confusion {'tp': 4, 'fp': 0, 'tn': 0, 'fn': 0}
+  PASS - this script matches the harness

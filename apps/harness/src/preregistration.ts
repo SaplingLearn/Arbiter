@@ -54,6 +54,28 @@ export const PRE_REGISTERED_HASH =
   "ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136";
 
 /**
+ * v2.0, registered 2026-08-09. `rules/ruleset-v2.0.json`.
+ *
+ * A RE-REGISTRATION, NOT AN EDIT. v1.0 is untouched and every number and every
+ * signed position produced under it remains attached to it.
+ *
+ * v2.0 changes the target definition and nothing else: `rules`,
+ * `abstentionGapThreshold` and `precedenceOrder` are byte-identical, and only
+ * `dilirankBinarisation` differs - vLess-DILI-Concern moves from the positive
+ * class to the negative one. That isolation is the point. Re-grading under v2.0
+ * measures the effect of the target correction alone, so the movement cannot be
+ * confounded with a rule change.
+ *
+ * The reason it is legitimate is written in the file's own
+ * `reregistrationReason`, and the direction of the expected effect was recorded
+ * there BEFORE the re-grade ran: negative, because five of the engine's seven
+ * commitments are vLess compounds and become false positives. It did. See
+ * tools/rescore_v2.py and HANDOVER section 13.
+ */
+export const PRE_REGISTERED_HASH_V2 =
+  "984dc08dad55683c74bcdaae9b9da810829046669461d193a4687325be192227";
+
+/**
  * The exposure policy's pre-registration surface.
  *
  * Excludes `version`, `registeredAt` (metadata) and `statement`, `rationale`

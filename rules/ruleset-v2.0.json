@@ -1,0 +1,90 @@
+{
+  "version": "2.0",
+  "registeredAt": "2026-08-09",
+  "supersedes": "1.0",
+  "reregistrationReason": "The v1.0 binarisation counted vMost-DILI-Concern and vLess-DILI-Concern together as positive. Measured 2026-08-09: that places 330 of 536 positives (62%) in the Less-concern class, which contains aspirin, amoxicillin, atenolol, amlodipine, alprazolam, acyclovir, azithromycin, ampicillin, apixaban and anastrozole. Under that target a system correctly declining to flag amlodipine is scored as wrong, and a system that flags everything scores well. This is a correction to what the target MEANS, made before any v2.0 result was computed, and NOT an adjustment made to improve a number - the expected effect on the headline is negative, because five of the engine's seven commitments are Less-concern compounds and become false positives under this definition.",
+  "abstentionGapThreshold": 0.5,
+  "dilirankBinarisation": {
+    "positive": ["vMost-DILI-Concern"],
+    "negative": ["vNo-DILI-Concern", "vLess-DILI-Concern"],
+    "excluded": ["Ambiguous-DILI-concern"]
+  },
+  "binarisationRationale": "The question this benchmark must answer is the product's question - would this compound's liver risk stop the programme - not 'does this compound have any liver signal at all'. All 330 vLess-DILI-Concern drugs were approved and remain marketed, so for the decision question the ground truth for them is 'this did not stop it'. Placing them in the negative class therefore makes a flag on them a false positive, which is exactly the defect measured on 2026-08-09 and exactly what v1.0 could not see. Considered and rejected: excluding vLess entirely (206 vs 354). That is cleaner but discards the 330 compounds that carry the most information, because they are precisely the cases where a real mechanism exists and the drug shipped anyway - the distinction between concerning and disqualifying that the engine currently cannot make.",
+  "precedenceOrder": ["R3", "R1", "R2", "R5"],
+  "precedenceRationale": "Unchanged from v1.0. Exposure relevance (R3) is checked before human relevance (R1). A negative finding only carries weight across the exposure range it actually tested, so evidence from a more human-relevant system must not override a positive finding at a clinically relevant dose merely because the system is more human-relevant; the exposure margin of the negative has to be established first. Mechanistic proximity (R2) is checked next, ahead of study reliability (R5): whether the evidence directly measures a key event or only correlates with structure is a question about what kind of evidence is being compared, and that should be settled before asking how well any single study was conducted.",
+  "scopeNote": "v2.0 CHANGES THE TARGET DEFINITION AND NOTHING ELSE. R1-R6 are byte-identical to v1.0, and abstentionGapThreshold and precedenceOrder are unchanged. That isolation is deliberate: re-scoring under v2.0 measures the effect of the target correction alone, with the same engine and the same rules, so the resulting number cannot be confounded with a rule change. The expanded checklist the 2026-08-09 redesign calls for - dose magnitude, injury pattern, reversibility, expected frequency, reactive-metabolite formation, latency and dechallenge - is deliberately NOT registered here. Nothing implements those rules yet; the engine in packages/engine/src/rules.ts implements exactly R1-R6, and registering rules no code consumes would put six inert entries into a hashed surface. They land in a later registration when the adjudication layer exists to read them.",
+  "rules": [
+    {
+      "id": "R1",
+      "name": "Human relevance",
+      "statement": "Human-cell evidence defeats animal in vivo evidence when the question is human hepatotoxicity.",
+      "framework": {
+        "name": "FDA Roadmap to Reducing Animal Testing in Preclinical Safety Studies; FDA Modernization Act 2.0",
+        "date": "2025-04",
+        "note": "Agency direction toward human-relevant new approach methodologies as the preferred evidence source."
+      },
+      "enabled": true,
+      "strength": 0.9
+    },
+    {
+      "id": "R2",
+      "name": "Mechanistic proximity",
+      "statement": "Evidence that directly measures an adverse outcome pathway key event defeats evidence that only correlates with chemical structure.",
+      "framework": {
+        "name": "OECD Adverse Outcome Pathway framework; AOP-Wiki key event relationship confidence",
+        "date": "standing",
+        "note": "Key event relationships carry explicit confidence levels assessed on biological plausibility and empirical support."
+      },
+      "enabled": true,
+      "strength": 0.85
+    },
+    {
+      "id": "R3",
+      "name": "Exposure relevance",
+      "statement": "A positive finding at clinically relevant exposure defeats a negative finding whose exposure margin is unstated or untested at that range.",
+      "framework": {
+        "name": "ICH M3(R2) exposure-margin expectations; standard exposure-margin practice in regulatory toxicology",
+        "date": "standing",
+        "note": "A negative result carries weight only across the exposure range actually tested."
+      },
+      "enabled": true,
+      "strength": 0.85
+    },
+    {
+      "id": "R4",
+      "name": "Applicability domain",
+      "statement": "Evidence from a model operating outside its applicability domain is admitted with reduced weight, or excluded.",
+      "framework": {
+        "name": "OECD principles for the validation of QSAR models; standard QSAR regulatory acceptance criteria",
+        "date": "standing",
+        "note": "A prediction about a compound unlike the training set is a different kind of evidence."
+      },
+      "enabled": true,
+      "strength": 0.5
+    },
+    {
+      "id": "R5",
+      "name": "Study reliability",
+      "statement": "Higher-reliability studies defeat lower-reliability ones at equal mechanistic relevance.",
+      "framework": {
+        "name": "Klimisch et al. (1997) reliability scoring",
+        "date": "1997",
+        "note": "The standard reliability system used in regulatory toxicology submissions."
+      },
+      "enabled": true,
+      "strength": 0.6
+    },
+    {
+      "id": "R6",
+      "name": "Concordance",
+      "statement": "Independent sources agreeing raises confidence more than one source agreeing with itself.",
+      "framework": {
+        "name": "OECD weight-of-evidence and Integrated Approaches to Testing and Assessment guidance",
+        "date": "standing",
+        "note": "Formalised by the evidence fusion layer; independence is at the stream level."
+      },
+      "enabled": true,
+      "strength": 0.4
+    }
+  ]
+}
