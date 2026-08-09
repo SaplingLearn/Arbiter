@@ -1,0 +1,98 @@
+{
+  "_note": "Probe case for the consistency measurement. TAK-994 is excluded from the benchmark, so using it here burns no development or held-out case. Its citations are UNVERIFIED upstream (data/out/tak994.json) and that is acceptable for a stability measurement, which needs no answer key - it would NOT be acceptable in a scored result.",
+  "_generatedBy": "tools/build_probe_case.py",
+  "compoundLabel": "TAK-994 (Narcolepsy type 1)",
+  "context": "Narcolepsy type 1. Chronic oral dosing in otherwise healthy adults, so tolerance for a liver signal is low. Decision point: whether to advance toward first-in-human.",
+  "rules": [
+    {
+      "id": "R1",
+      "name": "Human relevance",
+      "statement": "Human-cell evidence defeats animal in vivo evidence when the question is human hepatotoxicity.",
+      "enabled": true,
+      "strength": 0.9
+    },
+    {
+      "id": "R2",
+      "name": "Mechanistic proximity",
+      "statement": "Evidence that directly measures an adverse outcome pathway key event defeats evidence that only correlates with chemical structure.",
+      "enabled": true,
+      "strength": 0.85
+    },
+    {
+      "id": "R3",
+      "name": "Exposure relevance",
+      "statement": "A positive finding at clinically relevant exposure defeats a negative finding whose exposure margin is unstated or untested at that range.",
+      "enabled": true,
+      "strength": 0.85
+    },
+    {
+      "id": "R4",
+      "name": "Applicability domain",
+      "statement": "Evidence from a model operating outside its applicability domain is admitted with reduced weight, or excluded.",
+      "enabled": true,
+      "strength": 0.5
+    },
+    {
+      "id": "R5",
+      "name": "Study reliability",
+      "statement": "Higher-reliability studies defeat lower-reliability ones at equal mechanistic relevance.",
+      "enabled": true,
+      "strength": 0.6
+    },
+    {
+      "id": "R6",
+      "name": "Concordance",
+      "statement": "Independent sources agreeing raises confidence more than one source agreeing with itself.",
+      "enabled": true,
+      "strength": 0.4
+    }
+  ],
+  "findings": [
+    {
+      "id": "TAK-994:invivo_rodent",
+      "label": "invivo_rodent (rodent)",
+      "assertion": "safe",
+      "detail": "stream invivo_rodent; system rodent; measures no key event; exposure relevance unstated; Klimisch 1; stated confidence 0.85; source: Rat repeat-dose: no hepatotoxicity. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
+    },
+    {
+      "id": "TAK-994:invivo_nonrodent",
+      "label": "invivo_nonrodent (nonrodent)",
+      "assertion": "safe",
+      "detail": "stream invivo_nonrodent; system nonrodent; measures no key event; exposure relevance unstated; Klimisch 1; stated confidence 0.85; source: Non-human primate repeat-dose: no hepatotoxicity. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
+    },
+    {
+      "id": "TAK-994:cytotox",
+      "label": "cytotox (human)",
+      "assertion": "safe",
+      "detail": "stream cytotox; system human; measures key event KE:HEPATOCYTE-DEATH; exposure relevance unstated; Klimisch 1; stated confidence 0.8; source: In-vitro DILI panel, margins >100x (cytotoxicity, mitochondrial, BSEP). Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
+    },
+    {
+      "id": "TAK-994:transporter",
+      "label": "transporter (human)",
+      "assertion": "safe",
+      "detail": "stream transporter; system human; measures key event KE:BSEP-INHIBITION; exposure relevance unstated; Klimisch 1; stated confidence 0.75; source: BSEP inhibition: wide margin. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
+    },
+    {
+      "id": "TAK-994:qsar",
+      "label": "qsar (in_silico)",
+      "assertion": "ambiguous",
+      "detail": "stream qsar; system in_silico; measures no key event; exposure relevance unstated; Klimisch 3; stated confidence 0.0; source: First-in-class orexin receptor 2 agonist; no informative structural precedent."
+    },
+    {
+      "id": "TAK-994:toxicogenomics-murine",
+      "label": "toxicogenomics (rodent)",
+      "assertion": "toxic",
+      "detail": "stream toxicogenomics; system rodent; measures key event KE:CYP-INDUCTION; tested at clinically relevant exposure; Klimisch 1; stated confidence 0.9; source: Murine hepatic single-cell necrosis after CYP450 induction at clinically relevant doses. Study initiated DURING the Phase 2 trial. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
+    }
+  ],
+  "absent": [
+    {
+      "field": "clinical Cmax / exposure margin",
+      "whatItBlocks": "4 of 6 findings assert SAFE with no established exposure margin (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter). Each rules out less than it appears to, and none can be distinguished from a result tested below the range that matters."
+    },
+    {
+      "field": "measured adverse-outcome-pathway key event",
+      "whatItBlocks": "3 findings correlate rather than measure (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:qsar), so they evidence no mechanism in either direction."
+    }
+  ]
+}

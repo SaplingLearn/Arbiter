@@ -62,6 +62,13 @@ results/*
 # reviewer has to be able to read it without re-running anything.
 !results/rescore-v2.txt
 
+# The consistency probe's raw runs. A reported flip rate whose underlying answers
+# were discarded is an assertion rather than a measurement, so a LIVE run belongs
+# in git. A STUB run does not - it measures the harness, reports 0% by
+# construction, and committing one puts a file in the repo that looks exactly like
+# a result. Check `"source": "live"` before adding it.
+!results/probe-runs.json
+
 # Playwright output. The e2e run's traces and screenshots are diagnostics for a
 # single run, not artifacts anyone re-derives a number from.
 test-results/

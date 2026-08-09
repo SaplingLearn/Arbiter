@@ -25,10 +25,28 @@ import type { Complete } from "./interpret.js";
  * distinction matters.
  */
 
+/**
+ * Mirrors `Assertion` in packages/engine/src/types.ts, which is
+ * "toxic" | "safe" | "ambiguous".
+ *
+ * `ambiguous` is NOT an oversight to be narrowed away. An earlier draft here
+ * allowed only toxic and safe, and the TAK-994 fixture immediately produced a
+ * request the validator rejected: its QSAR claim asserts `ambiguous`, which is the
+ * honest reading of a structural prediction that resolves neither way. Dropping
+ * that claim would have silently removed evidence from an adjudication, which is
+ * the one thing this surface must never do.
+ *
+ * services/ does not import the engine (see interpret.ts on the same point), so
+ * this is a second spelling of one definition. The drift is safe in the same way:
+ * a value the engine accepts and this rejects fails validation loudly at the door
+ * rather than being quietly discarded downstream.
+ */
+export type FindingAssertion = "toxic" | "safe" | "ambiguous";
+
 export interface Finding {
   id: string;
   label: string;
-  assertion: "toxic" | "safe";
+  assertion: FindingAssertion;
   detail: string;
   sourceDocument?: string;
   sourcePage?: number;
@@ -291,7 +309,7 @@ function isAdjudicateRequest(u: unknown): u is AdjudicateRequest {
   const findingsOk = (b["findings"] as unknown[]).every((f) => {
     const x = f as Record<string, unknown>;
     return typeof x?.["id"] === "string" && typeof x?.["label"] === "string"
-      && (x?.["assertion"] === "toxic" || x?.["assertion"] === "safe")
+      && (x?.["assertion"] === "toxic" || x?.["assertion"] === "safe" || x?.["assertion"] === "ambiguous")
       && typeof x?.["detail"] === "string";
   });
   const absentOk = (b["absent"] as unknown[]).every((a) => {

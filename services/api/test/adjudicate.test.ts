@@ -118,6 +118,39 @@ describe("POST /api/adjudicate", () => {
     expect(complete).not.toHaveBeenCalled();
   });
 
+  it("accepts an 'ambiguous' assertion, because the engine has three", async () => {
+    // REGRESSION. This validator allowed only toxic and safe, and the real TAK-994
+    // fixture was rejected on its QSAR claim - which asserts `ambiguous`, the honest
+    // reading of a structural prediction resolving neither way. A narrowed validator
+    // does not merely reject the request; used less strictly it would DROP the claim
+    // and adjudicate on evidence a reviewer believes was considered.
+    // packages/engine/src/types.ts:2 is the authority: "toxic" | "safe" | "ambiguous".
+    const complete = vi.fn().mockResolvedValue({
+      ...VALID,
+      consequence: { ...VALID.consequence, citedFindingIds: ["f1", "f2", "f3"] },
+      mechanism: { ...VALID.mechanism, citedFindingIds: [] },
+    });
+    const req: AdjudicateRequest = {
+      ...REQUEST,
+      findings: [...REQUEST.findings, { id: "f3", label: "QSAR", assertion: "ambiguous", detail: "Resolves neither way." }],
+    };
+    const res = await handleAdjudicate(req, complete, PROMPT);
+    expect(res.status).toBe(200);
+    expect(complete).toHaveBeenCalled();
+  });
+
+  it("still rejects an assertion the engine does not have", async () => {
+    // The other half: widening to three must not become "accept any string".
+    const complete = vi.fn();
+    const req = {
+      ...REQUEST,
+      findings: [{ id: "f9", label: "x", assertion: "probably-fine", detail: "y" }],
+    };
+    const res = await handleAdjudicate(req, complete, PROMPT);
+    expect(res.status).toBe(400);
+    expect(complete).not.toHaveBeenCalled();
+  });
+
   it("rejects a request carrying no rules at all", async () => {
     // An adjudication with nothing to disclose against is not a weaker
     // adjudication; the required-disclosure property is the product.

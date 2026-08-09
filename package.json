@@ -18,7 +18,10 @@
     "golden:update": "tsx apps/harness/src/update-golden.ts",
     "e2e": "playwright test",
     "web:dev": "npm run dev -w @arbiter/web",
-    "web:build": "npm run build -w @arbiter/web"
+    "web:build": "npm run build -w @arbiter/web",
+    "probe:case": "python tools/build_probe_case.py",
+    "probe": "tsx services/api/probe.ts",
+    "probe:report": "tsx apps/harness/src/consistency-report.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",
