@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { DEFAULT_MODEL } from "./interpret.js";
 import type { ApiResponse, Complete } from "./interpret.js";
 
 /**
@@ -92,7 +93,7 @@ export function completeFromEnv(env: NodeJS.ProcessEnv = process.env): Complete 
   if (apiKey === undefined || apiKey === "") return null;
 
   const client = new Anthropic({ apiKey });
-  const model = env["ARBITER_MODEL"] ?? "claude-opus-5";
+  const model = env["ARBITER_MODEL"] ?? DEFAULT_MODEL;
 
   return async (system, user, schema) => {
     const message = await client.messages.create({
@@ -106,6 +107,7 @@ export function completeFromEnv(env: NodeJS.ProcessEnv = process.env): Complete 
     });
 
     if (message.stop_reason === "refusal") throw new Error("refused");
+    if (message.stop_reason === "max_tokens") throw new Error("truncated: max_tokens too low");
 
     const text = message.content.find((b) => b.type === "text");
     if (text === undefined || text.type !== "text") throw new Error("no text block");

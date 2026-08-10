@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { completeFromEnv, type Complete } from "./interpret.js";
+import { completeFromEnv, DEFAULT_MODEL, type Complete } from "./interpret.js";
 import { adjudicationSchema, userPrompt, verifyAdjudication, type AdjudicateRequest } from "./adjudicate.js";
 
 /**
@@ -112,7 +112,9 @@ export async function runProbe(
   return {
     probeVersion: 1,
     source: live ? "live" : "stub",
-    model: live ? (process.env["ARBITER_MODEL"] ?? "claude-opus-5") : null,
+    // Resolved the SAME way completeFromEnv resolves it, from the same constant. A
+    // second literal here would let the probe call one model and report another.
+    model: live ? (process.env["ARBITER_MODEL"] ?? DEFAULT_MODEL) : null,
     promptVersion: prompt.version,
     promptHash: promptHash(prompt),
     compoundLabel: req.compoundLabel,

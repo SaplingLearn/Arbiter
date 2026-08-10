@@ -179,15 +179,34 @@ export async function handleInterpret(
  * instead of a boot failure - the service must come up and answer 503 so the client
  * can descend, not refuse to start.
  */
+/**
+ * THE ONE COPY OF THE DEFAULT MODEL. Imported by navigate.ts and probe.ts.
+ *
+ * It is a constant rather than three literals because probe.ts writes the model
+ * name into `results/probe-runs.json` while calling the client built HERE. Two
+ * copies that drift produce a probe that runs on one model and reports another,
+ * which is not a bug in a label - it is a fabricated result, and HANDOVER §3.2
+ * rules out exactly that when it forbids the `fallbacks` parameter in the ablation.
+ * One copy makes the divergence unrepresentable.
+ *
+ * Sonnet 5 and not Opus 5 because this call configures away what Opus is for:
+ * thinking is disabled, effort is "low" and the ceiling is 1024 tokens. The
+ * judgment lives in packages/engine; a model here does language only (navigate.ts's
+ * own system prompt says so in as many words). Sonnet is also faster into the 2.5s
+ * client abort. Haiku 4.5 is NOT a candidate - it rejects `output_config.effort`.
+ *
+ * Spec §16 leaves provider and model a deployment decision recorded at deploy time.
+ * Written down here so the decision is visible in source rather than only in a
+ * Railway dashboard, and overridable per-run with ARBITER_MODEL.
+ */
+export const DEFAULT_MODEL = "claude-sonnet-5";
+
 export function completeFromEnv(env: NodeJS.ProcessEnv = process.env): Complete | null {
   const apiKey = env["ANTHROPIC_API_KEY"];
   if (apiKey === undefined || apiKey === "") return null;
 
   const client = new Anthropic({ apiKey });
-  // Spec §16 leaves provider and model a deployment decision recorded at deploy
-  // time. The default is written down here so the decision is visible in source
-  // rather than only in a Railway dashboard.
-  const model = env["ARBITER_MODEL"] ?? "claude-opus-5";
+  const model = env["ARBITER_MODEL"] ?? DEFAULT_MODEL;
 
   return async (system, user, schema) => {
     const message = await client.messages.create({
@@ -197,13 +216,14 @@ export function completeFromEnv(env: NodeJS.ProcessEnv = process.env): Complete 
       // buys nothing the caller would still be waiting for.
       max_tokens: 1024,
       system,
-      // Thinking is ON BY DEFAULT on claude-opus-5 and shares the max_tokens budget
-      // with the answer, so a thinking pass would spend the whole 2.5s window before
-      // the first field of the proposal was emitted. Disabling it is accepted at
-      // effort "high" or below and is rejected at "xhigh"/"max", hence "low" beside
-      // it. There are no tools on this call and the response is schema-constrained,
-      // so neither of the disabled-thinking failure modes (a tool call written as
-      // prose, internal tags in the text) can reach the caller.
+      // Omitting `thinking` runs ADAPTIVE on claude-sonnet-5, and thinking shares the
+      // max_tokens budget with the answer - a thinking pass would spend the whole 2.5s
+      // window before the first field of the proposal was emitted. So it is disabled
+      // explicitly rather than by omission. There are no tools on this call and the
+      // response is schema-constrained, so neither of the disabled-thinking failure
+      // modes (a tool call written as prose, internal tags in the text) can reach the
+      // caller. NOTE for a model swap: Opus 5 accepts `disabled` only at effort "high"
+      // or below, so the "low" beside it is load-bearing there and merely cheap here.
       thinking: { type: "disabled" },
       output_config: { effort: "low", format: { type: "json_schema", schema } },
       messages: [{ role: "user", content: user }],
@@ -212,6 +232,16 @@ export function completeFromEnv(env: NodeJS.ProcessEnv = process.env): Complete 
     // Check stop_reason BEFORE reading content: on a refusal the content array is
     // empty and indexing it throws something less informative than this does.
     if (message.stop_reason === "refusal") throw new Error("refused");
+
+    // Truncation is named rather than left to JSON.parse. A cut-off answer under a
+    // json_schema constraint IS invalid JSON, so parse would throw either way - but it
+    // would throw "Unexpected end of JSON input", and the probe records that string as
+    // the run's error. A Gate 0 flip rate computed over runs that were truncated
+    // measures max_tokens, not the model, and the ceiling here was sized for
+    // interpret's seven short fields rather than for an adjudication carrying prose
+    // and citations. Saying so makes that failure legible in results/probe-runs.json
+    // instead of looking like model instability.
+    if (message.stop_reason === "max_tokens") throw new Error("truncated: max_tokens too low");
 
     const text = message.content.find((b) => b.type === "text");
     if (text === undefined || text.type !== "text") throw new Error("no text block");
