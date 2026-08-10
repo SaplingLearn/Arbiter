@@ -1,5 +1,6 @@
 import {
-  attachAdjudication, closeEarly, externalClaimsAsGaps, lock, openCase, sign,
+  addParticipant, attachAdjudication, closeEarly, describeCase, externalClaimsAsGaps,
+  lock, openCase, removeParticipant, sign,
   submitPosition, unanimityCheck, visibleTo,
   type BlindView, type DeliberationCase, type Position, type Result, type Signature,
   type UnanimityReport,
@@ -235,6 +236,28 @@ export class DeliberationService {
       submitted: c.positions.length,
       of: c.participantIds.length,
     }));
+  }
+
+  /** Roster and description changes. Each is guarded in the pure layer; this only
+   *  loads, delegates and persists, so the rules live in one place. */
+  private mutate(caseId: string, f: (c: DeliberationCase) => Result<DeliberationCase>): Result<DeliberationCase> {
+    const c = this.store.getCase(caseId);
+    if (c === null) return { ok: false, error: { kind: "not_open", detail: `No case ${caseId}.` } };
+    const next = f(c);
+    if (next.ok) this.store.putCase(next.value);
+    return next;
+  }
+
+  addParticipant(caseId: string, userId: string): Result<DeliberationCase> {
+    return this.mutate(caseId, (c) => addParticipant(c, userId));
+  }
+
+  removeParticipant(caseId: string, userId: string): Result<DeliberationCase> {
+    return this.mutate(caseId, (c) => removeParticipant(c, userId));
+  }
+
+  describe(caseId: string, compoundLabel: string, context: string): Result<DeliberationCase> {
+    return this.mutate(caseId, (c) => describeCase(c, compoundLabel, context));
   }
 
   view(caseId: string, viewerId: string): BlindView | null {

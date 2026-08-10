@@ -10,10 +10,12 @@ import { handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
 import { completeFromEnv } from "./interpret.js";
 import { stubComplete } from "./probe.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
-import { AuthStore, type PublicUser } from "./auth.js";
+import { AuthStore, normaliseEmail, type PublicUser } from "./auth.js";
 import { DEMO_TEAM } from "./seed-demo.js";
 import { DocumentStore, MAX_BYTES } from "./documents.js";
 import { can, denial, type CaseAction } from "./access.js";
+import { InviteStore } from "./invites.js";
+import { LoginThrottle } from "./throttle.js";
 
 /**
  * The deliberation API.
@@ -40,6 +42,8 @@ export interface ServerDeps {
   service: DeliberationService;
   auth: AuthStore;
   documents: DocumentStore;
+  invites: InviteStore;
+  throttle: LoginThrottle;
   rules: AdjudicateRequest["rules"];
   prompt: { system: string[]; userTemplate: string[] };
   now?: () => number;
@@ -50,11 +54,13 @@ const ERROR_STATUS: Record<string, number> = {
   unknown_finding_id: 400, empty_reasoning: 400, not_all_submitted: 409,
   not_the_owner: 403, no_adjudication: 409, override_needs_reason: 400, already_signed: 409,
   evidence_frozen: 409, no_such_finding: 404, duplicate_finding: 409,
+  already_a_participant: 409, not_on_the_case: 404, has_answered: 409,
 };
 
 const AUTH_STATUS: Record<string, number> = {
   email_taken: 409, invalid_credentials: 401, weak_password: 400,
   bad_email: 400, no_session: 401, session_expired: 401,
+  bad_reset_token: 400, rate_limited: 429,
 };
 
 /** A small stable hash for generating a case identifier from its own content, so two
@@ -123,7 +129,8 @@ export function makeHandler(deps: ServerDeps) {
     try {
       // ---- auth, the only unauthenticated surface ---------------------------
       if (parts[1] === "auth") {
-        return handleAuth(deps, res, parts[2], method, body, bearer(req), now());
+        return handleAuth(deps, res, parts[2], method, body, bearer(req), now(),
+          req.socket.remoteAddress ?? "unknown");
       }
 
       // The catalogue names no case contents and no positions, so it is readable by
@@ -218,10 +225,10 @@ export function makeHandler(deps: ServerDeps) {
       // 405 - and a read-shaped request on a write-shaped path was checked against
       // the wrong rule. Anything that is not a known write is a read.
       const action: CaseAction = method === "DELETE"
-        ? (tail === "findings" ? "adjudicate" : "read")
+        ? (tail === "findings" || tail === "participants" ? "adjudicate" : "read")
         : method !== "POST"
           ? "read"
-          : tail === "findings" ? "adjudicate"
+          : tail === "findings" || tail === "participants" || tail === "describe" ? "adjudicate"
             : tail === "positions" ? "submit"
           : tail === "reveal" ? "reveal"
             : tail === "adjudicate" ? "adjudicate"
@@ -253,6 +260,12 @@ export function makeHandler(deps: ServerDeps) {
             return json(res, 200, deps.service.audit(caseId));
           case "documents":
             return json(res, 200, deps.documents.forCase(caseId));
+          case "participants":
+            return json(res, 200, {
+              ownerId: kase.ownerId,
+              members: kase.participantIds.map((id) => deps.auth.get(id)).filter((p) => p !== null),
+              pending: deps.invites.forCase(caseId),
+            });
           case "adjudication-request": {
             const r = deps.service.adjudicationRequest(caseId, deps.rules);
             return r === null ? json(res, 404, { error: "no_case" }) : json(res, 200, r);
@@ -277,8 +290,37 @@ export function makeHandler(deps: ServerDeps) {
               ? json(res, 201, { document: r.document, duplicateOf: r.duplicateOf ?? null })
               : json(res, r.rejection.kind === "unreadable" ? 422 : 400, { error: r.rejection.kind, ...r.rejection });
           }
+          case "participants": {
+            const b = body as { email: string };
+            const email = normaliseEmail(b?.email ?? "");
+            if (email === "") return json(res, 400, { error: "bad_request", detail: "Give an email address." });
+            const existing = deps.auth.findByEmail(email);
+            if (existing === null) {
+              // No account yet: record the intent rather than refusing. Telling a
+              // convener "ask them to register, then come back" loses the case, and
+              // the person most likely to be left off is the one who disagrees.
+              deps.invites.add({ email, caseId, invitedBy: user.id, at: new Date(now()).toISOString() });
+              return json(res, 202, {
+                pending: true, email,
+                detail: "No account for that address yet. They will join automatically when they register - tell them to, because nothing is emailed from here.",
+              });
+            }
+            const r = deps.service.addParticipant(caseId, existing.id);
+            return r.ok ? json(res, 200, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
+          }
+          case "describe": {
+            const b = body as { compoundLabel: string; context: string };
+            const r = deps.service.describe(caseId, b?.compoundLabel ?? "", b?.context ?? "");
+            return r.ok ? json(res, 200, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
+          }
           case "findings": {
             const f = body as CoveringFinding;
+            if (f?.sourceDocumentId !== undefined) {
+              const doc = deps.documents.get(f.sourceDocumentId);
+              if (doc === null || doc.caseId !== caseId) {
+                return json(res, 400, { error: "bad_request", detail: "That document is not on this case." });
+              }
+            }
             if (typeof f?.id !== "string" || f.id.trim() === "" || typeof f?.label !== "string" || f.label.trim() === "") {
               return json(res, 400, { error: "bad_request", detail: "A finding needs an identifier and a label." });
             }
@@ -325,6 +367,19 @@ export function makeHandler(deps: ServerDeps) {
         return r.ok ? json(res, 200, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
       }
 
+      if (method === "DELETE" && tail === "participants" && parts[4] !== undefined) {
+        const target = decodeURIComponent(parts[4]);
+        // An address that never registered is a pending invitation, not a member.
+        if (target.includes("@")) {
+          const revoked = deps.invites.revoke(target, caseId);
+          return revoked
+            ? json(res, 200, { revoked: target })
+            : json(res, 404, { error: "not_on_the_case", detail: "No pending invitation for that address." });
+        }
+        const r = deps.service.removeParticipant(caseId, target);
+        return r.ok ? json(res, 200, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
+      }
+
       return json(res, 405, { error: "method_not_allowed" });
     } catch (e) {
       return json(res, 500, { error: "internal", detail: e instanceof Error ? e.message : "unknown" });
@@ -334,19 +389,69 @@ export function makeHandler(deps: ServerDeps) {
 
 function handleAuth(
   deps: ServerDeps, res: ServerResponse, action: string | undefined,
-  method: string, body: unknown, token: string | null, now: number,
+  method: string, body: unknown, token: string | null, now: number, source: string,
 ): void {
   if (action === "register" && method === "POST") {
     const b = body as { email: string; displayName: string; password: string };
     const r = deps.auth.register({ email: b.email, displayName: b.displayName, password: b.password, now });
-    return r.ok ? json(res, 201, r.value) : json(res, AUTH_STATUS[r.error.kind] ?? 400, r.error);
+    if (!r.ok) return json(res, AUTH_STATUS[r.error.kind] ?? 400, r.error);
+
+    // Standing invitations are claimed at registration: a convener added this address
+    // to a case before it had an account, and this is where that lands.
+    const claimed: string[] = [];
+    for (const caseId of deps.invites.claim(b.email)) {
+      const added = deps.service.addParticipant(caseId, r.value.id);
+      if (added.ok) claimed.push(caseId);
+    }
+    return json(res, 201, { ...r.value, joinedCases: claimed });
   }
 
   if (action === "login" && method === "POST") {
     deps.auth.pruneExpired(now);
     const b = body as { email: string; password: string };
+    const address = normaliseEmail(b.email ?? "");
+
+    // Checked BEFORE the password is hashed. Throttling after the expensive step
+    // would let an attacker keep the CPU busy at no cost to themselves, which is the
+    // opposite of the point.
+    const wait = deps.throttle.retryAfter(address, source, now);
+    if (wait > 0) {
+      res.setHeader("retry-after", String(Math.ceil(wait / 1000)));
+      return json(res, 429, {
+        kind: "rate_limited",
+        detail: `Too many attempts. Try again in ${Math.ceil(wait / 1000)} seconds.`,
+      });
+    }
+
     const r = deps.auth.login({ email: b.email, password: b.password, now });
-    return r.ok ? json(res, 200, r.value) : json(res, AUTH_STATUS[r.error.kind] ?? 401, r.error);
+    if (!r.ok) {
+      deps.throttle.recordFailure(address, source, now);
+      return json(res, AUTH_STATUS[r.error.kind] ?? 401, r.error);
+    }
+    deps.throttle.recordSuccess(address);
+    return json(res, 200, r.value);
+  }
+
+  if (action === "request-reset" && method === "POST") {
+    const b = body as { email: string };
+    const issued = deps.auth.requestReset(b.email, now);
+    if (issued !== null) {
+      // Printed, not mailed. There is no delivery path here, and pretending otherwise
+      // is what turns a reset flow into a hole - the operator hands this to the person
+      // whose account it is, having satisfied themselves that it IS that person.
+      console.log(`[reset] token for ${normaliseEmail(b.email)}: ${issued}`);
+    }
+    // The same answer whether or not the account exists, so this form cannot be used
+    // to discover which addresses are registered.
+    return json(res, 202, {
+      detail: "If that address has an account, a reset token has been issued. Nothing is emailed from here - ask whoever runs the server for it.",
+    });
+  }
+
+  if (action === "reset" && method === "POST") {
+    const b = body as { token: string; password: string };
+    const r = deps.auth.resetPassword(b.token, b.password, now);
+    return r.ok ? json(res, 200, r.value) : json(res, AUTH_STATUS[r.error.kind] ?? 400, r.error);
   }
 
   if (action === "logout" && method === "POST") {
@@ -425,6 +530,8 @@ export function buildDeps(logPath: string): ServerDeps {
     service: new DeliberationService(new FileStore(logPath), checklist),
     auth: new AuthStore(`${logPath}.users.json`),
     documents: new DocumentStore("results/documents"),
+    invites: new InviteStore(`${logPath}.invites.json`),
+    throttle: new LoginThrottle(),
     rules: probe.rules,
     prompt,
   };

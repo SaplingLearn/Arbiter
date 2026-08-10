@@ -13,7 +13,9 @@ import { api, ApiError, type CaseListing, type CaseSummary, type Person } from "
 
 /** ---------------------------------------------------------- authentication */
 export function AuthPage({ onSignedIn }: { onSignedIn: (token: string, user: Person) => void }): ReactElement {
-  const [mode, setMode] = useState<"in" | "up">("in");
+  const [mode, setMode] = useState<"in" | "up" | "forgot" | "reset">("in");
+  const [resetToken, setResetToken] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -25,6 +27,21 @@ export function AuthPage({ onSignedIn }: { onSignedIn: (token: string, user: Per
     setBusy(true);
     setError(null);
     try {
+      if (mode === "forgot") {
+        const r = await api.requestReset(email);
+        setNotice(r.detail);
+        setMode("reset");
+        setBusy(false);
+        return;
+      }
+      if (mode === "reset") {
+        await api.resetPassword(resetToken, password);
+        setNotice("Password changed, and every session was signed out. Sign in with the new one.");
+        setMode("in");
+        setPassword("");
+        setBusy(false);
+        return;
+      }
       if (mode === "up") await api.register(email, displayName, password);
       const r = await api.login(email, password);
       onSignedIn(r.token, r.user);
@@ -59,12 +76,19 @@ export function AuthPage({ onSignedIn }: { onSignedIn: (token: string, user: Per
             <button type="button" aria-pressed={mode === "up"} onClick={() => { setMode("up"); setError(null); }}>Create account</button>
           </div>
 
-          <h2>{mode === "in" ? "Welcome back" : "Create your account"}</h2>
+          <h2>
+            {mode === "in" ? "Welcome back"
+              : mode === "up" ? "Create your account"
+                : mode === "forgot" ? "Reset your password"
+                  : "Enter your reset token"}
+          </h2>
           <p className="hint">
-            {mode === "in"
-              ? "Your session lasts twelve hours and is not stored in this browser — closing the tab signs you out."
-              : "Anyone can create an account. You will be able to open cases and be added to other people's."}
+            {mode === "in" ? "Your session lasts twelve hours and is not stored in this browser — closing the tab signs you out."
+              : mode === "up" ? "Anyone can create an account. You will be able to open cases and be added to other people's."
+                : mode === "forgot" ? "Nothing is emailed from this deployment. A token is issued to whoever runs the server, and they hand it to you."
+                  : "Paste the token you were given, and choose a new password. Every existing session is signed out."}
           </p>
+          {notice !== null && <div className="note" style={{ marginTop: 16 }}>{notice}</div>}
 
           <form onSubmit={(e) => { void submit(e); }}>
             <div className="field">
@@ -72,6 +96,14 @@ export function AuthPage({ onSignedIn }: { onSignedIn: (token: string, user: Per
               <input id="email" type="email" autoComplete="username" required
                 value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
             </div>
+
+            {mode === "reset" && (
+              <div className="field">
+                <label htmlFor="rt">Reset token</label>
+                <input id="rt" type="text" required value={resetToken}
+                  onChange={(e) => setResetToken(e.target.value)} placeholder="64 hexadecimal characters" />
+              </div>
+            )}
 
             {mode === "up" && (
               <div className="field">
@@ -83,12 +115,13 @@ export function AuthPage({ onSignedIn }: { onSignedIn: (token: string, user: Per
               </div>
             )}
 
+            {mode !== "forgot" && (
             <div className="field">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">{mode === "reset" ? "New password" : "Password"}</label>
               <input id="password" type="password" required
                 autoComplete={mode === "in" ? "current-password" : "new-password"}
                 value={password} onChange={(e) => setPassword(e.target.value)} />
-              {mode === "up" && (
+              {(mode === "up" || mode === "reset") && (
                 <span className="hint">
                   At least 12 characters. No symbol or digit rules — length is what
                   actually protects a password, and composition rules just produce
@@ -96,11 +129,27 @@ export function AuthPage({ onSignedIn }: { onSignedIn: (token: string, user: Per
                 </span>
               )}
             </div>
+            )}
 
             <div className="btn-row">
-              <button className="primary" type="submit" disabled={busy || email === "" || password === ""}>
-                {busy ? "Working…" : mode === "in" ? "Sign in" : "Create account"}
+              <button className="primary" type="submit"
+                disabled={busy || email === "" || (mode !== "forgot" && password === "") || (mode === "reset" && resetToken === "")}>
+                {busy ? "Working…"
+                  : mode === "in" ? "Sign in"
+                    : mode === "up" ? "Create account"
+                      : mode === "forgot" ? "Request a reset token"
+                        : "Set new password"}
               </button>
+              {mode === "in" && (
+                <button type="button" className="link" onClick={() => { setMode("forgot"); setError(null); setNotice(null); }}>
+                  Forgotten your password?
+                </button>
+              )}
+              {(mode === "forgot" || mode === "reset") && (
+                <button type="button" className="link" onClick={() => { setMode("in"); setError(null); }}>
+                  Back to sign in
+                </button>
+              )}
             </div>
             {error !== null && <div className="err">{error}</div>}
           </form>

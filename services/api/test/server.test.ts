@@ -9,6 +9,8 @@ import { DeliberationService } from "../deliberation-service.js";
 import { MemoryStore } from "../store.js";
 import { AuthStore } from "../auth.js";
 import { DocumentStore } from "../documents.js";
+import { InviteStore } from "../invites.js";
+import { LoginThrottle } from "../throttle.js";
 import { seedDemoTeam, DEMO_PASSWORD } from "../seed-demo.js";
 import type { EvidenceChecklist, CoveringFinding } from "../inventory.js";
 import type { AdjudicateRequest } from "../adjudicate.js";
@@ -55,6 +57,8 @@ beforeAll(async () => {
     service: new DeliberationService(new MemoryStore(), CHECKLIST),
     auth,
     documents: new DocumentStore(mkdtempSync(join(tmpdir(), "arb-docs-"))),
+    invites: new InviteStore(null),
+    throttle: new LoginThrottle(),
     rules: RULES,
     prompt: PROMPT,
   };

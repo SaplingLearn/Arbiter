@@ -16,11 +16,16 @@ import { dirname } from "node:path";
  * unaudited transitive dependency tree to a project that will hold unpublished
  * safety data is the worse trade.
  *
- * WHAT IS DELIBERATELY NOT HERE, so nobody assumes it: no password reset, no email
- * verification, no rate limiting, no lockout, no MFA. Each needs a mail path or a
- * shared cache this project does not have, and a half-built reset flow is a
- * credential-recovery hole rather than a feature. `signatureMethod` carries
- * `password` today and `sso` is the intended replacement for all of it.
+ * WHAT IS DELIBERATELY NOT HERE, so nobody assumes it: no email verification and no
+ * MFA. `signatureMethod` carries `password` today and `sso` is the intended
+ * replacement for both.
+ *
+ * PASSWORD RESET IS HERE, AND DELIVERY IS NOT. `requestReset` mints a single-use,
+ * expiring token and stores only its digest; getting that token to the right human is
+ * the operator's job until a mail path exists, and the server prints it rather than
+ * pretending an email was sent. That split is what stops this being the
+ * credential-recovery hole a half-built reset flow usually is: the dangerous part of
+ * a reset flow is delivery, and delivery is the part that is explicitly absent.
  */
 
 /** Cost parameters. N=2^15 is the current OWASP floor for scrypt; r and p are the
@@ -49,6 +54,15 @@ export interface User {
   params: { N: number; r: number; p: number; keyLen: number };
   signatureMethod: SignatureMethod;
   createdAt: string;
+}
+
+export interface ResetToken {
+  /** SHA-256 of the token. Same reasoning as sessions: a leaked store must not hand
+   *  the reader a working reset. */
+  tokenHash: string;
+  userId: string;
+  expiresAt: string;
+  usedAt: string | null;
 }
 
 export interface Session {
@@ -104,6 +118,8 @@ export function normaliseEmail(email: string): string {
 
 export type AuthErrorKind =
   | "email_taken"
+  | "bad_reset_token"
+  | "rate_limited"
   | "invalid_credentials"
   | "weak_password"
   | "bad_email"
@@ -127,14 +143,19 @@ export type AuthResult<T> = { ok: true; value: T } | { ok: false; error: AuthErr
  */
 const MIN_PASSWORD = 12;
 
+/** Long enough to walk to somebody's desk, short enough that a stale token in a chat
+ *  log is not a standing key to the account. */
+export const RESET_TTL_MS = 30 * 60 * 1000;
+
 export class AuthStore {
   private users = new Map<string, User>();
   private byEmail = new Map<string, string>();
   private sessions = new Map<string, Session>();
+  private resets = new Map<string, ResetToken>();
 
   constructor(private readonly path: string | null = null) {
     if (path !== null && existsSync(path)) {
-      const raw = JSON.parse(readFileSync(path, "utf8")) as { users: User[]; sessions: Session[] };
+      const raw = JSON.parse(readFileSync(path, "utf8")) as { users: User[]; sessions: Session[]; resets?: ResetToken[] };
       for (const u of raw.users) {
         this.users.set(u.id, u);
         this.byEmail.set(u.email, u.id);
@@ -142,6 +163,7 @@ export class AuthStore {
       // Sessions survive a restart on purpose: restarting the service should not
       // sign everybody out mid-deliberation. They still expire on their own clock.
       for (const s of raw.sessions) this.sessions.set(s.tokenHash, s);
+      for (const r of raw.resets ?? []) this.resets.set(r.tokenHash, r);
     } else if (path !== null) {
       mkdirSync(dirname(path), { recursive: true });
     }
@@ -152,6 +174,7 @@ export class AuthStore {
     writeFileSync(this.path, JSON.stringify({
       users: [...this.users.values()],
       sessions: [...this.sessions.values()],
+      resets: [...this.resets.values()],
     }, null, 2), "utf8");
   }
 
@@ -224,6 +247,59 @@ export class AuthStore {
     this.sessions.set(session.tokenHash, session);
     this.persist();
     return { ok: true, value: { token, user: publicUser(user) } };
+  }
+
+  /**
+   * Mint a reset token, or quietly do nothing.
+   *
+   * Returns null for an address that has no account, and the caller answers the same
+   * way either way: "if that address has an account, a reset token has been issued."
+   * Saying "no such user" here would turn the reset form into an account-enumeration
+   * oracle, which is the same leak `login` avoids.
+   */
+  requestReset(email: string, now: number): string | null {
+    const id = this.byEmail.get(normaliseEmail(email));
+    if (id === undefined) return null;
+
+    const token = randomBytes(32).toString("hex");
+    this.resets.set(tokenHashOf(token), {
+      tokenHash: tokenHashOf(token), userId: id,
+      expiresAt: new Date(now + RESET_TTL_MS).toISOString(), usedAt: null,
+    });
+    this.persist();
+    return token;
+  }
+
+  /**
+   * Consume a reset token. Single use, and every live session is dropped.
+   *
+   * Signing out everywhere is the point rather than a side effect: the reason to
+   * reset a password is usually that somebody else may know the old one, and leaving
+   * their session alive resets nothing.
+   */
+  resetPassword(token: string, newPassword: string, now: number): AuthResult<PublicUser> {
+    const row = this.resets.get(tokenHashOf(token));
+    if (row === undefined || row.usedAt !== null || Date.parse(row.expiresAt) <= now) {
+      return { ok: false, error: { kind: "bad_reset_token", detail: "That reset link is not valid, or it has already been used." } };
+    }
+    if (newPassword.length < MIN_PASSWORD) {
+      return { ok: false, error: { kind: "weak_password", detail: `Use at least ${MIN_PASSWORD} characters.` } };
+    }
+    const user = this.users.get(row.userId);
+    if (user === undefined) {
+      return { ok: false, error: { kind: "bad_reset_token", detail: "That reset link is not valid." } };
+    }
+
+    const salt = randomBytes(SALT_LEN).toString("hex");
+    const params = { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P, keyLen: KEY_LEN };
+    const updated: User = { ...user, salt, params, passwordHash: hashPassword(newPassword, salt, params) };
+    this.users.set(user.id, updated);
+    this.resets.set(row.tokenHash, { ...row, usedAt: new Date(now).toISOString() });
+    for (const [hash, session] of this.sessions) {
+      if (session.userId === user.id) this.sessions.delete(hash);
+    }
+    this.persist();
+    return { ok: true, value: publicUser(updated) };
   }
 
   resolve(token: string | null, now: number): AuthResult<PublicUser> {

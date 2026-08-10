@@ -114,7 +114,10 @@ export type DeliberationErrorKind =
   | "already_signed"
   | "evidence_frozen"
   | "no_such_finding"
-  | "duplicate_finding";
+  | "duplicate_finding"
+  | "already_a_participant"
+  | "not_on_the_case"
+  | "has_answered";
 
 export interface DeliberationError {
   kind: DeliberationErrorKind;
@@ -153,6 +156,50 @@ export function openCase(init: {
     adjudication: null,
     signature: null,
   };
+}
+
+/**
+ * Add somebody to an open case.
+ *
+ * ONLY BEFORE ANYBODY HAS ANSWERED, and the reason is the same one that freezes the
+ * evidence: "everyone has submitted" is the condition that unlocks the reveal, so
+ * adding a person afterwards would silently re-open a case that had closed, and
+ * removing one would close a case early without the record that `closeEarly` writes.
+ * Both are changes to what the eventual reveal MEANS, made after people committed to
+ * it.
+ */
+export function addParticipant(c: DeliberationCase, userId: string): Result<DeliberationCase> {
+  if (c.status !== "open") return fail("not_open", `Case ${c.caseId} is ${c.status}.`);
+  if (c.positions.length > 0) {
+    return fail("has_answered", "Somebody has already answered. Adding a person now would re-open a case that others have already treated as closed.");
+  }
+  if (c.participantIds.includes(userId)) {
+    return fail("already_a_participant", "They are already on this case.");
+  }
+  return { ok: true, value: { ...c, participantIds: [...c.participantIds, userId].sort() } };
+}
+
+export function removeParticipant(c: DeliberationCase, userId: string): Result<DeliberationCase> {
+  if (c.status !== "open") return fail("not_open", `Case ${c.caseId} is ${c.status}.`);
+  if (c.positions.length > 0) {
+    return fail("has_answered", "Somebody has already answered. Removing a person now would close the case early without recording that it happened.");
+  }
+  if (!c.participantIds.includes(userId)) {
+    return fail("not_on_the_case", "They are not on this case.");
+  }
+  if (c.participantIds.length === 1) {
+    return fail("not_on_the_case", "A case needs somebody to answer it. Close it instead of emptying it.");
+  }
+  return { ok: true, value: { ...c, participantIds: c.participantIds.filter((id) => id !== userId) } };
+}
+
+/** Rename, or restate the decision. Permitted while open even after answers, because
+ *  neither is evidence - and a case whose title is wrong is worse for a later reader
+ *  than one that was corrected. */
+export function describeCase(c: DeliberationCase, compoundLabel: string, context: string): Result<DeliberationCase> {
+  if (c.status === "signed") return fail("already_signed", "A signed case is closed for editing.");
+  if (compoundLabel.trim() === "") return fail("not_open", "A case needs a compound name.");
+  return { ok: true, value: { ...c, compoundLabel: compoundLabel.trim(), context } };
 }
 
 /**

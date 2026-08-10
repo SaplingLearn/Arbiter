@@ -64,6 +64,12 @@ export interface CaseListing {
   of: number;
 }
 
+export interface Roster {
+  ownerId: string;
+  members: Person[];
+  pending: { email: string; caseId: string; invitedBy: string; at: string }[];
+}
+
 export interface StoredDocument {
   id: string;
   filename: string;
@@ -170,8 +176,26 @@ export const api = {
 
   addFinding: (token: string, caseId: string, f: {
     id: string; label: string; assertion: "toxic" | "safe" | "ambiguous";
-    detail: string; sourcePage?: number; covers: string[];
+    detail: string; sourcePage?: number; sourceDocumentId?: string; covers: string[];
   }) => call<Inventory>("POST", `/api/cases/${caseId}/findings`, token, f),
+
+  requestReset: (email: string) =>
+    call<{ detail: string }>("POST", "/api/auth/request-reset", null, { email }),
+
+  resetPassword: (resetToken: string, password: string) =>
+    call<Person>("POST", "/api/auth/reset", null, { token: resetToken, password }),
+
+  roster: (token: string, caseId: string) =>
+    call<Roster>("GET", `/api/cases/${caseId}/participants`, token),
+
+  invite: (token: string, caseId: string, email: string) =>
+    call<{ pending?: boolean; detail?: string }>("POST", `/api/cases/${caseId}/participants`, token, { email }),
+
+  removeParticipant: (token: string, caseId: string, idOrEmail: string) =>
+    call<unknown>("DELETE", `/api/cases/${caseId}/participants/${encodeURIComponent(idOrEmail)}`, token),
+
+  describeCase: (token: string, caseId: string, compoundLabel: string, context: string) =>
+    call<unknown>("POST", `/api/cases/${caseId}/describe`, token, { compoundLabel, context }),
 
   removeFinding: (token: string, caseId: string, findingId: string) =>
     call<Inventory>("DELETE", `/api/cases/${caseId}/findings/${encodeURIComponent(findingId)}`, token),

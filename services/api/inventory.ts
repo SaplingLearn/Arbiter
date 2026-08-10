@@ -121,6 +121,10 @@ export interface Inventory {
  */
 export interface CoveringFinding extends Finding {
   covers?: string[];
+  /** The uploaded document this came from. A page number alone is ambiguous the
+   *  moment a case holds two documents, and "page 26" of an unnamed file is not a
+   *  citation anybody can follow. */
+  sourceDocumentId?: string;
 }
 
 export function buildInventory(

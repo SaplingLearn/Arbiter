@@ -3,13 +3,13 @@ import {
   api, ApiError,
   type Adjudication, type AuditResult, type BlindView, type CaseListing,
   type CaseSummary, type Finding, type Inventory, type Person, type Refusal,
-  type StoredDocument, type UnanimityReport,
+  type Roster, type StoredDocument, type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
 import { AuthPage, Dashboard, LibraryPage, MethodPage, NewCasePage } from "./pages.js";
 import {
   Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
-  Refused, Reveal, Verdict, Waiting,
+  Refused, Reveal, RosterPanel, Verdict, Waiting,
 } from "./screens.js";
 import { caseIdOf, href, navigate, parseHash, type Route } from "./router.js";
 import "./app.css";
@@ -42,6 +42,9 @@ export function App(): ReactElement {
   const [adjudication, setAdjudication] = useState<{ adjudication: Adjudication; source: "stub" | "live" } | null>(null);
   const [audit, setAudit] = useState<AuditResult | null>(null);
   const [docs, setDocs] = useState<StoredDocument[]>([]);
+  const [roster, setRoster] = useState<Roster | null>(null);
+  const [inviteNotice, setInviteNotice] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const [head, setHead] = useState({ compoundLabel: "", context: "", scope: null as string | null });
 
   const [refusal, setRefusal] = useState<Refusal | null>(null);
@@ -65,13 +68,15 @@ export function App(): ReactElement {
 
   const loadCase = useCallback(async (t: string, id: string): Promise<void> => {
     try {
-      const [v, inv, req, d] = await Promise.all([
-        api.view(t, id), api.inventory(t, id), api.adjudicationRequest(t, id), api.documents(t, id),
+      const [v, inv, req, d, r] = await Promise.all([
+        api.view(t, id), api.inventory(t, id), api.adjudicationRequest(t, id),
+        api.documents(t, id), api.roster(t, id),
       ]);
       setView(v);
       setInventory(inv);
       setFindings(req.findings);
       setDocs(d);
+      setRoster(r);
       if (v.status === "open") {
         setUnanimity(null);
         setAudit(null);
@@ -270,7 +275,7 @@ export function App(): ReactElement {
           <Section title="Evidence" count={`${findings.length} findings`}>
             <FindingsEditor
               checklist={inventory.entries.map((e) => ({ itemId: e.itemId, field: e.field, state: e.state }))}
-              findings={findings} frozen={frozen} error={findingError}
+              findings={findings} documents={docs} frozen={frozen} error={findingError}
               onAdd={(f) => { setFindingError(null); act(async () => { try { await api.addFinding(token, caseId, f); } catch (e) { setFindingError(e instanceof ApiError ? e.message : String(e)); } }); }}
               onRemove={(id) => act(() => api.removeFinding(token, caseId, id))} />
           </Section>
@@ -279,6 +284,23 @@ export function App(): ReactElement {
         <Section title="Documents">
           <Documents docs={docs} onUpload={upload} busy={uploadBusy} error={uploadError} />
         </Section>
+
+        {roster !== null && (
+          <Section title="Who answers" count={`${roster.members.length} on the panel${roster.pending.length > 0 ? `, ${roster.pending.length} invited` : ""}`}>
+            <RosterPanel roster={roster} canEdit={isOwner && frozen === null}
+              notice={inviteNotice} error={inviteError}
+              onInvite={(email: string) => {
+                setInviteNotice(null); setInviteError(null);
+                act(async () => {
+                  try {
+                    const r = await api.invite(token, caseId, email);
+                    if (r.pending === true) setInviteNotice(r.detail ?? "Invitation recorded.");
+                  } catch (e) { setInviteError(e instanceof ApiError ? e.message : String(e)); }
+                });
+              }}
+              onRemove={(idOrEmail: string) => act(() => api.removeParticipant(token, caseId, idOrEmail))} />
+          </Section>
+        )}
       </div>,
       head.context === "" ? undefined : head.context,
     );

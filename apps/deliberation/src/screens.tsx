@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type StoredDocument, type UnanimityReport } from "./api.js";
+import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
 
 /**
  * The screens of the deliberation, in the order §3.5 fixes them:
@@ -23,6 +23,81 @@ const CALL_LABEL: Record<string, string> = {
 };
 
 /** ------------------------------------------------------------------ inventory */
+/** -------------------------------------------------------------- the roster */
+/**
+ * Who is on the case, and inviting somebody who has no account yet.
+ *
+ * An invitation here does NOT send an email — nothing does, from this deployment —
+ * and the copy says so rather than implying a message went out. A convener who
+ * believes a mail was sent will wait for an answer that is never coming.
+ */
+export function RosterPanel({ roster, canEdit, onInvite, onRemove, notice, error }: {
+  roster: Roster;
+  canEdit: boolean;
+  onInvite: (email: string) => void;
+  onRemove: (idOrEmail: string) => void;
+  notice: string | null;
+  error: string | null;
+}): ReactElement {
+  const [email, setEmail] = useState("");
+
+  return (
+    <div className="stack">
+      <div className="inv">
+        {roster.members.map((m) => (
+          <div className="inv-row" key={m.id}>
+            <div className="state present">on panel</div>
+            <div>
+              <strong>{m.displayName}</strong>
+              <div className="tiny muted mono">{m.email}</div>
+              {canEdit && roster.members.length > 1 && (
+                <button className="link" style={{ marginTop: 8 }} onClick={() => onRemove(m.id)}>Remove</button>
+              )}
+            </div>
+          </div>
+        ))}
+        {roster.pending.map((p) => (
+          <div className="inv-row" key={p.email}>
+            <div className="state inconclusive">invited</div>
+            <div>
+              <strong className="mono">{p.email}</strong>
+              <div className="small muted">
+                No account yet. They join automatically when they register — nothing was
+                emailed, so tell them.
+              </div>
+              {canEdit && (
+                <button className="link" style={{ marginTop: 8 }} onClick={() => onRemove(p.email)}>Cancel invitation</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {canEdit && (
+        <div className="panel sunken">
+          <div className="field">
+            <label htmlFor="invite">Invite by email</label>
+            <input id="invite" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="colleague@company.com" />
+            <span className="hint">
+              They can be added before they have an account. The roster locks as soon as
+              anybody answers, because “everyone has submitted” is what opens the reveal.
+            </span>
+          </div>
+          <div className="btn-row">
+            <button className="primary" disabled={email.trim() === ""}
+              onClick={() => { onInvite(email.trim()); setEmail(""); }}>
+              Add to case
+            </button>
+          </div>
+          {notice !== null && <div className="note">{notice}</div>}
+          {error !== null && <div className="err">{error}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** ---------------------------------------------------------- findings entry */
 /**
  * Entering the evidence by hand.
@@ -36,11 +111,12 @@ const CALL_LABEL: Record<string, string> = {
  * nobody can trace back to a sentence is the thing this whole product exists to stop
  * people relying on.
  */
-export function FindingsEditor({ checklist, findings, frozen, onAdd, onRemove, error }: {
+export function FindingsEditor({ checklist, findings, documents, frozen, onAdd, onRemove, error }: {
   checklist: { itemId: string; field: string; state: string }[];
   findings: Finding[];
+  documents: StoredDocument[];
   frozen: string | null;
-  onAdd: (f: { id: string; label: string; assertion: "toxic" | "safe" | "ambiguous"; detail: string; sourcePage?: number; covers: string[] }) => void;
+  onAdd: (f: { id: string; label: string; assertion: "toxic" | "safe" | "ambiguous"; detail: string; sourcePage?: number; sourceDocumentId?: string; covers: string[] }) => void;
   onRemove: (id: string) => void;
   error: string | null;
 }): ReactElement {
@@ -48,6 +124,7 @@ export function FindingsEditor({ checklist, findings, frozen, onAdd, onRemove, e
   const [assertion, setAssertion] = useState<"toxic" | "safe" | "ambiguous">("safe");
   const [detail, setDetail] = useState("");
   const [page, setPage] = useState("");
+  const [docId, setDocId] = useState("");
   const [covers, setCovers] = useState<string[]>([]);
 
   const toggle = (id: string): void =>
@@ -59,6 +136,7 @@ export function FindingsEditor({ checklist, findings, frozen, onAdd, onRemove, e
       id: slug === "" ? `finding-${findings.length + 1}` : slug,
       label: label.trim(), assertion, detail: detail.trim(),
       ...(page.trim() === "" ? {} : { sourcePage: Number(page) }),
+      ...(docId === "" ? {} : { sourceDocumentId: docId }),
       covers,
     });
     setLabel(""); setDetail(""); setPage(""); setCovers([]); setAssertion("safe");
@@ -124,7 +202,21 @@ export function FindingsEditor({ checklist, findings, frozen, onAdd, onRemove, e
           </div>
 
           <div className="field">
-            <label htmlFor="f-page">Source page</label>
+            <label htmlFor="f-doc">Which document</label>
+            {documents.length === 0
+              ? <span className="hint">Upload a document below and you will be able to point at it here. A page number with no document is not a citation anybody can follow.</span>
+              : (
+                <select id="f-doc" value={docId} onChange={(e) => setDocId(e.target.value)}>
+                  <option value="">Not from an uploaded document</option>
+                  {documents.filter((d) => d.measurement.ok).map((d) => (
+                    <option key={d.id} value={d.id}>{d.filename}</option>
+                  ))}
+                </select>
+              )}
+          </div>
+
+          <div className="field">
+            <label htmlFor="f-page">Page</label>
             <input id="f-page" type="number" min="1" value={page} onChange={(e) => setPage(e.target.value)}
               style={{ maxWidth: 140 }} />
             <span className="hint">So anyone can go and check it.</span>
