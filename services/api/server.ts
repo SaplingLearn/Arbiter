@@ -305,12 +305,12 @@ export function makeHandler(deps: ServerDeps) {
                 detail: "No account for that address yet. They will join automatically when they register - tell them to, because nothing is emailed from here.",
               });
             }
-            const r = deps.service.addParticipant(caseId, existing.id);
+            const r = deps.service.addParticipant(caseId, existing.id, user.id, new Date(now()).toISOString());
             return r.ok ? json(res, 200, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
           }
           case "describe": {
             const b = body as { compoundLabel: string; context: string };
-            const r = deps.service.describe(caseId, b?.compoundLabel ?? "", b?.context ?? "");
+            const r = deps.service.describe(caseId, b?.compoundLabel ?? "", b?.context ?? "", user.id, new Date(now()).toISOString());
             return r.ok ? json(res, 200, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
           }
           case "findings": {
@@ -376,7 +376,7 @@ export function makeHandler(deps: ServerDeps) {
             ? json(res, 200, { revoked: target })
             : json(res, 404, { error: "not_on_the_case", detail: "No pending invitation for that address." });
         }
-        const r = deps.service.removeParticipant(caseId, target);
+        const r = deps.service.removeParticipant(caseId, target, user.id, new Date(now()).toISOString());
         return r.ok ? json(res, 200, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
       }
 
@@ -400,7 +400,7 @@ function handleAuth(
     // to a case before it had an account, and this is where that lands.
     const claimed: string[] = [];
     for (const caseId of deps.invites.claim(b.email)) {
-      const added = deps.service.addParticipant(caseId, r.value.id);
+      const added = deps.service.addParticipant(caseId, r.value.id, r.value.id, new Date(now).toISOString());
       if (added.ok) claimed.push(caseId);
     }
     return json(res, 201, { ...r.value, joinedCases: claimed });

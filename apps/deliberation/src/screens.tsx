@@ -31,9 +31,11 @@ const CALL_LABEL: Record<string, string> = {
  * and the copy says so rather than implying a message went out. A convener who
  * believes a mail was sent will wait for an answer that is never coming.
  */
-export function RosterPanel({ roster, canEdit, onInvite, onRemove, notice, error }: {
+export function RosterPanel({ roster, canEdit, isOwner, ownerName, onInvite, onRemove, notice, error }: {
   roster: Roster;
   canEdit: boolean;
+  isOwner: boolean;
+  ownerName: string;
   onInvite: (email: string) => void;
   onRemove: (idOrEmail: string) => void;
   notice: string | null;
@@ -43,6 +45,17 @@ export function RosterPanel({ roster, canEdit, onInvite, onRemove, notice, error
 
   return (
     <div className="stack">
+      {/* Who holds this power, and why, stated on the screen where it is exercised.
+          Picking the panel is the strongest lever on the outcome, so it should never
+          be a control whose authority the reader has to infer. */}
+      <div className="note">
+        <strong>{isOwner ? "You convene this case." : `${ownerName} convenes this case.`}</strong>{" "}
+        The convener chooses who answers and signs at the end — and does not answer, so
+        nobody both sets the question and votes on it.
+        {canEdit
+          ? " Every change here goes on the record: adding or removing somebody is a logged event anyone can read afterwards."
+          : " The panel is fixed now, because somebody has already answered."}
+      </div>
       <div className="inv">
         {roster.members.map((m) => (
           <div className="inv-row" key={m.id}>
@@ -612,7 +625,22 @@ export function Verdict({ adjudication, source, onSign }: {
 }
 
 /** --------------------------------------------------------------------- audit */
-export function Audit({ audit }: { audit: NonNullable<Awaited<ReturnType<typeof api.audit>>> }): ReactElement {
+const EVENT_LABEL: Record<string, string> = {
+  case_opened: "Case opened",
+  inventory_published: "Evidence published",
+  participant_added: "Someone added to the panel",
+  participant_removed: "Someone removed from the panel",
+  case_described: "Case renamed or restated",
+  position_sealed: "A position was sealed",
+  revealed: "Positions revealed",
+  adjudicated: "Adjudicated",
+  signed: "Signed",
+};
+
+export function Audit({ audit, nameOf }: {
+  audit: NonNullable<Awaited<ReturnType<typeof api.audit>>>;
+  nameOf?: (id: string) => string;
+}): ReactElement {
   const clean = audit.chain.length === 0 && audit.seals.length === 0;
   return (
     <section>
@@ -627,16 +655,33 @@ export function Audit({ audit }: { audit: NonNullable<Awaited<ReturnType<typeof 
         prove: that the server never read one early. No server-side scheme can, and
         claiming otherwise would be the more dangerous error.
       </p>
-      <table className="audit">
-        <thead><tr><th>#</th><th>event</th><th>actor</th><th>hash</th></tr></thead>
-        <tbody>
-          {audit.entries.map((e) => (
-            <tr key={e.seq}>
-              <td>{e.seq}</td><td>{e.kind}</td><td>{e.actorId}</td><td>{e.hash.slice(0, 16)}…</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="scroll">
+        <table>
+          <thead><tr><th style={{ width: 44 }}>#</th><th>What happened</th><th>Who</th><th>Hash</th></tr></thead>
+          <tbody>
+            {audit.entries.map((e) => {
+              // Roster changes are called out, because they are the events a reader
+              // scanning this table is least likely to be expecting and most likely
+              // to care about: who was taken off the panel, and by whom.
+              const roster = e.kind === "participant_added" || e.kind === "participant_removed";
+              const who = (e.payload as { participantId?: string } | null)?.participantId;
+              return (
+                <tr key={e.seq}>
+                  <td className="mono">{e.seq}</td>
+                  <td>
+                    <strong>{EVENT_LABEL[e.kind] ?? e.kind}</strong>
+                    {roster && who !== undefined && (
+                      <div className="small muted">{nameOf === undefined ? who : nameOf(who)}</div>
+                    )}
+                  </td>
+                  <td className="small">{nameOf === undefined ? e.actorId : nameOf(e.actorId)}</td>
+                  <td className="mono tiny muted">{e.hash.slice(0, 12)}…</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

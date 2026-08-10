@@ -52,6 +52,14 @@ export interface LogEntry {
 export type LogKind =
   | "case_opened"
   | "inventory_published"
+  // WHO ANSWERS IS PART OF THE RECORD, and this is why these three exist. Choosing
+  // the panel is the strongest lever anybody has on the outcome - a convener who can
+  // quietly drop the person most likely to dissent decides the case without ever
+  // stating a position. Roster changes used to update the case and leave the log
+  // untouched, so exactly that move was invisible to the audit.
+  | "participant_added"
+  | "participant_removed"
+  | "case_described"
   | "position_sealed"
   | "revealed"
   | "adjudicated"

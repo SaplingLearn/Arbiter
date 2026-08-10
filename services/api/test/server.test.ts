@@ -268,6 +268,47 @@ describe("the case catalogue and demo seeding", () => {
   });
 });
 
+describe("the roster is on the record", () => {
+  it("logs who was added and removed, and by whom", async () => {
+    // The defect this covers: roster changes updated the case and left the chain
+    // untouched, so a convener quietly dropping the person most likely to dissent
+    // was invisible in the record the product exists to produce. Choosing who
+    // answers is the strongest lever anybody has on the outcome.
+    const open = await call("POST", "/api/cases", "owner", {
+      caseId: "roster-1", compoundLabel: "Roster test", context: "",
+      participantIds: [uid["ann"]], findings: FINDINGS, at: "t",
+    });
+    expect(open.status).toBe(201);
+
+    expect((await call("POST", "/api/cases/roster-1/participants", "owner", { email: EMAIL["bea"] })).status).toBe(200);
+    expect((await call("DELETE", `/api/cases/roster-1/participants/${uid["bea"]}`, "owner")).status).toBe(200);
+
+    const audit = await call("GET", "/api/cases/roster-1/audit", "owner");
+    const kinds = audit.body.entries.map((e: any) => e.kind);
+    expect(kinds).toContain("participant_added");
+    expect(kinds).toContain("participant_removed");
+
+    const removal = audit.body.entries.find((e: any) => e.kind === "participant_removed");
+    expect(removal.actorId).toBe(uid["owner"]);
+    expect(removal.payload.participantId).toBe(uid["bea"]);
+    // And the chain still verifies with the new entry kinds in it.
+    expect(audit.body.chain).toEqual([]);
+  });
+
+  it("refuses roster changes from anybody but the convener", async () => {
+    const r = await call("POST", "/api/cases/roster-1/participants", "ann", { email: EMAIL["bea"] });
+    expect(r.status).toBe(403);
+    expect(r.body.detail).toContain("decision owner");
+  });
+
+  it("freezes the roster once somebody has answered", async () => {
+    expect((await call("POST", "/api/cases/roster-1/positions", "ann", position())).status).toBe(201);
+    const r = await call("POST", "/api/cases/roster-1/participants", "owner", { email: EMAIL["bea"] });
+    expect(r.status).toBe(409);
+    expect(r.body.kind).toBe("has_answered");
+  });
+});
+
 describe("document upload", () => {
   const upload = async (who: string, filename: string, bytes: Buffer): Promise<{ status: number; body: any }> => {
     const res = await fetch(`${base}/api/cases/c1/documents`, {

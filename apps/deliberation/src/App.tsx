@@ -245,7 +245,7 @@ export function App(): ReactElement {
 
   const listing = mine.find((c) => c.caseId === caseId);
   const label = listing?.compoundLabel ?? head.compoundLabel ?? caseId;
-  const isOwner = listing?.isOwner ?? false;
+  const isOwner = roster?.ownerId === me.id || (listing?.isOwner ?? false);
   const revealed = view.status !== "open";
   const frozen = view.own !== null || view.others.some((o) => o.submitted)
     ? "Somebody has already answered against this evidence. Changing it now would put a position on the record against an inventory its author never saw."
@@ -288,6 +288,7 @@ export function App(): ReactElement {
         {roster !== null && (
           <Section title="Who answers" count={`${roster.members.length} on the panel${roster.pending.length > 0 ? `, ${roster.pending.length} invited` : ""}`}>
             <RosterPanel roster={roster} canEdit={isOwner && frozen === null}
+              isOwner={isOwner} ownerName={nameOf(roster.ownerId)}
               notice={inviteNotice} error={inviteError}
               onInvite={(email: string) => {
                 setInviteNotice(null); setInviteError(null);
@@ -350,5 +351,5 @@ export function App(): ReactElement {
 
   return caseShell(audit === null
     ? <p className="muted">The record opens once the case is closed.</p>
-    : <Audit audit={audit} />);
+    : <Audit audit={audit} nameOf={nameOf} />);
 }

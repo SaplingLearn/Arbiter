@@ -6,7 +6,7 @@ import {
   type UnanimityReport,
 } from "./deliberation.js";
 import { absentForAdjudication, buildInventory, type CoveringFinding, type EvidenceChecklist, type Inventory, type Modality } from "./inventory.js";
-import { commitmentFor, verifyChain, verifySeals, type DeliberationStore, type LogEntry } from "./store.js";
+import { commitmentFor, verifyChain, verifySeals, type DeliberationStore, type LogEntry, type LogKind } from "./store.js";
 import { visibleCases } from "./access.js";
 import type { AdjudicateRequest } from "./adjudicate.js";
 
@@ -238,26 +238,42 @@ export class DeliberationService {
     }));
   }
 
-  /** Roster and description changes. Each is guarded in the pure layer; this only
-   *  loads, delegates and persists, so the rules live in one place. */
-  private mutate(caseId: string, f: (c: DeliberationCase) => Result<DeliberationCase>): Result<DeliberationCase> {
+  /**
+   * Roster and description changes. Guarded in the pure layer, LOGGED here.
+   *
+   * The log entry is not bookkeeping. Choosing who answers is the strongest lever
+   * anybody has on the outcome of a deliberation: a convener who can quietly remove
+   * the person most likely to dissent has decided the case without ever stating a
+   * position. These used to update the case snapshot and leave the chain untouched,
+   * which made precisely that move invisible in the record the product exists to
+   * produce.
+   */
+  private mutate(
+    caseId: string, actorId: string, at: string, kind: LogKind, payload: unknown,
+    f: (c: DeliberationCase) => Result<DeliberationCase>,
+  ): Result<DeliberationCase> {
     const c = this.store.getCase(caseId);
     if (c === null) return { ok: false, error: { kind: "not_open", detail: `No case ${caseId}.` } };
     const next = f(c);
-    if (next.ok) this.store.putCase(next.value);
+    if (!next.ok) return next;
+    this.store.append({ at, kind, caseId, actorId, payload });
+    this.store.putCase(next.value);
     return next;
   }
 
-  addParticipant(caseId: string, userId: string): Result<DeliberationCase> {
-    return this.mutate(caseId, (c) => addParticipant(c, userId));
+  addParticipant(caseId: string, userId: string, actorId: string, at: string): Result<DeliberationCase> {
+    return this.mutate(caseId, actorId, at, "participant_added", { participantId: userId },
+      (c) => addParticipant(c, userId));
   }
 
-  removeParticipant(caseId: string, userId: string): Result<DeliberationCase> {
-    return this.mutate(caseId, (c) => removeParticipant(c, userId));
+  removeParticipant(caseId: string, userId: string, actorId: string, at: string): Result<DeliberationCase> {
+    return this.mutate(caseId, actorId, at, "participant_removed", { participantId: userId },
+      (c) => removeParticipant(c, userId));
   }
 
-  describe(caseId: string, compoundLabel: string, context: string): Result<DeliberationCase> {
-    return this.mutate(caseId, (c) => describeCase(c, compoundLabel, context));
+  describe(caseId: string, compoundLabel: string, context: string, actorId: string, at: string): Result<DeliberationCase> {
+    return this.mutate(caseId, actorId, at, "case_described", { compoundLabel, context },
+      (c) => describeCase(c, compoundLabel, context));
   }
 
   view(caseId: string, viewerId: string): BlindView | null {
