@@ -146,15 +146,19 @@ export function App(): ReactElement {
     setRefusal(null);
     void (async () => {
       try {
-        const participantIds = people.filter((p) => p.id !== me.id).slice(0, 4).map((p) => p.id);
+        // No participants named: the server uses the seeded demonstration team, which
+        // is explicit. Sending "the first four accounts that happen to exist" is how a
+        // stranger ends up on a case about somebody else's compound.
         const res = await fetch("/api/demo", {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-          body: JSON.stringify({ case: name, participantIds, at: new Date().toISOString() }),
+          body: JSON.stringify({ case: name, at: new Date().toISOString() }),
         });
-        // 422 is not an error path: the document exists and cannot be processed, and
-        // the reason is the thing worth showing.
-        if (res.status === 422) { setRefusal(await res.json() as Refusal); setOpening(null); return; }
+        if (res.status === 422) {
+          const why = await res.json() as { error: string; detail?: string };
+          if (why.error === "no_panel") { setFatal(why.detail ?? "That case has nobody to answer it."); setOpening(null); return; }
+          setRefusal(why as unknown as Refusal); setOpening(null); return;
+        }
         if (!res.ok) throw new Error(`Could not open that case: HTTP ${res.status}`);
         const body = await res.json() as { caseId: string; compoundLabel: string; context: string; documentScope: string | null };
         setHead({ compoundLabel: body.compoundLabel, context: body.context, scope: body.documentScope });

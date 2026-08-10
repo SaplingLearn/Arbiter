@@ -237,6 +237,31 @@ describe("the case catalogue and demo seeding", () => {
     expect(r.status).toBe(201);
     expect(r.body.documentScope).toContain("THE SAFETY STUDIES FOR THIS DRUG WERE NEVER RUN");
   });
+
+  it("gives each opener their own copy of a library case", async () => {
+    // Regression. A fixed identifier meant the second person to open a library case
+    // was told it already existed, sent to it, and met a 404 - because they were not
+    // named on the copy the first person opened.
+    const mine = await call("POST", "/api/demo", "owner", { case: "turalio", at: "t" });
+    const theirs = await call("POST", "/api/demo", "ann", { case: "turalio", at: "t" });
+    expect(mine.status).toBe(201);
+    expect(theirs.status).toBe(201);
+    expect(mine.body.caseId).not.toBe(theirs.body.caseId);
+
+    // And each one can actually read the copy they were handed.
+    expect((await call("GET", `/api/cases/${mine.body.caseId}/view`, "owner")).status).toBe(200);
+    expect((await call("GET", `/api/cases/${theirs.body.caseId}/view`, "ann")).status).toBe(200);
+    // But not each other's.
+    expect((await call("GET", `/api/cases/${mine.body.caseId}/view`, "outsider")).status).toBe(404);
+  });
+
+  it("re-opening a library case returns the copy you already have", async () => {
+    const first = await call("POST", "/api/demo", "bea", { case: "slynd", at: "t" });
+    const again = await call("POST", "/api/demo", "bea", { case: "slynd", at: "t" });
+    expect(again.status).toBe(200);
+    expect(again.body.alreadyOpen).toBe(true);
+    expect(again.body.caseId).toBe(first.body.caseId);
+  });
 });
 
 describe("document upload", () => {

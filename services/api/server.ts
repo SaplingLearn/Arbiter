@@ -11,6 +11,7 @@ import { completeFromEnv } from "./interpret.js";
 import { stubComplete } from "./probe.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
 import { AuthStore, type PublicUser } from "./auth.js";
+import { DEMO_TEAM } from "./seed-demo.js";
 import { DocumentStore, MAX_BYTES } from "./documents.js";
 import { can, denial, type CaseAction } from "./access.js";
 
@@ -365,7 +366,7 @@ function handleAuth(
 }
 
 function handleDemo(deps: ServerDeps, res: ServerResponse, body: unknown, user: PublicUser, now: number): void {
-  const b = body as { case?: unknown; participantIds: string[]; at: string };
+  const b = body as { case?: unknown; participantIds?: string[]; at?: string };
   if (!isCaseName(b.case)) {
     return json(res, 400, { error: "unknown_case", detail: `case must be one of: ${CATALOGUE.map((c) => c.name).join(", ")}.` });
   }
@@ -376,16 +377,40 @@ function handleDemo(deps: ServerDeps, res: ServerResponse, body: unknown, user: 
   if (refused !== null) return json(res, 422, { error: "document_refused", ...refused });
 
   const loaded = loadCase(b.case);
-  const existing = deps.service.inventory(loaded.caseId);
+
+  // ONE COPY PER OPENER, and the suffix is what makes that true. A fixed identifier
+  // was a real defect once accounts existed: the second person to open a library case
+  // was told it already existed, sent to it, and met a 404, because they were not
+  // named on the copy the first person opened. A prepared case is a starting point,
+  // not a shared room.
+  const caseId = `${loaded.caseId}--${user.id}`;
   const head = {
-    caseId: loaded.caseId, compoundLabel: loaded.compoundLabel, context: loaded.context,
+    caseId, compoundLabel: loaded.compoundLabel, context: loaded.context,
     provenance: loaded.provenance, documentScope: loaded.documentScope ?? null,
   };
+
+  const existing = deps.service.inventory(caseId);
   if (existing !== null) return json(res, 200, { ...head, alreadyOpen: true, inventory: existing });
 
+  // The panel is whoever the caller named, or the seeded demonstration team if they
+  // named nobody. Explicit rather than "the first four accounts in the store", which
+  // is how a stranger ends up on a case about somebody else's compound.
+  const named = (b.participantIds ?? []).filter((id) => id !== user.id);
+  const panel = named.length > 0
+    ? named
+    : DEMO_TEAM.map((p) => deps.auth.findByEmail(p.email)?.id)
+      .filter((id): id is string => id !== undefined && id !== user.id);
+
+  if (panel.length === 0) {
+    return json(res, 422, {
+      error: "no_panel",
+      detail: "A case needs somebody to answer it. Run `npm run seed:demo` to create the demonstration team, or open your own case and invite colleagues.",
+    });
+  }
+
   const { inventory } = deps.service.open({
-    caseId: loaded.caseId, compoundLabel: loaded.compoundLabel, context: loaded.context,
-    ownerId: user.id, participantIds: b.participantIds,
+    caseId, compoundLabel: loaded.compoundLabel, context: loaded.context,
+    ownerId: user.id, participantIds: panel,
     findings: loaded.findings, modality: loaded.modality,
     at: new Date(now).toISOString(),
   });
