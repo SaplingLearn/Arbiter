@@ -1,5 +1,5 @@
-import { useState, type FormEvent, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Person, type Position, type Refusal, type StoredDocument, type UnanimityReport } from "./api.js";
+import { useState, type ReactElement } from "react";
+import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type StoredDocument, type UnanimityReport } from "./api.js";
 
 /**
  * The screens of the deliberation, in the order §3.5 fixes them:
@@ -23,59 +23,140 @@ const CALL_LABEL: Record<string, string> = {
 };
 
 /** ------------------------------------------------------------------ inventory */
-/** ----------------------------------------------------------------- sign in */
-export function SignIn({ onSignedIn }: { onSignedIn: (token: string, user: Person) => void }): ReactElement {
-  const [email, setEmail] = useState("r.okafor@arbiter.demo");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+/** ---------------------------------------------------------- findings entry */
+/**
+ * Entering the evidence by hand.
+ *
+ * Extraction — a model reading a PDF and proposing findings — is not built. Until it
+ * is, somebody types them; when it lands, it pre-fills exactly this form for a human
+ * to approve. The approval step is not scaffolding that disappears later, because a
+ * coverage declaration has to carry a human signature either way.
+ *
+ * The form asks for a source page and will not pretend it is optional. A finding
+ * nobody can trace back to a sentence is the thing this whole product exists to stop
+ * people relying on.
+ */
+export function FindingsEditor({ checklist, findings, frozen, onAdd, onRemove, error }: {
+  checklist: { itemId: string; field: string; state: string }[];
+  findings: Finding[];
+  frozen: string | null;
+  onAdd: (f: { id: string; label: string; assertion: "toxic" | "safe" | "ambiguous"; detail: string; sourcePage?: number; covers: string[] }) => void;
+  onRemove: (id: string) => void;
+  error: string | null;
+}): ReactElement {
+  const [label, setLabel] = useState("");
+  const [assertion, setAssertion] = useState<"toxic" | "safe" | "ambiguous">("safe");
+  const [detail, setDetail] = useState("");
+  const [page, setPage] = useState("");
+  const [covers, setCovers] = useState<string[]>([]);
 
-  const submit = async (e: FormEvent): Promise<void> => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const r = await api.login(email, password);
-      onSignedIn(r.token, r.user);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : String(err));
-      setBusy(false);
-    }
+  const toggle = (id: string): void =>
+    setCovers((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
+
+  const add = (): void => {
+    const slug = label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48);
+    onAdd({
+      id: slug === "" ? `finding-${findings.length + 1}` : slug,
+      label: label.trim(), assertion, detail: detail.trim(),
+      ...(page.trim() === "" ? {} : { sourcePage: Number(page) }),
+      covers,
+    });
+    setLabel(""); setDetail(""); setPage(""); setCovers([]); setAssertion("safe");
   };
 
   return (
-    <section style={{ maxWidth: 460 }}>
-      <h2>Sign in</h2>
-      <p className="muted">
-        Real accounts, with passwords hashed using scrypt and a bearer token that
-        expires. The token is held in memory only — closing this tab signs you out.
-      </p>
-      <form onSubmit={(e) => { void submit(e); }}>
-        <label htmlFor="email">Email</label>
-        <input id="email" type="text" autoComplete="username"
-          value={email} onChange={(e) => setEmail(e.target.value)} />
-
-        <label htmlFor="password">Password</label>
-        <input id="password" type="password" autoComplete="current-password"
-          value={password} onChange={(e) => setPassword(e.target.value)} />
-
-        <button className="primary" type="submit" disabled={busy || password === ""}>
-          {busy ? "Signing in…" : "Sign in"}
-        </button>
-        {error !== null && <div className="err">{error}</div>}
-      </form>
-
-      <div className="concern" style={{ marginTop: 32 }}>
-        <strong>Demonstration accounts.</strong> Run <span className="mono">npm run seed:demo</span> to
-        create them. All five share the password <span className="mono">arbiter-demo-2026</span>, which is
-        printed here on purpose — the authentication is real and only the secrecy is
-        fake. Delete the account file before this holds anything that matters.
-        <div className="small mono" style={{ marginTop: 8 }}>
-          r.okafor@arbiter.demo — convenes and signs<br />
-          a.silva@arbiter.demo · b.mehta@arbiter.demo · c.lindqvist@arbiter.demo · d.abara@arbiter.demo
+    <div className="stack">
+      {findings.length > 0 && (
+        <div className="inv">
+          {findings.map((f) => (
+            <div className="inv-row" key={f.id}>
+              <div className={`state ${f.assertion === "toxic" ? "absent" : f.assertion === "safe" ? "present" : "inconclusive"}`}>
+                {f.assertion}
+              </div>
+              <div>
+                <strong>{f.label}</strong>
+                <div className="small muted">{f.detail}</div>
+                {frozen === null && (
+                  <button className="link" style={{ marginTop: 8 }} onClick={() => onRemove(f.id)}>Remove</button>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
-    </section>
+      )}
+
+      {frozen !== null ? (
+        <div className="note">
+          <strong>The evidence is fixed now.</strong> {frozen}
+        </div>
+      ) : (
+        <div className="panel sunken">
+          <div>
+            <h3>Add a finding</h3>
+            <p className="hint">
+              One result from the documents. When automatic extraction is built it will
+              fill this in for you to check — the checking step stays either way.
+            </p>
+          </div>
+
+          <div className="field">
+            <label htmlFor="f-label">What was measured</label>
+            <input id="f-label" type="text" value={label} onChange={(e) => setLabel(e.target.value)}
+              placeholder="Rat 26-week repeat-dose, liver histopathology" />
+          </div>
+
+          <div className="field">
+            <label>What it shows</label>
+            <div className="choice">
+              {(["safe", "toxic", "ambiguous"] as const).map((a) => (
+                <button key={a} type="button" className="ghost" aria-pressed={assertion === a}
+                  onClick={() => setAssertion(a)}>
+                  {a === "safe" ? "No signal" : a === "toxic" ? "A signal" : "Neither way"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="field">
+            <label htmlFor="f-detail">What it actually said</label>
+            <textarea id="f-detail" value={detail} onChange={(e) => setDetail(e.target.value)}
+              placeholder="Quote the document where you can. Doses, exposure multiples and whether it recovered are the parts other people will argue about." />
+          </div>
+
+          <div className="field">
+            <label htmlFor="f-page">Source page</label>
+            <input id="f-page" type="number" min="1" value={page} onChange={(e) => setPage(e.target.value)}
+              style={{ maxWidth: 140 }} />
+            <span className="hint">So anyone can go and check it.</span>
+          </div>
+
+          <div className="field">
+            <label>Which questions does this answer?</label>
+            <span className="hint" style={{ marginTop: 0 }}>
+              Tick only what this result genuinely addresses. Coverage is never guessed
+              from the wording — a question wrongly marked answered never comes back on
+              the missing list.
+            </span>
+            {checklist.filter((i) => i.state !== "not_applicable").map((i) => (
+              <div className="cite" key={i.itemId}>
+                <input type="checkbox" id={`c-${i.itemId}`} checked={covers.includes(i.itemId)}
+                  onChange={() => toggle(i.itemId)} />
+                <label htmlFor={`c-${i.itemId}`}>
+                  <span className="mono tiny muted">{i.itemId}</span> {i.field}
+                </label>
+              </div>
+            ))}
+          </div>
+
+          <div className="btn-row">
+            <button className="primary" onClick={add} disabled={label.trim() === "" || detail.trim() === ""}>
+              Add finding
+            </button>
+          </div>
+          {error !== null && <div className="err">{error}</div>}
+        </div>
+      )}
+    </div>
   );
 }
 

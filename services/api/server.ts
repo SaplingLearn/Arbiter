@@ -48,12 +48,21 @@ const ERROR_STATUS: Record<string, number> = {
   not_open: 409, not_locked: 409, not_a_participant: 403, already_submitted: 409,
   unknown_finding_id: 400, empty_reasoning: 400, not_all_submitted: 409,
   not_the_owner: 403, no_adjudication: 409, override_needs_reason: 400, already_signed: 409,
+  evidence_frozen: 409, no_such_finding: 404, duplicate_finding: 409,
 };
 
 const AUTH_STATUS: Record<string, number> = {
   email_taken: 409, invalid_credentials: 401, weak_password: 400,
   bad_email: 400, no_session: 401, session_expired: 401,
 };
+
+/** A small stable hash for generating a case identifier from its own content, so two
+ *  cases opened in the same second by the same person do not collide. */
+function hashOf(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return h;
+}
 
 function json(res: ServerResponse, status: number, body: unknown): void {
   const text = JSON.stringify(body);
@@ -137,11 +146,47 @@ export function makeHandler(deps: ServerDeps) {
 
       // POST /api/cases
       if (parts.length === 2 && method === "POST") {
-        const b = body as { caseId: string; compoundLabel: string; context: string; participantIds: string[]; findings: CoveringFinding[]; modality?: Modality; at: string };
+        const b = body as {
+          caseId?: string; compoundLabel: string; context: string;
+          participantEmails?: string[]; participantIds?: string[];
+          findings?: CoveringFinding[]; modality?: Modality;
+        };
+        if (typeof b.compoundLabel !== "string" || b.compoundLabel.trim() === "") {
+          return json(res, 400, { error: "bad_request", detail: "A case needs a compound name." });
+        }
+
+        // Participants are named by EMAIL, because that is what a person knows about
+        // a colleague. Unknown addresses are reported back rather than silently
+        // dropped - a case that quietly opened without the one person who disagrees
+        // is the failure this whole product exists to prevent.
+        const emails = b.participantEmails ?? [];
+        const resolved: string[] = [...(b.participantIds ?? [])];
+        const unknown: string[] = [];
+        for (const email of emails) {
+          const p = deps.auth.findByEmail(email);
+          if (p === null) unknown.push(email);
+          else resolved.push(p.id);
+        }
+        if (unknown.length > 0) {
+          return json(res, 422, {
+            error: "unknown_participants", unknown,
+            detail: `No account for ${unknown.join(", ")}. They need to register before they can be added.`,
+          });
+        }
+        if (resolved.length === 0) {
+          return json(res, 400, { error: "bad_request", detail: "A case needs at least one participant. One person deciding alone does not need this." });
+        }
+
+        const caseId = b.caseId ?? `case_${Math.abs(hashOf(`${user.id}:${b.compoundLabel}:${now()}`))}`;
+        if (deps.service.getCase(caseId) !== null) {
+          return json(res, 409, { error: "case_exists", detail: "A case with that identifier already exists." });
+        }
+
         const { case: c, inventory } = deps.service.open({
-          caseId: b.caseId, compoundLabel: b.compoundLabel, context: b.context,
-          ownerId: user.id, participantIds: b.participantIds, findings: b.findings,
-          ...(b.modality === undefined ? {} : { modality: b.modality }), at: b.at,
+          caseId, compoundLabel: b.compoundLabel.trim(), context: b.context ?? "",
+          ownerId: user.id, participantIds: resolved, findings: b.findings ?? [],
+          ...(b.modality === undefined ? {} : { modality: b.modality }),
+          at: new Date(now()).toISOString(),
         });
         return json(res, 201, { case: c, inventory });
       }
@@ -171,9 +216,12 @@ export function makeHandler(deps: ServerDeps) {
       // route does not implement was answered with a permission error instead of a
       // 405 - and a read-shaped request on a write-shaped path was checked against
       // the wrong rule. Anything that is not a known write is a read.
-      const action: CaseAction = method !== "POST"
-        ? "read"
-        : tail === "positions" ? "submit"
+      const action: CaseAction = method === "DELETE"
+        ? (tail === "findings" ? "adjudicate" : "read")
+        : method !== "POST"
+          ? "read"
+          : tail === "findings" ? "adjudicate"
+            : tail === "positions" ? "submit"
           : tail === "reveal" ? "reveal"
             : tail === "adjudicate" ? "adjudicate"
               : tail === "sign" ? "sign"
@@ -228,6 +276,17 @@ export function makeHandler(deps: ServerDeps) {
               ? json(res, 201, { document: r.document, duplicateOf: r.duplicateOf ?? null })
               : json(res, r.rejection.kind === "unreadable" ? 422 : 400, { error: r.rejection.kind, ...r.rejection });
           }
+          case "findings": {
+            const f = body as CoveringFinding;
+            if (typeof f?.id !== "string" || f.id.trim() === "" || typeof f?.label !== "string" || f.label.trim() === "") {
+              return json(res, 400, { error: "bad_request", detail: "A finding needs an identifier and a label." });
+            }
+            if (!["toxic", "safe", "ambiguous"].includes(f.assertion)) {
+              return json(res, 400, { error: "bad_request", detail: "A finding must assert toxic, safe or ambiguous." });
+            }
+            const r = deps.service.addFinding(caseId, f);
+            return r.ok ? json(res, 201, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
+          }
           case "positions": {
             const r = deps.service.submit(caseId, { ...(body as Position), participantId: user.id });
             return r.ok ? json(res, 201, { sealed: true }) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
@@ -258,6 +317,11 @@ export function makeHandler(deps: ServerDeps) {
           default:
             return json(res, 404, { error: "not_found" });
         }
+      }
+
+      if (method === "DELETE" && tail === "findings" && parts[4] !== undefined) {
+        const r = deps.service.removeFinding(caseId, decodeURIComponent(parts[4]));
+        return r.ok ? json(res, 200, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
       }
 
       return json(res, 405, { error: "method_not_allowed" });

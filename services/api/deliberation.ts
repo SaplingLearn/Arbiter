@@ -111,7 +111,10 @@ export type DeliberationErrorKind =
   | "not_the_owner"
   | "no_adjudication"
   | "override_needs_reason"
-  | "already_signed";
+  | "already_signed"
+  | "evidence_frozen"
+  | "no_such_finding"
+  | "duplicate_finding";
 
 export interface DeliberationError {
   kind: DeliberationErrorKind;

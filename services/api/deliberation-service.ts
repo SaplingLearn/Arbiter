@@ -72,12 +72,14 @@ export class DeliberationService {
 
     this.findings.set(c.caseId, init.findings);
     this.inventories.set(c.caseId, inventory);
+    this.modalities.set(c.caseId, init.modality ?? "small_molecule");
     this.store.putCase(c);
     return { case: c, inventory };
   }
 
   private readonly findings = new Map<string, CoveringFinding[]>();
   private readonly inventories = new Map<string, Inventory>();
+  private readonly modalities = new Map<string, Modality>();
 
   /**
    * The case's findings, recovered from the log when this process did not open it.
@@ -90,7 +92,7 @@ export class DeliberationService {
   private findingsOf(caseId: string): CoveringFinding[] {
     const cached = this.findings.get(caseId);
     if (cached !== undefined) return cached;
-    const opened = this.store.entries(caseId).find((e) => e.kind === "case_opened");
+    const opened = this.store.entries(caseId).filter((e) => e.kind === "case_opened").at(-1);
     const recovered = ((opened?.payload as { findings?: CoveringFinding[] } | undefined)?.findings) ?? [];
     this.findings.set(caseId, recovered);
     return recovered;
@@ -100,8 +102,95 @@ export class DeliberationService {
   inventory(caseId: string): Inventory | null {
     const cached = this.inventories.get(caseId);
     if (cached !== undefined) return cached;
-    const entry = this.store.entries(caseId).find((e) => e.kind === "inventory_published");
+    // The LATEST publication, not the first: adding a finding appends a new one, and
+    // reading the first would serve an inventory that has since been superseded.
+    const published = this.store.entries(caseId).filter((e) => e.kind === "inventory_published");
+    const entry = published.at(-1);
     return entry === undefined ? null : (entry.payload as Inventory);
+  }
+
+  /**
+   * Add a finding to an open case, and republish the inventory.
+   *
+   * WHY THIS EXISTS AT ALL. Extraction — a model reading a PDF and proposing findings
+   * — is not built. Until it is, somebody types them, and when extraction does land
+   * it pre-fills exactly this form for a human to approve. The approval step is not
+   * scaffolding that gets removed later; §4.4a requires a human signature on the
+   * declaration either way.
+   *
+   * FROZEN THE MOMENT ANYBODY ANSWERS, and that is the load-bearing rule. A position
+   * is a judgement about a specific account of the evidence. If the evidence could
+   * change afterwards, the record would show someone endorsing an inventory they
+   * never saw — the same defect the log's hash chain exists to make impossible for
+   * positions. So the error is not "you cannot edit", it is "somebody has already
+   * answered against this".
+   */
+  addFinding(caseId: string, finding: CoveringFinding): Result<Inventory> {
+    const guard = this.evidenceGuard(caseId);
+    if (!guard.ok) return guard;
+
+    const current = this.findingsOf(caseId);
+    if (current.some((f) => f.id === finding.id)) {
+      return { ok: false, error: { kind: "duplicate_finding", detail: `This case already has a finding called "${finding.id}".` } };
+    }
+    return { ok: true, value: this.republish(caseId, [...current, finding], guard.value) };
+  }
+
+  removeFinding(caseId: string, findingId: string): Result<Inventory> {
+    const guard = this.evidenceGuard(caseId);
+    if (!guard.ok) return guard;
+
+    const current = this.findingsOf(caseId);
+    if (!current.some((f) => f.id === findingId)) {
+      return { ok: false, error: { kind: "no_such_finding", detail: `No finding called "${findingId}" in this case.` } };
+    }
+    return { ok: true, value: this.republish(caseId, current.filter((f) => f.id !== findingId), guard.value) };
+  }
+
+  private evidenceGuard(caseId: string): Result<DeliberationCase> {
+    const c = this.store.getCase(caseId);
+    if (c === null) return { ok: false, error: { kind: "not_open", detail: `No case ${caseId}.` } };
+    if (c.status !== "open") {
+      return { ok: false, error: { kind: "not_open", detail: `Case ${caseId} is ${c.status}. The evidence is fixed once a case closes.` } };
+    }
+    if (c.positions.length > 0) {
+      return {
+        ok: false,
+        error: {
+          kind: "evidence_frozen",
+          detail: `${c.positions.length} ${c.positions.length === 1 ? "person has" : "people have"} already answered against this evidence. Changing it now would put a position on the record against an inventory its author never saw.`,
+        },
+      };
+    }
+    return { ok: true, value: c };
+  }
+
+  private republish(caseId: string, findings: CoveringFinding[], c: DeliberationCase): Inventory {
+    const modality = this.modalityOf(caseId);
+    const inventory = buildInventory(findings, this.checklist, modality);
+    // Appended, never rewritten: the log keeps every version of the inventory that
+    // was ever published, and `inventory()` reads the latest. An edited entry would
+    // break the chain, which is the point of the chain.
+    this.store.append({
+      at: new Date(0).toISOString(), kind: "case_opened", caseId, actorId: c.ownerId,
+      payload: { compoundLabel: c.compoundLabel, context: c.context, participantIds: c.participantIds, findings, modality },
+    });
+    this.store.append({
+      at: new Date(0).toISOString(), kind: "inventory_published", caseId, actorId: c.ownerId,
+      payload: inventory,
+    });
+    this.findings.set(caseId, findings);
+    this.inventories.set(caseId, inventory);
+    return inventory;
+  }
+
+  private modalityOf(caseId: string): Modality {
+    const cached = this.modalities.get(caseId);
+    if (cached !== undefined) return cached;
+    const opened = this.store.entries(caseId).find((e) => e.kind === "case_opened");
+    const m = (opened?.payload as { modality?: Modality } | undefined)?.modality ?? "small_molecule";
+    this.modalities.set(caseId, m);
+    return m;
   }
 
   submit(caseId: string, p: Position): Result<DeliberationCase> {

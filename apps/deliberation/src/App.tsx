@@ -1,51 +1,39 @@
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import {
   api, ApiError,
-  type Adjudication, type AuditResult, type BlindView, type CaseSummary,
-  type Finding, type Inventory, type Person, type Refusal, type StoredDocument,
-  type UnanimityReport,
+  type Adjudication, type AuditResult, type BlindView, type CaseListing,
+  type CaseSummary, type Finding, type Inventory, type Person, type Refusal,
+  type StoredDocument, type UnanimityReport,
 } from "./api.js";
-import { Audit, Documents, InventoryPanel, PositionForm, Refused, Reveal, SignIn, Verdict, Waiting } from "./screens.js";
+import { Layout, PageHead, Section, Steps } from "./Layout.js";
+import { AuthPage, Dashboard, LibraryPage, MethodPage, NewCasePage } from "./pages.js";
+import {
+  Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
+  Refused, Reveal, Verdict, Waiting,
+} from "./screens.js";
+import { caseIdOf, href, navigate, parseHash, type Route } from "./router.js";
 import "./app.css";
 
 /**
- * The deliberation client.
+ * The application shell: authentication, routing, and the data each page needs.
  *
- * SIGN IN, THEN SWITCH SEATS. Identity is a bearer token issued against a password,
- * so a position is attributable to someone who proved they hold one. The token lives
- * in React state and never in localStorage: closing the tab signs you out, which is
- * the right behaviour for something that will hold unpublished safety data.
+ * THE TOKEN LIVES IN MEMORY, never in localStorage. A bearer token in localStorage
+ * is readable by any script that reaches the page and it survives the tab; holding
+ * it in React state means closing the tab signs you out, which is the right
+ * behaviour for something that will hold unpublished safety data.
  *
- * The seat switcher is the demonstration device, and it is a real sign-in rather than
- * a client-side costume change. Blind submission is a property you have to WATCH to
- * believe: sign in as one person, submit, sign in as the next, and the first answer
- * is not on the screen — because the server never sent it, which the network tab
- * will confirm.
- *
- * POLLING, NOT PUSH. Every two seconds. The one piece of stale state that would
- * matter is whether everyone has submitted, because that decides whether the reveal
- * is offered.
+ * POLLING, NOT PUSH, on the case routes only. The one piece of stale state that
+ * matters is whether everyone has submitted, because that decides whether the
+ * reveal is available.
  */
 
-const DEMO_OWNER = "r.okafor@arbiter.demo";
-const DEMO_PANEL = [
-  "a.silva@arbiter.demo",
-  "b.mehta@arbiter.demo",
-  "c.lindqvist@arbiter.demo",
-  "d.abara@arbiter.demo",
-];
-
 export function App(): ReactElement {
+  const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));
   const [token, setToken] = useState<string | null>(null);
   const [me, setMe] = useState<Person | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
-
-  const [caseName, setCaseName] = useState<string>("tak994");
   const [catalogue, setCatalogue] = useState<CaseSummary[]>([]);
-  const [refusal, setRefusal] = useState<Refusal | null>(null);
-  const [caseId, setCaseId] = useState<string>("");
-  const [scope, setScope] = useState<string | null>(null);
-  const [heading, setHeading] = useState({ compoundLabel: "", context: "" });
+  const [mine, setMine] = useState<CaseListing[]>([]);
 
   const [inventory, setInventory] = useState<Inventory | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
@@ -53,23 +41,37 @@ export function App(): ReactElement {
   const [unanimity, setUnanimity] = useState<UnanimityReport | null>(null);
   const [adjudication, setAdjudication] = useState<{ adjudication: Adjudication; source: "stub" | "live" } | null>(null);
   const [audit, setAudit] = useState<AuditResult | null>(null);
-
   const [docs, setDocs] = useState<StoredDocument[]>([]);
+  const [head, setHead] = useState({ compoundLabel: "", context: "", scope: null as string | null });
+
+  const [refusal, setRefusal] = useState<Refusal | null>(null);
+  const [opening, setOpening] = useState<string | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [findingError, setFindingError] = useState<string | null>(null);
   const [fatal, setFatal] = useState<string | null>(null);
 
-  /** Ids are what the record stores; a screen full of `u_9f2a…` is unreadable. */
+  useEffect(() => {
+    const onHash = (): void => setRoute(parseHash(window.location.hash));
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  const caseId = caseIdOf(route);
   const nameOf = useCallback(
     (id: string): string => people.find((p) => p.id === id)?.displayName ?? id,
     [people],
   );
 
-  const refresh = useCallback(async (t: string, id: string): Promise<void> => {
-    if (id === "") return;
+  const loadCase = useCallback(async (t: string, id: string): Promise<void> => {
     try {
-      const v = await api.view(t, id);
+      const [v, inv, req, d] = await Promise.all([
+        api.view(t, id), api.inventory(t, id), api.adjudicationRequest(t, id), api.documents(t, id),
+      ]);
       setView(v);
+      setInventory(inv);
+      setFindings(req.findings);
+      setDocs(d);
       if (v.status === "open") {
         setUnanimity(null);
         setAudit(null);
@@ -77,106 +79,104 @@ export function App(): ReactElement {
         setUnanimity(await api.unanimity(t, id));
         setAudit(await api.audit(t, id));
       }
-      setDocs(await api.documents(t, id));
     } catch (e) {
-      if (e instanceof ApiError && e.status === 404) return;
+      if (e instanceof ApiError && e.status === 404) {
+        setFatal("That case does not exist, or you are not named on it.");
+        return;
+      }
       setFatal(e instanceof Error ? e.message : String(e));
     }
   }, []);
 
-  const signedIn = (t: string, user: Person): void => {
-    setToken(t);
-    setMe(user);
+  const loadMine = useCallback(async (t: string): Promise<void> => {
+    try { setMine(await api.myCases(t)); } catch { /* the fatal panel covers a dead service */ }
+  }, []);
+
+  useEffect(() => {
+    if (token === null) return;
+    void (async () => {
+      try {
+        const [p, c] = await Promise.all([api.people(token), api.catalogue(token)]);
+        setPeople(p);
+        setCatalogue(c);
+        await loadMine(token);
+      } catch (e) {
+        setFatal(e instanceof Error ? e.message : String(e));
+      }
+    })();
+  }, [token, loadMine]);
+
+  useEffect(() => {
+    if (token === null || caseId === null) return;
     setFatal(null);
-  };
+    void loadCase(token, caseId);
+  }, [token, caseId, loadCase]);
+
+  useEffect(() => {
+    if (token === null || caseId === null) return;
+    const t = setInterval(() => { void loadCase(token, caseId); }, 3000);
+    return () => clearInterval(t);
+  }, [token, caseId, loadCase]);
 
   const signOut = (): void => {
     if (token !== null) void api.logout(token).catch(() => undefined);
     setToken(null);
     setMe(null);
-    setView(null);
-    setInventory(null);
-    setAdjudication(null);
+    navigate({ name: "dashboard" });
   };
 
-  useEffect(() => {
-    if (token === null) return;
+  if (token === null || me === null) {
+    return <AuthPage onSignedIn={(t, u) => { setToken(t); setMe(u); setFatal(null); }} />;
+  }
+
+  const act = (fn: () => Promise<unknown>): void => {
     void (async () => {
       try {
-        setPeople(await api.people(token));
-        setCatalogue(await api.catalogue(token));
+        await fn();
+        if (caseId !== null) await loadCase(token, caseId);
+        await loadMine(token);
       } catch (e) {
         setFatal(e instanceof Error ? e.message : String(e));
       }
     })();
-  }, [token]);
+  };
 
-  // Seeds or opens the selected case. Runs on sign-in and on case change, never on a
-  // re-render: re-seeding on every render would be a POST per render.
-  useEffect(() => {
-    if (token === null || people.length === 0) return;
-    let cancelled = false;
+  const openPrepared = (name: string): void => {
+    setOpening(name);
+    setRefusal(null);
     void (async () => {
       try {
-        setInventory(null);
-        setView(null);
-        setAdjudication(null);
-        setRefusal(null);
-
-        const participantIds = DEMO_PANEL
-          .map((email) => people.find((p) => p.email === email)?.id)
-          .filter((id): id is string => id !== undefined);
-
+        const participantIds = people.filter((p) => p.id !== me.id).slice(0, 4).map((p) => p.id);
         const res = await fetch("/api/demo", {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-          body: JSON.stringify({ case: caseName, participantIds, at: new Date().toISOString() }),
+          body: JSON.stringify({ case: name, participantIds, at: new Date().toISOString() }),
         });
         // 422 is not an error path: the document exists and cannot be processed, and
         // the reason is the thing worth showing.
-        if (res.status === 422) {
-          if (!cancelled) setRefusal(await res.json() as Refusal);
-          return;
-        }
-        if (!res.ok) throw new Error(`Could not open the case: HTTP ${res.status}`);
-        const body = await res.json() as {
-          inventory: Inventory; caseId: string; compoundLabel: string;
-          context: string; documentScope: string | null;
-        };
-        if (cancelled) return;
-
-        setInventory(body.inventory);
-        setCaseId(body.caseId);
-        setScope(body.documentScope);
-        setHeading({ compoundLabel: body.compoundLabel, context: body.context });
-        setFindings((await api.adjudicationRequest(token, body.caseId)).findings);
-        await refresh(token, body.caseId);
+        if (res.status === 422) { setRefusal(await res.json() as Refusal); setOpening(null); return; }
+        if (!res.ok) throw new Error(`Could not open that case: HTTP ${res.status}`);
+        const body = await res.json() as { caseId: string; compoundLabel: string; context: string; documentScope: string | null };
+        setHead({ compoundLabel: body.compoundLabel, context: body.context, scope: body.documentScope });
+        await loadMine(token);
+        navigate({ name: "case", caseId: body.caseId });
       } catch (e) {
-        if (!cancelled) setFatal(e instanceof Error ? e.message : String(e));
+        setFatal(e instanceof Error ? e.message : String(e));
+      } finally {
+        setOpening(null);
       }
     })();
-    return () => { cancelled = true; };
-  }, [token, caseName, people, refresh]);
-
-  useEffect(() => {
-    if (token === null || caseId === "" || refusal !== null) return;
-    const t = setInterval(() => { void refresh(token, caseId); }, 2000);
-    return () => clearInterval(t);
-  }, [token, caseId, refresh, refusal]);
+  };
 
   const upload = (file: File): void => {
-    if (token === null) return;
+    if (caseId === null) return;
     setUploadBusy(true);
     setUploadError(null);
     void (async () => {
       try {
         const res = await fetch(`/api/cases/${caseId}/documents`, {
           method: "POST",
-          headers: {
-            "content-type": "application/pdf",
-            "x-filename": file.name,
-            authorization: `Bearer ${token}`,
-          },
+          headers: { "content-type": "application/pdf", "x-filename": file.name, authorization: `Bearer ${token}` },
           body: await file.arrayBuffer(),
         });
         const body = await res.json() as { detail?: string; error?: string };
@@ -190,130 +190,139 @@ export function App(): ReactElement {
     })();
   };
 
-  if (token === null || me === null) {
-    return (
-      <div className="shell">
-        <h1>ARBITER</h1>
-        <p className="muted">Blind deliberation on drug-safety evidence.</p>
-        <SignIn onSignedIn={signedIn} />
-      </div>
-    );
-  }
+  const shell = (children: ReactElement): ReactElement => (
+    <Layout route={route} me={me} onSignOut={signOut}>{children}</Layout>
+  );
 
   if (fatal !== null) {
-    return (
-      <div className="shell">
-        <h1>ARBITER</h1>
-        <div className="stub">
-          Cannot reach the deliberation service. Start it with <span className="mono">npm run api</span>, then reload.
-          <div className="small" style={{ fontWeight: 400, marginTop: 8 }}>{fatal}</div>
+    return shell(
+      <div className="empty">
+        <h3>Something is not right</h3>
+        <p className="muted">{fatal}</p>
+        <div className="btn-row" style={{ justifyContent: "center" }}>
+          <a href={href({ name: "dashboard" })}><button className="ghost" onClick={() => setFatal(null)}>Back to dashboard</button></a>
         </div>
-        <button className="ghost" onClick={signOut}>Sign out</button>
-      </div>
+      </div>,
     );
   }
 
-  const seats = (
-    <div className="personas">
-      <span className="small muted">Signed in as</span>
-      <strong className="small">{me.displayName}</strong>
-      <button className="ghost" onClick={signOut}>Sign out</button>
-      <span className="small muted" style={{ marginLeft: "auto" }}>
-        Switching seats signs you out and back in — a real token each time, not a costume change.
-      </span>
-    </div>
-  );
+  if (refusal !== null) return shell(<Refused r={refusal} />);
 
-  const picker = (
-    <div className="personas">
-      <span className="small muted">Case:</span>
-      {catalogue.map((c) => (
-        <button key={c.name} className="persona" aria-pressed={caseName === c.name}
-          onClick={() => setCaseName(c.name)} title={c.shape}>
-          {c.usable ? "" : "⃠ "}{c.label}
-        </button>
-      ))}
-    </div>
-  );
+  switch (route.name) {
+    case "dashboard":
+      return shell(<Dashboard mine={mine} me={me} />);
 
-  if (refusal !== null) {
-    return <div className="shell"><h1>ARBITER</h1>{seats}{picker}<Refused r={refusal} /></div>;
+    case "new":
+      return shell(
+        <NewCasePage token={token} people={people.filter((p) => p.id !== me.id)}
+          onCreated={(id) => { void loadMine(token); navigate({ name: "case", caseId: id }); }} />,
+      );
+
+    case "cases":
+      return shell(<LibraryPage catalogue={catalogue} onOpen={openPrepared} busy={opening} />);
+
+    case "method":
+      return shell(<MethodPage />);
+
+    default:
+      break;
   }
 
-  if (inventory === null || view === null) {
-    return <div className="shell"><h1>ARBITER</h1>{seats}{picker}<p className="muted">Loading the case…</p></div>;
+  // ---- case routes -------------------------------------------------------
+  if (caseId === null) return shell(<Dashboard mine={mine} me={me} />);
+  if (view === null || inventory === null) {
+    return shell(<p className="muted">Loading the case…</p>);
   }
 
-  const isOwner = me.email === DEMO_OWNER;
-  const step = view.status === "open"
-    ? (view.own !== null ? "waiting" : "position")
-    : view.status === "signed" ? "signed" : "reveal";
+  const listing = mine.find((c) => c.caseId === caseId);
+  const label = listing?.compoundLabel ?? head.compoundLabel ?? caseId;
+  const isOwner = listing?.isOwner ?? false;
+  const revealed = view.status !== "open";
+  const frozen = view.own !== null || view.others.some((o) => o.submitted)
+    ? "Somebody has already answered against this evidence. Changing it now would put a position on the record against an inventory its author never saw."
+    : null;
 
-  const act = (fn: () => Promise<unknown>): void => {
-    void (async () => {
-      try {
-        await fn();
-        await refresh(token, caseId);
-      } catch (e) {
-        setFatal(e instanceof Error ? e.message : String(e));
-      }
-    })();
-  };
-
-  return (
-    <div className="shell">
-      <h1>{heading.compoundLabel}</h1>
-      <p className="muted">{heading.context}</p>
-
-      {seats}
-      {picker}
-
-      <div className="rail">
-        {["inventory", "your position", "reveal", "verdict", "sign"].map((s, i) => {
-          const order = ["inventory", "position", "reveal", "verdict", "signed"];
-          const nowIdx = order.indexOf(step === "waiting" ? "position" : step);
-          return <span key={s} className={i === nowIdx ? "now" : i < nowIdx ? "done" : ""}>{s}</span>;
-        })}
-      </div>
-
-      <InventoryPanel inv={inventory} documentScope={scope} />
-
-      <hr style={{ border: 0, borderTop: "1px solid var(--hairline)", margin: "32px 0" }} />
-
-      <Documents docs={docs} onUpload={upload} busy={uploadBusy} error={uploadError} />
-
-      <hr style={{ border: 0, borderTop: "1px solid var(--hairline)", margin: "32px 0" }} />
-
-      {step === "position" && (
-        <PositionForm token={token} caseId={caseId} findings={findings}
-          onDone={() => { void refresh(token, caseId); }} />
-      )}
-      {step === "waiting" && (
-        <Waiting view={view} isOwner={isOwner} nameOf={nameOf}
-          onReveal={(mode) => act(() => api.reveal(token, caseId, mode, new Date().toISOString()))} />
-      )}
-
-      {(step === "reveal" || step === "signed") && (
-        <>
-          <Reveal view={view} unanimity={unanimity} nameOf={nameOf} />
-          {adjudication === null && view.status !== "signed" && isOwner && (
-            <button className="primary"
-              onClick={() => act(async () => {
-                setAdjudication(await api.adjudicate(token, caseId, new Date().toISOString()));
-              })}>
-              Adjudicate across the positions
-            </button>
-          )}
-          {adjudication !== null && (
-            <Verdict adjudication={adjudication.adjudication} source={adjudication.source}
-              onSign={(agrees, reason) => act(() => api.sign(token, caseId, {
-                at: new Date().toISOString(), agreesWithAdjudication: agrees, reason,
-              }))} />
-          )}
-          {view.status === "signed" && <p className="ok">Signed. The record is closed and every position in it is preserved.</p>}
-          {audit !== null && <Audit audit={audit} />}
-        </>
-      )}
-    </div>
+  const caseShell = (children: ReactElement, lede?: string): ReactElement => shell(
+    <>
+      <PageHead
+        crumb={<><a href={href({ name: "dashboard" })}>Dashboard</a><span>›</span><span>{label}</span></>}
+        title={label}
+        {...(lede === undefined ? {} : { lede })}
+      />
+      <Steps caseId={caseId} route={route} revealed={revealed}
+        {...(listing === undefined ? {} : { answered: listing.submitted, of: listing.of })} />
+      {children}
+    </>,
   );
+
+  if (route.name === "case") {
+    return caseShell(
+      <div className="stack-l">
+        <Section title="What the documents contain">
+          <InventoryPanel inv={inventory} documentScope={head.scope} />
+        </Section>
+
+        {isOwner && (
+          <Section title="Evidence" count={`${findings.length} findings`}>
+            <FindingsEditor
+              checklist={inventory.entries.map((e) => ({ itemId: e.itemId, field: e.field, state: e.state }))}
+              findings={findings} frozen={frozen} error={findingError}
+              onAdd={(f) => { setFindingError(null); act(async () => { try { await api.addFinding(token, caseId, f); } catch (e) { setFindingError(e instanceof ApiError ? e.message : String(e)); } }); }}
+              onRemove={(id) => act(() => api.removeFinding(token, caseId, id))} />
+          </Section>
+        )}
+
+        <Section title="Documents">
+          <Documents docs={docs} onUpload={upload} busy={uploadBusy} error={uploadError} />
+        </Section>
+      </div>,
+      head.context === "" ? undefined : head.context,
+    );
+  }
+
+  if (route.name === "position") {
+    return caseShell(
+      view.own !== null
+        ? <Waiting view={view} isOwner={isOwner} nameOf={nameOf}
+            onReveal={(mode) => act(() => api.reveal(token, caseId, mode, new Date().toISOString()))} />
+        : <PositionForm token={token} caseId={caseId} findings={findings}
+            onDone={() => { void loadCase(token, caseId); void loadMine(token); }} />,
+    );
+  }
+
+  if (route.name === "reveal") {
+    if (!revealed) {
+      return caseShell(
+        <div className="empty">
+          <h3>Not everyone has answered</h3>
+          <p className="muted">Positions stay sealed until the case is closed. That is the whole point of collecting them separately.</p>
+          <a href={href({ name: "position", caseId })}><button className="ghost">Back to your position</button></a>
+        </div>,
+      );
+    }
+    return caseShell(
+      <div className="stack-l">
+        <Reveal view={view} unanimity={unanimity} nameOf={nameOf} />
+        {adjudication === null && view.status !== "signed" && isOwner && (
+          <button className="primary" style={{ alignSelf: "flex-start" }}
+            onClick={() => act(async () => { setAdjudication(await api.adjudicate(token, caseId, new Date().toISOString())); })}>
+            Adjudicate across the positions
+          </button>
+        )}
+        {adjudication !== null && (
+          <Verdict adjudication={adjudication.adjudication} source={adjudication.source}
+            onSign={(agrees, reason) => act(() => api.sign(token, caseId, {
+              at: new Date().toISOString(), agreesWithAdjudication: agrees, reason,
+            }))} />
+        )}
+        {view.status === "signed" && (
+          <p className="ok">Signed. The record is closed, and every position in it is kept.</p>
+        )}
+      </div>,
+    );
+  }
+
+  return caseShell(audit === null
+    ? <p className="muted">The record opens once the case is closed.</p>
+    : <Audit audit={audit} />);
 }

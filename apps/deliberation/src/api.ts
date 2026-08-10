@@ -160,6 +160,22 @@ async function call<T>(method: string, path: string, token: string | null, body?
 }
 
 export const api = {
+  register: (email: string, displayName: string, password: string) =>
+    call<Person>("POST", "/api/auth/register", null, { email, displayName, password }),
+
+  createCase: (token: string, b: {
+    compoundLabel: string; context: string;
+    modality: "small_molecule" | "biologic"; participantEmails: string[];
+  }) => call<{ case: { caseId: string }; inventory: Inventory }>("POST", "/api/cases", token, b),
+
+  addFinding: (token: string, caseId: string, f: {
+    id: string; label: string; assertion: "toxic" | "safe" | "ambiguous";
+    detail: string; sourcePage?: number; covers: string[];
+  }) => call<Inventory>("POST", `/api/cases/${caseId}/findings`, token, f),
+
+  removeFinding: (token: string, caseId: string, findingId: string) =>
+    call<Inventory>("DELETE", `/api/cases/${caseId}/findings/${encodeURIComponent(findingId)}`, token),
+
   login: (email: string, password: string) =>
     call<{ token: string; user: Person }>("POST", "/api/auth/login", null, { email, password }),
 

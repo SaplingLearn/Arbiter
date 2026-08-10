@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { Documents, InventoryPanel, Refused, Reveal, SignIn, Verdict, Waiting, basisOf } from "../src/screens.js";
+import { Documents, InventoryPanel, Refused, Reveal, Verdict, Waiting, basisOf } from "../src/screens.js";
 import type { Adjudication, BlindView, Inventory, Position } from "../src/api.js";
 
 const inv: Inventory = {
@@ -84,27 +84,6 @@ describe("InventoryPanel", () => {
   it("says what each gap blocks, so a gap is a consequence and not a scold", () => {
     render(<InventoryPanel inv={inv} />);
     expect(screen.getByText(/R3 cannot be applied/)).toBeInTheDocument();
-  });
-});
-
-describe("SignIn", () => {
-  it("keeps the button disabled until a password is typed", () => {
-    render(<SignIn onSignedIn={() => {}} />);
-    expect(screen.getByRole("button", { name: /Sign in/ })).toBeDisabled();
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "arbiter-demo-2026" } });
-    expect(screen.getByRole("button", { name: /Sign in/ })).toBeEnabled();
-  });
-
-  it("uses a password field, so the value is not shoulder-readable", () => {
-    render(<SignIn onSignedIn={() => {}} />);
-    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
-  });
-
-  it("says plainly that the demo password is published on purpose", () => {
-    // The authentication is real and only the secrecy is fake. A demo account whose
-    // password looks secret is the thing that ends up in production.
-    render(<SignIn onSignedIn={() => {}} />);
-    expect(screen.getByText(/only the secrecy is/)).toBeInTheDocument();
   });
 });
 
