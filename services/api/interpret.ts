@@ -215,7 +215,23 @@ export const SHAPE_INTERPRET: CallShape = { maxOutputTokens: 1024, thinkingBudge
  */
 export const SHAPE_ADJUDICATION: CallShape = { maxOutputTokens: 16000, thinkingBudget: -1 };
 
-export type CallKind = "short" | "adjudication";
+/**
+ * A question against retrieved document pages. Thinking ON, and a middle ceiling.
+ *
+ * Thinking, because the failure this surface must avoid is answering from an adjacent
+ * passage when the retrieved set does not contain the answer - deciding "the documents
+ * do not say this" is the reasoning step, and it is the one that keeps the answer
+ * honest. Disabled thinking is what produced the fluent, unsupported severity claim
+ * that consequenceBasis was built to catch.
+ *
+ * 4000 rather than adjudication's 16000: the output is a paragraph and a citation
+ * list, not a per-rule disclosure. It is not the 1024 of a short call either, because
+ * thinking shares the budget with the answer and a truncated answer under a
+ * json_schema constraint is invalid JSON.
+ */
+export const SHAPE_ASK: CallShape = { maxOutputTokens: 4000, thinkingBudget: -1 };
+
+export type CallKind = "short" | "adjudication" | "ask";
 
 /**
  * THE ONE COPY OF THE DEFAULT MODELS, and the one copy of how a model name is
@@ -269,6 +285,13 @@ export const DEFAULT_ADJUDICATION_MODEL = "gemini-3.5-flash";
 export function resolveModel(kind: CallKind, env: NodeJS.ProcessEnv = process.env): string {
   if (kind === "adjudication") {
     return env["ARBITER_ADJUDICATION_MODEL"] ?? env["ARBITER_MODEL"] ?? DEFAULT_ADJUDICATION_MODEL;
+  }
+  // "ask" resolves to the ADJUDICATION model, not the short one. It reads document
+  // prose and has to decide when the passages do not answer the question, which is
+  // nearer the adjudicator's job than interpret's closed-set classification - and the
+  // short model is chosen for a 2.5s abort this surface does not have.
+  if (kind === "ask") {
+    return env["ARBITER_ASK_MODEL"] ?? env["ARBITER_ADJUDICATION_MODEL"] ?? env["ARBITER_MODEL"] ?? DEFAULT_ADJUDICATION_MODEL;
   }
   return env["ARBITER_MODEL"] ?? DEFAULT_SHORT_MODEL;
 }
@@ -344,6 +367,8 @@ export function completeFromEnv(
   env: NodeJS.ProcessEnv = process.env,
   kind: CallKind = "short",
 ): Complete | null {
-  const shape = kind === "adjudication" ? SHAPE_ADJUDICATION : SHAPE_INTERPRET;
+  const shape = kind === "adjudication" ? SHAPE_ADJUDICATION
+    : kind === "ask" ? SHAPE_ASK
+      : SHAPE_INTERPRET;
   return buildComplete(resolveModel(kind, env), shape, env);
 }

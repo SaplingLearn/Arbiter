@@ -160,4 +160,46 @@ export class DocumentStore {
   get(id: string): StoredDocument | null {
     return this.docs.get(id) ?? null;
   }
+
+  /**
+   * The document's text, one entry per page, for retrieval.
+   *
+   * CACHED TO A SIDECAR, because extraction shells out to Python and re-running it on
+   * every question would put a second or more of PyMuPDF in front of a surface people
+   * are meant to use conversationally. The sidecar sits beside the PDF and is derived
+   * data: deleting it costs a re-extraction and nothing else, which is why it is not
+   * in the index and not in the hash chain.
+   *
+   * RETURNS AN EMPTY ARRAY RATHER THAN THROWING when extraction fails - a scanned
+   * document, a missing PyMuPDF, a file that will not open. The caller then retrieves
+   * nothing and the ask surface answers "nothing in the uploaded documents matches",
+   * which is true and is the honest failure. Throwing here would turn an unreadable
+   * document into a 500 and tell the reader nothing about which document it was.
+   */
+  textFor(id: string, python = process.env["PYTHON"] ?? "python"): { page: number; text: string }[] {
+    const cache = join(this.root, `${id}.pages.json`);
+    if (existsSync(cache)) {
+      try {
+        return JSON.parse(readFileSync(cache, "utf8")) as { page: number; text: string }[];
+      } catch {
+        // A corrupt cache is a cache miss, not a failure. Fall through and re-extract.
+      }
+    }
+
+    const path = this.pathFor(id);
+    if (!existsSync(path)) return [];
+
+    try {
+      const out = execFileSync(python, ["data/prep/extract_pdf_text.py", path], {
+        encoding: "utf8",
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      const parsed = JSON.parse(out) as { ok: boolean; pages?: { page: number; text: string }[] };
+      const pages = parsed.ok && parsed.pages !== undefined ? parsed.pages : [];
+      writeFileSync(cache, JSON.stringify(pages), "utf8");
+      return pages;
+    } catch {
+      return [];
+    }
+  }
 }

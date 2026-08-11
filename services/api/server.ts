@@ -7,6 +7,8 @@ import { FileStore } from "./store.js";
 import type { Position } from "./deliberation.js";
 import type { CoveringFinding, EvidenceChecklist, Modality } from "./inventory.js";
 import { ADJUDICATOR_PROMPT_PATH, handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
+import { handleAsk } from "./ask.js";
+import { buildIndex, search } from "./retrieval.js";
 import { completeFromEnv, resolveModel } from "./interpret.js";
 import { stubComplete } from "./probe.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
@@ -333,6 +335,22 @@ export function makeHandler(deps: ServerDeps) {
           case "positions": {
             const r = deps.service.submit(caseId, { ...(body as Position), participantId: user.id });
             return r.ok ? json(res, 201, { sealed: true }) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
+          }
+          case "ask": {
+            // A READ, despite being a POST - the body carries a question, and nothing
+            // here writes. No position, no adjudication, no log entry, nothing into the
+            // hash chain. The action switch above already falls through to "read" for
+            // an unrecognised POST tail, so any participant or the owner may ask and
+            // nobody gains a way to alter the record by asking.
+            const docs = deps.documents.forCase(caseId);
+            const corpus = docs.map((d) => ({
+              documentId: d.id,
+              filename: d.filename,
+              pages: deps.documents.textFor(d.id),
+            }));
+            const passages = search(buildIndex(corpus), String((body as { question?: unknown }).question ?? ""), 8);
+            const out = await handleAsk(body, passages, completeFromEnv(process.env, "ask"));
+            return json(res, out.status, out.body);
           }
           case "reveal": {
             const b = body as { at: string; mode: "all_in" | "close_early" };
