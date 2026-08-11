@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useAppState, useDispatch } from "../state/store.js";
 import { isTypingTarget } from "../ui/isTypingTarget.js";
+import { Character, faceForBeat } from "../ui/Character.js";
 import { buildBeats } from "./beats.js";
 
 /**
@@ -45,6 +46,10 @@ export function TourFooter() {
     <footer className="beat-bar">
       <button type="button" className="btn btn-ghost" onClick={() => go(tour.beat - 1)} aria-label="Previous beat">←</button>
       <button type="button" className="btn btn-ghost" onClick={() => go(tour.beat + 1)} aria-label="Next beat">→</button>
+      {/* The narrator gets a face. It changes with the beat and is the same face
+          whichever direction you arrive from, so stepping back does not swap the
+          person mid-sentence. */}
+      <Character face={faceForBeat(b.n)} size={38} className="beat-face" />
       <div>
         {/* One element, one string: the e2e walk reads "Beat n of 8" off this
             node, so the count and the title must not be split apart. */}
