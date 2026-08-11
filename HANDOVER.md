@@ -1779,3 +1779,184 @@ is wrong before another month is built on it.
    only result that can invalidate the architecture rather than the wording. A
    failing flip rate is a **design** defect — do not answer it by rewriting the
    prompt.
+
+---
+
+## 14. Gate 0 ran. 2026-08-10, on Gemini.
+
+**The first AI measurement this project has ever had.** It passes the claim it was
+built to test and fails a bar nobody expected it to fail, and the second half is the
+part worth reading.
+
+### 14.1 What was run
+
+A Google Gemini key arrived, so the provider seam grew a second implementation
+(`services/api/provider.ts`) and the probe ran against it. `prompts/adjudicator-v1.0.json`
+is **unchanged** — same version, same hash `42f548ea1df3`. Nothing was tuned.
+
+| | |
+|---|---|
+| provider / model | `gemini` / `gemini-3.6-flash` |
+| prompt | v1.0, hash `42f548ea1df3` — **not edited before, during or after** |
+| case | TAK-994, `data/probe-case.json` |
+| runs requested | 20 |
+| runs that returned a verifiable answer | **12** |
+| raw runs | `results/probe-runs.json`, `"source": "live"` |
+
+### 14.2 The result, against pass marks committed before any model was called
+
+| pass mark | bar | measured | |
+|---|---|---|---|
+| flip rate | ≤ 0.10 | **0.000** | **PASS** |
+| hallucinated citations | = 0 | **0** | **PASS** |
+| per-rule position agreement | ≥ 0.80 | **R6 at 0.667** | **FAIL** |
+
+**Twelve of twelve returned `do_not_advance`.** Mechanism agreement 100%, citation
+agreement 100%. Not one run in twenty cited a finding that does not exist — the
+ceiling that matters most held, and it held on the runs that errored too.
+
+**R6 is the failure.** Eight runs say the concordance rule `applies`, four say it
+`does_not_apply`, on identical input. Both readings are defensible in their own
+words:
+
+> *applies*: "Multiple negative findings across rodent and non-rodent in vivo studies
+> agreed, but were overridden by toxicogenomics at clinically relevant doses."
+>
+> *does_not_apply*: "Evidence stream is discordant across systems due to exposure
+> testing differences rather than showing concordant agreement."
+
+**That is not a wrong answer, it is an ambiguous question.** `position` offers
+`applies | does_not_apply`, and for R6 those two words admit two readings — *is this
+rule relevant here?* versus *is this rule's antecedent satisfied?* The other five
+rules do not have this problem because their antecedents are about a single claim;
+R6 is a property of a **set**, so "does it apply" has no single referent.
+
+**Per `rules/pass-marks-v1.0.json`, a failing stability number is a DESIGN defect
+and must not be answered by rewriting the prompt.** It has not been. The fix, when
+it is made, belongs in the position vocabulary or in R6's registered statement — and
+either is a **v1.1 re-registration with a new hash**, not an edit.
+
+### 14.3 Eight runs were lost, and none of it was the model's doing
+
+| cause | runs | |
+|---|---|---|
+| `truncated` | 5 | 4096-token ceiling; Gemini draws thinking tokens from the **same** output budget, so the JSON stopped mid-object |
+| `gemini_http_429` | 2 | free tier is **20 requests per day per model**, and the probe is 20 |
+| `gemini_http_503` | 1 | transient |
+
+All three are fixed in `provider.ts`: the budget is 16384, and 429/500/502/503/504
+retry with backoff. **The retry sits at the HTTP layer on purpose** — retrying a
+request that never reached the model is asking again; retrying a returned-but-
+unciteable adjudication is re-rolling until the model says something acceptable,
+which `probe.ts` forbids and a test now pins.
+
+**The 0.000 flip rate is on n=12 and is reported as such.** A clean 20/20 needs
+quota that resets daily, or a paid tier.
+
+### 14.4 The adjudication itself, on TAK-994
+
+Four scientists read the real package and **all four said advance**. The model said
+**do not advance**, citing R3 — a positive finding at clinically relevant exposure
+defeats negatives whose exposure margin is unstated. Every "safe" finding in that
+case does say *exposure relevance unstated*, and the toxicogenomics finding does say
+*tested at clinically relevant exposure*. **Right answer, and on the rule that
+actually discriminates.** TAK-994 was halted for hepatotoxicity in humans.
+
+One case is not a result, and Gate 2 is where this gets scored across four. But the
+first live adjudication this project has ever run contradicted a unanimous room for
+the right reason, with no prompt tuning.
+
+### 14.5 The leakage screen exists now, and it corrects §13.4c
+
+`data/prep/leakage_screen.py` + 19 tests. Refuses, never trims. Run over the
+committed cases:
+
+| case | result |
+|---|---|
+| **turalio** | **REFUSED** — 4 cross-references, including the answer-key sentence §13.4c quotes |
+| **nipocalimab** | **REFUSED** — 1 cross-reference |
+| **slynd** | OK |
+
+**§13.4c says nipocalimab "carries no such warning". It carries one.** The
+nonclinical section says a finding may be secondary to an immune response *"and that
+a similar pattern appears clinically"*. It is far weaker than Turalio's — albumin
+and cholesterol, not the liver endpoint, and the case file already records that the
+finding covers no checklist question — but it is a reference to human data inside a
+chapter that is supposed to be blind, and the hand review missed it. The screen
+found it on its first real run.
+
+The screen also produced one **false positive** on that first run, and the fix is
+recorded because it is the more instructive half: it refused *"clinically relevant
+changes in serum clinical chemistry"*, which is a toxicologist's term of art meaning
+"of a magnitude that would matter", said about the animal study. A screen that
+refuses that refuses nearly every document, and a guard everyone disables protects
+nothing. Benign phrases are now masked **per occurrence**, so a line carrying both an
+innocent phrase and a real leak still refuses.
+
+### 14.6 The Python suite is in CI, finally
+
+`.github/workflows/ci.yml` runs `data/prep` pytest and the leakage screen. §3.5d
+flagged that `test_qsar_leakage.py` guards the strongest methodological claim in the
+project and ran only when somebody remembered. It now runs on every push, alongside
+the new leakage tests.
+
+`test_splits.py` hardcoded `data/prep/.venv/Scripts/python.exe` and therefore failed
+everywhere that path did not exist — including any CI runner. It uses
+`sys.executable` now. **A guard that cries wolf on a fresh checkout is one people
+learn to skip**, which is worse than not having it.
+
+### 14.7 State
+
+| | |
+|---|---|
+| Verified 2026-08-10 | lint, typecheck, **926 vitest across 75 files**, **67 pytest across 7 files**, all green |
+| Provider | Anthropic and Gemini, one resolution point, model identity recorded in every result |
+| Gate 0 | **RUN** — flip rate PASS, hallucination PASS, R6 stability FAIL |
+| Gate 1 | extraction still unbuilt |
+| Gate 2 | one case run live and read by hand; not scored across four |
+| Gate 3a | **BUILT** |
+| Blocker | free-tier quota, 20 requests/day/model |
+
+### 14.8 Gate 1 is built, and its first live run found the failure it was warned about
+
+`services/api/extract.ts` + `POST /api/extract` + 25 tests. Document pages in,
+proposed findings out, **nothing becomes evidence until a human approves it** —
+the response says `awaitingApproval: true` rather than trusting the caller to
+remember.
+
+**The anti-fabrication mechanism is the quote.** Every finding must carry a verbatim
+span from the page it cites, and `verifyExtraction` checks it against the document in
+plain code. A finding whose quote is not on its page is **discarded, not flagged** —
+the pass mark for hallucination is zero, not small. Whitespace and case are
+normalised, because PDF extraction breaks lines mid-sentence; nothing else is, because
+the moment this tolerates an approximate quote it can no longer tell a copied span
+from an invented one.
+
+One bad finding costs that finding, not the extraction. An adjudication is one answer
+that is either citable or not; an extraction is a list, and throwing away eight good
+findings for one bad one helps nobody who is about to read them against the document.
+
+**First live run, 2026-08-10, `gemini-3.5-flash`, two synthetic nonclinical pages:**
+5 findings, **0 discarded** — every quote verified verbatim, every page attribution
+correct, assertions correct.
+
+**And one `covers` declaration is wrong, in exactly the way the prompt warns about.**
+The model returned:
+
+> `[ambiguous] p.42 covers=['M4']` — *"Mitochondrial toxicity was not assessed."*
+
+**A statement that something was not assessed is an ABSENCE, not a finding that
+covers the question.** Declaring M4 covered marks it *answered* in the inventory when
+nothing answered it — which is the precise failure §3.2 exists to prevent, and the
+one TAK-994 is in the repo to illustrate. `covers` should have been empty, and M4
+should have surfaced as absent.
+
+**This is what the approval step is for**, and it is the strongest available argument
+that the step is not scaffolding: the extraction was textually perfect, every quote
+checked out, and it still produced a claim that would have hidden a gap. No
+deterministic check catches this one — "was not assessed" is a judgement about what a
+sentence means, not a string that can be matched — so the human confirming `covers`
+is load-bearing, not ceremonial.
+
+**Not built:** the approval screen in the client, and scoring against the four hand
+manifests. Both are blocked only on quota and UI work, not on design.

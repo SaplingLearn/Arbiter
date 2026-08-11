@@ -7,7 +7,8 @@ import { FileStore } from "./store.js";
 import type { Position } from "./deliberation.js";
 import type { CoveringFinding, EvidenceChecklist, Modality } from "./inventory.js";
 import { handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
-import { completeFromEnv } from "./interpret.js";
+import { handleExtract } from "./extract.js";
+import { resolveProvider } from "./provider.js";
 import { stubComplete } from "./probe.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
 import { AuthStore, normaliseEmail, type PublicUser } from "./auth.js";
@@ -149,6 +150,18 @@ export function makeHandler(deps: ServerDeps) {
       if (parts[1] === "people" && method === "GET") return json(res, 200, deps.auth.list());
 
       if (parts[1] === "demo" && method === "POST") return handleDemo(deps, res, body, user, now());
+
+      // POST /api/extract - document text to PROPOSED findings. Completion plan Gate 1.
+      //
+      // Deliberately NOT under /api/cases/:id. Extraction happens before a case
+      // exists, and mounting it inside one would imply its output is already
+      // evidence. It is a proposal until a human approves it (spec section 3 rule 1),
+      // and the response says `awaitingApproval: true` rather than relying on the
+      // caller to remember that.
+      if (parts[1] === "extract" && method === "POST") {
+        const out = await handleExtract(body, resolveProvider()?.complete ?? null);
+        return json(res, out.status, out.body);
+      }
 
       if (parts[1] !== "cases") return json(res, 404, { error: "not_found" });
 
@@ -342,7 +355,11 @@ export function makeHandler(deps: ServerDeps) {
           case "adjudicate": {
             const request = deps.service.adjudicationRequest(caseId, deps.rules);
             if (request === null) return json(res, 404, { error: "no_case" });
-            const live = completeFromEnv();
+            // resolveProvider, NOT completeFromEnv: the latter is surface 1's call and
+            // carries surface 1's 1024-token ceiling, under which an adjudication -
+            // six rule disclosures plus two verdict halves - truncates mid-JSON and
+            // arrives as a parse error that reads like a schema defect.
+            const live = resolveProvider()?.complete ?? null;
             const out = await handleAdjudicate(request, live ?? stubComplete(request), deps.prompt);
             if (out.status !== 200) return json(res, out.status, out.body);
             const r = deps.service.adjudicate(caseId, out.body, (body as { at: string }).at, live === null ? "stub" : "model");
@@ -554,7 +571,10 @@ if (invokedDirectly) {
   const deps = buildDeps("results/deliberation-log.jsonl");
   createServer((req, res) => { void makeHandler(deps)(req, res); }).listen(port, HOST, () => {
     console.log(`ARBITER deliberation API on http://${HOST}:${port}`);
-    console.log(`Adjudication: ${completeFromEnv() === null ? "STUB (no ANTHROPIC_API_KEY) - responses are labelled source:stub" : "LIVE"}`);
+    const provider = resolveProvider();
+    console.log(`Adjudication: ${provider === null
+      ? "STUB (no ANTHROPIC_API_KEY or GEMINI_API_KEY) - responses are labelled source:stub"
+      : `LIVE - ${provider.provider}/${provider.model}`}`);
     console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token; there is no TLS here, which is why this binds to loopback only.`);
     if (deps.auth.list().length === 0) console.log("No accounts yet. Run `npm run seed:demo` to create the demonstration team.");
   });
