@@ -3,7 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ARBITER — deliberation</title>
+    <title>ARBITER - deliberation</title>
+
+    <!-- BLUEPRINT's two faces. Unlike apps/web, which is opened from the
+         filesystem and must make zero subresource requests, this client is
+         useless without its API - so a font request costs nothing it was not
+         already paying. preconnect to both hosts: the CSS comes from
+         googleapis, the font files from gstatic, and the crossorigin flag is
+         required or the font request cannot reuse the warmed connection. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="root"></div>
