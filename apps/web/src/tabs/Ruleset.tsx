@@ -54,7 +54,7 @@ export function RulesetTab() {
           <>
             {" "}
             <strong data-testid="modified-badge" data-anchor="ruleset.modifiedBadge" className="chip chip-warn">
-              MODIFIED — not the registered ruleset
+              MODIFIED - not the registered ruleset
             </strong>
           </>
         )}
@@ -115,7 +115,7 @@ export function RulesetTab() {
           <p>{rule.statement}</p>
           <p className="small muted">
             {rule.framework.name} ({rule.framework.date})
-            {rule.framework.note ? ` — ${rule.framework.note}` : ""}
+            {rule.framework.note ? ` - ${rule.framework.note}` : ""}
           </p>
           <div className="row">
             <label className="control">

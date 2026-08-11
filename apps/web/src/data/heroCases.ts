@@ -5,7 +5,7 @@ import type { EvidenceClaim } from "@arbiter/engine";
  * descriptive.
  *
  * A `fixture` case carries its own hand-authored literature claims and therefore
- * its own citation risk — TAK-994's are marked UNVERIFIED and rendered as such.
+ * its own citation risk - TAK-994's are marked UNVERIFIED and rendered as such.
  * A `corpus` case carries NOTHING: `claims` is null and the case resolves through
  * `data.claimsByCompound` like any library row.
  *
@@ -18,7 +18,7 @@ import type { EvidenceClaim } from "@arbiter/engine";
  */
 export type CaseSource = "fixture" | "corpus";
 
-/** A cited clinical exposure. See load.ts's gate and spec §5 — this type exists so
+/** A cited clinical exposure. See load.ts's gate and spec §5 - this type exists so
  *  that `exposureRelevant: true` cannot be asserted without one. */
 export interface FixtureExposure {
   cmax: number;
@@ -59,8 +59,8 @@ export const BOOT_CASE = "TAK-994";
  * Chosen over better-known DILI compounds for reasons recorded in spec §3-4, two of
  * which were measured false on the first pass and corrected. What survives: it
  * COMMITS where TAK-994 abstains (belief 0.886 against 0.090), its gap is 0.098
- * against TAK-994's 0.910 — the contrast an audience reads without being told what
- * it means — it is `contested` with conflict mass 0.122, and it is the only rendered
+ * against TAK-994's 0.910 - the contrast an audience reads without being told what
+ * it means - it is `contested` with conflict mass 0.122, and it is the only rendered
  * case where Dempster-Shafer conflict is non-zero. It is also in the test split, so
  * nothing needs disclosing.
  *

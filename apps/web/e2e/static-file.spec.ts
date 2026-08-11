@@ -58,7 +58,7 @@ test("all eight beats walk on the keyboard alone, from the filesystem", async ({
       // hero case. If TourFooter's go() ever stopped dispatching selectCompound,
       // this would still be rendering TAK-994's verdict (abstain) instead of
       // switching to Cyclosporine, which commits. This is the assertion that
-      // catches that — the walk above only checks tabs, not verdicts.
+      // catches that - the walk above only checks tabs, not verdicts.
       await expect(page.getByTestId("verdict")).toContainText(/do not advance/i);
     }
     if (beat < 8) await page.keyboard.press("ArrowRight");

@@ -99,8 +99,8 @@ export function sanitizeNavResult(raw: NavResult): NavResult | null {
  * call is about. That per-instance text is authored once here.
  */
 const INSTANCE_LABEL: Record<string, (payload: string) => string> = {
-  "trace.step": (p) => `Argument step — ${p}`,
-  "evidence.claim": (p) => `Evidence row — ${p}`,
+  "trace.step": (p) => `Argument step - ${p}`,
+  "evidence.claim": (p) => `Evidence row - ${p}`,
   "record.position": (p) => `Recorded position ${Number(p) + 1}`,
 };
 

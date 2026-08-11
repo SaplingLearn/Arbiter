@@ -77,7 +77,7 @@
       "confidence": "low"
     },
     {
-      "challenge": "the in-vitro panel was run against clinical Cmax — a hundred-fold margin IS an exposure margin. stop calling it untested",
+      "challenge": "the in-vitro panel was run against clinical Cmax - a hundred-fold margin IS an exposure margin. stop calling it untested",
       "targetRule": "R3",
       "targetClaimId": "TAK-994:cytotox",
       "action": "reclassify_field",
@@ -87,7 +87,7 @@
       "confidence": "high"
     },
     {
-      "challenge": "first-in-class orexin agonist. there is nothing like it in the training set — that QSAR call is out of domain",
+      "challenge": "first-in-class orexin agonist. there is nothing like it in the training set - that QSAR call is out of domain",
       "targetRule": "R4",
       "targetClaimId": "TAK-994:qsar",
       "action": "reclassify_field",

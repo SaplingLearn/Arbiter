@@ -154,12 +154,12 @@ describe("beats carry a compound", () => {
 
 describe("no beat inherits its as-of date", () => {
   // Beat 5 (the record tab) used to carry `actions: []`. Reached FORWARD from
-  // beat 4 it inherited `postMurineStudy`, correctly — but reached BACKWARD from
+  // beat 4 it inherited `postMurineStudy`, correctly - but reached BACKWARD from
   // beat 6 it inherited `null`, because beat 6 sets `null` and nothing restored
   // it. That is the same class of bug that made `compoundId` required: a beat
   // with no `setAsOf` of its own inherits whatever the previous beat left behind,
   // and inheritance is direction-dependent. It is not cosmetic on this beat
-  // specifically — `Record.tsx` hashes `visibleClaims(all, asOf)` into the signed
+  // specifically - `Record.tsx` hashes `visibleClaims(all, asOf)` into the signed
   // evidence snapshot and stores `asOfDate: asOf` on the position, so a presenter
   // stepping backward onto the record beat and signing would have recorded a
   // position against a different evidence snapshot than the forward path

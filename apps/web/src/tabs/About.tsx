@@ -57,7 +57,7 @@ export function AboutTab() {
                 A compound&apos;s toxicity evidence rarely agrees with itself. A QSAR model predicts
                 risk, a transporter assay comes back clean, a cytotoxicity screen is equivocal, an
                 in vivo study was run in the wrong species. ARBITER takes those claims as they are
-                and returns one of three decisions — advance, do not advance, or abstain — with the
+                and returns one of three decisions - advance, do not advance, or abstain - with the
                 argument that led there, the evidence that would change it, and a hash-chained audit
                 log of who signed off.
               </p>
@@ -67,7 +67,7 @@ export function AboutTab() {
               </p>
               <p>
                 <a className="btn btn-primary" href="#/case">Open the worked case</a>{" "}
-                <span className="small muted">TAK-994 — where every baseline says advance</span>
+                <span className="small muted">TAK-994 - where every baseline says advance</span>
               </p>
             </div>
           </div>
@@ -86,9 +86,9 @@ export function AboutTab() {
               <div className="figure-n">{pct(m.metric4_abstentionQuality.declineRate)}</div>
               <p className="figure-cap">
                 Of {m.sampleSizes.scored} scored compounds, ARBITER declines to commit on{" "}
-                {m.metric4_abstentionQuality.nDeclined} of them — not because they disagree, but
+                {m.metric4_abstentionQuality.nDeclined} of them - not because they disagree, but
                 because the evidence is too thin to weigh. Coverage is the finding here, not a
-                footnote — the reason is two sections down.
+                footnote - the reason is two sections down.
               </p>
             </div>
             <div className="figure">
@@ -121,7 +121,7 @@ export function AboutTab() {
               Six pre-registered rules, R1 to R6, decide what each claim actually licenses: which
               claims defeat which, what is discounted for species, exposure or assay relevance, and
               where two sources genuinely contradict rather than merely differ. The argumentation is
-              defeasible — a conclusion stands until something beats it — and every rule that fires
+              defeasible - a conclusion stands until something beats it - and every rule that fires
               is shown beside the claim that triggered it.
             </p>
           </div>
@@ -156,7 +156,7 @@ export function AboutTab() {
             On the pre-registered conflict subset, ARBITER and <span className="mono">{TIED}</span>{" "}
             return the same figure in every column: {arbiter.balancedAccuracy.toFixed(3)} balanced
             accuracy, {pct(arbiter.coverage)} coverage, {arbiter.nCommitted} compounds committed, and
-            the identical confusion matrix. Not close to — the same.
+            the identical confusion matrix. Not close to - the same.
           </p>
           <p>
             Fusing five streams under six rules bought no accuracy over reading the transporter
@@ -213,12 +213,12 @@ export function AboutTab() {
           <h2 className="title">Three causes, and none of them is disagreement.</h2>
           <p data-testid="about-causes">
             All {m.metric4_abstentionQuality.nDeclined} abstentions are the belief–plausibility gap.
-            None is an applicability-domain refusal and none is total conflict — declining is about
+            None is an applicability-domain refusal and none is total conflict - declining is about
             how much weight the evidence carries, never about the streams contradicting each other.
             Three things drain that weight. R3 discounts a claim that cannot be tied to clinical
             exposure, and the only claim in the corpus marked{" "}
             <span className="mono">exposureRelevant: true</span> is the TAK-994 murine study, which
-            the benchmark excludes by design — QSAR has no exposure axis and Tox21 qHTS
+            the benchmark excludes by design - QSAR has no exposure axis and Tox21 qHTS
             concentrations are not clinical ones. QSAR correlates with chemical structure and
             measures no key event directly, which discounts it further still. And{" "}
             <strong>{singleClaim} of {m.sampleSizes.scored}</strong> compounds carry a single claim,
@@ -233,7 +233,7 @@ export function AboutTab() {
               evidence values.
             </strong>{" "}
             Sum the surviving weight of every live claim, grant each one full confidence, and the
-            total still cannot reach the threshold — so the outcome was settled before a single
+            total still cannot reach the threshold - so the outcome was settled before a single
             value was read. For those the abstention is arithmetic rather than judgment, and the
             useful reading is that the assay class is the wrong instrument: more of the same
             evidence would not change the answer. Only{" "}
@@ -242,16 +242,16 @@ export function AboutTab() {
             declined on what the evidence actually said.
           </p>
           <p className="caveat">
-            This is the engine being correct about weak evidence — an HTS inactive at an unknown
-            multiple of clinical exposure genuinely licenses nothing — and it is a coverage problem.
+            This is the engine being correct about weak evidence - an HTS inactive at an unknown
+            multiple of clinical exposure genuinely licenses nothing - and it is a coverage problem.
             Those are the same fact, not two competing readings of it.
           </p>
           <p>
             What would move the number is evidence with an exposure axis and more than one stream
-            per compound — not a lower threshold. Widening the abstention threshold to buy coverage
+            per compound - not a lower threshold. Widening the abstention threshold to buy coverage
             was considered once and rejected: it would change the figure without changing what the
             evidence supports, and the ruleset is registered precisely so that it cannot be tuned
-            toward a better-looking result. Measured, it would not even buy much — the compounds
+            toward a better-looking result. Measured, it would not even buy much - the compounds
             here are either decisive or nowhere near, with almost nothing in between.
           </p>
         </div>
@@ -296,7 +296,7 @@ export function AboutTab() {
             <p>
               TAK-994, a compound whose development was halted for hepatotoxicity. On the evidence
               available before first-in-human, every baseline here says advance. ARBITER abstains,
-              states how wide the gap is, and asks for a human BSEP assay at matched exposure — the
+              states how wide the gap is, and asks for a human BSEP assay at matched exposure - the
               experiment that would settle it.
             </p>
             <p>

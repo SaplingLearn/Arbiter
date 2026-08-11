@@ -18,8 +18,8 @@ export interface ReviewerPosition {
    * distinguishable only by their evidence snapshot, which is a digest rather than
    * a statement.
    *
-   * It is inside `canonicalRecord` — which enumerates with Object.entries, so this
-   * is covered by construction — and not merely rendered. Rendering alone would
+   * It is inside `canonicalRecord` - which enumerates with Object.entries, so this
+   * is covered by construction - and not merely rendered. Rendering alone would
    * repeat HANDOVER §6.4's defect: a field a reader trusts that tampering does not
    * disturb.
    */

@@ -48,7 +48,7 @@ const MARK: Record<Tone, string> = {
   fail: "FAIL",
   pending: "…",
   note: "NOTE",
-  info: "—",
+  info: "-",
 };
 
 /**
@@ -204,8 +204,8 @@ export function Preflight() {
       case "cache":
         return `${what}: answered from the bundled cache (rung ${r.rung}), so losing the connection changes nothing.`;
       case "local":
-        return `${what}: answered from the bundled deterministic matcher (rung ${r.rung}) — no entry in the authored `
-          + `cache matched — so losing the connection changes nothing.`;
+        return `${what}: answered from the bundled deterministic matcher (rung ${r.rung}) - no entry in the authored `
+          + `cache matched - so losing the connection changes nothing.`;
       case "none":
         return `${what}: no rung answered (rung ${r.rung}), so the surface is asking you to choose rather than `
           + `guessing. Nothing on this path needs the network.`;
@@ -233,8 +233,8 @@ export function Preflight() {
             : hash === null
               ? "Hashing the ruleset…"
               : hashOk
-                ? `Ruleset ${data.ruleset.version} — ${hash.slice(0, 8)}… matches the pre-registered hash`
-                : `Ruleset ${data.ruleset.version} hashes to ${hash.slice(0, 8)}… but ${PRE_REGISTERED_HASH.slice(0, 8)}… was pre-registered — do not present these numbers as pre-registered`}
+                ? `Ruleset ${data.ruleset.version} - ${hash.slice(0, 8)}… matches the pre-registered hash`
+                : `Ruleset ${data.ruleset.version} hashes to ${hash.slice(0, 8)}… but ${PRE_REGISTERED_HASH.slice(0, 8)}… was pre-registered - do not present these numbers as pre-registered`}
         </Check>
 
         <Check
@@ -244,7 +244,7 @@ export function Preflight() {
         >
           {mismatches.length === 0
             ? `Live recomputation agrees with the committed manifest on all ${data.testSplit.length} compounds`
-            : `${mismatches.length} of ${data.testSplit.length} compounds disagree with the committed manifest (${mismatches.slice(0, 3).join(", ")}…) — investigate before presenting`}
+            : `${mismatches.length} of ${data.testSplit.length} compounds disagree with the committed manifest (${mismatches.slice(0, 3).join(", ")}…) - investigate before presenting`}
         </Check>
 
         <Check
@@ -254,7 +254,7 @@ export function Preflight() {
         >
           {errored.length === 0
             ? "No compound threw during recomputation"
-            : `${errored.length} compounds threw and are being shown as abstain — ${errored.slice(0, 3).join(", ")}`}
+            : `${errored.length} compounds threw and are being shown as abstain - ${errored.slice(0, 3).join(", ")}`}
         </Check>
 
         {/* Not a failure. Editing the ruleset is the product - but saying so out
@@ -267,7 +267,7 @@ export function Preflight() {
           {workingHash === null
             ? "Hashing the ruleset on screen…"
             : rulesetEdited
-              ? `The ruleset on screen hashes to ${workingHash.slice(0, 8)}… and has live edits — press Reset on the Ruleset tab before quoting a metric`
+              ? `The ruleset on screen hashes to ${workingHash.slice(0, 8)}… and has live edits - press Reset on the Ruleset tab before quoting a metric`
               : "No live edits: the ruleset on screen is the registered one"}
         </Check>
 
@@ -284,7 +284,7 @@ export function Preflight() {
           {evidence === null
             ? "Digesting the evidence on screen…"
             : evidenceEdited
-              ? `The evidence on screen has live edits — ${evidence.working.slice(0, 8)}… against registered ${evidence.registered.slice(0, 8)}… — press Reset on the Case tab before quoting a metric`
+              ? `The evidence on screen has live edits - ${evidence.working.slice(0, 8)}… against registered ${evidence.registered.slice(0, 8)}… - press Reset on the Case tab before quoting a metric`
               : `No live edits: the evidence on screen digests to ${evidence.registered.slice(0, 8)}…, the registered value`}
         </Check>
 

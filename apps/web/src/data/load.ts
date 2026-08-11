@@ -30,13 +30,13 @@ export class DataLoadError extends Error {}
  *
  * This is HANDOVER §3.1's prohibition, made unrepresentable. Reaching an `advance`
  * verdict requires `exposureRelevant: true` on safe evidence, and the cheapest way
- * to get one is to type `true` — which is precisely the shortcut §3.1 considered and
+ * to get one is to type `true` - which is precisely the shortcut §3.1 considered and
  * rejected, and precisely the shortcut that is most tempting at 11pm before a
  * submission. A rule that lives in a document is a rule someone has to remember; a
  * rule that fails the build is not.
  *
  * SAFE claims only, deliberately. R3 says a positive finding at clinically relevant
- * exposure defeats a negative one whose margin is unstated — the asymmetry is the
+ * exposure defeats a negative one whose margin is unstated - the asymmetry is the
  * rule's whole content. A toxic finding needs no margin to be defensible, and
  * TAK-994's murine claim is exactly that case.
  *
@@ -49,7 +49,7 @@ export function assertExposureBacked(hero: HeroCase): void {
     if (c.assertion === "safe" && c.exposureRelevant === true) {
       throw new DataLoadError(
         `${hero.compoundId}: claim ${c.id} asserts exposureRelevant on a safe finding, ` +
-        `but the fixture carries no cited clinical Cmax. See HANDOVER §3.1 — this flag ` +
+        `but the fixture carries no cited clinical Cmax. See HANDOVER §3.1 - this flag ` +
         `may not be set without one.`,
       );
     }

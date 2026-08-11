@@ -38,7 +38,7 @@ export function ValidationTab() {
   const ablation = m.metric2a_llmConsistency;
   const ablationNote = "note" in ablation ? ablation.note : null;
   const ablationTooltip = ablationNote
-    ?? "The live spot check is specified but not built (Phase 3 spec §6) — the button stays disabled.";
+    ?? "The live spot check is specified but not built (Phase 3 spec §6) - the button stays disabled.";
 
   return (
     // The shell supplies .container. Prose gets a measure; the baseline table
@@ -79,7 +79,7 @@ export function ValidationTab() {
           <p className="caveat caveat-warn" data-testid="single-class-warning" data-anchor="validation.singleClassWarning">
             <strong>Single-class:</strong> ARBITER committed on only one label, so this balanced accuracy is
             half a substituted 0.5. It must not be quoted as an accuracy. Coverage is the finding, and it is
-            about how thin the evidence is rather than about the streams disagreeing — see the stream table
+            about how thin the evidence is rather than about the streams disagreeing - see the stream table
             below, and About for the three causes.
           </p>
         )}
