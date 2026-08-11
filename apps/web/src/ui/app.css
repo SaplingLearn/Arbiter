@@ -25,10 +25,11 @@
 .skip-link {
   position: fixed; top: -100px; left: var(--s4); z-index: 20;
   padding: var(--s2) var(--s4);
-  background: var(--canvas); color: var(--ink);
-  border: 1px solid var(--hairline); border-radius: var(--radius-sm);
+  background: var(--white); color: var(--ink);
+  /* Full-weight ink, not a hairline: BLUEPRINT has no shadows, so a thing that
+     floats over the page is separated by its border or by nothing at all. */
+  border: 1px solid var(--ink); border-radius: 0;
   font-size: var(--t-small); font-weight: 600; text-decoration: none;
-  box-shadow: var(--lift);
 }
 .skip-link:focus { top: var(--s2); }
 
@@ -39,27 +40,65 @@
 .nav {
   display: flex; align-items: baseline; gap: var(--s5);
   padding: var(--s3) var(--s5);
-  background: var(--deep);
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 10;
 }
 .nav-brand {
-  font-family: var(--serif);
-  font-size: 17px; color: #fff; letter-spacing: 0.01em;
+  display: inline-flex; align-items: center; gap: var(--s2);
+  font-family: var(--display);
+  font-size: 17px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em;
   margin-right: var(--s2); text-decoration: none;
 }
-.nav-brand span { color: #93A6E8; }
+/* :not(.mark), because the mark is a span too and would otherwise be recoloured
+   to --ink-3 - which would silently turn the blue quorum grey. */
+.nav-brand span:not(.mark) { color: var(--ink-3); font-weight: 400; }
+/* Mono UPPERCASE at 12px/.08em: BLUEPRINT's utility voice, and the same treatment
+   the landing page's nav rail uses, so the two chromes read as one product. */
 .nav a:not(.nav-brand) {
-  color: #B9C6EE; text-decoration: none;
-  font-size: var(--t-small); letter-spacing: 0.02em;
+  color: var(--ink-2); text-decoration: none;
+  font-family: var(--mono);
+  font-size: var(--t-label); letter-spacing: 0.08em; text-transform: uppercase;
   padding: var(--s1) 0;
   border-bottom: 2px solid transparent;
   transition: color var(--speed) ease, border-color var(--speed) ease;
 }
-.nav a:not(.nav-brand):hover { color: #fff; }
+.nav a:not(.nav-brand):hover { color: var(--ink); }
 /* Current page is marked by a rule AND a colour change, never colour alone. */
-.nav a[aria-current="page"] { color: #fff; border-bottom-color: #fff; }
+.nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--ink); }
 .nav-right { margin-left: auto; display: flex; gap: var(--s4); align-items: baseline; }
-.nav-hint { color: #8FA2DE; font-size: var(--t-label); }
+.nav-hint { color: var(--ink-3); font-family: var(--mono); font-size: var(--t-label); }
+
+/* The way out. Same mono utility voice as the tab links, but carrying a border so it
+   reads as a control leaving the app rather than as a seventh tab within it. */
+.nav-back {
+  font-family: var(--mono);
+  font-size: var(--t-label); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-2); text-decoration: none;
+  padding: var(--s1) var(--s2);
+  border: 1px solid var(--hairline);
+  transition: background-color var(--speed) ease, border-color var(--speed) ease, color var(--speed) ease;
+}
+.nav-back:hover { background: var(--surface-2); border-color: var(--ink-3); color: var(--ink); }
+
+/* The mark. Four squares on a 2x2 grid, one at 40% and the bottom-right inset a
+   pixel, so it reads as a panel that has not quite agreed with itself - which is
+   the product. Identical construction to the landing page's, one size down. */
+.mark { position: relative; display: inline-block; width: 16px; height: 16px; flex-shrink: 0; }
+.mark i { position: absolute; width: 6.5px; height: 6.5px; background: var(--blue); }
+.mark i:nth-child(1) { top: 0; left: 0; }
+.mark i:nth-child(2) { top: 0; right: 0; opacity: 0.4; }
+.mark i:nth-child(3) { bottom: 0; left: 0; }
+.mark i:nth-child(4) { bottom: 0; right: 1px; }
+
+/* The hatched band. On the landing page it is the rest between major sections; on
+   a dense evidence screen there is no room for page-level rests, so it appears
+   exactly once - as the boundary between the app chrome and the argument. */
+.hatch-band {
+  height: 10px;
+  background: repeating-linear-gradient(45deg, transparent 0 10px, var(--line) 10px 11px);
+  border-bottom: 1px solid var(--line);
+}
 
 .main { flex: 1; }
 .container { max-width: 1180px; margin: 0 auto; padding: var(--s6) var(--s5) var(--s8); }
@@ -69,24 +108,27 @@
 
 /* ---------- type ---------- */
 
+/* BLUEPRINT sets display type at 500, not 400: the grotesque is doing the work a
+   book face used to, and at 400 a 34px heading reads as body text that got big. */
 .display {
-  font-family: var(--serif);
-  font-size: var(--t-display); font-weight: 400;
+  font-family: var(--display);
+  font-size: var(--t-display); font-weight: 500;
   letter-spacing: -0.02em; line-height: 1.12;
   margin: 0 0 var(--s2); text-wrap: balance;
 }
 .title {
-  font-family: var(--serif);
-  font-size: var(--t-title); font-weight: 400;
+  font-family: var(--display);
+  font-size: var(--t-title); font-weight: 500;
   letter-spacing: -0.01em; line-height: 1.25;
   margin: 0 0 var(--s3);
 }
-/* Section markers. Small caps rather than another heading level, so the serif
-   display sizes stay reserved for things that are actually titles. */
+/* Section markers, in BLUEPRINT's utility voice: mono UPPERCASE at .08em. Not
+   another heading level, so the display sizes stay reserved for actual titles. */
 .label {
-  font-size: var(--t-label); font-weight: 600;
-  letter-spacing: 0.09em; text-transform: uppercase;
-  color: var(--muted); margin: 0 0 var(--s3);
+  font-family: var(--mono);
+  font-size: var(--t-label); font-weight: 400;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-3); margin: 0 0 var(--s3);
 }
 .lede { font-size: 17px; line-height: 1.6; color: var(--ink); margin: 0 0 var(--s4); }
 .muted { color: var(--muted); }
@@ -110,9 +152,9 @@
 .stack > * + * { margin-top: var(--s4); }
 .row { display: flex; gap: var(--s4); align-items: baseline; flex-wrap: wrap; }
 
-/* Panels are defined by a hairline and a tint, not a border-plus-shadow card.
-   Elevation is reserved for things that genuinely float, which is the pre-flight
-   panel and nothing else. */
+/* BLUEPRINT: cells, not cards. A hairline and a flat tint, square corners, zero
+   elevation. Emphasis anywhere in this app is a --surface-2 fill and never a
+   shadow. */
 .panel {
   background: var(--surface);
   border: 1px solid var(--hairline);
@@ -120,15 +162,36 @@
   padding: var(--s5);
 }
 .panel-flat { background: transparent; border: 0; border-top: 1px solid var(--hairline); border-radius: 0; padding: var(--s5) 0 0; }
-.floating { box-shadow: var(--lift); border-radius: var(--radius); }
+/* The one surface that genuinely floats. It is separated by a full-weight ink
+   border and an opaque paper fill rather than by --lift, which BLUEPRINT sets to
+   `none` - a drop shadow is the single most off-system thing this app could do. */
+.floating {
+  background: var(--white);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+}
+
+/* Registration ticks. A "+" sitting ON a corner, half on each side, marking where
+   two rules cross. Decorative and aria-hidden at the call site; used on the panels
+   that are the argument rather than on every box, or it reads as dirt. */
+.ticked { position: relative; }
+.ticked::before,
+.ticked::after {
+  content: "+";
+  position: absolute; top: 0;
+  font: 12px/1 var(--mono); color: var(--tick);
+  pointer-events: none;
+}
+.ticked::before { left: 0; transform: translate(-50%, -50%); }
+.ticked::after { right: 0; transform: translate(50%, -50%); }
 
 /* ---------- data ---------- */
 
 .table { width: 100%; border-collapse: collapse; font-size: var(--t-small); }
 .table th {
-  text-align: left; font-size: var(--t-label); font-weight: 600;
-  letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted);
-  padding: 0 var(--s3) var(--s2) 0; border-bottom: 1px solid var(--hairline);
+  text-align: left; font-family: var(--mono); font-size: var(--t-label); font-weight: 400;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
+  padding: 0 var(--s3) var(--s2) 0; border-bottom: 1px solid var(--ink);
   white-space: nowrap;
 }
 .table td { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--hairline-soft); }
@@ -138,43 +201,50 @@
 
 /* Definition pairs - "belief 0.090", "gap 0.910". */
 .kv { display: flex; gap: var(--s2); align-items: baseline; }
-.kv dt { font-size: var(--t-label); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.kv dt { font-family: var(--mono); font-size: var(--t-label); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin: 0; }
 .kv dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; }
 
 /* ---------- controls ---------- */
 
+/* Square corners and BLUEPRINT's mono UPPERCASE button voice. The landing page's
+   corner brackets are deliberately NOT brought across: they need 6px of clear
+   space on all four sides, and this app puts buttons inside table rows and inline
+   with fields, where the brackets would collide with the next control. */
 .btn {
-  font: inherit; font-size: var(--t-small); font-weight: 600;
+  font-family: var(--mono); font-size: var(--t-label); font-weight: 400;
+  letter-spacing: 0.08em; text-transform: uppercase;
   padding: var(--s2) var(--s4);
-  border: 1px solid var(--hairline); border-radius: var(--radius-sm);
-  background: var(--canvas); color: var(--ink); cursor: pointer;
-  transition: background-color var(--speed) ease, border-color var(--speed) ease, transform var(--speed) ease;
+  border: 1px solid var(--hairline); border-radius: 0;
+  background: var(--white); color: var(--ink); cursor: pointer;
+  transition: background-color var(--speed) ease, border-color var(--speed) ease, filter var(--speed) ease, transform var(--speed) ease;
 }
-.btn:hover:not(:disabled) { background: var(--surface); border-color: var(--muted); }
+.btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--ink-3); }
 /* Physical press. 1px, because more reads as a toy. */
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-primary { background: var(--pfizer-blue); border-color: var(--pfizer-blue); color: #fff; }
-.btn-primary:hover:not(:disabled) { background: #0000A6; border-color: #0000A6; }
+/* Darken by filter rather than by a second hardcoded blue, so re-theming the one
+   accent stays a one-line change. Matches the landing page's CTA hover exactly. */
+.btn-primary:hover:not(:disabled) { background: var(--pfizer-blue); border-color: var(--pfizer-blue); filter: brightness(0.94); }
 .btn-ghost { border-color: transparent; background: transparent; color: var(--muted); }
 .btn-ghost:hover:not(:disabled) { color: var(--ink); background: var(--surface); }
 
 .field {
   font: inherit; font-size: var(--t-small);
   padding: var(--s2) var(--s3);
-  border: 1px solid var(--hairline); border-radius: var(--radius-sm);
-  background: var(--canvas); color: var(--ink);
+  border: 1px solid var(--hairline); border-radius: 0;
+  background: var(--white); color: var(--ink);
   transition: border-color var(--speed) ease;
 }
-.field:hover { border-color: var(--muted); }
+.field:hover { border-color: var(--ink-3); }
 
 input[type="range"] { accent-color: var(--pfizer-blue); cursor: pointer; }
 
 /* ---------- semantics ---------- */
 
 .verdict {
-  font-family: var(--serif);
-  font-size: var(--t-verdict); font-weight: 400;
+  font-family: var(--display);
+  font-size: var(--t-verdict); font-weight: 500;
   letter-spacing: -0.01em; line-height: 1.1;
 }
 /* Colour is never the sole carrier - each verdict also has its own word, and
@@ -206,9 +276,10 @@ input[type="range"] { accent-color: var(--pfizer-blue); cursor: pointer; }
    field value, which is what these are. */
 .chip {
   display: inline-block;
-  font-size: var(--t-label); font-weight: 600; letter-spacing: 0.04em;
+  font-family: var(--mono);
+  font-size: var(--t-label); font-weight: 400; letter-spacing: 0.04em;
   padding: 2px var(--s2); border-radius: var(--radius-sm);
-  background: var(--surface); color: var(--muted); border: 1px solid var(--hairline);
+  background: var(--surface); color: var(--ink-2); border: 1px solid var(--hairline);
 }
 .chip-fired { background: var(--pfizer-blue); border-color: var(--pfizer-blue); color: #fff; }
 
@@ -220,7 +291,10 @@ input[type="range"] { accent-color: var(--pfizer-blue); cursor: pointer; }
    deliberately not centred under it. */
 .hero-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--s7); align-items: end; }
 .figure { border-left: 2px solid var(--pfizer-blue); padding-left: var(--s4); }
-.figure-n { font-family: var(--serif); font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums; }
+/* Mono, not the display face. BLUEPRINT sets every measured figure in the utility
+   face - the landing page's stat cells do the same - so a number always reads as
+   something that came out of a run rather than as a headline. */
+.figure-n { font-family: var(--mono); font-size: 40px; font-weight: 400; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 .figure-cap { font-size: var(--t-small); color: var(--muted); margin-top: var(--s2); }
 
 /* Two columns, offset - not three equal cards. */
@@ -243,8 +317,8 @@ input[type="range"] { accent-color: var(--pfizer-blue); cursor: pointer; }
 /* A heading one step below .title. Six rule cards at title size would compete
    with the page's own name, so the card headings get their own size. */
 .subtitle {
-  font-family: var(--serif);
-  font-size: 17px; font-weight: 400; line-height: 1.3;
+  font-family: var(--display);
+  font-size: 17px; font-weight: 500; line-height: 1.3;
   margin: var(--s5) 0 var(--s3);
 }
 
@@ -319,6 +393,54 @@ input[type="range"] { accent-color: var(--pfizer-blue); cursor: pointer; }
    even though its data-ok reads "false". */
 .check[data-tone="note"] { color: var(--muted); font-weight: 600; }
 
+/* ---------- guide characters ---------- */
+
+/* The faces are line art in currentColor, so they take the ink of whatever they sit
+   in. --face-fill is the paper showing through the line work; it is the SURFACE the
+   face is on, not always white, or a face on a tinted strip reads as a sticker. */
+.character {
+  display: inline-block;
+  flex: none;
+  --face-fill: var(--surface);
+  /* Barely there, and on purpose: it is the difference between a diagram and
+     something paying attention. `M` and prefers-reduced-motion both kill it through
+     the blanket rule in motion.css. */
+  animation: arb-character-bob 3.2s ease-in-out infinite;
+}
+.character svg {
+  display: block;
+  overflow: visible;
+}
+
+@keyframes arb-character-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+/* One line of orientation above each tab's own heading. A hairline underneath and
+   nothing else - it introduces the screen, it is not a panel competing with it. */
+.guide {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: 0 0 var(--s4);
+  margin-bottom: var(--s5);
+  border-bottom: 1px solid var(--hairline);
+}
+.guide-line {
+  margin: 0;
+  font-size: var(--t-body);
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: var(--measure);
+}
+
+/* On the beat bar the face sits on --surface already, so it needs no override; it is
+   nudged down a hair to sit on the title's optical centre rather than its box. */
+.beat-face {
+  align-self: center;
+}
+
 /* ---------- tour ---------- */
 
 .beat-bar {
@@ -327,7 +449,7 @@ input[type="range"] { accent-color: var(--pfizer-blue); cursor: pointer; }
   padding: var(--s3) var(--s5);
   background: var(--surface); border-top: 1px solid var(--hairline);
 }
-.beat-title { font-family: var(--serif); font-size: 17px; font-weight: 400; }
+.beat-title { font-family: var(--display); font-size: 17px; font-weight: 500; }
 .beat-motion { margin-left: auto; }
 
 /* ---------- landing: figures, key hints, narrow tables ----------
