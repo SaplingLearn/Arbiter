@@ -102,6 +102,11 @@ export function stubComplete(req: AdjudicateRequest): Complete {
       reasoning: "STUB - no model was called. This is not a result.",
       citedFindingIds: req.findings.map((f) => f.id),
     },
+    // `Complete` returns `unknown`, so tsc cannot see a field missing from this object
+    // the way it saw it in the typed test fixture. Omitting it would have been a
+    // runtime TypeError inside verifyAdjudication rather than a compile error - which
+    // is exactly the kind of failure a stub exists to catch before a model does.
+    consequenceBasis: [],
     ruleDisclosure: req.rules.map((r) => ({
       ruleId: r.id,
       position: "does_not_apply" as const,
