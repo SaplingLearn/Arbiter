@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type AskAnswer, type BlindView, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
+import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
 
 /**
  * The screens of the deliberation, in the order §3.5 fixes them:
@@ -707,98 +707,6 @@ export function Audit({ audit, nameOf }: {
           </tbody>
         </table>
       </div>
-    </section>
-  );
-}
-
-
-/** ----------------------------------------------------------------------- ask */
-/**
- * A question about the case documents, answered only from them.
- *
- * WHY THIS IS NOT A CHAT WINDOW. There is no conversation history sent to the model
- * and no follow-up context: each question is retrieved for and answered on its own.
- * A thread would let an answer rest on an earlier answer rather than on a page, and
- * the whole claim of this surface is that every sentence traces to a document a
- * reader can open. Turns are kept on screen so you can compare them; they are not
- * kept in the prompt.
- *
- * THE UNANSWERABLE CASE IS RENDERED DIFFERENTLY ON PURPOSE. Spec 3.2 - "not measured"
- * and "measured negative" must never render alike - applies to a question as much as
- * to a checklist. An answer the documents do not support gets its own treatment
- * rather than a paragraph that reads like every other paragraph.
- */
-export function Ask({ onAsk }: {
-  onAsk: (question: string) => Promise<AskAnswer>;
-}): ReactElement {
-  const [question, setQuestion] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [turns, setTurns] = useState<{ question: string; answer: AskAnswer }[]>([]);
-
-  const submit = async (): Promise<void> => {
-    const q = question.trim();
-    if (q === "" || busy) return;
-    setBusy(true); setError(null);
-    try {
-      const answer = await onAsk(q);
-      setTurns((t) => [{ question: q, answer }, ...t]);
-      setQuestion("");
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "The question could not be answered just now.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <section className="stack">
-      <h2>Ask the documents</h2>
-      <div className="note">
-        Answers come only from the PDFs uploaded to this case, and every claim names the
-        page it rests on. This reports what the documents say - it does not judge the
-        compound, and it will not tell you whether to advance. That is the panel's to
-        state and the adjudication's to weigh.
-      </div>
-
-      <div className="field">
-        <label htmlFor="ask">Your question</label>
-        <textarea id="ask" rows={3} value={question} disabled={busy}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="What exposure margin does the report give, and on what basis?" />
-        <span className="hint">
-          Name the study, finding or number you are looking for - the search is over the
-          words on the page.
-        </span>
-      </div>
-      <div className="btn-row">
-        <button className="primary" disabled={busy || question.trim() === ""} onClick={() => void submit()}>
-          {busy ? "Reading the documents..." : "Ask"}
-        </button>
-      </div>
-      {error !== null && <div className="err">{error}</div>}
-
-      {turns.map((t, i) => (
-        <div className="panel" key={`${i}-${t.question}`}>
-          <p className="small muted">{t.question}</p>
-          {t.answer.answerable
-            ? <>
-                <p>{t.answer.answer}</p>
-                <div className="inv">
-                  {t.answer.citations.map((c) => (
-                    <div className="inv-row" key={`${c.documentId}-${c.page}`}>
-                      <div className="state present">p.{c.page}</div>
-                      <div className="tiny mono">{c.filename}</div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            : <>
-                <p><strong>The documents do not answer this.</strong></p>
-                <p className="muted">{t.answer.answer}</p>
-              </>}
-        </div>
-      ))}
     </section>
   );
 }

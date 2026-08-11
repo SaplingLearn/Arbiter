@@ -173,6 +173,34 @@ async function call<T>(method: string, path: string, token: string | null, body?
   return parsed as T;
 }
 
+/**
+ * The document upload, which cannot go through `call` because the body is bytes
+ * rather than JSON.
+ *
+ * ONE COPY, and it was two. App.tsx inlined this fetch and NewCasePage was about to
+ * inline it again - a second copy of a request shape that carries an auth header and
+ * a filename, where a divergence would show up as uploads that work from one screen
+ * and fail from the other.
+ */
+export async function uploadDocument(token: string, caseId: string, file: File): Promise<void> {
+  const res = await fetch(`/api/cases/${caseId}/documents`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/pdf",
+      "x-filename": file.name,
+      authorization: `Bearer ${token}`,
+    },
+    body: await file.arrayBuffer(),
+  });
+  const body = await res.json().catch(() => ({})) as { detail?: string; error?: string };
+  if (!res.ok) {
+    // `detail` is the measurement a refused document carries - "48 pages, 47
+    // extractable characters" - and it is the only thing that tells an uploader why
+    // their file was rejected while they still have it in front of them.
+    throw new ApiError(res.status, body.error ?? "upload_failed", body.detail ?? `Upload failed (${res.status}).`);
+  }
+}
+
 export const api = {
   register: (email: string, displayName: string, password: string) =>
     call<Person>("POST", "/api/auth/register", null, { email, displayName, password }),
@@ -247,8 +275,9 @@ export const api = {
   adjudicate: (token: string, caseId: string, at: string) =>
     call<{ adjudication: Adjudication; source: "stub" | "live" }>("POST", `/api/cases/${caseId}/adjudicate`, token, { at }),
 
-  ask: (token: string, caseId: string, question: string) =>
-    call<AskAnswer>("POST", `/api/cases/${caseId}/ask`, token, { question }),
+  ask: (token: string, caseId: string, question: string,
+        history: { question: string; answer: string }[] = []) =>
+    call<AskAnswer>("POST", `/api/cases/${caseId}/ask`, token, { question, history }),
 
   adjudicationRequest: (token: string, caseId: string) =>
     call<{ findings: Finding[]; absent: { field: string; whatItBlocks: string }[] }>("GET", `/api/cases/${caseId}/adjudication-request`, token),

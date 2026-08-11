@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactElement } from "react";
 import { PageHead, Section } from "./Layout.js";
 import { href } from "./router.js";
-import { api, ApiError, type CaseListing, type CaseSummary, type Person } from "./api.js";
+import { api, ApiError, uploadDocument, type AskAnswer, type CaseListing, type CaseSummary, type Person } from "./api.js";
 
 /**
  * The composition pages: authentication, the dashboard, case creation, and the
@@ -268,6 +268,11 @@ export function NewCasePage({ token, people, onCreated }: {
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [rejected, setRejected] = useState<{ name: string; why: string }[]>([]);
+  // Held so the "continue anyway" button after a refusal knows where to go.
+  const [createdId, setCreatedId] = useState("");
 
   const toggle = (email: string): void =>
     setSelected((s) => (s.includes(email) ? s.filter((x) => x !== email) : [...s, email]));
@@ -280,6 +285,37 @@ export function NewCasePage({ token, people, onCreated }: {
       const r = await api.createCase(token, {
         compoundLabel, context, modality, participantEmails: selected,
       });
+
+      // UPLOADED AFTER THE CASE EXISTS, because a document belongs to a case and there
+      // is nowhere to put one before. The case is already open at this point, so a
+      // refused PDF is not a lost case - it is a case with one fewer document, and the
+      // reader is told which and why rather than being bounced back to an empty form.
+      //
+      // SEQUENTIAL, not Promise.all. Each upload is up to 80 MB and every one runs
+      // measure_pdf.py server-side; firing five at once buys nothing and makes the
+      // failure ambiguous when one of them is the scanned document.
+      setCreatedId(r.case.caseId);
+      const refusals: { name: string; why: string }[] = [];
+      for (const f of files) {
+        setUploading(f.name);
+        try {
+          await uploadDocument(token, r.case.caseId, f);
+        } catch (err) {
+          refusals.push({ name: f.name, why: err instanceof ApiError ? err.message : String(err) });
+        }
+      }
+      setUploading(null);
+
+      // A refusal HOLDS THE SCREEN rather than navigating past it. Two of the first
+      // five documents collected for this project were unusable and neither failure
+      // was visible without measuring - a message that flashes past on the way to the
+      // case tab is a measurement nobody reads.
+      if (refusals.length > 0) {
+        setRejected(refusals);
+        setBusy(false);
+        return;
+      }
+
       onCreated(r.case.caseId);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
@@ -292,7 +328,7 @@ export function NewCasePage({ token, people, onCreated }: {
       <PageHead
         crumb={<><a href={href({ name: "dashboard" })}>Dashboard</a><span>›</span><span>New case</span></>}
         title="Open a case"
-        lede="Name the compound and the people who will answer. You will add the evidence next."
+        lede="Name the compound, the people who will answer, and the study documents. You can add more evidence afterwards."
       />
 
       <form onSubmit={(e) => { void submit(e); }} style={{ maxWidth: 720 }}>
@@ -352,6 +388,34 @@ export function NewCasePage({ token, people, onCreated }: {
             ))}
         </div>
 
+        {/* Documents, uploaded once the case exists - see `submit`. Optional here
+            because a case can be opened before the package arrives, and forcing a PDF
+            at this step would push people to open the case elsewhere and never come
+            back. */}
+        <div className="panel" style={{ marginTop: 24 }}>
+          <div className="field">
+            <label htmlFor="new-docs">Study documents (PDF)</label>
+            <input id="new-docs" type="file" accept="application/pdf,.pdf" multiple disabled={busy}
+              onChange={(e) => setFiles([...(e.target.files ?? [])])} />
+            <span className="hint">
+              Every document is measured before it is accepted. A scanned file with no
+              extractable text is refused rather than stored as though it were readable.
+              You can add more later.
+            </span>
+          </div>
+          {files.length > 0 && (
+            <div className="inv">
+              {files.map((f) => (
+                <div className="inv-row" key={f.name}>
+                  <div className="state present">{Math.round(f.size / 1024 / 1024 * 10) / 10} MB</div>
+                  <div className="tiny mono">{f.name}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {uploading !== null && <div className="note">Uploading and measuring {uploading}…</div>}
+        </div>
+
         <div className="btn-row">
           <button className="primary" type="submit" disabled={busy || compoundLabel.trim() === "" || selected.length === 0}>
             {busy ? "Opening…" : "Open case"}
@@ -360,6 +424,27 @@ export function NewCasePage({ token, people, onCreated }: {
         </div>
         {selected.length === 0 && <div className="hint">Pick at least one person. One person deciding alone does not need this.</div>}
         {error !== null && <div className="err">{error}</div>}
+
+        {/* A refused document HOLDS THE SCREEN. The case is already open at this point,
+            so this is not a lost case - it is a case with one fewer document, and the
+            measurement is the only thing that tells an uploader why while they still
+            have the file. Two of the first five documents collected for this project
+            were unusable and neither failure was visible without measuring. */}
+        {rejected.length > 0 && (
+          <div className="panel" style={{ marginTop: 16 }}>
+            <p><strong>The case is open. These documents were refused:</strong></p>
+            {rejected.map((r) => (
+              <p className="small" key={r.name}>
+                <span className="mono">{r.name}</span> - {r.why}
+              </p>
+            ))}
+            <div className="btn-row">
+              <button className="primary" type="button" onClick={() => onCreated(createdId)}>
+                Continue to the case
+              </button>
+            </div>
+          </div>
+        )}
       </form>
     </>
   );
@@ -469,6 +554,157 @@ export function MethodPage(): ReactElement {
           </div>
         </Section>
       </div>
+    </>
+  );
+}
+
+
+/** ------------------------------------------------------------------- ask */
+/**
+ * Ask the documents. A search over one case's PDFs and a conversation about what
+ * they say.
+ *
+ * WHY THIS IS NOT INSIDE A CASE. The case tab strip is a sequence - inventory, your
+ * position, reveal, sign - and section 3.5 makes that order the information
+ * architecture, because reading somebody else's call before writing your own is the
+ * failure blind submission prevents. Asking what a document SAYS is not a step in that
+ * sequence. It is a fact about the folder, which section 3.1 puts before positions
+ * rather than after, and the same question is often asked across cases.
+ *
+ * FOLLOW-UPS ARE REAL, WITH A LIMIT. Prior turns are sent so "what about the second
+ * one" resolves to something, but they are sent as CONTEXT FOR THE QUESTION, never as
+ * evidence: passages are retrieved fresh for every turn and every claim must still
+ * cite one. An answer may not rest on an earlier answer, because an earlier answer is
+ * not a document.
+ */
+const SUGGESTED = [
+  "What exposure margin does the report give, and on what basis?",
+  "What NOAEL was set, and in which study?",
+  "What liver findings are reported, and at what doses?",
+  "Which studies included a recovery or reversibility phase?",
+  "What histopathology is described in the repeat-dose studies?",
+  "What does the report say was not investigated?",
+];
+
+export function AskPage({ token, cases }: {
+  token: string;
+  cases: CaseListing[];
+}): ReactElement {
+  const [caseId, setCaseId] = useState(cases[0]?.caseId ?? "");
+  const [question, setQuestion] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [turns, setTurns] = useState<{ question: string; answer: AskAnswer }[]>([]);
+
+  // Turns belong to the case they were asked of. Carrying them across a case change
+  // would put one compound's answers under another's name on screen, and would feed
+  // them back as context for a question about a different folder.
+  const pick = (id: string): void => { setCaseId(id); setTurns([]); setError(null); };
+
+  const send = async (q: string): Promise<void> => {
+    const text = q.trim();
+    if (text === "" || busy || caseId === "") return;
+    setBusy(true); setError(null);
+    try {
+      const history = turns.slice(0, 4).reverse()
+        .map((t) => ({ question: t.question, answer: t.answer.answer }));
+      const answer = await api.ask(token, caseId, text, history);
+      setTurns((t) => [{ question: text, answer }, ...t]);
+      setQuestion("");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "That question could not be answered just now.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (cases.length === 0) {
+    return (
+      <>
+        <PageHead crumb={<span>Ask</span>} title="Ask the documents"
+          lede="Answers come only from the PDFs uploaded to a case." />
+        <div className="empty">
+          <h3>No cases yet</h3>
+          <p className="muted">Open a case and upload its study documents, and you can ask about them here.</p>
+          <a href={href({ name: "new" })}><button className="primary">Open a case</button></a>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHead crumb={<span>Ask</span>} title="Ask the documents"
+        lede="Every answer comes from the uploaded PDFs and names the page it rests on." />
+
+      <div className="panel">
+        <div className="field">
+          <label htmlFor="ask-case">Which case</label>
+          <select id="ask-case" value={caseId} onChange={(e) => pick(e.target.value)} disabled={busy}>
+            {cases.map((c) => (
+              <option key={c.caseId} value={c.caseId}>{c.compoundLabel}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="field">
+          <label htmlFor="ask-suggested">Common questions</label>
+          <select id="ask-suggested" value="" disabled={busy}
+            onChange={(e) => { if (e.target.value !== "") void send(e.target.value); }}>
+            <option value="">Pick a question, or write your own below</option>
+            {SUGGESTED.map((q) => <option key={q} value={q}>{q}</option>)}
+          </select>
+        </div>
+
+        <div className="field">
+          <label htmlFor="ask-q">Your question</label>
+          <textarea id="ask-q" rows={3} value={question} disabled={busy}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void send(question); }}
+            placeholder="What exposure margin does the report give, and on what basis?" />
+          <span className="hint">
+            The search is over the words on the page, so naming the study, finding or
+            number you want helps. Ctrl+Enter sends.
+          </span>
+        </div>
+        <div className="btn-row">
+          <button className="primary" disabled={busy || question.trim() === ""} onClick={() => void send(question)}>
+            {busy ? "Reading the documents..." : "Ask"}
+          </button>
+          {turns.length > 0 && (
+            <button className="ghost" disabled={busy} onClick={() => setTurns([])}>Clear</button>
+          )}
+        </div>
+        {error !== null && <div className="err">{error}</div>}
+      </div>
+
+      <div className="note">
+        This reports what the documents say. It does not judge the compound and will not
+        tell you whether to advance - that is the panel's to state and the adjudication's
+        to weigh. Nothing asked here is written to the case record.
+      </div>
+
+      {turns.map((t, i) => (
+        <div className="panel" key={`${turns.length - i}-${t.question}`}>
+          <p className="small muted">{t.question}</p>
+          {t.answer.answerable
+            ? <>
+                <p>{t.answer.answer}</p>
+                <div className="inv">
+                  {t.answer.citations.map((c) => (
+                    <div className="inv-row" key={`${c.documentId}-${c.page}`}>
+                      <div className="state present">p.{c.page}</div>
+                      <div className="tiny mono">{c.filename}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            : <>
+                <p><strong>The documents do not answer this.</strong></p>
+                <p className="muted">{t.answer.answer}</p>
+              </>}
+        </div>
+      ))}
     </>
   );
 }

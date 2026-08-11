@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import {
-  api, ApiError,
+  api, ApiError, uploadDocument,
   type Adjudication, type AuditResult, type BlindView, type CaseListing,
   type CaseSummary, type Finding, type Inventory, type Person, type Refusal,
   type Roster, type StoredDocument, type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
-import { AuthPage, Dashboard, LibraryPage, MethodPage, NewCasePage } from "./pages.js";
+import { AskPage, AuthPage, Dashboard, LibraryPage, MethodPage, NewCasePage } from "./pages.js";
 import {
   Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
-  Ask, Refused, Reveal, RosterPanel, Verdict, Waiting,
+  Refused, Reveal, RosterPanel, Verdict, Waiting,
 } from "./screens.js";
 import { caseIdOf, href, navigate, parseHash, type Route } from "./router.js";
 import "./app.css";
@@ -183,13 +183,7 @@ export function App(): ReactElement {
     setUploadError(null);
     void (async () => {
       try {
-        const res = await fetch(`/api/cases/${caseId}/documents`, {
-          method: "POST",
-          headers: { "content-type": "application/pdf", "x-filename": file.name, authorization: `Bearer ${token}` },
-          body: await file.arrayBuffer(),
-        });
-        const body = await res.json() as { detail?: string; error?: string };
-        if (!res.ok) setUploadError(body.detail ?? `Upload failed: ${body.error ?? res.status}`);
+        await uploadDocument(token, caseId, file);
         setDocs(await api.documents(token, caseId));
       } catch (e) {
         setUploadError(e instanceof Error ? e.message : String(e));
@@ -226,6 +220,9 @@ export function App(): ReactElement {
         <NewCasePage token={token} people={people.filter((p) => p.id !== me.id)}
           onCreated={(id) => { void loadMine(token); navigate({ name: "case", caseId: id }); }} />,
       );
+
+    case "ask":
+      return shell(<AskPage token={token} cases={mine} />);
 
     case "cases":
       return shell(<LibraryPage catalogue={catalogue} onOpen={openPrepared} busy={opening} />);
@@ -314,12 +311,6 @@ export function App(): ReactElement {
             onReveal={(mode) => act(() => api.reveal(token, caseId, mode, new Date().toISOString()))} />
         : <PositionForm token={token} caseId={caseId} findings={findings}
             onDone={() => { void loadCase(token, caseId); void loadMine(token); }} />,
-    );
-  }
-
-  if (route.name === "ask") {
-    return caseShell(
-      <Ask onAsk={(q) => api.ask(token, caseId, q)} />,
     );
   }
 

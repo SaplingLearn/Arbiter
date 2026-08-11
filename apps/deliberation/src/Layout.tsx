@@ -25,6 +25,10 @@ export function Layout({ route, me, onSignOut, children }: {
     { label: "Dashboard", to: { name: "dashboard" } },
     { label: "New case", to: { name: "new" } },
     { label: "Library", to: { name: "cases" } },
+    // Top-level, not a case tab. The tab strip is a SEQUENCE - 3.5: "the workflow is
+    // the information architecture" - and asking what a document says is not a step in
+    // it. The same question is often asked across cases.
+    { label: "Ask", to: { name: "ask" } },
     { label: "Method", to: { name: "method" } },
   ];
 
@@ -137,12 +141,6 @@ export function Steps({ caseId, route, revealed, answered, of }: {
       label: "Reveal & verdict", to: { name: "reveal", caseId }, enabled: revealed,
       why: "Opens once everyone has answered",
     },
-    // Always enabled, and deliberately so. Asking what a document SAYS is a fact
-    // about the folder, which spec 3.1 puts before positions rather than after -
-    // "withholding the inventory does not produce independent judgement, it
-    // produces uninformed judgement". The answering prompt is what refuses a
-    // verdict; the tab does not need to be locked to keep that line.
-    { label: "Ask", to: { name: "ask", caseId }, enabled: true },
     { label: "Record", to: { name: "record", caseId }, enabled: true },
   ];
 

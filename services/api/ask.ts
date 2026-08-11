@@ -32,6 +32,8 @@ import type { Passage } from "./retrieval.js";
 
 export interface AskRequest {
   question: string;
+  /** Earlier turns, oldest first. Context for reading the QUESTION, never evidence. */
+  history?: { question: string; answer: string }[];
 }
 
 export interface Answer {
@@ -69,6 +71,11 @@ export const SYSTEM = [
   "If asked one, say that it is not a question about the documents, and report what the",
   "documents do contain on the subject.",
   "",
+  "EARLIER TURNS ARE NOT EVIDENCE. Anything under EARLIER IN THIS CONVERSATION is there",
+  "so you can tell what the question refers to. You may not cite it and you may not",
+  "treat a previous answer as established - if a claim is not in the passages below, it",
+  "is not supported, however confidently it was said a moment ago.",
+  "",
   "NEVER CALL A COMPOUND SAFE. A study establishes the absence of a signal under the",
   "conditions tested and nothing more.",
 ].join("\n");
@@ -93,13 +100,32 @@ export function answerSchema(passages: Passage[]): Record<string, unknown> {
   };
 }
 
-export function userPrompt(question: string, passages: Passage[]): string {
+export function userPrompt(
+  question: string,
+  passages: Passage[],
+  history: { question: string; answer: string }[] = [],
+): string {
   const body = passages.length === 0
     ? "(no passages matched this question)"
     : passages
       .map((p, i) => `[${i + 1}] ${p.filename}, page ${p.page}\n${p.text.trim()}`)
       .join("\n\n---\n\n");
-  return [`QUESTION:\n${question}`, "", "PASSAGES:", body].join("\n");
+  // History is sent so a follow-up like "what about the second one" resolves to
+  // something. It is labelled as conversation rather than evidence, and the system
+  // prompt forbids citing it: an earlier answer is not a document, and a claim resting
+  // on one would be traceable to nothing a reader can open.
+  //
+  // Last four turns only. The point is to resolve a pronoun, not to carry a transcript
+  // - and every turn spent here is context not spent on the passages that must support
+  // the answer.
+  const earlier = history.length === 0
+    ? []
+    : [
+        "EARLIER IN THIS CONVERSATION (context for reading the question; NOT evidence, and not citable):",
+        ...history.slice(-4).map((t) => `Q: ${t.question}\nA: ${t.answer}`),
+        "",
+      ];
+  return [...earlier, `QUESTION:\n${question}`, "", "PASSAGES:", body].join("\n");
 }
 
 /**
@@ -140,7 +166,9 @@ export function verifyAnswer(a: Answer, passages: Passage[]): AnswerFailure[] {
 export function isAskRequest(u: unknown): u is AskRequest {
   if (typeof u !== "object" || u === null) return false;
   const b = u as Record<string, unknown>;
-  return typeof b["question"] === "string" && b["question"].trim() !== "";
+  if (typeof b["question"] !== "string" || b["question"].trim() === "") return false;
+  const h = b["history"];
+  return h === undefined || Array.isArray(h);
 }
 
 export async function handleAsk(
@@ -167,7 +195,7 @@ export async function handleAsk(
   }
 
   try {
-    const value = await complete(SYSTEM, userPrompt(rawBody.question, passages), answerSchema(passages));
+    const value = await complete(SYSTEM, userPrompt(rawBody.question, passages, rawBody.history ?? []), answerSchema(passages));
     const answer = value as Answer;
     const failures = verifyAnswer(answer, passages);
     if (failures.length > 0) return { status: 502, body: { error: "unverified", failures } };
