@@ -275,7 +275,7 @@ describe("disabled rules", () => {
 
 describe("antisymmetry", () => {
   // Cross-product over every field a defeat rule reads. For every pair drawn
-  // from it, at most one direction may be licensed as a defeat — never both.
+  // from it, at most one direction may be licensed as a defeat - never both.
   // This is the test class a "pick one rule per test" test file structurally
   // cannot express, and it is what caught the R1/R3 2-cycle.
   function* variants(): Generator<Pick<EvidenceClaim, "system" | "measuresKeyEvent" | "exposureRelevant" | "klimisch" | "stream">> {
@@ -308,7 +308,7 @@ describe("antisymmetry", () => {
         const reverse = defeats(b, a, RS);
         if (forward !== null && reverse !== null) {
           throw new Error(
-            `2-cycle: (${JSON.stringify(vi)}) vs (${JSON.stringify(vj)}) — forward=${forward.byRule}, reverse=${reverse.byRule}`,
+            `2-cycle: (${JSON.stringify(vi)}) vs (${JSON.stringify(vj)}) - forward=${forward.byRule}, reverse=${reverse.byRule}`,
           );
         }
         checked++;

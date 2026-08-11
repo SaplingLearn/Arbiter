@@ -38,7 +38,7 @@ type RuleHit = { rationale: string };
 
 /**
  * Predicates for the four pairwise defeat rules. Each is precedence-agnostic
- * — it only decides whether `attacker` beats `target` *if this rule is
+ * - it only decides whether `attacker` beats `target` *if this rule is
  * consulted at all*. Which rule gets consulted first, when more than one
  * would apply, is `ruleset.precedenceOrder` (see `bestRule`/`defeats` below).
  */
@@ -86,7 +86,7 @@ const RULE_PREDICATES: Record<DefeatRuleId, (attacker: EvidenceClaim, target: Ev
 /**
  * The highest-precedence rule (per `ruleset.precedenceOrder`) that licenses
  * `attacker` defeating `target`, or null if none applies. A disabled rule is
- * skipped entirely — never merely deprioritised — so it can still leave a
+ * skipped entirely - never merely deprioritised - so it can still leave a
  * gap that a lower-precedence rule fills.
  */
 function bestRule(
@@ -124,8 +124,8 @@ export function precedenceRank(id: RuleId, ruleset: Ruleset): number {
  * a human-relevant claim outranks an animal claim by R1, while the animal
  * claim simultaneously outranks the human claim by R3). `defeats` resolves
  * this by precedence: it computes the best rule in both directions and
- * lets the higher-precedence one win. A tie — including when the reverse
- * direction is licensed by a rule that is equal-or-better in precedence —
+ * lets the higher-precedence one win. A tie - including when the reverse
+ * direction is licensed by a rule that is equal-or-better in precedence -
  * yields NO defeat, so both claims survive into fusion and the disagreement
  * shows up as conflict mass rather than an arbitrary winner.
  *
@@ -275,7 +275,7 @@ export function relevanceDiscount(claim: EvidenceClaim, ruleset: Ruleset): Disco
  * Counting claims would reward a chatty source; counting distinct streams
  * rewards genuine independence, which is what weight-of-evidence means. But
  * counting only the majority's streams (as if the minority didn't exist)
- * would let a 2-2 split score as high as unanimity — so the boost is scaled
+ * would let a 2-2 split score as high as unanimity - so the boost is scaled
  * down by how close the split is, reaching no boost at all (1) at an exact
  * tie. `supports` reports which side the concordance favors, so a caller
  * can't accidentally apply a boost computed from one cluster to the other
