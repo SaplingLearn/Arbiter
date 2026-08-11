@@ -5,12 +5,12 @@
  * script is the working that stands behind it, for anyone who reads HANDOVER
  * section 2 and wants to re-derive rather than trust:
  *
- *   1. the coverage curve over hypothetical gap thresholds — the answer to
+ *   1. the coverage curve over hypothetical gap thresholds - the answer to
  *      "just loosen it", without anyone having to loosen it;
  *   2. claims per compound and the discount ladder that drains their weight;
  *   3. the structural ceiling, split into the two kinds of abstention.
  *
- * It calls `committedMassCeiling` — the SAME function `abstentionQuality` uses,
+ * It calls `committedMassCeiling` - the SAME function `abstentionQuality` uses,
  * deliberately imported rather than reimplemented. An earlier version of this
  * report was a standalone script that recovered discount factors by regexing
  * the trace's rationale prose, and it was wrong by 94 compounds: it credited
@@ -40,7 +40,7 @@ function main(): void {
   const pctl = (p: number) => gaps[Math.floor(p * (gaps.length - 1))]!;
 
   console.log(`registered abstentionGapThreshold: ${ruleset.abstentionGapThreshold}\n`);
-  console.log("coverage if the threshold were moved (DIAGNOSTIC — do not act on this):");
+  console.log("coverage if the threshold were moved (DIAGNOSTIC - do not act on this):");
   for (const t of [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]) {
     const c = gaps.filter((g) => g <= t).length;
     console.log(`  ${t.toFixed(2)} -> ${String(c).padStart(3)}/${n} commit (${((100 * c) / n).toFixed(1)}%)`);

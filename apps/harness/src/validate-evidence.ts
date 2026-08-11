@@ -7,7 +7,7 @@ const nClaims = [...claimsByCompound.values()].reduce((s, v) => s + v.length, 0)
  * Fixture ids that reached the benchmark population.
  *
  * Membership, not `startsWith("TAK-994")`. The prefix form was correct for exactly
- * one fixture and silently correct-looking for any other — the failure mode
+ * one fixture and silently correct-looking for any other - the failure mode
  * HANDOVER §6.4 names, where a silent empty result looks exactly like a working
  * pipeline. The list comes from `evidence.json`'s `fixtureCompoundIds`, which the
  * Python assembly layer has always emitted as a list.
