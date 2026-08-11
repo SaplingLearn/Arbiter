@@ -133,6 +133,20 @@ export function geminiComplete(
 
     const text = (candidate?.content?.parts ?? []).map((p) => p.text ?? "").join("");
     if (text === "") throw new Error("no text block");
-    return JSON.parse(text) as unknown;
+
+    // Truncation that the provider did NOT label. The check above catches an explicit
+    // MAX_TOKENS, but a response can arrive with finishReason STOP and still be cut
+    // mid-string - observed on the ask surface, where JSON.parse reported "Unterminated
+    // string in JSON at position 726" and the caller saw a bare `upstream`.
+    //
+    // That unhelpfulness is the exact defect 5501c2c named for the Anthropic path: a
+    // parse error records the parser's complaint as the run's failure, and a flip rate
+    // computed over runs that were truncated measures max_tokens rather than the model.
+    // So the condition is named here too, on the provider that can produce it silently.
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      throw new Error("truncated: max_tokens too low (unparseable under a json_schema constraint)");
+    }
   };
 }

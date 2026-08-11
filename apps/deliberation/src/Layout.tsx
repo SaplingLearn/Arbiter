@@ -137,6 +137,12 @@ export function Steps({ caseId, route, revealed, answered, of }: {
       label: "Reveal & verdict", to: { name: "reveal", caseId }, enabled: revealed,
       why: "Opens once everyone has answered",
     },
+    // Always enabled, and deliberately so. Asking what a document SAYS is a fact
+    // about the folder, which spec 3.1 puts before positions rather than after -
+    // "withholding the inventory does not produce independent judgement, it
+    // produces uninformed judgement". The answering prompt is what refuses a
+    // verdict; the tab does not need to be locked to keep that line.
+    { label: "Ask", to: { name: "ask", caseId }, enabled: true },
     { label: "Record", to: { name: "record", caseId }, enabled: true },
   ];
 

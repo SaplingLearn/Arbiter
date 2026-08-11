@@ -224,12 +224,18 @@ export const SHAPE_ADJUDICATION: CallShape = { maxOutputTokens: 16000, thinkingB
  * honest. Disabled thinking is what produced the fluent, unsupported severity claim
  * that consequenceBasis was built to catch.
  *
- * 4000 rather than adjudication's 16000: the output is a paragraph and a citation
- * list, not a per-rule disclosure. It is not the 1024 of a short call either, because
- * thinking shares the budget with the answer and a truncated answer under a
- * json_schema constraint is invalid JSON.
+ * 16000, and it was 4000 for about ten minutes. The ANSWER is a paragraph and a
+ * citation list, so 4000 looked generous - but thinking shares this budget, and the
+ * questions that need thinking most are the ones where the model has to decide the
+ * passages do not support an answer. On "should this compound advance", thinking
+ * consumed the budget and the answer was cut mid-string; JSON.parse reported
+ * "Unterminated string in JSON at position 726" and the caller saw `upstream`.
+ *
+ * That is the third time on this project that a ceiling sized for the visible output
+ * has been too small once thinking was on - measured at 512 and at 2048 before this.
+ * Size these for thinking plus answer, never for the answer.
  */
-export const SHAPE_ASK: CallShape = { maxOutputTokens: 4000, thinkingBudget: -1 };
+export const SHAPE_ASK: CallShape = { maxOutputTokens: 16000, thinkingBudget: -1 };
 
 export type CallKind = "short" | "adjudication" | "ask";
 

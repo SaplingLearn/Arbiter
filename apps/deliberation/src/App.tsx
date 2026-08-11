@@ -9,7 +9,7 @@ import { Layout, PageHead, Section, Steps } from "./Layout.js";
 import { AuthPage, Dashboard, LibraryPage, MethodPage, NewCasePage } from "./pages.js";
 import {
   Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
-  Refused, Reveal, RosterPanel, Verdict, Waiting,
+  Ask, Refused, Reveal, RosterPanel, Verdict, Waiting,
 } from "./screens.js";
 import { caseIdOf, href, navigate, parseHash, type Route } from "./router.js";
 import "./app.css";
@@ -314,6 +314,12 @@ export function App(): ReactElement {
             onReveal={(mode) => act(() => api.reveal(token, caseId, mode, new Date().toISOString()))} />
         : <PositionForm token={token} caseId={caseId} findings={findings}
             onDone={() => { void loadCase(token, caseId); void loadMine(token); }} />,
+    );
+  }
+
+  if (route.name === "ask") {
+    return caseShell(
+      <Ask onAsk={(q) => api.ask(token, caseId, q)} />,
     );
   }
 

@@ -113,6 +113,14 @@ export interface UnanimityReport {
   concerns: string[];
 }
 
+export interface AskAnswer {
+  answerable: boolean;
+  answer: string;
+  citedPassages: string[];
+  /** Resolved server-side, so the client never reconstructs provenance itself. */
+  citations: { documentId: string; filename: string; page: number }[];
+}
+
 export interface Adjudication {
   mechanism: { present: boolean; pathway: string | null; citedFindingIds: string[] };
   consequence: { verdict: string; reasoning: string; citedFindingIds: string[] };
@@ -238,6 +246,9 @@ export const api = {
 
   adjudicate: (token: string, caseId: string, at: string) =>
     call<{ adjudication: Adjudication; source: "stub" | "live" }>("POST", `/api/cases/${caseId}/adjudicate`, token, { at }),
+
+  ask: (token: string, caseId: string, question: string) =>
+    call<AskAnswer>("POST", `/api/cases/${caseId}/ask`, token, { question }),
 
   adjudicationRequest: (token: string, caseId: string) =>
     call<{ findings: Finding[]; absent: { field: string; whatItBlocks: string }[] }>("GET", `/api/cases/${caseId}/adjudication-request`, token),

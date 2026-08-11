@@ -47,7 +47,7 @@ export interface AnswerFailure {
   detail: string;
 }
 
-const SYSTEM = [
+export const SYSTEM = [
   "You answer questions about a set of study documents for one compound, using ONLY the",
   "numbered passages given to you. Each passage is one page of one document.",
   "",
