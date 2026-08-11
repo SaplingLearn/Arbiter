@@ -319,12 +319,27 @@ export function App(): ReactElement {
 
   if (route.name === "reveal") {
     if (!revealed) {
+      // THE OWNER GETS THE CONTROLS HERE, and before this they could not reach them at
+      // all. `Waiting` holds the only "Close without them" button, and the position
+      // route renders it solely when `view.own !== null` - when the VIEWER has sealed.
+      // A convener never seals (access.ts: they "convene and sign but do not hold an
+      // opinion on the record"), so the one control only an owner may use lived behind
+      // a condition no owner can satisfy. The API, the service and the button all
+      // worked; nothing rendered them together.
+      //
+      // The reveal route is where an owner goes to close a case, so this is where they
+      // belong. Everyone else keeps the dead end, because for a participant it is not a
+      // dead end - it is the correct answer, and it points back at the thing they can
+      // actually do.
       return caseShell(
-        <div className="empty">
-          <h3>Not everyone has answered</h3>
-          <p className="muted">Positions stay sealed until the case is closed. That is the whole point of collecting them separately.</p>
-          <a href={href({ name: "position", caseId })}><button className="ghost">Back to your position</button></a>
-        </div>,
+        isOwner
+          ? <Waiting view={view} isOwner={isOwner} nameOf={nameOf}
+              onReveal={(mode) => act(() => api.reveal(token, caseId, mode, new Date().toISOString()))} />
+          : <div className="empty">
+              <h3>Not everyone has answered</h3>
+              <p className="muted">Positions stay sealed until the case is closed. That is the whole point of collecting them separately.</p>
+              <a href={href({ name: "position", caseId })}><button className="ghost">Back to your position</button></a>
+            </div>,
       );
     }
     return caseShell(

@@ -490,13 +490,20 @@ export function Waiting({ view, isOwner, nameOf, onReveal }: {
   onReveal: (mode: "all_in" | "close_early") => void;
 }): ReactElement {
   const outstanding = view.others.filter((o) => !o.submitted);
+  // Whether the VIEWER has sealed anything, which is not the same question as whether
+  // this screen has something to show. A convener never seals - access.ts: "an owner
+  // who is not also a participant convenes and signs but does not hold an opinion on
+  // the record" - so "Sealed." was a false statement to exactly the person who has the
+  // only control on this screen.
+  const sealed = view.own !== null;
   return (
     <section>
-      <h2>Sealed. Waiting for the others.</h2>
+      <h2>{sealed ? "Sealed. Waiting for the others." : "Waiting for the panel."}</h2>
       <p className="muted">
         This screen shows one bit per person, and that is all the server will send: not
         their call, not their reasoning, not a running tally. A tally drags a room exactly
         as hard as the positions would.
+        {!sealed && " You convene this case and do not answer it, so there is nothing of yours here."}
       </p>
       <div className="inv">
         {view.others.map((o) => (

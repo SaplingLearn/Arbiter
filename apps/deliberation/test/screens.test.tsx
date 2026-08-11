@@ -177,6 +177,36 @@ describe("Waiting", () => {
     render(<Waiting nameOf={(id) => id} view={all} isOwner onReveal={() => {}} />);
     expect(screen.getByRole("button", { name: /Reveal all positions/ })).toBeEnabled();
   });
+
+  // THE STATE EVERY TEST ABOVE MISSES: each gives the viewer a sealed `own` position,
+  // which is the single state a convener is never in. access.ts has the owner "convene
+  // and sign but not hold an opinion on the record", so an owner's `own` is always null.
+  //
+  // WHAT THESE TWO DO AND DO NOT GUARD, because the difference is the whole lesson of
+  // the defect they were written for. `Waiting` always rendered the close-early button
+  // when `isOwner`; the bug was that App.tsx only rendered `Waiting` at all when
+  // `own !== null`, so no owner ever reached it. The first test below therefore PASSES
+  // AGAINST THE BUG - verified by reverting the fix and re-running - and guards only
+  // against a future change that gates the button on `own` inside this component. The
+  // second genuinely fails without the fix, because the heading was the half of the
+  // defect that lived here.
+  //
+  // The routing half is still unguarded. App.tsx has no test file and fetches over the
+  // network on mount, so covering it means introducing an api mock that does not exist
+  // yet. Recorded rather than quietly left: a defect where every part works alone and
+  // nothing composes them is exactly what component-level tests cannot see.
+  it("gives a convener who has not answered the close-early control", () => {
+    const asConvener: BlindView = { ...view, own: null };
+    render(<Waiting nameOf={(id) => id} view={asConvener} isOwner onReveal={() => {}} />);
+    expect(screen.getByRole("button", { name: /Close without them/ })).toBeInTheDocument();
+  });
+
+  it("does not tell a convener they sealed something they did not", () => {
+    const asConvener: BlindView = { ...view, own: null };
+    render(<Waiting nameOf={(id) => id} view={asConvener} isOwner onReveal={() => {}} />);
+    expect(screen.queryByText(/Sealed\. Waiting for the others/)).toBeNull();
+    expect(screen.getByText(/Waiting for the panel/)).toBeInTheDocument();
+  });
 });
 
 describe("basisOf", () => {
