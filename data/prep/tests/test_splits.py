@@ -6,7 +6,17 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 PREP = ROOT / "data" / "prep"
-PY = PREP / ".venv" / "Scripts" / "python.exe"
+# The INTERPRETER RUNNING THE TESTS, not a hardcoded venv path.
+#
+# This used to be `PREP / ".venv" / "Scripts" / "python.exe"`, which exists only on a
+# Windows machine that happened to build its venv in that spot. Anywhere else - a
+# POSIX venv, a bare interpreter, a CI runner - the subprocess raised
+# FileNotFoundError and the reproducibility test failed for a reason that had nothing
+# to do with reproducibility. That is worse than the test not existing: it is the
+# guard on the split seed, and a guard that cries wolf on every fresh checkout is one
+# people learn to skip. sys.executable is by definition the interpreter that imported
+# this module, so it is present by construction.
+PY = sys.executable
 SPLITS = ROOT / "data" / "out" / "splits.json"
 COMPOUNDS = ROOT / "data" / "out" / "compounds.json"
 

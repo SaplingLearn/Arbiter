@@ -22,6 +22,24 @@ jobs:
       - run: npm run metrics
       - run: npm test -- apps/harness/test/golden.test.ts
       - run: git diff --exit-code results/verdict-manifest.json
+      # THE PYTHON HALF, which npm does not touch and which CI did not run until
+      # 2026-08-10. Two of these suites guard claims nothing else protects:
+      # test_qsar_leakage.py protects the fixed-before-fitting split, which is the
+      # condition under which every reported number is valid at all, and
+      # test_leakage_screen.py protects the nonclinical/clinical blindness the
+      # prediction scoring rests on (HANDOVER 13.4c). Both ran only when somebody
+      # remembered, so a reintroduced leak was caught by nothing automatic.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r data/prep/requirements.txt
+      - run: python -m pytest
+        working-directory: data/prep
+      # The screen itself, run over the committed cases. Exits non-zero on a refusal,
+      # so a case file that gains a clinical cross-reference fails the build rather
+      # than quietly becoming a prediction case it must never be.
+      - run: python data/prep/leakage_screen.py data/cases/slynd-drospirenone.json
       - run: npm run web:build
       # Cached because it is the slowest step in the job by an order of magnitude:
       # --with-deps apt-installs system libraries on a cold runner, which took
