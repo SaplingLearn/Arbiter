@@ -47,6 +47,18 @@ describe("adjudicationSchema", () => {
     expect(s.properties.ruleDisclosure.items.properties.ruleId.enum).toEqual(["R1", "R3"]);
   });
 
+  it("constrains missing entries to recorded absences and does NOT bound the count", () => {
+    // Both halves matter. The enum is the structural guarantee - no invented gap.
+    // The absent cardinality bound is a PROVIDER LIMIT, not an oversight: Vertex
+    // rejects an array carrying both a bound and an item enum once the enum grows,
+    // and an absence field is a sentence where a rule id is three characters.
+    // Completeness is carried by the prompt and by absence_not_addressed instead.
+    const s = adjudicationSchema(REQUEST) as any;
+    expect(s.properties.missing.items.properties.field.enum).toEqual(["clinical Cmax"]);
+    expect(s.properties.missing.minItems).toBeUndefined();
+    expect(s.properties.missing.maxItems).toBeUndefined();
+  });
+
   it("requires exactly one disclosure per registered rule", () => {
     const s = adjudicationSchema(REQUEST) as any;
     expect(s.properties.ruleDisclosure.minItems).toBe(2);

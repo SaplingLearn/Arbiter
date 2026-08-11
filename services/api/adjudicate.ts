@@ -94,7 +94,7 @@ export interface AdjudicateRequest {
  * v1.0 is never deleted and never edited - it is the version every result already
  * committed was measured under. Pointing here at v1.1 changes what runs NEXT.
  */
-export const ADJUDICATOR_PROMPT_PATH = "prompts/adjudicator-v1.1.json";
+export const ADJUDICATOR_PROMPT_PATH = "prompts/adjudicator-v1.2.json";
 
 export type ConsequenceVerdict = "do_not_advance" | "advance" | "cannot_conclude";
 
@@ -256,6 +256,25 @@ export function adjudicationSchema(req: AdjudicateRequest): Record<string, unkno
       },
       missing: {
         type: "array",
+        // NO minItems/maxItems HERE, and that is a provider limit rather than a
+        // preference. `ruleDisclosure` above carries exactly that constraint, so the
+        // obvious fix for a model dropping gaps was to copy it. Vertex rejects it:
+        // an array with BOTH a cardinality bound and an `enum` on its items returns
+        // "Request contains an invalid argument" once the enum grows.
+        //
+        // Measured, by removing one variable at a time on the same request:
+        //   minItems + enum ......... FAIL   (9 short fields passed; 10 did not, and
+        //                                     so did 9 with one long field)
+        //   enum only ............... OK     10 of 10
+        //   minItems only ........... OK     10 of 10
+        // ruleDisclosure survives the pair only because R1..R6 are three characters
+        // each, while an absence field is a sentence - one of them is a participant's
+        // whole external claim.
+        //
+        // So the enum is kept, because an INVENTED gap is the worse failure: it sends
+        // somebody to run an experiment that was already run. Completeness moves to
+        // the prompt, which can say "every one" in a way this schema cannot, and
+        // `absence_not_addressed` still fails the run if the model drops one anyway.
         items: {
           type: "object",
           additionalProperties: false,
