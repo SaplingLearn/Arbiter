@@ -100,21 +100,51 @@ rate is the one reading of this metric that is actively misleading.** They trave
 
 ## 4. Decision 1 — the model, and why not a cheap one
 
-**`claude-opus-5`.** Fixed ID, no date suffix.
+**`gemini-3.5-flash`.** Fixed ID, no date suffix.
+
+**Amended 2026-08-10.** This read `claude-opus-5` until the provider moved to Gemini on
+Vertex AI — `2026-08-10-model-provider-decision.md` is the explicit recorded decision §9 of the
+redesign requires, and the short version is that Anthropic models are a "generative AI partner model
+offered as a managed API" and are therefore not payable from the credit this project runs on. The
+reasoning below is unchanged; only the name it lands on has moved.
 
 The temptation is a cheaper model to hold the bill down. **Reject it.** The metric's entire value is
 that a *strong* model is inconsistent on this evidence. A weak model losing to ARBITER is a strawman,
 a judge will say so in the room, and the answer we would have to give — "we used the cheap one" —
 costs more credibility than the run costs money.
 
-Thinking stays **on** (adaptive is the default on Opus 5) at the default `high` effort. Two reasons,
-and the first is the one that matters:
+**"Flash" is not the cheap one here, and the name misleads.** `gemini-3.5-flash` lists at
+$1.50/$9.00 per MTok against `gemini-2.5-pro`'s $1.25/$10.00 — the same price band, not a tier below
+it. The cheap option would have been `gemini-2.5-flash-lite` at $0.10/$0.40, which is what the short
+calls use and what this decision rejects. So the §4 objection is answered on the merits rather than
+by the tier label.
+
+**It is also the model the product runs**, which makes this a same-model ablation and is a strength:
+with one model on both arms the comparison isolates the engine's contribution instead of confounding
+it with a tier gap. The original `claude-opus-5` pin existed because the product ran Sonnet and
+needed a frontier opposite; that asymmetry is gone.
+
+**The residual objection, stated rather than buried:** a judge may still say the adversary should
+have been the strongest model available, which is `gemini-3.1-pro-preview`. The honest answer is
+that it is a preview model and no reported number should depend on one. If the budget allows, run
+the adversary arm **twice** — once on `gemini-3.5-flash` for the same-model comparison and once on
+`gemini-2.5-pro` for the strongest-GA comparison — and report both. Two arms cost about $37 batched
+and remove the objection entirely.
+
+Thinking stays **on** at a generous budget. Two reasons, and the first is the one that matters:
 
 1. **Giving the model its best shot is the point.** Turning thinking down to make the comparison look
    better is the same category of error as tuning `abstentionGapThreshold` to improve the headline,
    and §1.1's prohibition exists because that temptation is real.
-2. Disabling thinking on Opus 5 can leak `<thinking>` tags into the visible response, which would
-   confound a parse failure with a model disagreement.
+2. Thinking shares `maxOutputTokens` with the answer on Gemini exactly as it did on Claude, and a
+   truncated verdict would confound a parse failure with a model disagreement. Size the ceiling for
+   thinking plus answer, not answer alone.
+
+**Do NOT set `temperature: 0` on this arm.** The adjudication path sets it because redesign §7.1
+requires deterministic decoding before the flip rate is measured. This arm measures the opposite
+thing — whether a model asked the same question twice answers it the same way — and pinning the
+sampling would manufacture the agreement the metric exists to detect. That the Claude API made this
+impossible and Vertex makes it available is precisely why it now has to be written down.
 
 ---
 
@@ -233,11 +263,12 @@ carry, at minimum:
 
 ```jsonc
 {
-  "model": "claude-opus-5",
+  "model": "gemini-3.5-flash",
   "runsPerCompound": 25,
   "nCompounds": 61,
   "subset": "conflict subset of the test split",
-  "thinking": "adaptive (default on this model)",
+  "thinking": "on, generous budget; shares maxOutputTokens with the answer",
+  "temperature": "unset - see §4, pinning it would manufacture the agreement this measures",
   "effort": "high",
   "outputFormat": "json_schema { verdict, confidence }",
   "samplingParameters": "none available - temperature/top_p/top_k are removed on this model",
@@ -278,10 +309,15 @@ compound's verdicts to another and every downstream number would be wrong while 
 
 ### 7.2 Budget
 
-At roughly 2k input / 1k output per request on `claude-opus-5` ($5/$25 per MTok), 1,525 requests is
-about **$53** at list, roughly **$27** batched, and less again once the shared prefix is cached.
-HANDOVER §3.2's "$20–40" was written before thinking-on-by-default and is a little low; batched, it
-is about right.
+At roughly 2k input / 1k output per request on `gemini-3.5-flash` ($1.50/$9.00 per MTok), 1,525
+requests is **3.05 MTok in / 1.53 MTok out** — about **$18** at list, roughly **$9** batched (Vertex
+batch prediction is half price), and less again once the shared prefix is cached. Running the second
+adversary arm on `gemini-2.5-pro` ($1.25/$10.00) adds about **$19** at list, **$10** batched.
+
+**Amended 2026-08-10.** This read "$53 at list, ~$27 batched on `claude-opus-5` ($5/$25 per MTok)"
+before the provider moved. The figure fell because Gemini is cheaper per token, not because the run
+shrank — and it is now **payable from the Google Cloud credit**, which the Anthropic figure was not.
+HANDOVER §3.2's "$20–40" now *overstates* it.
 
 ---
 

@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { completeFromEnv, DEFAULT_MODEL, type Complete } from "./interpret.js";
+import { completeFromEnv, resolveModel, type Complete } from "./interpret.js";
 import { adjudicationSchema, userPrompt, verifyAdjudication, type AdjudicateRequest } from "./adjudicate.js";
 
 /**
@@ -37,6 +37,26 @@ export interface ProbeOutput {
   promptVersion: string;
   /** SHA-256 over the prompt's system + userTemplate. Every result names the prompt that made it. */
   promptHash: string;
+  /**
+   * SHA-256 over the whole AdjudicateRequest. Every result names the CASE that made
+   * it, for the same reason it already names the prompt.
+   *
+   * Without this the file was falsifiable in one specific way: `compoundLabel` is
+   * "TAK-994" before and after any change to data/probe-case.json, and `promptHash`
+   * covers prompts/adjudicator-v1.0.json only. Two runs over materially different
+   * findings, rules or - the case at hand - a different `absent` list therefore
+   * produced result files that were byte-comparable in every identifying field and
+   * were not measuring the same thing. That is the failure HANDOVER 3.2 rules out
+   * when it forbids the fallbacks parameter, and the one 5501c2c fixed for the model
+   * label: not a stale label, a fabricated result.
+   *
+   * The whole request is hashed rather than a chosen subset because every part of it
+   * reaches the model or the schema: `rules` and `findings` build adjudicationSchema's
+   * enums, `absent` and `context` are substituted into the user prompt, and
+   * `compoundLabel` names the compound. There is no field of it a run can differ on
+   * while still being the same measurement.
+   */
+  caseHash: string;
   compoundLabel: string;
   requestedRuns: number;
   runs: ProbeRun[];
@@ -46,6 +66,19 @@ export function promptHash(prompt: { system: string[]; userTemplate: string[] })
   return createHash("sha256")
     .update(JSON.stringify({ system: prompt.system, userTemplate: prompt.userTemplate }))
     .digest("hex");
+}
+
+/**
+ * Companion to `promptHash`, same shape and same purpose: the case is a parameter of
+ * the measurement, so a result has to name the one it ran against.
+ *
+ * Hashes the request as loaded. Key order therefore participates in the hash, which
+ * is deliberate here: this is a change DETECTOR, and a re-serialisation that reorders
+ * keys is a change to the file the next reader diffs. False positives cost a glance;
+ * a false negative is a run reported against the wrong case.
+ */
+export function caseHash(req: AdjudicateRequest): string {
+  return createHash("sha256").update(JSON.stringify(req)).digest("hex");
 }
 
 /**
@@ -112,11 +145,13 @@ export async function runProbe(
   return {
     probeVersion: 1,
     source: live ? "live" : "stub",
-    // Resolved the SAME way completeFromEnv resolves it, from the same constant. A
-    // second literal here would let the probe call one model and report another.
-    model: live ? (process.env["ARBITER_MODEL"] ?? DEFAULT_MODEL) : null,
+    // Resolved by the SAME function completeFromEnv resolves it with, for the same
+    // kind of call. A second literal here would let the probe call one model and
+    // report another.
+    model: live ? resolveModel("adjudication") : null,
     promptVersion: prompt.version,
     promptHash: promptHash(prompt),
+    caseHash: caseHash(req),
     compoundLabel: req.compoundLabel,
     requestedRuns: runs,
     runs: out,
@@ -130,11 +165,15 @@ async function main(): Promise<void> {
 
   const prompt = JSON.parse(readFileSync("prompts/adjudicator-v1.0.json", "utf8"));
   const req = JSON.parse(readFileSync(casePath, "utf8")) as AdjudicateRequest;
-  const complete = completeFromEnv();
+  // "adjudication", not the default "short": this probe measures an adjudication,
+  // and the two shapes differ. Called with the short shape it would run the
+  // adjudication under interpret's 1024-token ceiling and record the truncation as
+  // the model's instability.
+  const complete = completeFromEnv(process.env, "adjudication");
 
   if (complete === null) {
-    console.log("No ANTHROPIC_API_KEY. Running against the STUB - this exercises the");
-    console.log("path and produces NO result. Set a key to measure anything.\n");
+    console.log(`No credentials for ${resolveModel("adjudication")}. Running against the STUB - this`);
+    console.log("exercises the path and produces NO result. Configure the provider to measure anything.\n");
   }
 
   const output = await runProbe(req, prompt, runs, complete);
@@ -144,6 +183,7 @@ async function main(): Promise<void> {
   const ok = output.runs.filter((r) => r.ok).length;
   console.log(`source          ${output.source}${output.model === null ? "" : ` (${output.model})`}`);
   console.log(`prompt          v${output.promptVersion} ${output.promptHash.slice(0, 12)}`);
+  console.log(`case            ${output.compoundLabel} ${output.caseHash.slice(0, 12)}`);
   console.log(`runs            ${output.runs.length} requested ${output.requestedRuns}`);
   console.log(`verified ok     ${ok}/${output.runs.length}`);
   console.log(`written         ${outPath}`);

@@ -77,7 +77,7 @@ export interface Adjudication {
   };
   ruleDisclosure: {
     ruleId: string;
-    position: "applies" | "does_not_apply";
+    position: "applies" | "does_not_apply" | "cannot_determine";
     reasoning: string;
     citedFindingIds: string[];
   }[];
@@ -98,6 +98,7 @@ export interface Adjudication {
 export function adjudicationSchema(req: AdjudicateRequest): Record<string, unknown> {
   const findingIds = req.findings.map((f) => f.id);
   const ruleIds = req.rules.map((r) => r.id);
+  const absentFields = req.absent.map((a) => a.field);
 
   const citedIds = {
     type: "array",
@@ -147,7 +148,27 @@ export function adjudicationSchema(req: AdjudicateRequest): Record<string, unkno
           required: ["ruleId", "position", "reasoning", "citedFindingIds"],
           properties: {
             ruleId: { type: "string", enum: ruleIds },
-            position: { type: "string", enum: ["applies", "does_not_apply"] },
+            // THREE positions, not two. Added 2026-08-10.
+            //
+            // §5.1 is right that "a rule that does not apply must be stated as not
+            // applying, with a reason - that is information, not a gap". But "this rule
+            // does not bite on this evidence" and "this package does not contain what
+            // the rule turns on" are different facts, and a two-value enum forces the
+            // second to be reported as the first. That is §10 rule 7 - "not measured"
+            // and "measured negative" rendering alike - inside the disclosure itself.
+            //
+            // Measured: at default temperature R4 sat at exactly 50/50 across 20 runs
+            // (applies:10, does_not_apply:10). Its determining field never reaches the
+            // model, so both answers were guesses and the model had no legal way to
+            // say so. A coin flip is what a forced binary looks like from outside.
+            //
+            // THE RISK, stated because it must be measured rather than assumed: a
+            // third option is an escape hatch, and a model that reaches for it on rules
+            // it could have answered produces less information than the binary did.
+            // `reasoning` is required on every disclosure, so the escape is at least
+            // never silent - but whether it is over-used is a number, and the probe is
+            // where it should be read.
+            position: { type: "string", enum: ["applies", "does_not_apply", "cannot_determine"] },
             reasoning: { type: "string" },
             citedFindingIds: citedIds,
           },
@@ -160,7 +181,23 @@ export function adjudicationSchema(req: AdjudicateRequest): Record<string, unkno
           additionalProperties: false,
           required: ["field", "whyItMatters"],
           properties: {
-            field: { type: "string" },
+            // Built FROM THE REQUEST, exactly as ruleId and citedFindingIds are, so
+            // there is nowhere to put an invented gap.
+            //
+            // This was a free string until 2026-08-10, which left `missing` as the one
+            // model-authored field in this schema with NEITHER a structural constraint
+            // nor a verification check - on the surface §3.2 calls "the failure mode
+            // this project exists to prevent". A fabricated absence is worse than a
+            // fabricated citation: a citation names a finding a reader can go and fail
+            // to find, whereas an invented gap sends someone to run an experiment that
+            // was already run, and a dropped one is the TAK-994 silence itself.
+            //
+            // Same empty-case fallback as citedIds: a case with nothing recorded as
+            // searched-for-and-absent must still produce a legal (empty) array rather
+            // than an unsatisfiable schema.
+            field: absentFields.length > 0
+              ? { type: "string", enum: absentFields }
+              : { type: "string" },
             whyItMatters: { type: "string" },
           },
         },
@@ -200,7 +237,14 @@ export function userPrompt(req: AdjudicateRequest, template: string[]): string {
 }
 
 export interface VerificationFailure {
-  kind: "unknown_finding_id" | "unknown_rule_id" | "rule_not_addressed" | "rule_addressed_twice";
+  kind:
+    | "unknown_finding_id"
+    | "unknown_rule_id"
+    | "rule_not_addressed"
+    | "rule_addressed_twice"
+    | "unknown_absence"
+    | "absence_not_addressed"
+    | "absence_addressed_twice";
   detail: string;
 }
 
@@ -253,6 +297,43 @@ export function verifyAdjudication(
   for (const id of registered) {
     if (!seen.has(id)) {
       failures.push({ kind: "rule_not_addressed", detail: `Rule ${id} was not addressed. A rule that does not apply must say so.` });
+    }
+  }
+
+  // The same three checks again, for absences, because §3.2 makes absence a finding and
+  // a finding gets checked. Until 2026-08-10 `missing` was the only model-authored field
+  // here that nothing verified, which put the project's own stated failure mode on its
+  // one unguarded surface: TAK-994's package looked complete because nobody named what
+  // was missing, and an adjudication that quietly drops a recorded gap reproduces that
+  // exactly - fluently, and over a signature.
+  //
+  // `unknown_absence` should now be unreachable for a schema-honouring model, since
+  // `missing.field` is enum-constrained. It is checked anyway: the schema is the model's
+  // constraint and this is ours, and §10 rule 3 is about what reaches the screen rather
+  // than about what the model was asked for.
+  const recorded = new Set(req.absent.map((x) => x.field));
+  const addressed = new Set<string>();
+
+  for (const m of a.missing) {
+    if (!recorded.has(m.field)) {
+      failures.push({
+        kind: "unknown_absence",
+        detail: `Missing-evidence list names "${m.field}", which is not recorded as searched-for-and-absent in this case.`,
+      });
+      continue;
+    }
+    if (addressed.has(m.field)) {
+      failures.push({ kind: "absence_addressed_twice", detail: `Absence "${m.field}" is listed more than once.` });
+    }
+    addressed.add(m.field);
+  }
+
+  for (const field of recorded) {
+    if (!addressed.has(field)) {
+      failures.push({
+        kind: "absence_not_addressed",
+        detail: `"${field}" was recorded as searched-for-and-absent and the adjudication does not carry it. A gap that is dropped rather than stated is the silence §3.2 exists to prevent.`,
+      });
     }
   }
 

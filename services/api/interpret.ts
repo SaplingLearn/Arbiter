@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { geminiComplete, geminiCredentialsPresent } from "./gemini.js";
 
 /**
  * POST /api/interpret - Surface 1's rung 1.
@@ -173,59 +174,143 @@ export async function handleInterpret(
 }
 
 /**
- * Build the model call from the environment, or return null when no key is set.
+ * How much room a call gets, and whether it may think.
  *
- * Returning null rather than throwing is what makes "no key" a first-class state
- * instead of a boot failure - the service must come up and answer 503 so the client
- * can descend, not refuse to start.
+ * THE TWO CALLS ARE NOT THE SAME SHAPE AND MUST NOT SHARE ONE. Before this split,
+ * `completeFromEnv()` returned a single closure sized for interpret's seven short
+ * fields, and server.ts handed that same closure to `handleAdjudicate` - so an
+ * adjudication carrying prose, citations and one disclosure per registered rule ran
+ * with a 1024-token ceiling and thinking off. That truncates, and a truncated
+ * adjudication fails verification as `rule_not_addressed`, which reads in
+ * results/probe-runs.json as model instability rather than as the config bug it is.
+ *
+ * `thinkingBudget` is 0 (off) or -1 (the model chooses). It is never left unset:
+ * thinking is ON by default on both providers and it SHARES the output budget with
+ * the answer.
  */
+export interface CallShape {
+  maxOutputTokens: number;
+  thinkingBudget: 0 | -1;
+}
+
+/** At most three ids and a boolean. Measured ~850ms on gemini-2.5-flash-lite. */
+export const SHAPE_NAVIGATE: CallShape = { maxOutputTokens: 512, thinkingBudget: 0 };
+
 /**
- * THE ONE COPY OF THE DEFAULT MODEL. Imported by navigate.ts and probe.ts.
+ * Seven short fields, behind a 2.5s client abort (apps/web/src/ai/client.ts).
+ * Thinking off is not a cost choice, it is a correctness one: measured on this
+ * project's own ambiguous-objection case, thinking-on runs took 6-13s (3-5x over the
+ * abort, so every one is cancelled client-side and the user sees cache) and 1 in 3
+ * returned unparseable JSON because ~1960 thought tokens crowded out the answer.
+ * Thinking-off got the confidence rule right 3/3 on both candidate models. There was
+ * no accuracy to trade for the latency.
+ */
+export const SHAPE_INTERPRET: CallShape = { maxOutputTokens: 1024, thinkingBudget: 0 };
+
+/**
+ * Prose, citations, and one disclosure per registered rule - nothing aborts it, so it
+ * gets room and it gets to think. Thinking is the defence against exactly the two
+ * failures verifyAdjudication looks for: an ungrounded citedFindingId and an omitted
+ * rule. 16000 measured zero truncation across 10 runs on data/probe-case.json.
+ */
+export const SHAPE_ADJUDICATION: CallShape = { maxOutputTokens: 16000, thinkingBudget: -1 };
+
+export type CallKind = "short" | "adjudication";
+
+/**
+ * THE ONE COPY OF THE DEFAULT MODELS, and the one copy of how a model name is
+ * resolved. probe.ts REPORTS what this returns while server.ts CALLS what this
+ * returns; two copies that drift produce a probe that runs on one model and reports
+ * another, which is not a bug in a label - it is a fabricated result, and HANDOVER
+ * §3.2 rules out exactly that when it forbids the `fallbacks` parameter in the
+ * ablation. One copy makes the divergence unrepresentable.
  *
- * It is a constant rather than three literals because probe.ts writes the model
- * name into `results/probe-runs.json` while calling the client built HERE. Two
- * copies that drift produce a probe that runs on one model and reports another,
- * which is not a bug in a label - it is a fabricated result, and HANDOVER §3.2
- * rules out exactly that when it forbids the `fallbacks` parameter in the ablation.
- * One copy makes the divergence unrepresentable.
+ * Gemini on Vertex AI, because Anthropic models are a "generative AI partner model
+ * offered as a managed API" and are therefore excluded from the Google Cloud credit
+ * this project is deployed against; Gemini on Vertex is not.
  *
- * Sonnet 5 and not Opus 5 because this call configures away what Opus is for:
- * thinking is disabled, effort is "low" and the ceiling is 1024 tokens. The
- * judgment lives in packages/engine; a model here does language only (navigate.ts's
- * own system prompt says so in as many words). Sonnet is also faster into the 2.5s
- * client abort. Haiku 4.5 is NOT a candidate - it rejects `output_config.effort`.
+ * gemini-2.5-flash-lite for the short calls: the only candidate that emits ZERO
+ * thought tokens by default, ~850ms against the 2.5s abort, and on the ambiguous
+ * mechanism-objection case it returned targetRule=null where gemini-3.5-flash-lite
+ * consistently named a rule the objection never named.
+ *
+ * gemini-3.5-flash for adjudication, and it is a flash model on purpose. Measured on
+ * data/probe-case.json (caseHash 9677b5a68c09) at 20 runs with temperature 0, it is
+ * the ONLY candidate that clears all three of Gate 0's pass marks: flip rate 0.0%,
+ * zero hallucinated citations, and every rule at or above the 0.80 agreement mark
+ * (worst 80.0%). gemini-2.5-pro fails the third at R1 75.0%; gemini-3.1-pro-preview
+ * failed it at R5 55.0% before the fixes.
+ *
+ * THE PRO TIER LOST HERE, which is worth stating because it inverts the usual
+ * instinct. This call wants an identical answer every time far more than it wants a
+ * cleverer one - §7.1 makes consistency the primary claim and says accuracy is not
+ * first - and on that axis the flash models were simply better behaved.
+ *
+ * Three earlier readings of this same question were WRONG, all in the same way -
+ * called before the measurement could support them:
+ *   n=5   said 3.1-pro-preview beat 2.5-pro. n=20 reversed it; one flip is 20% at n=5.
+ *   n=20  said 2.5-pro. Adding temperature 0 put both flash models ahead of both Pros.
+ *   temp0 said 3.5-flash passed Gate 0 - true, but it was answering R4 `applies` 20/20
+ *         when the fixture says every finding is IN domain. Stable and wrong passes a
+ *         consistency gate, which is §10 rule 12 in miniature.
+ * The env var exists so the next person can overturn this one the same way.
+ *
+ * Note gemini-2.5-pro REJECTS thinkingBudget 0 outright (HTTP 400) - irrelevant to
+ * adjudication, which wants thinking on, but it can never serve a SHAPE_* with
+ * thinkingBudget 0 and so can never take a short call.
  *
  * Spec §16 leaves provider and model a deployment decision recorded at deploy time.
  * Written down here so the decision is visible in source rather than only in a
- * Railway dashboard, and overridable per-run with ARBITER_MODEL.
+ * Railway dashboard.
  */
-export const DEFAULT_MODEL = "claude-sonnet-5";
+export const DEFAULT_SHORT_MODEL = "gemini-2.5-flash-lite";
+export const DEFAULT_ADJUDICATION_MODEL = "gemini-3.5-flash";
 
-export function completeFromEnv(env: NodeJS.ProcessEnv = process.env): Complete | null {
+export function resolveModel(kind: CallKind, env: NodeJS.ProcessEnv = process.env): string {
+  if (kind === "adjudication") {
+    return env["ARBITER_ADJUDICATION_MODEL"] ?? env["ARBITER_MODEL"] ?? DEFAULT_ADJUDICATION_MODEL;
+  }
+  return env["ARBITER_MODEL"] ?? DEFAULT_SHORT_MODEL;
+}
+
+/**
+ * Provider is INFERRED FROM THE MODEL NAME rather than selected by a second switch,
+ * so `ARBITER_MODEL=claude-opus-5` and `ARBITER_MODEL=gemini-2.5-pro` both simply
+ * work and no combination of two env vars can name a model one provider cannot serve.
+ *
+ * Returns null when the chosen provider has no credentials. Null rather than a throw
+ * is what makes "no credentials" a first-class state instead of a boot failure - the
+ * service must come up and answer 503 so the client can descend, not refuse to start.
+ */
+export function buildComplete(
+  model: string,
+  shape: CallShape,
+  env: NodeJS.ProcessEnv = process.env,
+): Complete | null {
+  if (model.startsWith("gemini-")) {
+    return geminiCredentialsPresent(env) ? geminiComplete(model, shape, env) : null;
+  }
+
   const apiKey = env["ANTHROPIC_API_KEY"];
   if (apiKey === undefined || apiKey === "") return null;
-
   const client = new Anthropic({ apiKey });
-  const model = env["ARBITER_MODEL"] ?? DEFAULT_MODEL;
 
   return async (system, user, schema) => {
     const message = await client.messages.create({
       model,
-      // Small on purpose. The proposal is seven short fields, and the client aborts
-      // at 2.5s (apps/web/src/ai/client.ts LIVE_TIMEOUT_MS) - a large budget here
-      // buys nothing the caller would still be waiting for.
-      max_tokens: 1024,
+      max_tokens: shape.maxOutputTokens,
       system,
-      // Omitting `thinking` runs ADAPTIVE on claude-sonnet-5, and thinking shares the
-      // max_tokens budget with the answer - a thinking pass would spend the whole 2.5s
-      // window before the first field of the proposal was emitted. So it is disabled
-      // explicitly rather than by omission. There are no tools on this call and the
-      // response is schema-constrained, so neither of the disabled-thinking failure
-      // modes (a tool call written as prose, internal tags in the text) can reach the
-      // caller. NOTE for a model swap: Opus 5 accepts `disabled` only at effort "high"
-      // or below, so the "low" beside it is load-bearing there and merely cheap here.
-      thinking: { type: "disabled" },
-      output_config: { effort: "low", format: { type: "json_schema", schema } },
+      // Explicit rather than by omission: omitting `thinking` runs ADAPTIVE on
+      // current Claude models, and thinking shares max_tokens with the answer. On the
+      // short shapes there are no tools and the response is schema-constrained, so
+      // neither disabled-thinking failure mode (a tool call written as prose, internal
+      // tags in the text) can reach the caller. NOTE: Opus 5 accepts `disabled` only
+      // at effort "high" or below, so the effort beside it is load-bearing there.
+      thinking: shape.thinkingBudget === 0 ? { type: "disabled" } : { type: "adaptive" },
+      output_config: {
+        effort: shape.thinkingBudget === 0 ? "low" : "high",
+        format: { type: "json_schema", schema },
+      },
       messages: [{ role: "user", content: user }],
     });
 
@@ -237,14 +322,28 @@ export function completeFromEnv(env: NodeJS.ProcessEnv = process.env): Complete 
     // json_schema constraint IS invalid JSON, so parse would throw either way - but it
     // would throw "Unexpected end of JSON input", and the probe records that string as
     // the run's error. A Gate 0 flip rate computed over runs that were truncated
-    // measures max_tokens, not the model, and the ceiling here was sized for
-    // interpret's seven short fields rather than for an adjudication carrying prose
-    // and citations. Saying so makes that failure legible in results/probe-runs.json
-    // instead of looking like model instability.
+    // measures max_tokens, not the model. Saying so makes that failure legible in
+    // results/probe-runs.json instead of looking like model instability.
     if (message.stop_reason === "max_tokens") throw new Error("truncated: max_tokens too low");
 
     const text = message.content.find((b) => b.type === "text");
     if (text === undefined || text.type !== "text") throw new Error("no text block");
     return JSON.parse(text.text) as unknown;
   };
+}
+
+/**
+ * Build the model call for one KIND of call from the environment, or return null
+ * when the resolved provider has no credentials.
+ *
+ * The `kind` argument defaults to "short" so every existing caller keeps its old
+ * behaviour; the adjudication callers (server.ts, probe.ts) pass "adjudication"
+ * explicitly and get the shape that call actually needs.
+ */
+export function completeFromEnv(
+  env: NodeJS.ProcessEnv = process.env,
+  kind: CallKind = "short",
+): Complete | null {
+  const shape = kind === "adjudication" ? SHAPE_ADJUDICATION : SHAPE_INTERPRET;
+  return buildComplete(resolveModel(kind, env), shape, env);
 }

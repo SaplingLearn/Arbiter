@@ -1,0 +1,2060 @@
+{
+  "probeVersion": 1,
+  "source": "live",
+  "model": "gemini-3.5-flash",
+  "promptVersion": "1.0",
+  "promptHash": "42f548ea1df383145d2ba51a078d3a04d7e83ea61085f41c721ba328ffc29436",
+  "caseHash": "9677b5a68c09f58c0e909d65dc58cef9cbf29e0a37e3725af1021ce5fc9da7c6",
+  "compoundLabel": "TAK-994 (Narcolepsy type 1)",
+  "requestedRuns": 20,
+  "runs": [
+    {
+      "index": 0,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "A positive toxic finding of hepatic single-cell necrosis was observed in a rodent toxicogenomics study at clinically relevant doses (TAK-994:toxicogenomics-murine). Although multiple other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) asserted safety, they did so with unstated exposure margins. Under Rule R3, the positive finding at clinically relevant exposure defeats these negative findings. Given the low tolerance for liver signals in a chronic oral indication for healthy adults, the program should not advance.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Human-cell assays (TAK-994:cytotox, TAK-994:transporter) asserted safety but lacked stated exposure margins, meaning they cannot defeat the animal in vivo toxic finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "Studies measuring direct AOP key events (TAK-994:toxicogenomics-murine, TAK-994:cytotox, TAK-994:transporter) provide stronger mechanistic evidence than those that do not measure key events (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent) or rely on structure (TAK-994:qsar).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxic finding in rodent toxicogenomics (TAK-994:toxicogenomics-murine) was tested at clinically relevant exposure, which defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) because their exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All evaluated studies were conducted within their models' stated applicability domains, so no down-weighting was required.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The QSAR study (TAK-994:qsar) has low reliability (Klimisch 3, confidence 0.0) and is defeated by the higher-reliability (Klimisch 1) toxicogenomics study (TAK-994:toxicogenomics-murine).",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no independent positive findings to show concordance; only a single positive toxicogenomics study was identified.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in the in vivo and in vitro assays cannot be confirmed as protective at therapeutic concentrations."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The standard in vivo and QSAR studies do not measure specific key events, limiting our ability to mechanistically reconstruct the safety profile from those sources."
+          }
+        ],
+        "nextExperiment": "Perform in vitro assays using human primary hepatocytes at clinically relevant exposure levels to evaluate if the CYP450-induction-mediated necrosis observed in rodents translates to human cells."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 1,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "A positive toxic finding of hepatic single-cell necrosis was observed in a rodent toxicogenomics study at clinically relevant doses (TAK-994:toxicogenomics-murine). Although multiple other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) asserted safety, they did so with unstated exposure margins. Under Rule R3, the positive finding at clinically relevant exposure defeats these negative findings. Given the low tolerance for liver signals in a chronic oral indication for healthy adults, the program should not advance.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Human-cell assays (TAK-994:cytotox, TAK-994:transporter) asserted safety but lacked stated exposure margins, meaning they cannot defeat the animal in vivo toxic finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "Studies measuring direct AOP key events (TAK-994:toxicogenomics-murine, TAK-994:cytotox, TAK-994:transporter) provide stronger mechanistic evidence than those that do not measure key events (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent) or rely on structure (TAK-994:qsar).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxic finding in rodent toxicogenomics (TAK-994:toxicogenomics-murine) was tested at clinically relevant exposure, which defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) because their exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All evaluated studies were conducted within their models' stated applicability domains, so no down-weighting was required.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The QSAR study (TAK-994:qsar) has low reliability (Klimisch 3, confidence 0.0) and is defeated by the higher-reliability (Klimisch 1) toxicogenomics study (TAK-994:toxicogenomics-murine).",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no independent positive findings to show concordance; only a single positive toxicogenomics study was identified.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in the in vivo and in vitro assays cannot be confirmed as protective at therapeutic concentrations."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The standard in vivo and QSAR studies do not measure specific key events, limiting our ability to mechanistically reconstruct the safety profile from those sources."
+          }
+        ],
+        "nextExperiment": "Perform in vitro assays using human primary hepatocytes at clinically relevant exposure levels to evaluate if the CYP450-induction-mediated necrosis observed in rodents translates to human cells."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 2,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "The toxicogenomics study in rodents (TAK-994:toxicogenomics-murine) demonstrated hepatic single-cell necrosis after CYP450 induction at clinically relevant doses. For a chronic oral indication in healthy adults (narcolepsy type 1), tolerance for liver injury is low. The safety claims of other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) cannot overcome this signal because their exposure relevance is unstated.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Although human-cell assays (TAK-994:cytotox, TAK-994:transporter) assert safety, their exposure relevance is unstated, so they do not defeat the positive rodent toxicogenomics finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "The toxicogenomics study (TAK-994:toxicogenomics-murine) directly measures a key event (KE:CYP-INDUCTION) and necrosis, which defeats the ambiguous QSAR prediction (TAK-994:qsar) that only correlates with chemical structure.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxicogenomics finding (TAK-994:toxicogenomics-murine) at clinically relevant exposure defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) whose exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All available studies are within their respective models' stated applicability domains, so no weight adjustments are needed under this rule.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The high-reliability toxicogenomics study (TAK-994:toxicogenomics-murine, Klimisch 1) defeats the low-reliability QSAR study (TAK-994:qsar, Klimisch 3).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no multiple independent positive findings to show concordance; only a single study (TAK-994:toxicogenomics-murine) indicates toxicity.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in rodent, non-rodent, and human in vitro assays cannot be confirmed as protective at therapeutic exposure levels."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The in vivo rodent, non-rodent, and QSAR studies do not measure specific adverse-outcome-pathway key events, meaning they cannot mechanistically rule out subclinical or pathway-specific hepatotoxicity."
+          }
+        ],
+        "nextExperiment": "Conduct an in vitro study in human primary hepatocytes or 3D liver microtissues at clinically relevant concentrations to evaluate whether CYP450 induction leads to hepatocyte necrosis, thereby assessing the human relevance of the murine toxicogenomics finding."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 3,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "The toxicogenomics study in rodents (TAK-994:toxicogenomics-murine) demonstrated hepatic single-cell necrosis after CYP450 induction at clinically relevant doses. For a chronic oral indication in healthy adults (narcolepsy type 1), tolerance for liver injury is low. The safety claims of other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) cannot overcome this signal because their exposure relevance is unstated.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Although human-cell assays (TAK-994:cytotox, TAK-994:transporter) assert safety, their exposure relevance is unstated, so they do not defeat the positive rodent toxicogenomics finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "The toxicogenomics study (TAK-994:toxicogenomics-murine) directly measures a key event (KE:CYP-INDUCTION) and necrosis, which defeats the ambiguous QSAR prediction (TAK-994:qsar) that only correlates with chemical structure.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxicogenomics finding (TAK-994:toxicogenomics-murine) at clinically relevant exposure defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) whose exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All available studies are within their respective models' stated applicability domains, so no weight adjustments are needed under this rule.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The high-reliability toxicogenomics study (TAK-994:toxicogenomics-murine, Klimisch 1) defeats the low-reliability QSAR study (TAK-994:qsar, Klimisch 3).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no multiple independent positive findings to show concordance; only a single study (TAK-994:toxicogenomics-murine) indicates toxicity.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in rodent, non-rodent, and human in vitro assays cannot be confirmed as protective at therapeutic exposure levels."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The in vivo rodent, non-rodent, and QSAR studies do not measure specific adverse-outcome-pathway key events, meaning they cannot mechanistically rule out subclinical or pathway-specific hepatotoxicity."
+          }
+        ],
+        "nextExperiment": "Conduct an in vitro study in human primary hepatocytes or 3D liver microtissues at clinically relevant concentrations to evaluate whether CYP450 induction leads to hepatocyte necrosis, thereby assessing the human relevance of the murine toxicogenomics finding."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 4,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "A toxicogenomics study in rodents (TAK-994:toxicogenomics-murine) demonstrated single-cell necrosis after CYP450 induction at clinically relevant doses. Although other in vivo and in vitro studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) asserted safety, they did so with unstated exposure margins. Under Rule R3, the positive finding at clinically relevant exposure defeats these negative findings. Given the chronic oral indication for healthy adults, tolerance for liver injury is low, making this signal disqualifying.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "applies",
+            "reasoning": "Human-cell assays (TAK-994:cytotox, TAK-994:transporter) asserted safety, which would normally defeat rodent in vivo findings. However, because their exposure margins are unstated, they cannot defeat the clinically relevant rodent toxicity finding (TAK-994:toxicogenomics-murine) under Rule R3.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "Direct measurements of key events (TAK-994:toxicogenomics-murine, TAK-994:cytotox, TAK-994:transporter) defeat the ambiguous QSAR finding (TAK-994:qsar) which only correlates with chemical structure.",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxic finding in rodents (TAK-994:toxicogenomics-murine) was tested at clinically relevant exposure, which defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) because their exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All available findings are within their respective model's stated applicability domains, so no evidence needs to be discounted or excluded based on this rule.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The QSAR study (TAK-994:qsar) has low reliability (Klimisch 3, confidence 0.0) and is defeated by the higher-reliability (Klimisch 1) studies.",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "applies",
+            "reasoning": "Multiple independent studies agreed on safety, which would normally raise confidence. However, because they all lacked stated exposure margins, their concordance is defeated by the single high-exposure toxic finding (TAK-994:toxicogenomics-murine) under R3.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Four of six findings assert safety with no established exposure margin, meaning they rule out less than they appear to and cannot be distinguished from results tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "Three findings correlate rather than measure, so they provide no direct evidence of mechanism in either direction."
+          }
+        ],
+        "nextExperiment": "Conduct human in vitro hepatocyte assays specifically measuring CYP-induction and hepatocyte death at the clinical Cmax to determine if the toxic mechanism observed in rodents translates to human cells at therapeutic exposure levels."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 5,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "A positive toxic finding of hepatic single-cell necrosis was observed in a rodent toxicogenomics study at clinically relevant doses (TAK-994:toxicogenomics-murine). Although multiple other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) asserted safety, they did so with unstated exposure margins. Under Rule R3, the positive finding at clinically relevant exposure defeats these negative findings. Given the low tolerance for liver signals in a chronic oral indication for healthy adults, the program should not advance.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Human-cell assays (TAK-994:cytotox, TAK-994:transporter) asserted safety but lacked stated exposure margins, meaning they cannot defeat the animal in vivo toxic finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "Studies measuring direct AOP key events (TAK-994:toxicogenomics-murine, TAK-994:cytotox, TAK-994:transporter) provide stronger mechanistic evidence than those that do not measure key events (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent) or rely on structure (TAK-994:qsar).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxic finding in rodent toxicogenomics (TAK-994:toxicogenomics-murine) was tested at clinically relevant exposure, which defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) because their exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All evaluated studies were conducted within their models' stated applicability domains, so no down-weighting was required.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The QSAR study (TAK-994:qsar) has low reliability (Klimisch 3, confidence 0.0) and is defeated by the higher-reliability (Klimisch 1) toxicogenomics study (TAK-994:toxicogenomics-murine).",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no independent positive findings to show concordance; only a single positive toxicogenomics study was identified.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in the in vivo and in vitro assays cannot be confirmed as protective at therapeutic concentrations."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The standard in vivo and QSAR studies do not measure specific key events, limiting our ability to mechanistically reconstruct the safety profile from those sources."
+          }
+        ],
+        "nextExperiment": "Perform in vitro assays using human primary hepatocytes at clinically relevant exposure levels to evaluate if the CYP450-induction-mediated necrosis observed in rodents translates to human cells."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 6,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "A positive toxic finding of hepatic single-cell necrosis was observed in a rodent toxicogenomics study at clinically relevant doses (TAK-994:toxicogenomics-murine). Although multiple other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) asserted safety, they did so with unstated exposure margins. Under Rule R3, the positive finding at clinically relevant exposure defeats these negative findings. Given the low tolerance for liver signals in a chronic oral indication for healthy adults, the program should not advance.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Human-cell assays (TAK-994:cytotox, TAK-994:transporter) asserted safety but lacked stated exposure margins, meaning they cannot defeat the animal in vivo toxic finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "Studies measuring direct AOP key events (TAK-994:toxicogenomics-murine, TAK-994:cytotox, TAK-994:transporter) provide stronger mechanistic evidence than those that do not measure key events (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent) or rely on structure (TAK-994:qsar).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxic finding in rodent toxicogenomics (TAK-994:toxicogenomics-murine) was tested at clinically relevant exposure, which defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) because their exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All evaluated studies were conducted within their models' stated applicability domains, so no down-weighting was required.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The QSAR study (TAK-994:qsar) has low reliability (Klimisch 3, confidence 0.0) and is defeated by the higher-reliability (Klimisch 1) toxicogenomics study (TAK-994:toxicogenomics-murine).",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no independent positive findings to show concordance; only a single positive toxicogenomics study was identified.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in the in vivo and in vitro assays cannot be confirmed as protective at therapeutic concentrations."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The standard in vivo and QSAR studies do not measure specific key events, limiting our ability to mechanistically reconstruct the safety profile from those sources."
+          }
+        ],
+        "nextExperiment": "Perform in vitro assays using human primary hepatocytes at clinically relevant exposure levels to evaluate if the CYP450-induction-mediated necrosis observed in rodents translates to human cells."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 7,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "The toxicogenomics study in rodents (TAK-994:toxicogenomics-murine) demonstrated hepatic single-cell necrosis after CYP450 induction at clinically relevant doses. For a chronic oral indication in healthy adults (narcolepsy type 1), tolerance for liver injury is low. The safety claims of other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) cannot overcome this signal because their exposure relevance is unstated.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Although human-cell assays (TAK-994:cytotox, TAK-994:transporter) assert safety, their exposure relevance is unstated, so they do not defeat the positive rodent toxicogenomics finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "The toxicogenomics study (TAK-994:toxicogenomics-murine) directly measures a key event (KE:CYP-INDUCTION) and necrosis, which defeats the ambiguous QSAR prediction (TAK-994:qsar) that only correlates with chemical structure.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxicogenomics finding (TAK-994:toxicogenomics-murine) at clinically relevant exposure defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) whose exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All available studies are within their respective models' stated applicability domains, so no weight adjustments are needed under this rule.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The high-reliability toxicogenomics study (TAK-994:toxicogenomics-murine, Klimisch 1) defeats the low-reliability QSAR study (TAK-994:qsar, Klimisch 3).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no multiple independent positive findings to show concordance; only a single study (TAK-994:toxicogenomics-murine) indicates toxicity.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in rodent, non-rodent, and human in vitro assays cannot be confirmed as protective at therapeutic exposure levels."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The in vivo rodent, non-rodent, and QSAR studies do not measure specific adverse-outcome-pathway key events, meaning they cannot mechanistically rule out subclinical or pathway-specific hepatotoxicity."
+          }
+        ],
+        "nextExperiment": "Conduct an in vitro study in human primary hepatocytes or 3D liver microtissues at clinically relevant concentrations to evaluate whether CYP450 induction leads to hepatocyte necrosis, thereby assessing the human relevance of the murine toxicogenomics finding."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 8,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "The toxicogenomics study in rodents (TAK-994:toxicogenomics-murine) demonstrated hepatic single-cell necrosis after CYP450 induction at clinically relevant doses. For a chronic oral indication in healthy adults (narcolepsy type 1), tolerance for liver injury is low. The safety claims of other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) cannot overcome this signal because their exposure relevance is unstated.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Although human-cell assays (TAK-994:cytotox, TAK-994:transporter) assert safety, their exposure relevance is unstated, so they do not defeat the positive rodent toxicogenomics finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "The toxicogenomics study (TAK-994:toxicogenomics-murine) directly measures a key event (KE:CYP-INDUCTION) and necrosis, which defeats the ambiguous QSAR prediction (TAK-994:qsar) that only correlates with chemical structure.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxicogenomics finding (TAK-994:toxicogenomics-murine) at clinically relevant exposure defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) whose exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All available studies are within their respective models' stated applicability domains, so no weight adjustments are needed under this rule.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The high-reliability toxicogenomics study (TAK-994:toxicogenomics-murine, Klimisch 1) defeats the low-reliability QSAR study (TAK-994:qsar, Klimisch 3).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no multiple independent positive findings to show concordance; only a single study (TAK-994:toxicogenomics-murine) indicates toxicity.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in rodent, non-rodent, and human in vitro assays cannot be confirmed as protective at therapeutic exposure levels."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The in vivo rodent, non-rodent, and QSAR studies do not measure specific adverse-outcome-pathway key events, meaning they cannot mechanistically rule out subclinical or pathway-specific hepatotoxicity."
+          }
+        ],
+        "nextExperiment": "Conduct an in vitro study in human primary hepatocytes or 3D liver microtissues at clinically relevant concentrations to evaluate whether CYP450 induction leads to hepatocyte necrosis, thereby assessing the human relevance of the murine toxicogenomics finding."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 9,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "The toxicogenomics study in rodents (TAK-994:toxicogenomics-murine) demonstrated hepatic single-cell necrosis after CYP450 induction at clinically relevant doses. For a chronic oral indication in healthy adults (narcolepsy type 1), tolerance for liver injury is low. The safety claims of other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) cannot overcome this signal because their exposure relevance is unstated.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Although human-cell assays (TAK-994:cytotox, TAK-994:transporter) assert safety, their exposure relevance is unstated, so they do not defeat the positive rodent toxicogenomics finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "The toxicogenomics study (TAK-994:toxicogenomics-murine) directly measures a key event (KE:CYP-INDUCTION) and necrosis, which defeats the ambiguous QSAR prediction (TAK-994:qsar) that only correlates with chemical structure.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxicogenomics finding (TAK-994:toxicogenomics-murine) at clinically relevant exposure defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) whose exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All available studies are within their respective models' stated applicability domains, so no weight adjustments are needed under this rule.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The high-reliability toxicogenomics study (TAK-994:toxicogenomics-murine, Klimisch 1) defeats the low-reliability QSAR study (TAK-994:qsar, Klimisch 3).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no multiple independent positive findings to show concordance; only a single study (TAK-994:toxicogenomics-murine) indicates toxicity.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in rodent, non-rodent, and human in vitro assays cannot be confirmed as protective at therapeutic exposure levels."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The in vivo rodent, non-rodent, and QSAR studies do not measure specific adverse-outcome-pathway key events, meaning they cannot mechanistically rule out subclinical or pathway-specific hepatotoxicity."
+          }
+        ],
+        "nextExperiment": "Conduct an in vitro study in human primary hepatocytes or 3D liver microtissues at clinically relevant concentrations to evaluate whether CYP450 induction leads to hepatocyte necrosis, thereby assessing the human relevance of the murine toxicogenomics finding."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 10,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "A positive toxic finding of hepatic single-cell necrosis was observed in a rodent toxicogenomics study at clinically relevant doses (TAK-994:toxicogenomics-murine). Although multiple other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) asserted safety, they did so with unstated exposure margins. Under Rule R3, the positive finding at clinically relevant exposure defeats these negative findings. Given the low tolerance for liver signals in a chronic oral indication for healthy adults, the program should not advance.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Human-cell assays (TAK-994:cytotox, TAK-994:transporter) asserted safety but lacked stated exposure margins, meaning they cannot defeat the animal in vivo toxic finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "Studies measuring direct AOP key events (TAK-994:toxicogenomics-murine, TAK-994:cytotox, TAK-994:transporter) provide stronger mechanistic evidence than those that do not measure key events (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent) or rely on structure (TAK-994:qsar).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxic finding in rodent toxicogenomics (TAK-994:toxicogenomics-murine) was tested at clinically relevant exposure, which defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) because their exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All evaluated studies were conducted within their models' stated applicability domains, so no down-weighting was required.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The QSAR study (TAK-994:qsar) has low reliability (Klimisch 3, confidence 0.0) and is defeated by the higher-reliability (Klimisch 1) toxicogenomics study (TAK-994:toxicogenomics-murine).",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no independent positive findings to show concordance; only a single positive toxicogenomics study was identified.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in the in vivo and in vitro assays cannot be confirmed as protective at therapeutic concentrations."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The standard in vivo and QSAR studies do not measure specific key events, limiting our ability to mechanistically reconstruct the safety profile from those sources."
+          }
+        ],
+        "nextExperiment": "Perform in vitro assays using human primary hepatocytes at clinically relevant exposure levels to evaluate if the CYP450-induction-mediated necrosis observed in rodents translates to human cells."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 11,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "The toxicogenomics study in rodents (TAK-994:toxicogenomics-murine) demonstrated hepatic single-cell necrosis after CYP450 induction at clinically relevant doses. For a chronic oral indication in healthy adults (narcolepsy type 1), tolerance for liver injury is low. The safety claims of other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) cannot overcome this signal because their exposure relevance is unstated.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Although human-cell assays (TAK-994:cytotox, TAK-994:transporter) assert safety, their exposure relevance is unstated, so they do not defeat the positive rodent toxicogenomics finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "The toxicogenomics study (TAK-994:toxicogenomics-murine) directly measures a key event (KE:CYP-INDUCTION) and necrosis, which defeats the ambiguous QSAR prediction (TAK-994:qsar) that only correlates with chemical structure.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxicogenomics finding (TAK-994:toxicogenomics-murine) at clinically relevant exposure defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) whose exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All available studies are within their respective models' stated applicability domains, so no weight adjustments are needed under this rule.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The high-reliability toxicogenomics study (TAK-994:toxicogenomics-murine, Klimisch 1) defeats the low-reliability QSAR study (TAK-994:qsar, Klimisch 3).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no multiple independent positive findings to show concordance; only a single study (TAK-994:toxicogenomics-murine) indicates toxicity.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in rodent, non-rodent, and human in vitro assays cannot be confirmed as protective at therapeutic exposure levels."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The in vivo rodent, non-rodent, and QSAR studies do not measure specific adverse-outcome-pathway key events, meaning they cannot mechanistically rule out subclinical or pathway-specific hepatotoxicity."
+          }
+        ],
+        "nextExperiment": "Conduct an in vitro study in human primary hepatocytes or 3D liver microtissues at clinically relevant concentrations to evaluate whether CYP450 induction leads to hepatocyte necrosis, thereby assessing the human relevance of the murine toxicogenomics finding."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 12,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "A positive toxic finding of hepatic single-cell necrosis was observed in a rodent toxicogenomics study at clinically relevant doses (TAK-994:toxicogenomics-murine). Although multiple other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) asserted safety, they did so with unstated exposure margins. Under Rule R3, the positive finding at clinically relevant exposure defeats these negative findings. Given the low tolerance for liver signals in a chronic oral indication for healthy adults, the program should not advance.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Human-cell assays (TAK-994:cytotox, TAK-994:transporter) asserted safety but lacked stated exposure margins, meaning they cannot defeat the animal in vivo toxic finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "Studies measuring direct AOP key events (TAK-994:toxicogenomics-murine, TAK-994:cytotox, TAK-994:transporter) provide stronger mechanistic evidence than those that do not measure key events (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent) or rely on structure (TAK-994:qsar).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxic finding in rodent toxicogenomics (TAK-994:toxicogenomics-murine) was tested at clinically relevant exposure, which defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) because their exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All evaluated studies were conducted within their models' stated applicability domains, so no down-weighting was required.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The QSAR study (TAK-994:qsar) has low reliability (Klimisch 3, confidence 0.0) and is defeated by the higher-reliability (Klimisch 1) toxicogenomics study (TAK-994:toxicogenomics-murine).",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no independent positive findings to show concordance; only a single positive toxicogenomics study was identified.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in the in vivo and in vitro assays cannot be confirmed as protective at therapeutic concentrations."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The standard in vivo and QSAR studies do not measure specific key events, limiting our ability to mechanistically reconstruct the safety profile from those sources."
+          }
+        ],
+        "nextExperiment": "Perform in vitro assays using human primary hepatocytes at clinically relevant exposure levels to evaluate if the CYP450-induction-mediated necrosis observed in rodents translates to human cells."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 13,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "The toxicogenomics study in rodents (TAK-994:toxicogenomics-murine) demonstrated hepatic single-cell necrosis after CYP450 induction at clinically relevant doses. For a chronic oral indication in healthy adults (narcolepsy type 1), tolerance for liver injury is low. The safety claims of other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) cannot overcome this signal because their exposure relevance is unstated.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Although human-cell assays (TAK-994:cytotox, TAK-994:transporter) assert safety, their exposure relevance is unstated, so they do not defeat the positive rodent toxicogenomics finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "The toxicogenomics study (TAK-994:toxicogenomics-murine) directly measures a key event (KE:CYP-INDUCTION) and necrosis, which defeats the ambiguous QSAR prediction (TAK-994:qsar) that only correlates with chemical structure.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxicogenomics finding (TAK-994:toxicogenomics-murine) at clinically relevant exposure defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) whose exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All available studies are within their respective models' stated applicability domains, so no weight adjustments are needed under this rule.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The high-reliability toxicogenomics study (TAK-994:toxicogenomics-murine, Klimisch 1) defeats the low-reliability QSAR study (TAK-994:qsar, Klimisch 3).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no multiple independent positive findings to show concordance; only a single study (TAK-994:toxicogenomics-murine) indicates toxicity.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in rodent, non-rodent, and human in vitro assays cannot be confirmed as protective at therapeutic exposure levels."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The in vivo rodent, non-rodent, and QSAR studies do not measure specific adverse-outcome-pathway key events, meaning they cannot mechanistically rule out subclinical or pathway-specific hepatotoxicity."
+          }
+        ],
+        "nextExperiment": "Conduct an in vitro study in human primary hepatocytes or 3D liver microtissues at clinically relevant concentrations to evaluate whether CYP450 induction leads to hepatocyte necrosis, thereby assessing the human relevance of the murine toxicogenomics finding."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 14,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "The toxicogenomics study in rodents (TAK-994:toxicogenomics-murine) demonstrated hepatic single-cell necrosis after CYP450 induction at clinically relevant doses. For a chronic oral indication in healthy adults (narcolepsy type 1), tolerance for liver injury is low. The safety claims of other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) cannot overcome this signal because their exposure relevance is unstated.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Although human-cell assays (TAK-994:cytotox, TAK-994:transporter) assert safety, their exposure relevance is unstated, so they do not defeat the positive rodent toxicogenomics finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "The toxicogenomics study (TAK-994:toxicogenomics-murine) directly measures a key event (KE:CYP-INDUCTION) and necrosis, which defeats the ambiguous QSAR prediction (TAK-994:qsar) that only correlates with chemical structure.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxicogenomics finding (TAK-994:toxicogenomics-murine) at clinically relevant exposure defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) whose exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All available studies are within their respective models' stated applicability domains, so no weight adjustments are needed under this rule.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The high-reliability toxicogenomics study (TAK-994:toxicogenomics-murine, Klimisch 1) defeats the low-reliability QSAR study (TAK-994:qsar, Klimisch 3).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no multiple independent positive findings to show concordance; only a single study (TAK-994:toxicogenomics-murine) indicates toxicity.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in rodent, non-rodent, and human in vitro assays cannot be confirmed as protective at therapeutic exposure levels."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The in vivo rodent, non-rodent, and QSAR studies do not measure specific adverse-outcome-pathway key events, meaning they cannot mechanistically rule out subclinical or pathway-specific hepatotoxicity."
+          }
+        ],
+        "nextExperiment": "Conduct an in vitro study in human primary hepatocytes or 3D liver microtissues at clinically relevant concentrations to evaluate whether CYP450 induction leads to hepatocyte necrosis, thereby assessing the human relevance of the murine toxicogenomics finding."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 15,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "A positive toxic finding of hepatic single-cell necrosis was observed in a rodent toxicogenomics study at clinically relevant doses (TAK-994:toxicogenomics-murine). Although multiple other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) asserted safety, they did so with unstated exposure margins. Under Rule R3, the positive finding at clinically relevant exposure defeats these negative findings. Given the low tolerance for liver signals in a chronic oral indication for healthy adults, the program should not advance.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Human-cell assays (TAK-994:cytotox, TAK-994:transporter) asserted safety but lacked stated exposure margins, meaning they cannot defeat the animal in vivo toxic finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "Studies measuring direct AOP key events (TAK-994:toxicogenomics-murine, TAK-994:cytotox, TAK-994:transporter) provide stronger mechanistic evidence than those that do not measure key events (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent) or rely on structure (TAK-994:qsar).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxic finding in rodent toxicogenomics (TAK-994:toxicogenomics-murine) was tested at clinically relevant exposure, which defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) because their exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All evaluated studies were conducted within their models' stated applicability domains, so no down-weighting was required.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The QSAR study (TAK-994:qsar) has low reliability (Klimisch 3, confidence 0.0) and is defeated by the higher-reliability (Klimisch 1) toxicogenomics study (TAK-994:toxicogenomics-murine).",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no independent positive findings to show concordance; only a single positive toxicogenomics study was identified.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in the in vivo and in vitro assays cannot be confirmed as protective at therapeutic concentrations."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The standard in vivo and QSAR studies do not measure specific key events, limiting our ability to mechanistically reconstruct the safety profile from those sources."
+          }
+        ],
+        "nextExperiment": "Perform in vitro assays using human primary hepatocytes at clinically relevant exposure levels to evaluate if the CYP450-induction-mediated necrosis observed in rodents translates to human cells."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 16,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to hepatic single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "The toxicogenomics study in rodents (TAK-994:toxicogenomics-murine) demonstrated hepatic single-cell necrosis after CYP450 induction at clinically relevant doses. For a chronic oral indication in healthy adults (narcolepsy type 1), tolerance for liver injury is low. The safety claims of other studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) cannot overcome this signal because their exposure relevance is unstated.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "does_not_apply",
+            "reasoning": "Although human-cell assays (TAK-994:cytotox, TAK-994:transporter) assert safety, their exposure relevance is unstated, so they do not defeat the positive rodent toxicogenomics finding (TAK-994:toxicogenomics-murine) which was tested at clinically relevant exposure.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "The toxicogenomics study (TAK-994:toxicogenomics-murine) directly measures a key event (KE:CYP-INDUCTION) and necrosis, which defeats the ambiguous QSAR prediction (TAK-994:qsar) that only correlates with chemical structure.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxicogenomics finding (TAK-994:toxicogenomics-murine) at clinically relevant exposure defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) whose exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All available studies are within their respective models' stated applicability domains, so no weight adjustments are needed under this rule.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The high-reliability toxicogenomics study (TAK-994:toxicogenomics-murine, Klimisch 1) defeats the low-reliability QSAR study (TAK-994:qsar, Klimisch 3).",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:qsar"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "does_not_apply",
+            "reasoning": "There are no multiple independent positive findings to show concordance; only a single study (TAK-994:toxicogenomics-murine) indicates toxicity.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Without clinical Cmax or exposure margins, the negative findings in rodent, non-rodent, and human in vitro assays cannot be confirmed as protective at therapeutic exposure levels."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "The in vivo rodent, non-rodent, and QSAR studies do not measure specific adverse-outcome-pathway key events, meaning they cannot mechanistically rule out subclinical or pathway-specific hepatotoxicity."
+          }
+        ],
+        "nextExperiment": "Conduct an in vitro study in human primary hepatocytes or 3D liver microtissues at clinically relevant concentrations to evaluate whether CYP450 induction leads to hepatocyte necrosis, thereby assessing the human relevance of the murine toxicogenomics finding."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 17,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "A toxicogenomics study in rodents (TAK-994:toxicogenomics-murine) demonstrated single-cell necrosis after CYP450 induction at clinically relevant doses. Although other in vivo and in vitro studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) asserted safety, they did so with unstated exposure margins. Under Rule R3, the positive finding at clinically relevant exposure defeats these negative findings. Given the chronic oral indication for healthy adults, tolerance for liver injury is low, making this signal disqualifying.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "applies",
+            "reasoning": "Human-cell assays (TAK-994:cytotox, TAK-994:transporter) asserted safety, which would normally defeat rodent in vivo findings. However, because their exposure margins are unstated, they cannot defeat the clinically relevant rodent toxicity finding (TAK-994:toxicogenomics-murine) under Rule R3.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "Direct measurements of key events (TAK-994:toxicogenomics-murine, TAK-994:cytotox, TAK-994:transporter) defeat the ambiguous QSAR finding (TAK-994:qsar) which only correlates with chemical structure.",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxic finding in rodents (TAK-994:toxicogenomics-murine) was tested at clinically relevant exposure, which defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) because their exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All available findings are within their respective model's stated applicability domains, so no evidence needs to be discounted or excluded based on this rule.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The QSAR study (TAK-994:qsar) has low reliability (Klimisch 3, confidence 0.0) and is defeated by the higher-reliability (Klimisch 1) studies.",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "applies",
+            "reasoning": "Multiple independent studies agreed on safety, which would normally raise confidence. However, because they all lacked stated exposure margins, their concordance is defeated by the single high-exposure toxic finding (TAK-994:toxicogenomics-murine) under R3.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Four of six findings assert safety with no established exposure margin, meaning they rule out less than they appear to and cannot be distinguished from results tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "Three findings correlate rather than measure, so they provide no direct evidence of mechanism in either direction."
+          }
+        ],
+        "nextExperiment": "Conduct human in vitro hepatocyte assays specifically measuring CYP-induction and hepatocyte death at the clinical Cmax to determine if the toxic mechanism observed in rodents translates to human cells at therapeutic exposure levels."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 18,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "A toxicogenomics study in rodents (TAK-994:toxicogenomics-murine) demonstrated single-cell necrosis after CYP450 induction at clinically relevant doses. Although other in vivo and in vitro studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) asserted safety, they did so with unstated exposure margins. Under Rule R3, the positive finding at clinically relevant exposure defeats these negative findings. Given the chronic oral indication for healthy adults, tolerance for liver injury is low, making this signal disqualifying.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "applies",
+            "reasoning": "Human-cell assays (TAK-994:cytotox, TAK-994:transporter) asserted safety, which would normally defeat rodent in vivo findings. However, because their exposure margins are unstated, they cannot defeat the clinically relevant rodent toxicity finding (TAK-994:toxicogenomics-murine) under Rule R3.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "Direct measurements of key events (TAK-994:toxicogenomics-murine, TAK-994:cytotox, TAK-994:transporter) defeat the ambiguous QSAR finding (TAK-994:qsar) which only correlates with chemical structure.",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxic finding in rodents (TAK-994:toxicogenomics-murine) was tested at clinically relevant exposure, which defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) because their exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All available findings are within their respective model's stated applicability domains, so no evidence needs to be discounted or excluded based on this rule.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The QSAR study (TAK-994:qsar) has low reliability (Klimisch 3, confidence 0.0) and is defeated by the higher-reliability (Klimisch 1) studies.",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "applies",
+            "reasoning": "Multiple independent studies agreed on safety, which would normally raise confidence. However, because they all lacked stated exposure margins, their concordance is defeated by the single high-exposure toxic finding (TAK-994:toxicogenomics-murine) under R3.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Four of six findings assert safety with no established exposure margin, meaning they rule out less than they appear to and cannot be distinguished from results tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "Three findings correlate rather than measure, so they provide no direct evidence of mechanism in either direction."
+          }
+        ],
+        "nextExperiment": "Conduct human in vitro hepatocyte assays specifically measuring CYP-induction and hepatocyte death at the clinical Cmax to determine if the toxic mechanism observed in rodents translates to human cells at therapeutic exposure levels."
+      },
+      "verificationFailures": []
+    },
+    {
+      "index": 19,
+      "ok": true,
+      "adjudication": {
+        "mechanism": {
+          "present": true,
+          "pathway": "CYP450 induction leading to single-cell necrosis",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine"
+          ]
+        },
+        "consequence": {
+          "verdict": "do_not_advance",
+          "reasoning": "A toxicogenomics study in rodents (TAK-994:toxicogenomics-murine) demonstrated single-cell necrosis after CYP450 induction at clinically relevant doses. Although other in vivo and in vitro studies (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) asserted safety, they did so with unstated exposure margins. Under Rule R3, the positive finding at clinically relevant exposure defeats these negative findings. Given the chronic oral indication for healthy adults, tolerance for liver injury is low, making this signal disqualifying.",
+          "citedFindingIds": [
+            "TAK-994:toxicogenomics-murine",
+            "TAK-994:invivo_rodent",
+            "TAK-994:invivo_nonrodent",
+            "TAK-994:cytotox",
+            "TAK-994:transporter"
+          ]
+        },
+        "ruleDisclosure": [
+          {
+            "ruleId": "R1",
+            "position": "applies",
+            "reasoning": "Human-cell assays (TAK-994:cytotox, TAK-994:transporter) asserted safety, which would normally defeat rodent in vivo findings. However, because their exposure margins are unstated, they cannot defeat the clinically relevant rodent toxicity finding (TAK-994:toxicogenomics-murine) under Rule R3.",
+            "citedFindingIds": [
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R2",
+            "position": "applies",
+            "reasoning": "Direct measurements of key events (TAK-994:toxicogenomics-murine, TAK-994:cytotox, TAK-994:transporter) defeat the ambiguous QSAR finding (TAK-994:qsar) which only correlates with chemical structure.",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R3",
+            "position": "applies",
+            "reasoning": "The positive toxic finding in rodents (TAK-994:toxicogenomics-murine) was tested at clinically relevant exposure, which defeats the negative findings (TAK-994:invivo_rodent, TAK-994:invivo_nonrodent, TAK-994:cytotox, TAK-994:transporter) because their exposure margins are unstated.",
+            "citedFindingIds": [
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R4",
+            "position": "does_not_apply",
+            "reasoning": "All available findings are within their respective model's stated applicability domains, so no evidence needs to be discounted or excluded based on this rule.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          },
+          {
+            "ruleId": "R5",
+            "position": "applies",
+            "reasoning": "The QSAR study (TAK-994:qsar) has low reliability (Klimisch 3, confidence 0.0) and is defeated by the higher-reliability (Klimisch 1) studies.",
+            "citedFindingIds": [
+              "TAK-994:qsar",
+              "TAK-994:toxicogenomics-murine",
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter"
+            ]
+          },
+          {
+            "ruleId": "R6",
+            "position": "applies",
+            "reasoning": "Multiple independent studies agreed on safety, which would normally raise confidence. However, because they all lacked stated exposure margins, their concordance is defeated by the single high-exposure toxic finding (TAK-994:toxicogenomics-murine) under R3.",
+            "citedFindingIds": [
+              "TAK-994:invivo_rodent",
+              "TAK-994:invivo_nonrodent",
+              "TAK-994:cytotox",
+              "TAK-994:transporter",
+              "TAK-994:toxicogenomics-murine"
+            ]
+          }
+        ],
+        "missing": [
+          {
+            "field": "clinical Cmax / exposure margin",
+            "whyItMatters": "Four of six findings assert safety with no established exposure margin, meaning they rule out less than they appear to and cannot be distinguished from results tested below the range that matters."
+          },
+          {
+            "field": "measured adverse-outcome-pathway key event",
+            "whyItMatters": "Three findings correlate rather than measure, so they provide no direct evidence of mechanism in either direction."
+          }
+        ],
+        "nextExperiment": "Conduct human in vitro hepatocyte assays specifically measuring CYP-induction and hepatocyte death at the clinical Cmax to determine if the toxic mechanism observed in rodents translates to human cells at therapeutic exposure levels."
+      },
+      "verificationFailures": []
+    }
+  ]
+}

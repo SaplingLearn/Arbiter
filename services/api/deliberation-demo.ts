@@ -406,7 +406,8 @@ async function main(): Promise<void> {
   }
 
   // ---- 5. Adjudication -----------------------------------------------------
-  const live = completeFromEnv();
+  // "adjudication", not the default "short" - same reason as server.ts and probe.ts.
+  const live = completeFromEnv(process.env, "adjudication");
   const req = svc.adjudicationRequest(CASE_ID, kase.rules)!;
   console.log(bar(`5. ADJUDICATION  [${live === null ? "STUB - NO API KEY - NOT A RESULT" : "LIVE MODEL"}]`));
   console.log(`  Gaps handed to the adjudicator: ${req.absent.length}`);
