@@ -58,7 +58,7 @@ export function EvidencePanel({ collapsed, onExpand }: { collapsed: boolean; onE
                     one computed from the registered evidence. */}
                 {modified(c.id) && (
                   <strong data-testid="claim-modified-badge" className="chip chip-warn">
-                    MODIFIED — not the registered claim
+                    MODIFIED - not the registered claim
                   </strong>
                 )}
               </div>

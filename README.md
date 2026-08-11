@@ -1,9 +1,9 @@
 # ARBITER
 
-**Reasoning through conflicting preclinical toxicity evidence — transparently, with the human experts still making the decision.**
+**Reasoning through conflicting preclinical toxicity evidence - transparently, with the human experts still making the decision.**
 
 Pfizer Digital & Technology Hackathon 2026 · Problem Statement 3, Computational Pre-Clinical Drug Development
-Team BU 1 — Jack He, Andres Lopez, Jose Cruz-Lopez
+Team BU 1 - Jack He, Andres Lopez, Jose Cruz-Lopez
 
 ---
 
@@ -11,25 +11,25 @@ Team BU 1 — Jack He, Andres Lopez, Jose Cruz-Lopez
 
 A preclinical safety lead deciding whether a compound advances is rarely short of predictions. They are short of a defensible way to reconcile the ones that disagree.
 
-A QSAR model says the structure looks hepatotoxic. A cytotoxicity assay says the cells survived. A transporter assay says bile-salt export is inhibited. A rodent study says nothing happened. These are not four opinions of equal standing — some measure a mechanism, some only correlate with structure; some were run at clinically relevant exposure, some were not. Today that reconciliation happens in a scientist's head and in a meeting, and the reasoning that produced the answer is not recoverable six months later when a regulator, or a colleague, asks why.
+A QSAR model says the structure looks hepatotoxic. A cytotoxicity assay says the cells survived. A transporter assay says bile-salt export is inhibited. A rodent study says nothing happened. These are not four opinions of equal standing - some measure a mechanism, some only correlate with structure; some were run at clinically relevant exposure, some were not. Today that reconciliation happens in a scientist's head and in a meeting, and the reasoning that produced the answer is not recoverable six months later when a regulator, or a colleague, asks why.
 
 ## What ARBITER is
 
 > We help preclinical safety leads reason through conflicting toxicity evidence so they can make consistent, defensible go or no-go decisions.
 
-ARBITER takes the conflicting evidence for a compound and produces a **position** — advance, do not advance, or abstain — together with the argument that led there, the evidence that would change it, and a hash-chained audit log of who signed off.
+ARBITER takes the conflicting evidence for a compound and produces a **position** - advance, do not advance, or abstain - together with the argument that led there, the evidence that would change it, and a hash-chained audit log of who signed off.
 
-**The differentiator:** everyone else builds tools to *predict* toxicity. ARBITER reasons through the conflicts *between* those predictions. It is not another predictor. It is the layer that adjudicates — and the human signs.
+**The differentiator:** everyone else builds tools to *predict* toxicity. ARBITER reasons through the conflicts *between* those predictions. It is not another predictor. It is the layer that adjudicates - and the human signs.
 
-It is deliberately **an internal capability, not a product to sell.** Its value is avoided cost, more consistent decisions, and a stronger evidentiary position — not licensing revenue.
+It is deliberately **an internal capability, not a product to sell.** Its value is avoided cost, more consistent decisions, and a stronger evidentiary position - not licensing revenue.
 
 ### What is actually new
 
-Not Dempster–Shafer fusion in toxicology (precedented — Park, Ogunseitan & Lejano 2014), not structured evidence integration (OECD IATA is exactly that doctrine), not read-across with inspectable justification (OECD QSAR Toolbox). The claim is narrower and survives contact with someone who knows the literature:
+Not Dempster–Shafer fusion in toxicology (precedented - Park, Ogunseitan & Lejano 2014), not structured evidence integration (OECD IATA is exactly that doctrine), not read-across with inspectable justification (OECD QSAR Toolbox). The claim is narrower and survives contact with someone who knows the literature:
 
-- **The assembly does not exist as usable software a safety lead can operate and contest** — rules a scientist owns and edits live, a signed tamper-evident record, determinism enforced by the build.
+- **The assembly does not exist as usable software a safety lead can operate and contest** - rules a scientist owns and edits live, a signed tamper-evident record, determinism enforced by the build.
 - **The experiment planner is driven by argument structure, not generic assay informativeness.** It does not ask "which assay is usually informative?" It asks *"which rule is doing the defeating, and what evidence would overturn that specific rule?"*
-- **The as-of-date prospective replay** as a validation design — testing the system on a historical case using only the evidence that existed at the decision point.
+- **The as-of-date prospective replay** as a validation design - testing the system on a historical case using only the evidence that existed at the decision point.
 
 ---
 
@@ -39,7 +39,7 @@ Two pieces in one repo.
 
 ### 1. A pure reasoning engine (`packages/engine`)
 
-Dempster–Shafer belief fusion plus defeasible argumentation over six **pre-registered** rules. No clock, no randomness, no I/O — lint forbids `Date`, `Math.random`, `node:*`, `fs`, `crypto`, dynamic imports and parent imports anywhere in `src`. Deterministic to a single hash across 1000 runs.
+Dempster–Shafer belief fusion plus defeasible argumentation over six **pre-registered** rules. No clock, no randomness, no I/O - lint forbids `Date`, `Math.random`, `node:*`, `fs`, `crypto`, dynamic imports and parent imports anywhere in `src`. Deterministic to a single hash across 1000 runs.
 
 | Rule | Name | Statement |
 |---|---|---|
@@ -61,14 +61,14 @@ Runs that same engine **in the browser** and ships as one self-contained `index.
 | Tab | What it is for |
 |---|---|
 | **Case** | The compound in front of you: evidence, the argument trace, the belief track, the position |
-| **Compounds** | The library — every scored compound and its claims |
+| **Compounds** | The library - every scored compound and its claims |
 | **Ruleset** | The six rules, their registered statements, and live editing |
 | **Validation** | The benchmark, the baselines, and the honesty warnings |
 | **Record** | Positions, sign-off, and the hash-chained audit log |
 | **About** | Framing, scope, and what the numbers do and do not say |
 | **Intake** | Enter your own compound's evidence and see whether it could decide |
 
-An **eight-beat guided demo** (`→`/`←` to step) walks two hero cases: **TAK-994**, where the engine abstains and says exactly what evidence would change that, and **Cyclosporine**, where it commits to *do not advance* with non-zero Dempster–Shafer conflict mass, driven by a `transporter:toxic` claim — cyclosporine's real hepatotoxicity is BSEP-mediated, so the engine is right for the right reason.
+An **eight-beat guided demo** (`→`/`←` to step) walks two hero cases: **TAK-994**, where the engine abstains and says exactly what evidence would change that, and **Cyclosporine**, where it commits to *do not advance* with non-zero Dempster–Shafer conflict mass, driven by a `transporter:toxic` claim - cyclosporine's real hepatotoxicity is BSEP-mediated, so the engine is right for the right reason.
 
 Plus `apps/harness` (benchmark runner, Node only), `services/api` (rung-1 AI surface handlers), and `data/prep` (Python ingestion of DILIrank, splits, QSAR/Tox21 streams).
 
@@ -77,13 +77,13 @@ Plus `apps/harness` (benchmark runner, Node only), `services/api` (rung-1 AI sur
 ## The result, stated honestly
 
 > **SUPERSEDED 2026-08-09.** The table below was measured against a target that
-> counted **aspirin, amoxicillin, atenolol and amlodipine as hepatotoxic** — 62% of
+> counted **aspirin, amoxicillin, atenolol and amlodipine as hepatotoxic** - 62% of
 > its positive class was DILIrank's *Less*-concern grade. Under that definition a
 > system correctly declining to flag amlodipine scores as wrong.
 >
 > Re-graded against a corrected target (`rules/ruleset-v2.0.json`), **ARBITER scores
-> 0.500 with confusion `tp 2 / fp 5`** — five of its seven commitments are approved,
-> widely prescribed drugs — **and no baseline clears 0.601.** The 0.750 below is
+> 0.500 with confusion `tp 2 / fp 5`** - five of its seven commitments are approved,
+> widely prescribed drugs - **and no baseline clears 0.601.** The 0.750 below is
 > sensitivity 1.0 averaged with a 0.5 *convention* for a specificity that was never
 > measured, on n=4.
 >
@@ -93,7 +93,7 @@ Plus `apps/harness` (benchmark runner, Node only), `services/api` (rung-1 AI sur
 
 **Read this before quoting any number. Do not restate the headline as an accuracy.**
 
-Measured on the test split only — train fitted the QSAR model, calibration set the conformal threshold, and scoring either would be leakage. 267 compounds scored, 61 in the pre-registered conflict subset.
+Measured on the test split only - train fitted the QSAR model, calibration set the conformal threshold, and scoring either would be leakage. 267 compounds scored, 61 in the pre-registered conflict subset.
 
 | pipeline | balanced accuracy | coverage | n committed | confusion (tp/fp/tn/fn) | single-class |
 |---|---|---|---|---|---|
@@ -105,9 +105,9 @@ Measured on the test split only — train fitted the QSAR model, calibration set
 
 ### ARBITER does not beat the best baseline. It ties a single stream, exactly.
 
-`single:transporter` matches it on every column. **Say so** — an earlier draft omitted this and it was corrected as a flattering omission.
+`single:transporter` matches it on every column. **Say so** - an earlier draft omitted this and it was corrected as a flattering omission.
 
-**And then say why, because the reason is measurable and better than the bare fact: both pipelines are scoring the same four compounds.** There are only 4 transporter claims in the entire scored split, and ARBITER's four commitments are exactly those four compounds — identical sets, not an approximate overlap. An exact tie between two pipelines evaluated on the same four compounds is close to expected, not a coincidence.
+**And then say why, because the reason is measurable and better than the bare fact: both pipelines are scoring the same four compounds.** There are only 4 transporter claims in the entire scored split, and ARBITER's four commitments are exactly those four compounds - identical sets, not an approximate overlap. An exact tie between two pipelines evaluated on the same four compounds is close to expected, not a coincidence.
 
 ### Coverage is the finding
 
@@ -119,7 +119,7 @@ ARBITER abstains on **260 of 267 compounds (97.4%)**. Every abstention is the be
 | 2 | **QSAR measures no key event.** Structure correlation alone is discounted to 6%, or 1% where it carries least. | 107 claims |
 | 3 | **The corpus is thin.** 140 of 267 compounds carry exactly one claim. | 52.4% single-claim |
 
-Stream coverage on the scored split makes it concrete — qsar covers 267 compounds (100%), cytotox 127 (47.6%), transporter 4 (1.5%). That resolves into three groups: **140 compounds hold qsar only**, 123 hold cytotox+qsar, and 4 hold all three. **ARBITER adjudicates between sources, and 140 compounds have one.** The engine is being asked to do its job where its job does not exist.
+Stream coverage on the scored split makes it concrete - qsar covers 267 compounds (100%), cytotox 127 (47.6%), transporter 4 (1.5%). That resolves into three groups: **140 compounds hold qsar only**, 123 hold cytotox+qsar, and 4 hold all three. **ARBITER adjudicates between sources, and 140 compounds have one.** The engine is being asked to do its job where its job does not exist.
 
 Sharpest form of the result: for **254 of the 260 declines**, restating every live claim at full confidence 1.0 still cannot reach the mass the threshold demands. The gap rule fires *before the engine reads a single evidence value.*
 
@@ -129,7 +129,7 @@ Sharpest form of the result: for **254 of the 260 declines**, restating every li
 
 ### If you read only one thing
 
-The result is **honest and defensible, but it is not a win over the baseline.** The temptation will be to fix that by moving a number — and `abstentionGapThreshold` is pre-registered precisely so it cannot be moved after an abstention rate has been seen. Measured, moving it from 0.50 to 0.80 buys six compounds. **What would fix this is data, not rules.**
+The result is **honest and defensible, but it is not a win over the baseline.** The temptation will be to fix that by moving a number - and `abstentionGapThreshold` is pre-registered precisely so it cannot be moved after an abstention rate has been seen. Measured, moving it from 0.50 to 0.80 buys six compounds. **What would fix this is data, not rules.**
 
 Lead with the things that are actually true: a pre-registered hashed ruleset, a deterministic engine, golden-file CI that catches a moved number, a planner that survives ±50% prior perturbation 99.2% of the time, and an audit trail whose tamper-evidence has been tested rather than asserted.
 
@@ -139,9 +139,9 @@ Lead with the things that are actually true: a pre-registered hashed ruleset, a 
 
 Not style preferences. Each protects a claim the submission makes.
 
-1. **Never edit `rules/ruleset-v1.0.json`.** It is pre-registered and hashed. If a rule looks wrong, re-read its registered statement first — twice during development a rule looked broken and was in fact correct. A genuine error is a deliberate **v1.1 re-registration** with a new hash and a written reason, not an edit.
+1. **Never edit `rules/ruleset-v1.0.json`.** It is pre-registered and hashed. If a rule looks wrong, re-read its registered statement first - twice during development a rule looked broken and was in fact correct. A genuine error is a deliberate **v1.1 re-registration** with a new hash and a written reason, not an edit.
 2. **The engine stays pure.** No clock, no randomness, no I/O in `packages/engine/src`. Lint enforces every case. A clock or a random number breaks determinism, which is what lets golden-file CI catch a moved number at all.
-3. **Language discipline** — in code, comments, UI copy, commit messages, and anything a judge reads:
+3. **Language discipline** - in code, comments, UI copy, commit messages, and anything a judge reads:
 
 | Write this | Never this |
 |---|---|
@@ -180,12 +180,12 @@ CI runs all of it on every push. The whole block was executed on 2026-08-06 from
 | Lint / typecheck / `web:build` | clean |
 | Vitest | **623 tests across 60 files** |
 | Playwright | **12 tests** |
-| Pytest (`data/prep`) | **32 tests across 4 files** — run separately, see below |
-| `golden:update` | **no diff — no reported number has moved** |
+| Pytest (`data/prep`) | **32 tests across 4 files** - run separately, see below |
+| `golden:update` | **no diff - no reported number has moved** |
 | Bundle | **1,164 kB raw / 202 kB gzipped**, one self-contained file |
 | Ruleset hash | `ed073a8a…` matches pre-registration |
 
-**On Windows, `golden:update` will make the golden file look modified when it is not** — the script writes LF, git's `autocrlf` rewrites to CRLF, and `git status` reports a modification with an empty `git diff`. Confirm it is nothing before hunting:
+**On Windows, `golden:update` will make the golden file look modified when it is not** - the script writes LF, git's `autocrlf` rewrites to CRLF, and `git status` reports a modification with an empty `git diff`. Confirm it is nothing before hunting:
 
 ```bash
 git show HEAD:results/golden/metrics.golden.json | sha256sum
@@ -207,7 +207,7 @@ cd data/prep && python -m pytest
 
 32 tests across 4 files, passing as of 2026-08-06 on Python 3.12.4 from a fresh venv with the pinned `requirements.txt`. `data/prep/README.md` documents the pipeline order. `rdkit` is the heavy dependency and the one most likely to fight a fresh environment, though it installed clean here.
 
-**These tests do not run in CI**, so that figure is a hand measurement, not a guarded one. `test_qsar_leakage.py` protects the strongest methodological claim in the project — that the split was fixed before any model was fitted, which is the condition under which every reported number is valid at all. A leak reintroduced into `data/prep/` today would be caught by nothing automatic. **Run this suite by hand after any change under `data/prep/`.**
+**These tests do not run in CI**, so that figure is a hand measurement, not a guarded one. `test_qsar_leakage.py` protects the strongest methodological claim in the project - that the split was fixed before any model was fitted, which is the condition under which every reported number is valid at all. A leak reintroduced into `data/prep/` today would be caught by nothing automatic. **Run this suite by hand after any change under `data/prep/`.**
 
 ---
 
@@ -245,15 +245,15 @@ docs/superpowers/         Specs and task-by-task plans
 
 ## Where to read next
 
-**[`HANDOVER.md`](HANDOVER.md) is the authority** — what exists, what the result actually is, what is left, and what you must not touch. Start at §0 and read through §3. §9 is the one-paragraph version. §10 and §11 carry the phase-3 and multi-case records that would otherwise have died in a gitignored ledger.
+**[`HANDOVER.md`](HANDOVER.md) is the authority** - what exists, what the result actually is, what is left, and what you must not touch. Start at §0 and read through §3. §9 is the one-paragraph version. §10 and §11 carry the phase-3 and multi-case records that would otherwise have died in a gitignored ledger.
 
 Then, in order:
 
-1. `docs/superpowers/specs/2026-07-26-arbiter-design.md` — the master spec. **§8 is the honest results section; read it before quoting any number.**
-2. `docs/superpowers/specs/2026-07-27-arbiter-phase2-web-app-design.md` — the web app, including §9/§9a on the static build and legibility.
-3. `docs/superpowers/plans/` — task-by-task plans, each recording what was measured and what went wrong.
+1. `docs/superpowers/specs/2026-07-26-arbiter-design.md` - the master spec. **§8 is the honest results section; read it before quoting any number.**
+2. `docs/superpowers/specs/2026-07-27-arbiter-phase2-web-app-design.md` - the web app, including §9/§9a on the static build and legibility.
+3. `docs/superpowers/plans/` - task-by-task plans, each recording what was measured and what went wrong.
 
-Note that `.superpowers/` is gitignored, so the SDD ledger and per-task review reports did not reach you. If a commit message refers to "the ledger" or "task-N-report.md", that is why you cannot open it. Nothing load-bearing was lost — the conclusions were copied into HANDOVER §10 and §11 — but if a decision's rationale trail stops, it stopped there.
+Note that `.superpowers/` is gitignored, so the SDD ledger and per-task review reports did not reach you. If a commit message refers to "the ledger" or "task-N-report.md", that is why you cannot open it. Nothing load-bearing was lost - the conclusions were copied into HANDOVER §10 and §11 - but if a decision's rationale trail stops, it stopped there.
 
 ## How the work is done here
 
@@ -271,9 +271,9 @@ Note that `.superpowers/` is gitignored, so the SDD ledger and per-task review r
 | Engine | Complete; deterministic; ruleset hash `ed073a8a…` unchanged |
 | Web app | Seven tabs, eight demo beats, two hero cases; ships as one self-contained `index.html` |
 | Phases | 1 complete · 2 complete · 3 built except Surface 2 (specified, deliberately not built) · multi-case complete |
-| Intake | Custom compounds — validation, advisor, and form built; CSV upload and AI extraction not (HANDOVER §12) |
-| Ablation | Aggregation, prompt and resume built and tested; no live run — needs a key and a provider decision |
-| Verified | 2026-08-06 — lint, typecheck, build, 623 vitest, 12 Playwright, 32 pytest, golden all green (HANDOVER §8.3) |
+| Intake | Custom compounds - validation, advisor, and form built; CSV upload and AI extraction not (HANDOVER §12) |
+| Ablation | Aggregation, prompt and resume built and tested; no live run - needs a key and a provider decision |
+| Verified | 2026-08-06 - lint, typecheck, build, 623 vitest, 12 Playwright, 32 pytest, golden all green (HANDOVER §8.3) |
 | Open | LLM ablation specified but unimplemented; hero case 3 specified but not built; Cmax data is the constraint on the headline |
 
 Submission due 16 August 2026.

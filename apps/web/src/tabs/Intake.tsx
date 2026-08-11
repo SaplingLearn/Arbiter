@@ -154,7 +154,7 @@ export function IntakeTab() {
         <p className="lede">
           ARBITER adjudicates between sources that disagree, so it needs evidence rather than a
           molecule. A structure on its own yields one structural prediction, which R2 discounts for
-          measuring no mechanism — not enough to license any decision.
+          measuring no mechanism - not enough to license any decision.
         </p>
         <p className="small muted">
           Nothing entered here leaves this browser, is written to the benchmark, or changes a
@@ -293,7 +293,7 @@ export function IntakeTab() {
                   <td className="mono">{c.id}</td>
                   <td>{c.assertion} ({c.strength})</td>
                   <td>{c.system}</td>
-                  <td>{c.measuresKeyEvent ?? "—"}</td>
+                  <td>{c.measuresKeyEvent ?? "-"}</td>
                   <td>{c.exposureRelevant === null ? "unstated" : c.exposureRelevant ? "yes" : "no"}</td>
                   <td>
                     <button type="button" className="btn btn-ghost"

@@ -423,7 +423,7 @@ export function TablePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
               apply time. Reading either from the live store is what let an as-of
               press be reported as the interpreter's doing. */}
           <h4 className="subtitle">
-            {didMove ? "Applied — the position moved" : "Applied — the position did not move"}
+            {didMove ? "Applied - the position moved" : "Applied - the position did not move"}
           </h4>
           <div className="stack">
             <p data-testid="delta-belief" className="small">

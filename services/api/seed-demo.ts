@@ -5,7 +5,7 @@ import { AuthStore } from "./auth.js";
  *
  * THESE ARE REAL ACCOUNTS WITH A SHARED, PUBLISHED PASSWORD. That is a deliberate
  * and clearly-labelled fixture, not a back door: the authentication path is the same
- * one a real account uses — scrypt, timing-safe comparison, bearer tokens, expiry.
+ * one a real account uses - scrypt, timing-safe comparison, bearer tokens, expiry.
  * What is fake is the secrecy of the password, and it is printed here so nobody has
  * to wonder.
  *

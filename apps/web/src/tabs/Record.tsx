@@ -99,7 +99,7 @@ export function RecordTab() {
 
       <ol className="position-list">
         {positions.map((p, i) => {
-          // The HASHED value stays `p.compoundId` (an InChIKey) — this only picks what
+          // The HASHED value stays `p.compoundId` (an InChIKey) - this only picks what
           // gets RENDERED beside it. The audit log is the one surface whose entire
           // point is being readable by a later reviewer, so a bare
           // "PMATZTZNYRCHOR-CGLBZJNRSA-N" here (while every other surface says
@@ -110,7 +110,7 @@ export function RecordTab() {
           return (
             <li key={i} data-testid="position-row" data-anchor={recordPosition(i)} className="position-row">
               <div>
-                <strong>{p.displayName}</strong> — {p.position}
+                <strong>{p.displayName}</strong> - {p.position}
                 {p.rationale ? ` · ${p.rationale}` : ""}
               </div>
               {/* Truncated on purpose: twelve hex characters is enough to compare two

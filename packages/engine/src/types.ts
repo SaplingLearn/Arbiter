@@ -33,12 +33,12 @@ export interface Provenance {
 
 /**
  * One typed evidence claim. Every field exists because exactly one rule
- * consumes it — see spec §5. Adding a field here means adding a rule.
+ * consumes it - see spec §5. Adding a field here means adding a rule.
  */
 export interface EvidenceClaim {
   id: string;
   compoundId: string;
-  /** → R6. Stream identity lets R6 judge whether agreeing sources are genuinely independent — agreement across distinct streams counts for more than one source agreeing with itself. */
+  /** → R6. Stream identity lets R6 judge whether agreeing sources are genuinely independent - agreement across distinct streams counts for more than one source agreeing with itself. */
   stream: Stream;
   assertion: Assertion;
   /** Source-reported confidence, 0..1. */
@@ -53,7 +53,7 @@ export interface EvidenceClaim {
   inApplicabilityDomain: boolean | null;
   /** → R5. Klimisch reliability score. */
   klimisch: 1 | 2 | 3 | 4 | null;
-  /** Enables as-of replay. The ENGINE NEVER READS THIS — callers filter first. */
+  /** Enables as-of replay. The ENGINE NEVER READS THIS - callers filter first. */
   availableFrom: string;
   provenance: Provenance;
 }
@@ -74,7 +74,7 @@ export type RuleId = "R1" | "R2" | "R3" | "R4" | "R5" | "R6";
 /**
  * The four pairwise defeat rules. R4 downweights rather than defeating a
  * claim, and R6 is a property of a set of claims, not a pairwise comparison
- * — neither participates in a precedence ordering between attacker/target.
+ * - neither participates in a precedence ordering between attacker/target.
  */
 export type DefeatRuleId = "R1" | "R2" | "R3" | "R5";
 
@@ -108,7 +108,7 @@ export interface Ruleset {
    * alongside `rules`.
    */
   precedenceOrder: DefeatRuleId[];
-  /** Why this precedence order was chosen. Must not reference the demonstration case — see `rules[].framework`. */
+  /** Why this precedence order was chosen. Must not reference the demonstration case - see `rules[].framework`. */
   precedenceRationale: string;
 }
 
@@ -134,7 +134,7 @@ export interface TraceStep {
 export interface Counterfactual {
   /**
    * Every claim that must change, and what it must become, for the verdict to
-   * flip — sorted by claimId so the value is stable under input reordering.
+   * flip - sorted by claimId so the value is stable under input reordering.
    *
    * A per-claim target rather than one shared `flipTo`, because the search is
    * exhaustive over ASSIGNMENTS and a minimal answer can be heterogeneous: "this
@@ -165,7 +165,7 @@ export interface Reasoning {
   verdict: Verdict;
   /**
    * True when opposed assertions both survive, i.e. neither was defeated.
-   * `undecided` counts as surviving — a mutual-defeat cycle is the most contested
+   * `undecided` counts as surviving - a mutual-defeat cycle is the most contested
    * state there is. Not the pre-registered Task 15 conflict subset, which is a
    * property of the raw claims; this is the per-result display field.
    */
@@ -192,7 +192,7 @@ export interface Reasoning {
 }
 
 /* ------------------------------------------------------------------------- *
- * The validation metrics document — `results/metrics.json`.
+ * The validation metrics document - `results/metrics.json`.
  *
  * Written by `apps/harness/src/run-metrics.ts`, read by the Validation tab, by
  * the golden-file guard, and by anything Phase 3 adds. Both ends previously read
@@ -202,7 +202,7 @@ export interface Reasoning {
  * cost of an untyped contract paid at the worst possible moment.
  *
  * These declarations live in the engine rather than the harness because the web
- * app cannot import from the harness — the harness reads `node:fs` — and
+ * app cannot import from the harness - the harness reads `node:fs` - and
  * `@arbiter/engine` is the web app's only package dependency. They are inert type
  * declarations, so nothing here touches engine purity: no clock, no randomness,
  * no I/O. `EvidenceFile` above is the same kind of citizen, a data-file shape
@@ -223,7 +223,7 @@ export interface Confusion {
   fn: number;
 }
 
-/** One scored pipeline — ARBITER itself, or one of the baselines it is compared against. */
+/** One scored pipeline - ARBITER itself, or one of the baselines it is compared against. */
 export interface ScoredPipeline {
   balancedAccuracy: number;
   /**
@@ -239,7 +239,7 @@ export interface ScoredPipeline {
    * then printed as "balanced accuracy 0.75 (95% CI 0.51-1.00)".
    */
   balancedAccuracyCi: Interval | null;
-  /** Interval for RAW accuracy (correct/committed). A different statistic — see above. */
+  /** Interval for RAW accuracy (correct/committed). A different statistic - see above. */
   rawAccuracyCi: Interval;
   /** Fraction of the subset this pipeline committed to. Travels WITH accuracy, always. */
   coverage: number;
@@ -317,8 +317,8 @@ export interface LlmConsistencyMeasured {
 /**
  * A genuine union of two shapes, not one shape with optional halves.
  *
- * Declaring the measured fields optional would let a half-written document — an
- * agreement rate with no refusal denominator beside it — validate, and a
+ * Declaring the measured fields optional would let a half-written document - an
+ * agreement rate with no refusal denominator beside it - validate, and a
  * consistency figure quoted without its refusal rate is the one reading of this
  * metric that is actively misleading. A reader discriminates on `note`.
  */
@@ -327,7 +327,7 @@ export type LlmConsistency = LlmConsistencyPending | LlmConsistencyMeasured;
 /** METRIC 2b: stability of the verdict under perturbation of evidence and rule strengths. */
 export interface ArbiterRobustness {
   /**
-   * Trivially 1 — a pure function is a pure function. Pinned to the literal
+   * Trivially 1 - a pure function is a pure function. Pinned to the literal
    * because anything else would mean the engine stopped being deterministic,
    * which is a different and much larger problem than a metric moving.
    */
@@ -375,7 +375,7 @@ export interface AbstentionQuality {
    * Sum the surviving weight of every live committed claim and grant each one
    * full confidence 1.0; where that ceiling still cannot reach the mass the
    * registered gap threshold demands, the abstention was settled before a single
-   * value was read. The remainder — `nDeclined - nStructurallyForced` — abstained
+   * value was read. The remainder - `nDeclined - nStructurallyForced` - abstained
    * on what the evidence actually said.
    *
    * The distinction is the actionable one: the first group says the assay class
@@ -391,7 +391,7 @@ export interface AbstentionQuality {
  * How much evidence one stream supplies on the scored split.
  *
  * `claims` is how much evidence exists; `compounds` is how much of the set it can
- * speak to. The gap between them is the point — a stream can carry many claims
+ * speak to. The gap between them is the point - a stream can carry many claims
  * and still be silent on almost every compound.
  */
 export interface StreamCoverage {

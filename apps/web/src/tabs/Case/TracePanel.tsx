@@ -30,7 +30,7 @@ export function TracePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
       <ol className="trace-list small">
         {claimSteps.map((s) => (
           <li key={s.claimId} data-testid="trace-step" data-anchor={traceStep(s.claimId)} className="trace-step">
-            <strong className="mono">{s.claimId}</strong> — {s.status}
+            <strong className="mono">{s.claimId}</strong> - {s.status}
             {/* The rule that fired is one of the three jobs --pfizer-blue is
                 reserved for, and it is a field value rather than a badge. */}
             {s.byRule && <span className="chip chip-fired">{s.byRule}</span>}

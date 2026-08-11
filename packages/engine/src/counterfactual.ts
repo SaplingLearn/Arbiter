@@ -10,7 +10,7 @@ type Flip = { claimId: string; to: Assertion };
 /**
  * "What would have to change for this verdict to flip?"
  *
- * EXHAUSTIVE, not heuristic — and exhaustive in the sense the spec promises,
+ * EXHAUSTIVE, not heuristic - and exhaustive in the sense the spec promises,
  * which is stronger than it first looks. An earlier draft searched pairs by
  * flipping BOTH claims to the SAME assertion, which is 3 combinations per pair
  * rather than 9, and would have missed any minimal answer of the form "this

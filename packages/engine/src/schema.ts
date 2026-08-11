@@ -69,7 +69,7 @@ export const EvidenceFileSchema = z.object({
 });
 
 /* ------------------------------------------------------------------------- *
- * `results/metrics.json` — the harness-to-app contract.
+ * `results/metrics.json` - the harness-to-app contract.
  *
  * Every refine below encodes an identity that already holds by construction in
  * apps/harness/src/metrics.ts. That is the point: the file on disk is the only

@@ -1,14 +1,14 @@
 import type { DeliberationCase } from "./deliberation.js";
 
 /**
- * Who may do what to a case. Spec §9 — "per-case access control".
+ * Who may do what to a case. Spec §9 - "per-case access control".
  *
  * SEPARATE FROM AUTHENTICATION ON PURPOSE. `auth.ts` answers *who is this*;
  * this answers *what may they touch*. Fusing them is how "is signed in" quietly
  * becomes "may read", and every case in the system becomes visible to every
  * account the moment somebody registers.
  *
- * PURE, SO IT CAN BE EXHAUSTIVELY TESTED. No store, no request, no clock — a
+ * PURE, SO IT CAN BE EXHAUSTIVELY TESTED. No store, no request, no clock - a
  * decision that depends only on a case and a user id can be enumerated in a test,
  * and an access rule you cannot enumerate is an access rule nobody has checked.
  *
@@ -33,7 +33,7 @@ export function isParticipant(c: DeliberationCase, userId: string): boolean {
 }
 
 /**
- * Reading a case means seeing the compound, the inventory and — after the reveal —
+ * Reading a case means seeing the compound, the inventory and - after the reveal -
  * everyone's positions. Restricted to the people named on it.
  *
  * The owner is included because they convened it and must sign it. Note that reading
@@ -48,7 +48,7 @@ export function canRead(c: DeliberationCase, userId: string): boolean {
 /**
  * The decision owner's actions: closing the case, running the adjudication, signing.
  *
- * The owner is not privileged in what they can SEE — `visibleTo` gives them exactly
+ * The owner is not privileged in what they can SEE - `visibleTo` gives them exactly
  * what it gives everyone else while the case is open, because an owner who could read
  * positions early is the senior person in the room hearing every answer before
  * speaking. They are privileged only in what they can DO, which is the accountability

@@ -113,8 +113,8 @@ export class DeliberationService {
   /**
    * Add a finding to an open case, and republish the inventory.
    *
-   * WHY THIS EXISTS AT ALL. Extraction — a model reading a PDF and proposing findings
-   * — is not built. Until it is, somebody types them, and when extraction does land
+   * WHY THIS EXISTS AT ALL. Extraction - a model reading a PDF and proposing findings
+   * - is not built. Until it is, somebody types them, and when extraction does land
    * it pre-fills exactly this form for a human to approve. The approval step is not
    * scaffolding that gets removed later; §4.4a requires a human signature on the
    * declaration either way.
@@ -122,7 +122,7 @@ export class DeliberationService {
    * FROZEN THE MOMENT ANYBODY ANSWERS, and that is the load-bearing rule. A position
    * is a judgement about a specific account of the evidence. If the evidence could
    * change afterwards, the record would show someone endorsing an inventory they
-   * never saw — the same defect the log's hash chain exists to make impossible for
+   * never saw - the same defect the log's hash chain exists to make impossible for
    * positions. So the error is not "you cannot edit", it is "somebody has already
    * answered against this".
    */

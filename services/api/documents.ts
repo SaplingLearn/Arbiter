@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Document upload. Spec §3.3 — the storage row.
+ * Document upload. Spec §3.3 - the storage row.
  *
  * MEASURED BEFORE IT IS ACCEPTED. Two of the first five documents collected for this
  * project were unusable, and neither failure was visible without measuring: one was

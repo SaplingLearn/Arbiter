@@ -4,7 +4,7 @@
  * WHAT IT DEFENDS. Passwords here are scrypt-hashed at a deliberately expensive cost,
  * which slows an attacker who has stolen the file. This defends the other direction:
  * somebody with no file at all, guessing against the live endpoint. Without it the
- * only limit on guesses is how fast the server can hash — and the hash cost that
+ * only limit on guesses is how fast the server can hash - and the hash cost that
  * protects a stolen file makes each guess cheap for the attacker and expensive for us.
  *
  * DELAY, NOT LOCKOUT. A lockout after N failures hands anybody a denial-of-service
@@ -12,18 +12,18 @@
  * Escalating delay costs an attacker the same time and costs the real account holder
  * one slow retry, so the failure lands on the right person.
  *
- * TWO RULES, AND THEY COUNT DIFFERENT THINGS — this is the part that was wrong first
+ * TWO RULES, AND THEY COUNT DIFFERENT THINGS - this is the part that was wrong first
  * time and is worth stating plainly.
  *
  *   Per address: consecutive failures. Targets somebody grinding one account.
  *
  *   Per source: how many DISTINCT addresses this host has failed against. Targets
- *   spraying — one host trying a thousand accounts once each, which the per-address
+ *   spraying - one host trying a thousand accounts once each, which the per-address
  *   rule never sees.
  *
- * Counting raw failures per source was measured to be wrong here: behind a proxy —
+ * Counting raw failures per source was measured to be wrong here: behind a proxy -
  * including the dev server's own `/api` proxy, and any reverse proxy in front of a
- * real deployment — every user shares one source address, so one person mistyping
+ * real deployment - every user shares one source address, so one person mistyping
  * their password four times throttled everybody in the building. Counting distinct
  * addresses instead means a shared egress is only throttled by behaviour no ordinary
  * user produces.
@@ -40,7 +40,7 @@ export const DECAY_MS = 15 * 60 * 1000;
 export const SPRAY_THRESHOLD = 12;
 
 /**
- * Nothing for the first few — real people mistype — then doubling from one second to
+ * Nothing for the first few - real people mistype - then doubling from one second to
  * a ceiling of five minutes. The ceiling exists because unbounded backoff becomes a
  * permanent lockout by another name.
  */

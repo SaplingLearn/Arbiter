@@ -1,14 +1,14 @@
-# ARBITER Phase 1 — Engine and Numbers Implementation Plan
+# ARBITER Phase 1 - Engine and Numbers Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Go from an empty repo to `results/results.json` + `results/metrics.json` — real validated numbers produced by a pure TypeScript reasoning engine over real public hepatotoxicity data, with four baselines and the full metric suite.
+**Goal:** Go from an empty repo to `results/results.json` + `results/metrics.json` - real validated numbers produced by a pure TypeScript reasoning engine over real public hepatotoxicity data, with four baselines and the full metric suite.
 
 **Architecture:** A dependency-free TypeScript engine (`packages/engine`) is the single source of truth for reasoning. A Node CLI (`apps/harness`) imports it to run the benchmark and emit JSON. Python (`data/prep`) does one-time data acquisition and writes committed JSON. Nothing in the engine touches I/O, dates, or randomness.
 
 **Tech Stack:** Node 20 · TypeScript 5 · npm workspaces · vitest · zod · tsx · Python 3.12 (venv) · pandas · rdkit · scikit-learn · Anthropic SDK (`@anthropic-ai/sdk`)
 
-**Spec:** `docs/superpowers/specs/2026-07-26-arbiter-design.md` — this plan implements §5, §6, §8, §11 of it. Phases 2 (web app) and 3 (AI surfaces) get their own plans after this one lands.
+**Spec:** `docs/superpowers/specs/2026-07-26-arbiter-design.md` - this plan implements §5, §6, §8, §11 of it. Phases 2 (web app) and 3 (AI surfaces) get their own plans after this one lands.
 
 ---
 
@@ -17,12 +17,12 @@
 Every task's requirements implicitly include this section.
 
 - **Node 20.12.1**, npm workspaces. TypeScript strict mode on.
-- **`packages/engine` has exactly one runtime dependency: `zod`.** Nothing else. No `Date`, no `Math.random`, no I/O, no `fs`/`path`/`crypto`, no parent-directory imports. Enforced by ESLint rule + a determinism test. (`zod` is admitted deliberately — validating at the seam is worth more than nominal purity, and it introduces no clock, no I/O, and no randomness.)
+- **`packages/engine` has exactly one runtime dependency: `zod`.** Nothing else. No `Date`, no `Math.random`, no I/O, no `fs`/`path`/`crypto`, no parent-directory imports. Enforced by ESLint rule + a determinism test. (`zod` is admitted deliberately - validating at the seam is worth more than nominal purity, and it introduces no clock, no I/O, and no randomness.)
 - **All randomness lives in `apps/harness`**, via a seeded PRNG. The seed is committed alongside results.
 - **`rules/ruleset-v1.0.json` is committed before any evaluation runs.** Its SHA-256 goes in `results/metrics.json`.
-- **Three-way data split** — train / calibration / test. Boundaries and seed fixed before any fitting. Reliability priors fit on train only. Reported numbers come from test only.
+- **Three-way data split** - train / calibration / test. Boundaries and seed fixed before any fitting. Reliability priors fit on train only. Reported numbers come from test only.
 - **Language discipline** (spec §1): say "review-ready evidence package", never "regulator-ready dossier"; "positions" and "sign-off", never "voting"/"tally"/"majority"; "hash-chained audit log", never "blockchain".
-- **Anthropic model ID: `claude-opus-5`.** `temperature`/`top_p`/`top_k` do **not exist** on this model — passing any of them returns HTTP 400. Never add them.
+- **Anthropic model ID: `claude-opus-5`.** `temperature`/`top_p`/`top_k` do **not exist** on this model - passing any of them returns HTTP 400. Never add them.
 - **Thinking is ON by default on `claude-opus-5`.** `max_tokens` caps thinking + output together.
 - **Every Anthropic response must have `stop_reason` checked before `content` is read.** `stop_reason: "refusal"` returns HTTP 200 with empty content.
 - TAK-994 is **excluded from every metric**. It is a fixture, not a benchmark row.
@@ -35,7 +35,7 @@ Every task's requirements implicitly include this section.
 |---|---|
 | `package.json` | npm workspaces root, shared scripts |
 | `tsconfig.base.json` | strict compiler options shared by all packages |
-| `packages/engine/src/types.ts` | `EvidenceClaim`, `Ruleset`, `Rule`, `Reasoning`, `TraceStep` — no logic |
+| `packages/engine/src/types.ts` | `EvidenceClaim`, `Ruleset`, `Rule`, `Reasoning`, `TraceStep` - no logic |
 | `packages/engine/src/fuse.ts` | Dempster–Shafer mass combination, belief/plausibility, conflict mass K |
 | `packages/engine/src/rules.ts` | R1–R6 as predicate functions over claim pairs |
 | `packages/engine/src/argue.ts` | attack graph + grounded semantics with reinstatement |
@@ -43,7 +43,7 @@ Every task's requirements implicitly include this section.
 | `packages/engine/src/conflict.ts` | conflict detection / labelling |
 | `packages/engine/src/counterfactual.ts` | exhaustive minimal-flip search |
 | `packages/engine/src/plan.ts` | argument-structure-driven VOI planner |
-| `packages/engine/src/index.ts` | `reason(claims, ruleset)` — the only public entry point |
+| `packages/engine/src/index.ts` | `reason(claims, ruleset)` - the only public entry point |
 | `packages/engine/src/schema.ts` | zod schemas for `EvidenceClaim` and `Ruleset` |
 | `apps/harness/src/prng.ts` | seeded PRNG (all randomness) |
 | `apps/harness/src/stats.ts` | Wilson intervals, balanced accuracy, confusion matrix |
@@ -76,7 +76,7 @@ Every task's requirements implicitly include this section.
   pre-registered run is never overwritten by a diagnostic. Also produces
   `data/out/smiles-cache.json`.
 - **Two gates, not one.** `nConflicting` is stream-vs-LABEL disagreement, which is just model
-  error — a 70%-accurate model disagrees on 30% of compounds by construction, so that
+  error - a 70%-accurate model disagrees on 30% of compounds by construction, so that
   threshold cannot realistically fail, and DILIrank is the label rather than a stream.
   `nCrossStreamConflict` is stream-vs-stream, which is the shape spec §11's subset actually
   has, and it is the gate that matters.
@@ -109,7 +109,7 @@ Write `data/prep/README.md`:
 ````markdown
 # Data prep
 
-## DILIrank (manual download — no stable direct URL)
+## DILIrank (manual download - no stable direct URL)
 
 1. Go to the FDA Liver Toxicity Knowledge Base (LTKB) DILIrank page.
 2. Download the DILIrank dataset spreadsheet (`.xlsx`).
@@ -121,14 +121,14 @@ click once.
 
 `data/raw/` is deliberately **not** gitignored. The workbook is 110KB of
 US-government public-domain data, and committing it pins the exact dataset
-version a result came from — DILIrank 2.0 reclassified 49 drugs relative to 1.0,
+version a result came from - DILIrank 2.0 reclassified 49 drugs relative to 1.0,
 so "which version" is part of any result's provenance.
 
 ### Two sheets, and they are not interchangeable
 
 | sheet | dataset | drugs |
 |-------|---------|-------|
-| 0 | DILIrank **2.0** — use this one | 1,336 |
+| 0 | DILIrank **2.0** - use this one | 1,336 |
 | 1 | DILIrank 1.0, superseded | 1,036 |
 
 Row 0 of each sheet is a title banner, so every reader must pass `header=1`.
@@ -139,7 +139,7 @@ With the default `header=0` every column comes back as `Unnamed: N`.
 precedes the label column, so a column lookup matching `"severity"` selects the
 wrong one.
 
-### Category strings are internally inconsistent — always normalise
+### Category strings are internally inconsistent - always normalise
 
 The file mixes case and punctuation (`vMost-DILI-concern` 215 rows vs
 `vMOST-DILI-concern` 2; `vNo-DILI-concern` 413 vs `vNo-DILI-Concern` 1), and
@@ -171,7 +171,7 @@ data/prep/.venv/Scripts/python -m pip install -r data/prep/requirements.txt
 ```
 ````
 
-`data/raw/` is deliberately NOT added to `.gitignore` — see the note in the
+`data/raw/` is deliberately NOT added to `.gitignore` - see the note in the
 README above and in `.gitignore` itself. The workbook is 110KB of public-domain
 US-government data and committing it pins the dataset version a result came from.
 `data/out/*` IS ignored, with explicit negations for the spike reports and the
@@ -553,7 +553,7 @@ built from two skill-free predictors gives the headline an N and nothing to meas
 streams cannot beat "always guess the majority class", their disagreements are noise, and no
 arbitration rule can beat a coin flip on them.
 
-**MEASURED 2026-07-27 — this is exactly what happened at the sample size this step
+**MEASURED 2026-07-27 - this is exactly what happened at the sample size this step
 originally specified:**
 
 | | n=250 (230 resolved) | n=all (891 resolved) |
@@ -567,10 +567,10 @@ originally specified:**
 | stream A wins when split | 0.521 | 0.574 |
 
 At 250 compounds both streams are *below* the majority-class baseline and the arbitrable
-signal is 2.1 points — indistinguishable from noise. It is the sample, not DILI: 2048-bit
+signal is 2.1 points - indistinguishable from noise. It is the sample, not DILI: 2048-bit
 fingerprints with ~184 training rows per fold cannot learn. On the full set stream A reaches
 0.708 against a 0.602 baseline, in line with published DILI QSAR, and the signal is 7.4
-points. **Task 11 must train on the full resolved set — if the 250-compound sample leaks into
+points. **Task 11 must train on the full resolved set - if the 250-compound sample leaks into
 it, Task 15's headline measures noise.** PubChem resolves 891/982 (90.7%), so the real
 evaluation set is 891, not 982.
 
@@ -590,7 +590,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
 The reports and the SMILES cache are committed via `.gitignore` negations rather than `-f`.
-The pattern must be `data/out/*`, **not** `data/out/` — git cannot re-include a file whose
+The pattern must be `data/out/*`, **not** `data/out/` - git cannot re-include a file whose
 parent directory is excluded, so the trailing-slash form makes the negations silently dead.
 
 ---
@@ -654,7 +654,7 @@ parent directory is excluded, so the trailing-slash form makes the negations sil
 }
 ```
 
-`resolveJsonModule` is required — `packages/engine/test/rules.test.ts` imports `rules/ruleset-v1.0.json` directly so the tests run against the real pre-registered file rather than a copy that could drift from it.
+`resolveJsonModule` is required - `packages/engine/test/rules.test.ts` imports `rules/ruleset-v1.0.json` directly so the tests run against the real pre-registered file rather than a copy that could drift from it.
 
 `packages/engine/package.json`:
 
@@ -679,7 +679,7 @@ parent directory is excluded, so the trailing-slash form makes the negations sil
 }
 ```
 
-`.eslintrc.json` — this is where determinism is enforced:
+`.eslintrc.json` - this is where determinism is enforced:
 
 ```json
 {
@@ -729,9 +729,9 @@ cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm install && npm exec tsc --vers
 
 Expected: npm installs without error, `tsc` prints `Version 5.6.x`.
 
-The ban targets `Math.random` specifically via `no-restricted-properties`, not the `Math` global — the engine legitimately uses `Math.min`, `Math.max`, and `Math.abs`, and banning the whole namespace would force pointless aliasing while catching nothing extra.
+The ban targets `Math.random` specifically via `no-restricted-properties`, not the `Math` global - the engine legitimately uses `Math.min`, `Math.max`, and `Math.abs`, and banning the whole namespace would force pointless aliasing while catching nothing extra.
 
-**`Date` and `Math.random` alone do not enforce purity — VERIFY the config by trying to break it.** An earlier version of this override banned only those two, and every one of the following passed with zero errors: `performance.now()` (a clock), `globalThis.Date.now()` (the banned global reached through another name), `process.env.FOO` (ambient input), `crypto.randomUUID()` (randomness), and `await import("node:fs")` — dynamic `import()` is an `ImportExpression`, which `no-restricted-imports` cannot see at all, so it needs `no-restricted-syntax`. Note `crypto` appears in BOTH `no-restricted-imports` (the module) and `no-restricted-globals` (the Web Crypto global); they are different things and banning one does not ban the other. After editing this file, write each of the five expressions into a throwaway file under `packages/engine/src/` and confirm `npx eslint` exits non-zero on every one before deleting it. A determinism guard nobody has attacked is not a guard.
+**`Date` and `Math.random` alone do not enforce purity - VERIFY the config by trying to break it.** An earlier version of this override banned only those two, and every one of the following passed with zero errors: `performance.now()` (a clock), `globalThis.Date.now()` (the banned global reached through another name), `process.env.FOO` (ambient input), `crypto.randomUUID()` (randomness), and `await import("node:fs")` - dynamic `import()` is an `ImportExpression`, which `no-restricted-imports` cannot see at all, so it needs `no-restricted-syntax`. Note `crypto` appears in BOTH `no-restricted-imports` (the module) and `no-restricted-globals` (the Web Crypto global); they are different things and banning one does not ban the other. After editing this file, write each of the five expressions into a throwaway file under `packages/engine/src/` and confirm `npx eslint` exits non-zero on every one before deleting it. A determinism guard nobody has attacked is not a guard.
 
 - [ ] **Step 2: Write the failing schema test**
 
@@ -822,7 +822,7 @@ describe("RulesetSchema", () => {
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/schema.test.ts
 ```
 
-Expected: FAIL — `Cannot find module '../src/schema.js'`
+Expected: FAIL - `Cannot find module '../src/schema.js'`
 
 - [ ] **Step 4: Write `types.ts`**
 
@@ -864,12 +864,12 @@ export interface Provenance {
 
 /**
  * One typed evidence claim. Every field exists because exactly one rule
- * consumes it — see spec §5. Adding a field here means adding a rule.
+ * consumes it - see spec §5. Adding a field here means adding a rule.
  */
 export interface EvidenceClaim {
   id: string;
   compoundId: string;
-  /** → R6. Stream identity lets R6 judge whether agreeing sources are genuinely independent — agreement across distinct streams counts for more than one source agreeing with itself. */
+  /** → R6. Stream identity lets R6 judge whether agreeing sources are genuinely independent - agreement across distinct streams counts for more than one source agreeing with itself. */
   stream: Stream;
   assertion: Assertion;
   /** Source-reported confidence, 0..1. */
@@ -884,7 +884,7 @@ export interface EvidenceClaim {
   inApplicabilityDomain: boolean | null;
   /** → R5. Klimisch reliability score. */
   klimisch: 1 | 2 | 3 | 4 | null;
-  /** Enables as-of replay. The ENGINE NEVER READS THIS — callers filter first. */
+  /** Enables as-of replay. The ENGINE NEVER READS THIS - callers filter first. */
   availableFrom: string;
   provenance: Provenance;
 }
@@ -905,7 +905,7 @@ export type RuleId = "R1" | "R2" | "R3" | "R4" | "R5" | "R6";
 /**
  * The four pairwise defeat rules. R4 downweights rather than defeating a
  * claim, and R6 is a property of a set of claims, not a pairwise comparison
- * — neither participates in a precedence ordering between attacker/target.
+ * - neither participates in a precedence ordering between attacker/target.
  */
 export type DefeatRuleId = "R1" | "R2" | "R3" | "R5";
 
@@ -939,7 +939,7 @@ export interface Ruleset {
    * alongside `rules`.
    */
   precedenceOrder: DefeatRuleId[];
-  /** Why this precedence order was chosen. Must not reference the demonstration case — see `rules[].framework`. */
+  /** Why this precedence order was chosen. Must not reference the demonstration case - see `rules[].framework`. */
   precedenceRationale: string;
 }
 
@@ -965,7 +965,7 @@ export interface TraceStep {
 export interface Counterfactual {
   /**
    * Every claim that must change, and what it must become, for the verdict to
-   * flip — sorted by claimId so the value is stable under input reordering.
+   * flip - sorted by claimId so the value is stable under input reordering.
    *
    * A per-claim target rather than one shared `flipTo`, because the search is
    * exhaustive over ASSIGNMENTS and a minimal answer can be heterogeneous: "this
@@ -996,7 +996,7 @@ export interface Reasoning {
   verdict: Verdict;
   /**
    * True when opposed assertions both survive, i.e. neither was defeated.
-   * `undecided` counts as surviving — a mutual-defeat cycle is the most contested
+   * `undecided` counts as surviving - a mutual-defeat cycle is the most contested
    * state there is. Not the pre-registered Task 15 conflict subset, which is a
    * property of the raw claims; this is the per-result display field.
    */
@@ -1025,7 +1025,7 @@ export interface Reasoning {
 
 - [ ] **Step 5: Write `schema.ts`**
 
-Add `zod` to the engine's dependencies — this is the one exception to zero-deps, and it is deliberate: schema validation at the seam is worth more than purity, and zod has no I/O, no dates, and no randomness.
+Add `zod` to the engine's dependencies - this is the one exception to zero-deps, and it is deliberate: schema validation at the seam is worth more than purity, and zod has no I/O, no dates, and no randomness.
 
 ```bash
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm install zod@^3.23.8 --workspace @arbiter/engine
@@ -1181,7 +1181,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
   - `claimToMass(assertion: Assertion, strength: number): Mass`
   - `combine(a: Mass, b: Mass): { mass: Mass; conflict: number }`
   - `fuse(masses: Mass[]): { belief: number; plausibility: number; conflictMass: number }`
-  - `VACUOUS: Mass` — the silent-source constant
+  - `VACUOUS: Mass` - the silent-source constant
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1324,7 +1324,7 @@ describe("fuse", () => {
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/fuse.test.ts
 ```
 
-Expected: FAIL — `Cannot find module '../src/fuse.js'`
+Expected: FAIL - `Cannot find module '../src/fuse.js'`
 
 - [ ] **Step 3: Write the implementation**
 
@@ -1402,7 +1402,7 @@ export function fuse(masses: Mass[]): { belief: number; plausibility: number; co
 }
 ```
 
-Add this test to `packages/engine/test/fuse.test.ts` — it is the case `max(K_i)` cannot satisfy:
+Add this test to `packages/engine/test/fuse.test.ts` - it is the case `max(K_i)` cannot satisfy:
 
 ```ts
   it("accumulates conflict across the fold rather than taking the maximum", () => {
@@ -1748,7 +1748,7 @@ describe("disabled rules", () => {
 
 describe("antisymmetry", () => {
   // Cross-product over every field a defeat rule reads. For every pair drawn
-  // from it, at most one direction may be licensed as a defeat — never both.
+  // from it, at most one direction may be licensed as a defeat - never both.
   // This is the test class a "pick one rule per test" test file structurally
   // cannot express, and it is what caught the R1/R3 2-cycle.
   function* variants(): Generator<Pick<EvidenceClaim, "system" | "measuresKeyEvent" | "exposureRelevant" | "klimisch" | "stream">> {
@@ -1781,7 +1781,7 @@ describe("antisymmetry", () => {
         const reverse = defeats(b, a, RS);
         if (forward !== null && reverse !== null) {
           throw new Error(
-            `2-cycle: (${JSON.stringify(vi)}) vs (${JSON.stringify(vj)}) — forward=${forward.byRule}, reverse=${reverse.byRule}`,
+            `2-cycle: (${JSON.stringify(vi)}) vs (${JSON.stringify(vj)}) - forward=${forward.byRule}, reverse=${reverse.byRule}`,
           );
         }
         checked++;
@@ -1917,11 +1917,11 @@ describe("relevanceDiscount", () => {
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/rules.test.ts
 ```
 
-Expected: FAIL — cannot resolve `../src/rules.js` and `rules/ruleset-v1.0.json`
+Expected: FAIL - cannot resolve `../src/rules.js` and `rules/ruleset-v1.0.json`
 
 - [ ] **Step 3: Write the pre-registered ruleset**
 
-Create `rules/ruleset-v1.0.json`. **No rule may cite TAK-994** — every `framework` field names a published source only.
+Create `rules/ruleset-v1.0.json`. **No rule may cite TAK-994** - every `framework` field names a published source only.
 
 ```json
 {
@@ -2018,14 +2018,14 @@ Create `rules/ruleset-v1.0.json`. **No rule may cite TAK-994** — every `framew
 
 ```ts
   /** Defeat rules in precedence order, highest first. R4 downweights and R6 is a
-   *  set property, so neither appears. Pre-registered and hashed — reordering this
+   *  set property, so neither appears. Pre-registered and hashed - reordering this
    *  is how a toxicologist contests the preference ordering. */
   precedenceOrder: RuleId[];
   /** Why this order. Rendered in the UI beside the ordering. */
   precedenceRationale: string;
 ```
 
-And `RulesetSchema` in `packages/engine/src/schema.ts` gains matching validation — an
+And `RulesetSchema` in `packages/engine/src/schema.ts` gains matching validation - an
 array of exactly the four defeat-rule ids with no duplicates, and a non-empty string:
 
 ```ts
@@ -2081,7 +2081,7 @@ type RuleHit = { rationale: string };
 
 /**
  * Predicates for the four pairwise defeat rules. Each is precedence-agnostic
- * — it only decides whether `attacker` beats `target` *if this rule is
+ * - it only decides whether `attacker` beats `target` *if this rule is
  * consulted at all*. Which rule gets consulted first, when more than one
  * would apply, is `ruleset.precedenceOrder` (see `bestRule`/`defeats` below).
  */
@@ -2129,7 +2129,7 @@ const RULE_PREDICATES: Record<DefeatRuleId, (attacker: EvidenceClaim, target: Ev
 /**
  * The highest-precedence rule (per `ruleset.precedenceOrder`) that licenses
  * `attacker` defeating `target`, or null if none applies. A disabled rule is
- * skipped entirely — never merely deprioritised — so it can still leave a
+ * skipped entirely - never merely deprioritised - so it can still leave a
  * gap that a lower-precedence rule fills.
  */
 function bestRule(
@@ -2167,8 +2167,8 @@ export function precedenceRank(id: RuleId, ruleset: Ruleset): number {
  * a human-relevant claim outranks an animal claim by R1, while the animal
  * claim simultaneously outranks the human claim by R3). `defeats` resolves
  * this by precedence: it computes the best rule in both directions and
- * lets the higher-precedence one win. A tie — including when the reverse
- * direction is licensed by a rule that is equal-or-better in precedence —
+ * lets the higher-precedence one win. A tie - including when the reverse
+ * direction is licensed by a rule that is equal-or-better in precedence -
  * yields NO defeat, so both claims survive into fusion and the disagreement
  * shows up as conflict mass rather than an arbitrary winner.
  *
@@ -2318,7 +2318,7 @@ export function relevanceDiscount(claim: EvidenceClaim, ruleset: Ruleset): Disco
  * Counting claims would reward a chatty source; counting distinct streams
  * rewards genuine independence, which is what weight-of-evidence means. But
  * counting only the majority's streams (as if the minority didn't exist)
- * would let a 2-2 split score as high as unanimity — so the boost is scaled
+ * would let a 2-2 split score as high as unanimity - so the boost is scaled
  * down by how close the split is, reaching no boost at all (1) at an exact
  * tie. `supports` reports which side the concordance favors, so a caller
  * can't accidentally apply a boost computed from one cluster to the other
@@ -2452,7 +2452,7 @@ absence.
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>" && git rev-parse HEAD && git log -1 --format=%cI
 ```
 
-Record the printed commit hash and ISO timestamp — they go on the Validation tab in Phase 2.
+Record the printed commit hash and ISO timestamp - they go on the Validation tab in Phase 2.
 
 ```bash
 git add packages/engine apps/harness package-lock.json && git commit -m "Add R1-R6 predicates and the ruleset hash utility
@@ -2473,7 +2473,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ## Task 5: Defeasible argumentation with reinstatement
 
-**This task is what earns the word "argumentation."** A flat decision table cannot express reinstatement — A defeats B, C defeats A, therefore B comes back. If this is not implemented, calling the system defeasible argumentation is overselling and a technical judge would be right to call it a lookup table with extra steps.
+**This task is what earns the word "argumentation."** A flat decision table cannot express reinstatement - A defeats B, C defeats A, therefore B comes back. If this is not implemented, calling the system defeasible argumentation is overselling and a technical judge would be right to call it a lookup table with extra steps.
 
 **Files:**
 - Create: `packages/engine/src/argue.ts`
@@ -2718,7 +2718,7 @@ describe("argue", () => {
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/argue.test.ts
 ```
 
-Expected: FAIL — `Cannot find module '../src/argue.js'`
+Expected: FAIL - `Cannot find module '../src/argue.js'`
 
 - [ ] **Step 3: Write the implementation**
 
@@ -2873,7 +2873,7 @@ cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/a
 ```
 
 Expected: PASS (10 tests), lint clean. The antisymmetry cross-product test is the
-important one — it is the class of check whose absence let a mutual defeat ship on
+important one - it is the class of check whose absence let a mutual defeat ship on
 the demo's flagship case in Task 4.
 
 - [ ] **Step 5: Commit**
@@ -3087,7 +3087,7 @@ describe("detectConflict", () => {
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/abstain.test.ts packages/engine/test/conflict.test.ts
 ```
 
-Expected: FAIL — both modules missing.
+Expected: FAIL - both modules missing.
 
 - [ ] **Step 3: Write the implementations**
 
@@ -3218,22 +3218,22 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 7: `reason()` — the public entry point, and the determinism guarantee
+## Task 7: `reason()` - the public entry point, and the determinism guarantee
 
 **Files:**
 - Create: `packages/engine/src/index.ts`
-- Modify: `packages/engine/src/fuse.ts` — additively extend `fuse`'s return with `mass`
+- Modify: `packages/engine/src/fuse.ts` - additively extend `fuse`'s return with `mass`
 - Test: `packages/engine/test/reason.test.ts`, `packages/engine/test/determinism.test.ts`
 
 **Interfaces:**
-- Consumes: `argue`, `fuse`, `claimToMass`, `shouldAbstain`, `relevanceDiscount`, `detectConflict`
-  — NOT `concordanceBoost`. R6 is realised by Dempster's rule inside `fuse`; the
+- Consumes: `argue`, `fuse`, `claimToMass`, `shouldAbstain`, `relevanceDiscount`, `detectConflict` -
+  NOT `concordanceBoost`. R6 is realised by Dempster's rule inside `fuse`; the
   explicit boost was removed from the verdict path because a stream-count majority
   could invert a mass majority. See the ruling in the fix-round notes below.
 - Produces:
   - `reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash?: string): Reasoning`
   - Re-exports every public type and the sub-module functions
-  - `fuse` now also returns `mass: Mass` (additive — Task 3's tests are unaffected)
+  - `fuse` now also returns `mass: Mass` (additive - Task 3's tests are unaffected)
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -3626,7 +3626,7 @@ describe("determinism", () => {
 });
 ```
 
-Do NOT snapshot a fixture the previous `it` already ran through `reason()`. `Object.freeze` on a non-strict-mode write fails SILENTLY, which is why the snapshot comparison is kept alongside the freezing rather than replaced by it — Vitest runs ESM (strict), so a write should throw, but keep both belts.
+Do NOT snapshot a fixture the previous `it` already ran through `reason()`. `Object.freeze` on a non-strict-mode write fails SILENTLY, which is why the snapshot comparison is kept alongside the freezing rather than replaced by it - Vitest runs ESM (strict), so a write should throw, but keep both belts.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -3634,24 +3634,24 @@ Do NOT snapshot a fixture the previous `it` already ran through `reason()`. `Obj
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/reason.test.ts packages/engine/test/determinism.test.ts
 ```
 
-Expected: FAIL — `Cannot find module '../src/index.js'`
+Expected: FAIL - `Cannot find module '../src/index.js'`
 
-- [ ] **Step 2a: Add `relevanceDiscount` to `rules.ts` — the mechanism beat 3 depends on**
+- [ ] **Step 2a: Add `relevanceDiscount` to `rules.ts` - the mechanism beat 3 depends on**
 
-**Why this exists.** R1–R6 as written are pure tie-breakers: they only fire when claims collide. But TAK-994's pass 1 contains four claims that all say *safe* and one that says *ambiguous* — no conflict at all. Nothing gets defeated, everything is admitted at full strength, and `reason()` returns **advance**. Demo beat 3 shows an abstention, so as specified the flagship case does not work.
+**Why this exists.** R1–R6 as written are pure tie-breakers: they only fire when claims collide. But TAK-994's pass 1 contains four claims that all say *safe* and one that says *ambiguous* - no conflict at all. Nothing gets defeated, everything is admitted at full strength, and `reason()` returns **advance**. Demo beat 3 shows an abstention, so as specified the flagship case does not work.
 
-The gap is conceptual, not arithmetic. The lesson of the case is not that animal evidence loses an argument — it is that **a clean rat study is weak evidence about humans even when nothing contradicts it.** Four sources agreeing tells you little if all four are either non-human or never tested at clinical exposure. The engine had no way to express that.
+The gap is conceptual, not arithmetic. The lesson of the case is not that animal evidence loses an argument - it is that **a clean rat study is weak evidence about humans even when nothing contradicts it.** Four sources agreeing tells you little if all four are either non-human or never tested at clinical exposure. The engine had no way to express that.
 
-So the same six principles apply as **discounts** absent conflict, with the discounted portion becoming *uncommitted* mass — which is exactly what uncommitted mass means. R4 already worked this way; this generalises it.
+So the same six principles apply as **discounts** absent conflict, with the discounted portion becoming *uncommitted* mass - which is exactly what uncommitted mass means. R4 already worked this way; this generalises it.
 
-**One asymmetry, and it comes from the registered text.** R3 discounts only claims asserting *safe*. That is not a tuning choice — R3's pre-registered statement is already written about negative findings ("…defeats **a negative finding** whose exposure margin is unstated or untested at that range"). R1, R2, R4 and R5 characterise what *kind* of evidence a claim is and so apply in both directions; R3 characterises what a result can *license*, which is direction-dependent. A positive hit at an unrecorded concentration still tells you something and sets up the next experiment; an absence of signal at an unrecorded concentration tells you nothing about safety.
+**One asymmetry, and it comes from the registered text.** R3 discounts only claims asserting *safe*. That is not a tuning choice - R3's pre-registered statement is already written about negative findings ("…defeats **a negative finding** whose exposure margin is unstated or untested at that range"). R1, R2, R4 and R5 characterise what *kind* of evidence a claim is and so apply in both directions; R3 characterises what a result can *license*, which is direction-dependent. A positive hit at an unrecorded concentration still tells you something and sets up the next experiment; an absence of signal at an unrecorded concentration tells you nothing about safety.
 
-This was measured, not assumed. With R3 applied in both directions, a lone human hepatotoxicity hit whose margin was never recorded yields belief 0.135 against plausibility 1.0 — a gap of 0.87, so **abstain** — and it takes **eight** concordant sources before anything escapes abstention. Since `exposureRelevant` will be `null` for nearly every claim the QSAR (Task 11) and Tox21 (Task 12) streams produce, that would have abstained on essentially the entire evaluation set and taken the Task 15 metrics with it. Scoped to negatives, all six of this task's verdict expectations hold, including Task 7's own `do_not_advance` case.
+This was measured, not assumed. With R3 applied in both directions, a lone human hepatotoxicity hit whose margin was never recorded yields belief 0.135 against plausibility 1.0 - a gap of 0.87, so **abstain** - and it takes **eight** concordant sources before anything escapes abstention. Since `exposureRelevant` will be `null` for nearly every claim the QSAR (Task 11) and Tox21 (Task 12) streams produce, that would have abstained on essentially the entire evaluation set and taken the Task 15 metrics with it. Scoped to negatives, all six of this task's verdict expectations hold, including Task 7's own `do_not_advance` case.
 
 Add to `packages/engine/src/rules.ts`:
 
 > **This is an excerpt, shown here because it is what Task 7 contributes.** The Task 4
-> listing of `rules.ts` above is the authoritative copy and already contains this code —
+> listing of `rules.ts` above is the authoritative copy and already contains this code -
 > it is kept byte-identical to the shipped source by the plan-sync check, so if the two
 > ever disagree, believe Task 4's.
 
@@ -3837,7 +3837,7 @@ describe("relevanceDiscount", () => {
 
 - [ ] **Step 3: Extend `fuse` additively to expose the full mass**
 
-`reason()` needs `mass.safe` to compare the two beliefs, which Task 3's return type does not carry. Add it — a purely additive change, so every Task 3 test still passes.
+`reason()` needs `mass.safe` to compare the two beliefs, which Task 3's return type does not carry. Add it - a purely additive change, so every Task 3 test still passes.
 
 In `packages/engine/src/fuse.ts`, change the `fuse` signature and its return statement only:
 
@@ -3854,7 +3854,7 @@ export function fuse(masses: Mass[]): { belief: number; plausibility: number; co
 }
 ```
 
-Only the `mass` field is new here — the cumulative-conflict accumulation is already in place from Task 3. Do not reintroduce a maximum.
+Only the `mass` field is new here - the cumulative-conflict accumulation is already in place from Task 3. Do not reintroduce a maximum.
 
 - [ ] **Step 4: Write `index.ts`**
 
@@ -4072,7 +4072,7 @@ function reasonCore(
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine && npm run lint && npm run typecheck
 ```
 
-Expected: PASS — all engine tests including Task 3's fusion tests (the `fuse` change was additive), 1000-run determinism gives exactly one hash, lint and typecheck clean.
+Expected: PASS - all engine tests including Task 3's fusion tests (the `fuse` change was additive), 1000-run determinism gives exactly one hash, lint and typecheck clean.
 
 - [ ] **Step 6: Commit**
 
@@ -4101,7 +4101,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - Create: `packages/engine/src/counterfactual.ts`
-- Modify: `packages/engine/src/index.ts` — populate `counterfactual`
+- Modify: `packages/engine/src/index.ts` - populate `counterfactual`
 - Test: `packages/engine/test/counterfactual.test.ts`
 
 **Interfaces:**
@@ -4387,7 +4387,7 @@ describe("reason() integration", () => {
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/counterfactual.test.ts
 ```
 
-Expected: FAIL — `Cannot find module '../src/counterfactual.js'`
+Expected: FAIL - `Cannot find module '../src/counterfactual.js'`
 
 - [ ] **Step 3: Write the implementation**
 
@@ -4406,7 +4406,7 @@ type Flip = { claimId: string; to: Assertion };
 /**
  * "What would have to change for this verdict to flip?"
  *
- * EXHAUSTIVE, not heuristic — and exhaustive in the sense the spec promises,
+ * EXHAUSTIVE, not heuristic - and exhaustive in the sense the spec promises,
  * which is stronger than it first looks. An earlier draft searched pairs by
  * flipping BOTH claims to the SAME assertion, which is 3 combinations per pair
  * rather than 9, and would have missed any minimal answer of the form "this
@@ -4529,8 +4529,8 @@ Replace the `return { ... }` block's counterfactual field. Because the search ca
 
 **Also export `reasonVerdictOnly` here, rather than waiting for Task 15.** Task 15's plan
 introduces it, but the flag it needs is created by *this* task, and leaving the public
-extras-free entry point until later means Task 9's planner — which re-runs the engine per
-candidate outcome — has nothing cheap to call and would recurse through the counterfactual
+extras-free entry point until later means Task 9's planner - which re-runs the engine per
+candidate outcome - has nothing cheap to call and would recurse through the counterfactual
 search on every probe.
 
 > **Excerpt.** The authoritative `index.ts` listing is in Task 7 and is kept byte-identical
@@ -4542,7 +4542,7 @@ export function reason(claims: EvidenceClaim[], ruleset: Ruleset, rulesetHash = 
   return reasonCore(claims, ruleset, rulesetHash, true);
 }
 
-/** The verdict and the range only — for sampling paths that read nothing else. */
+/** The verdict and the range only - for sampling paths that read nothing else. */
 export function reasonVerdictOnly(claims: EvidenceClaim[], ruleset: Ruleset): Reasoning {
   return reasonCore(claims, ruleset, "", false);
 }
@@ -4574,7 +4574,7 @@ function reasonCore(
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine && npm run lint && npm run typecheck
 ```
 
-Expected: PASS — including the 120-trial oracle agreement test and the still-green 1000-run determinism test.
+Expected: PASS - including the 120-trial oracle agreement test and the still-green 1000-run determinism test.
 
 - [ ] **Step 6: Commit**
 
@@ -4604,20 +4604,20 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Three corrections to this task's original design, all found by measuring rather than reading:**
 
-1. **The coupling has to reach the CHOICE.** The first draft computed the pivotal rules and then ranked candidates purely on expected gap reduction per unit cost, using pivotality only to phrase the rationale string — which is precisely the generic-informativeness planner §2a disclaims, wearing the right label. Selection is now lexicographic: resolves-a-pivotal-rule first, value per cost second. Lexicographic and not weighted, because a weight is one more unregistered coefficient to defend and this project has already had to delete one.
+1. **The coupling has to reach the CHOICE.** The first draft computed the pivotal rules and then ranked candidates purely on expected gap reduction per unit cost, using pivotality only to phrase the rationale string - which is precisely the generic-informativeness planner §2a disclaims, wearing the right label. Selection is now lexicographic: resolves-a-pivotal-rule first, value per cost second. Lexicographic and not weighted, because a weight is one more unregistered coefficient to defend and this project has already had to delete one.
 
-2. **Pivotal rules must be sought across all six rules, not just those that produced an attack.** Since Task 7 R1–R5 also act as evidence-quality discounts, which apply with no conflict present at all. The TAK-994 pass-1 case has zero attacks, so an `argue().attacks`-derived candidate set is **empty** — the planner would have had no argument structure to work with in exactly the scenario beat 5 is built on. Measured: on that shape R3 *is* pivotal, and the planner names it.
+2. **Pivotal rules must be sought across all six rules, not just those that produced an attack.** Since Task 7 R1–R5 also act as evidence-quality discounts, which apply with no conflict present at all. The TAK-994 pass-1 case has zero attacks, so an `argue().attacks`-derived candidate set is **empty** - the planner would have had no argument structure to work with in exactly the scenario beat 5 is built on. Measured: on that shape R3 *is* pivotal, and the planner names it.
 
-3. **`resolvesRule` was wrong for R5 and dangerous for R6.** R5 discounts Klimisch 3 and 4, so Klimisch 1 *or* 2 escapes it; requiring exactly 1 discarded a reliable Klimisch 2 assay. R6 returned `true` for every assay, which would have made every candidate claim to resolve it — R6 has no verdict-path mechanism since the concordance boost was removed, so it can never be pivotal and now returns `false`.
+3. **`resolvesRule` was wrong for R5 and dangerous for R6.** R5 discounts Klimisch 3 and 4, so Klimisch 1 *or* 2 escapes it; requiring exactly 1 discarded a reliable Klimisch 2 assay. R6 returned `true` for every assay, which would have made every candidate claim to resolve it - R6 has no verdict-path mechanism since the concordance boost was removed, so it can never be pivotal and now returns `false`.
 
-**Also removed: the `gap < 0.2` gate.** A bare constant outside the pre-registered ruleset decided whether advice was offered at all. The planner now speaks when the engine is undecided *or* the case is contested — both engine-computed, no invented threshold.
+**Also removed: the `gap < 0.2` gate.** A bare constant outside the pre-registered ruleset decided whether advice was offered at all. The planner now speaks when the engine is undecided *or* the case is contested - both engine-computed, no invented threshold.
 
-> **FLAGGED FOR TASK 12 AND THE DEMO SCRIPT.** Measured on the pass-1 shape, the murine CYP-induction study has a **negative** expected gap reduction: R1 discounts rodent evidence to 10% of stated strength, so the assay adds little mass while its toxic branch adds conflict, and the range comes out *wider*. It is therefore filtered out, and the planner recommends a **human** assay (BSEP inhibition on the current catalogue). Spec beat 5 names the murine study as the recommendation, so the script and the mechanism disagree — and the mechanism is being self-consistent with its own ruleset. This is **not** resolved by tuning the catalogue or the priors, which would be fitting data to a desired demo outcome. Owner decision, since reconciling it touches a factual claim about what was historically run.
+> **FLAGGED FOR TASK 12 AND THE DEMO SCRIPT.** Measured on the pass-1 shape, the murine CYP-induction study has a **negative** expected gap reduction: R1 discounts rodent evidence to 10% of stated strength, so the assay adds little mass while its toxic branch adds conflict, and the range comes out *wider*. It is therefore filtered out, and the planner recommends a **human** assay (BSEP inhibition on the current catalogue). Spec beat 5 names the murine study as the recommendation, so the script and the mechanism disagree - and the mechanism is being self-consistent with its own ruleset. This is **not** resolved by tuning the catalogue or the priors, which would be fitting data to a desired demo outcome. Owner decision, since reconciling it touches a factual claim about what was historically run.
 
 **Files:**
 - Create: `packages/engine/src/plan.ts`
 - Create: `data/out/assays.json`
-- Modify: `packages/engine/src/index.ts` — populate `nextExperiment`
+- Modify: `packages/engine/src/index.ts` - populate `nextExperiment`
 - Test: `packages/engine/test/plan.test.ts`
 
 **Interfaces:**
@@ -4629,7 +4629,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Write the assay operator catalogue**
 
-Create `data/assays.json` — **not** `data/out/assays.json`. `data/out/` is gitignored because it holds generated artifacts, and this catalogue is hand-authored input; the plan's original path meant `git add data/out/assays.json` would have silently added nothing and the operator set would exist on one machine only. `priorToxic` and `resultStrength` are **expert-elicited, not learned** — the spec discloses this and Task 15 measures its sensitivity.
+Create `data/assays.json` - **not** `data/out/assays.json`. `data/out/` is gitignored because it holds generated artifacts, and this catalogue is hand-authored input; the plan's original path meant `git add data/out/assays.json` would have silently added nothing and the operator set would exist on one machine only. `priorToxic` and `resultStrength` are **expert-elicited, not learned** - the spec discloses this and Task 15 measures its sensitivity.
 
 ```json
 {
@@ -4991,7 +4991,7 @@ describe("reason() integration", () => {
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- packages/engine/test/plan.test.ts
 ```
 
-Expected: FAIL — `Cannot find module '../src/plan.js'`
+Expected: FAIL - `Cannot find module '../src/plan.js'`
 
 - [ ] **Step 4: Write the implementation**
 
@@ -5283,20 +5283,20 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ## Task 10: DILIrank ingest, structure crosswalk, and the three-way split
 
-**The split must be committed before any model is fitted.** That ordering is what makes the reported numbers valid — see spec §8.
+**The split must be committed before any model is fitted.** That ordering is what makes the reported numbers valid - see spec §8.
 
 **A deviation from the spec's data table, made deliberately:** the QSAR stream (Task 11) trains on the **DILIrank training split**, not on Therapeutics Data Commons. Using our own split removes cross-dataset InChIKey overlap as a leakage vector entirely, rather than trying to subtract it. TDC/ADMET-AI stays available as optional enrichment but is no longer on the critical path. This is simpler *and* more defensible: one dataset, one split, no overlap question to answer.
 
 **Files:**
 - Create: `data/prep/ingest_dilirank.py`, `data/prep/make_splits.py`
 - Create: `data/prep/tests/test_splits.py`, `data/prep/pytest.ini`
-- Modify: `data/prep/requirements.txt` — add pytest
+- Modify: `data/prep/requirements.txt` - add pytest
 
 **Interfaces:**
 - Consumes: `data/raw/dilirank.xlsx`, `rules/ruleset-v1.0.json` (binarisation policy)
 - Produces:
-  - `data/out/compounds.json` — `{generatedAt, compounds: [{compoundId, name, smiles, inchikey, dilirankLabel, y}]}` where `compoundId` **is** the InChIKey
-  - `data/out/splits.json` — `{seed, sizes, train: [inchikey], calibration: [...], test: [...]}`
+  - `data/out/compounds.json` - `{generatedAt, compounds: [{compoundId, name, smiles, inchikey, dilirankLabel, y}]}` where `compoundId` **is** the InChIKey
+  - `data/out/splits.json` - `{seed, sizes, train: [inchikey], calibration: [...], test: [...]}`
 
 - [ ] **Step 1: Add pytest and write the failing split tests**
 
@@ -5375,7 +5375,7 @@ def test_test_split_is_large_enough_to_report_on():
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && data/prep/.venv/Scripts/python -m pip install -q -r data/prep/requirements.txt && data/prep/.venv/Scripts/python -m pytest data/prep -q
 ```
 
-Expected: FAIL — `Run data/prep/make_splits.py first`
+Expected: FAIL - `Run data/prep/make_splits.py first`
 
 - [ ] **Step 3: Write the DILIrank ingest**
 
@@ -5646,7 +5646,7 @@ if __name__ == "__main__":
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && data/prep/.venv/Scripts/python data/prep/ingest_dilirank.py && data/prep/.venv/Scripts/python data/prep/make_splits.py && data/prep/.venv/Scripts/python -m pytest data/prep -q
 ```
 
-Expected: PASS (5 tests). **If `test_test_split_is_large_enough_to_report_on` fails**, the structure-resolution hit rate was too low — report the compound count before continuing, because it bounds every interval in §8.
+Expected: PASS (5 tests). **If `test_test_split_is_large_enough_to_report_on` fails**, the structure-resolution hit rate was too low - report the compound count before continuing, because it bounds every interval in §8.
 
 - [ ] **Step 6: Commit the split on its own, before any fitting exists**
 
@@ -5688,7 +5688,7 @@ Restores what the spec (§5) specifies and earlier drafts dropped. Conformal is 
 
 **Interfaces:**
 - Consumes: `data/out/compounds.json`, `data/out/splits.json`
-- Produces: `data/out/stream-qsar.json` — `{alpha, qhat, calibrationCoverage, claims: EvidenceClaim[]}`
+- Produces: `data/out/stream-qsar.json` - `{alpha, qhat, calibrationCoverage, claims: EvidenceClaim[]}`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -5783,7 +5783,7 @@ def test_claims_carry_every_field_the_engine_schema_requires():
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && data/prep/.venv/Scripts/python -m pytest data/prep/tests/test_qsar_leakage.py -q
 ```
 
-Expected: FAIL — `Run data/prep/qsar_stream.py first`
+Expected: FAIL - `Run data/prep/qsar_stream.py first`
 
 - [ ] **Step 3: Write the implementation**
 
@@ -5957,9 +5957,9 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: `data/out/compounds.json`, `data/out/stream-qsar.json`
 - Produces:
-  - `data/out/stream-tox21.json` — cytotox and transporter claims, DATABASE-badged
-  - `data/out/tak994.json` — the fixture, LITERATURE-badged, with `availableFrom` dates
-  - `data/out/evidence.json` — all streams merged, schema-validated
+  - `data/out/stream-tox21.json` - cytotox and transporter claims, DATABASE-badged
+  - `data/out/tak994.json` - the fixture, LITERATURE-badged, with `availableFrom` dates
+  - `data/out/evidence.json` - all streams merged, schema-validated
 
 - [ ] **Step 1: Write the failing as-of tests**
 
@@ -6039,7 +6039,7 @@ def test_tak994_is_excluded_from_the_benchmark():
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && data/prep/.venv/Scripts/python -m pytest data/prep/tests/test_tak994_asof.py -q
 ```
 
-Expected: FAIL — `Run data/prep/tak994_fixture.py first`
+Expected: FAIL - `Run data/prep/tak994_fixture.py first`
 
 - [ ] **Step 3: Write the Tox21 stream**
 
@@ -6340,7 +6340,7 @@ if __name__ == "__main__":
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && data/prep/.venv/Scripts/python data/prep/tox21_stream.py && data/prep/.venv/Scripts/python data/prep/tak994_fixture.py && data/prep/.venv/Scripts/python data/prep/assemble_evidence.py && data/prep/.venv/Scripts/python -m pytest data/prep -q
 ```
 
-Expected: PASS (17 tests). Note the printed `byProvenance` counts — those drive the DATABASE/LITERATURE badges in Phase 2, and the ratio is the honest picture of how much landed as real database values by the **2 August data freeze**.
+Expected: PASS (17 tests). Note the printed `byProvenance` counts - those drive the DATABASE/LITERATURE badges in Phase 2, and the ratio is the honest picture of how much landed as real database values by the **2 August data freeze**.
 
 - [ ] **Step 7: Commit**
 
@@ -6368,12 +6368,12 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 13: Harness — engine run and the three deterministic baselines
+## Task 13: Harness - engine run and the three deterministic baselines
 
 **Files:**
 - Create: `apps/harness/src/prng.ts`, `apps/harness/src/load.ts`, `apps/harness/src/baselines.ts`, `apps/harness/src/main.ts`
 - Create: `apps/harness/src/validate-evidence.ts`
-- Modify: `package.json` — add `validate:evidence` script
+- Modify: `package.json` - add `validate:evidence` script
 - Test: `apps/harness/test/baselines.test.ts`, `apps/harness/test/prng.test.ts`
 
 **Interfaces:**
@@ -6521,7 +6521,7 @@ describe("all three baselines", () => {
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- apps/harness
 ```
 
-Expected: FAIL — `Cannot find module '../src/prng.js'` and `'../src/baselines.js'`
+Expected: FAIL - `Cannot find module '../src/prng.js'` and `'../src/baselines.js'`
 
 - [ ] **Step 3: Write the PRNG**
 
@@ -6802,7 +6802,7 @@ main();
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- apps/harness && npm run validate:evidence && npm run harness && npm run lint && npm run typecheck
 ```
 
-Expected: PASS (11 harness tests). `validate:evidence` prints `ok: true` with the ruleset hash. `harness` writes `results/results.json` and prints the scored count, the conflict-subset size, and the abstention count. **Record the conflict-subset size** — it is the denominator of the headline metric.
+Expected: PASS (11 harness tests). `validate:evidence` prints `ok: true` with the ruleset hash. `harness` writes `results/results.json` and prints the scored count, the conflict-subset size, and the abstention count. **Record the conflict-subset size** - it is the denominator of the headline metric.
 
 - [ ] **Step 8: Commit**
 
@@ -6841,24 +6841,24 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Four decisions that need stating before the code, because each is a Q&A answer:**
 
-1. **No `temperature`, and none is possible.** The parameter does not exist on `claude-opus-5` — sending it returns HTTP 400. We record the sampling configuration as *"none available"*. This is stronger than disclosing a value: nobody can claim we tuned a knob to manufacture variance, because there is no knob.
+1. **No `temperature`, and none is possible.** The parameter does not exist on `claude-opus-5` - sending it returns HTTP 400. We record the sampling configuration as *"none available"*. This is stronger than disclosing a value: nobody can claim we tuned a knob to manufacture variance, because there is no knob.
 2. **Thinking stays ON** (the model's default). Disabling it would strawman the baseline, and on this model disabled thinking is *also* known to leak `<thinking>` tags into visible output, which would corrupt a structured-output run. Leaving it on is both fairer and safer.
 3. **Structured outputs**, not prompted JSON. The verdict is schema-guaranteed, so "your parser mangled the LLM's answer" cannot explain away its variance.
 4. **Refusals are exclusions, never wrong answers.** Drug-hepatotoxicity prompts can trip `bio`-category safety classifiers. A refusal is HTTP 200 with `stop_reason: "refusal"` and empty content. We count them and report the rate.
 
 **Files:**
 - Create: `apps/harness/src/ablation.ts`, `apps/harness/src/run-ablation.ts`
-- Modify: `package.json` — add `@anthropic-ai/sdk` and an `ablation` script
+- Modify: `package.json` - add `@anthropic-ai/sdk` and an `ablation` script
 - Test: `apps/harness/test/ablation.test.ts`
 
 **Interfaces:**
 - Consumes: `loadInputs` from `./load.js`; `EvidenceClaim`
 - Produces:
-  - `const LlmVerdictSchema` (zod) — `{ verdict: "advance" | "do_not_advance" | "abstain", confidence: number, reasoning: string }`
+  - `const LlmVerdictSchema` (zod) - `{ verdict: "advance" | "do_not_advance" | "abstain", confidence: number, reasoning: string }`
   - `buildEvidenceBlock(claims: EvidenceClaim[]): string`
   - `buildRequests(compoundId, claims, runs): BatchRequest[]`
   - `summariseRuns(runs: AblationRun[]): { modalVerdict; agreementRate; confidenceStdDev; nRefusals }`
-  - `results/ablation.json` — every run, cached so the batch is never re-billed
+  - `results/ablation.json` - every run, cached so the batch is never re-billed
 
 - [ ] **Step 1: Add the SDK**
 
@@ -6874,7 +6874,7 @@ Add to root `package.json` scripts:
 
 - [ ] **Step 2: Write the failing tests**
 
-These test the pure parts — prompt construction and run summarisation. Nothing here calls the API; the network path is exercised manually in Step 6.
+These test the pure parts - prompt construction and run summarisation. Nothing here calls the API; the network path is exercised manually in Step 6.
 
 Create `apps/harness/test/ablation.test.ts`:
 
@@ -7020,7 +7020,7 @@ describe("LlmVerdictSchema", () => {
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- apps/harness/test/ablation.test.ts
 ```
 
-Expected: FAIL — `Cannot find module '../src/ablation.js'`
+Expected: FAIL - `Cannot find module '../src/ablation.js'`
 
 - [ ] **Step 4: Write the ablation module**
 
@@ -7328,13 +7328,13 @@ cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- apps/harness/test/abla
 
 Expected: PASS (14 tests), lint and typecheck clean.
 
-Then confirm credentials and submit the batch. **This is the only step in Phase 1 that costs money** — expect roughly $20–40 depending on test-split size, since thinking output dominates and the batch discount halves it.
+Then confirm credentials and submit the batch. **This is the only step in Phase 1 that costs money** - expect roughly $20–40 depending on test-split size, since thinking output dominates and the batch discount halves it.
 
 ```bash
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm run ablation
 ```
 
-Expected: a batch id, then poll lines every 30s until `ended`, then a summary. **Record `refusalRate` and `meanAgreementRate`.** If `refusalRate` is above ~0.05, report it before continuing — a materially refused benchmark needs disclosing in §8 and may need a prompt that frames the task as safety review more explicitly.
+Expected: a batch id, then poll lines every 30s until `ended`, then a summary. **Record `refusalRate` and `meanAgreementRate`.** If `refusalRate` is above ~0.05, report it before continuing - a materially refused benchmark needs disclosing in §8 and may need a prompt that frames the task as safety review more explicitly.
 
 - [ ] **Step 7: Commit**
 
@@ -7381,12 +7381,12 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **One design decision needs stating up front, because it changes what metric 3 means.**
 
-The spec asks for "how often the true label falls within the belief-to-plausibility interval." Read literally against a binary truth label, that requires `belief ≤ y ≤ plausibility` — so covering `y = 1` demands plausibility of exactly 1, meaning zero mass assigned to safe. That is a demanding bar and it will read low. We report it anyway, and we report **the number that actually tests the honesty claim**: is the interval **wider on the cases ARBITER got wrong** than on the ones it got right? If the answer is yes, the uncertainty is doing its job. That is more meaningful than coverage against a binary label, and it is the calibration number worth putting on a slide.
+The spec asks for "how often the true label falls within the belief-to-plausibility interval." Read literally against a binary truth label, that requires `belief ≤ y ≤ plausibility` - so covering `y = 1` demands plausibility of exactly 1, meaning zero mass assigned to safe. That is a demanding bar and it will read low. We report it anyway, and we report **the number that actually tests the honesty claim**: is the interval **wider on the cases ARBITER got wrong** than on the ones it got right? If the answer is yes, the uncertainty is doing its job. That is more meaningful than coverage against a binary label, and it is the calibration number worth putting on a slide.
 
 **Files:**
 - Create: `apps/harness/src/stats.ts`, `apps/harness/src/metrics.ts`, `apps/harness/src/run-metrics.ts`
-- Modify: `packages/engine/src/index.ts` — export `reasonVerdictOnly`
-- Modify: `package.json` — add a `metrics` script
+- Modify: `packages/engine/src/index.ts` - export `reasonVerdictOnly`
+- Modify: `package.json` - add a `metrics` script
 - Test: `apps/harness/test/stats.test.ts`, `apps/harness/test/metrics.test.ts`
 
 **Interfaces:**
@@ -7395,7 +7395,7 @@ The spec asks for "how often the true label falls within the belief-to-plausibil
   - `wilson(successes: number, n: number, z?: number): { lo: number; hi: number }`
   - `balancedAccuracy(pairs: { y: number; predicted: number }[]): number`
   - `confusion(pairs): { tp: number; fp: number; tn: number; fn: number }`
-  - `reasonVerdictOnly(claims, ruleset): Reasoning` — skips counterfactual and planner
+  - `reasonVerdictOnly(claims, ruleset): Reasoning` - skips counterfactual and planner
   - `results/metrics.json`
 
 - [ ] **Step 1: Write the failing stats tests**
@@ -7588,11 +7588,11 @@ describe("robustness", () => {
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- apps/harness/test/stats.test.ts apps/harness/test/metrics.test.ts
 ```
 
-Expected: FAIL — `Cannot find module '../src/stats.js'` and `'../src/metrics.js'`
+Expected: FAIL - `Cannot find module '../src/stats.js'` and `'../src/metrics.js'`
 
 - [ ] **Step 4: Add a verdict-only engine entry point**
 
-Robustness needs ~2,000 engine evaluations per compound. `reason()` also runs the exhaustive counterfactual, which is ~130 recursive evaluations once pairs are searched over every combination of target assertions and not just a shared one — so calling it here would multiply the work by two orders of magnitude for output nobody reads. Perturbation only needs the verdict, which is what `reasonVerdictOnly` returns. (An earlier draft of this note said ≈21; that was the homogeneous-pair count.)
+Robustness needs ~2,000 engine evaluations per compound. `reason()` also runs the exhaustive counterfactual, which is ~130 recursive evaluations once pairs are searched over every combination of target assertions and not just a shared one - so calling it here would multiply the work by two orders of magnitude for output nobody reads. Perturbation only needs the verdict, which is what `reasonVerdictOnly` returns. (An earlier draft of this note said ≈21; that was the homogeneous-pair count.)
 
 In `packages/engine/src/index.ts`, add:
 
@@ -7988,9 +7988,9 @@ cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test && npm run lint && npm ru
 
 Expected: PASS across the whole suite, then `results/metrics.json` written and a summary printed.
 
-**Record these five numbers — they are the presentation:** conflict-subset n, ARBITER's balanced accuracy with its Wilson interval and coverage, the best baseline's, whether `widthDiscriminates` is true, and mean robustness.
+**Record these five numbers - they are the presentation:** conflict-subset n, ARBITER's balanced accuracy with its Wilson interval and coverage, the best baseline's, whether `widthDiscriminates` is true, and mean robustness.
 
-**If ARBITER does not beat the best baseline, report it.** The spec says to prepare for a mixed result: if the LLM matches on accuracy, the advantage is consistency, traceability and calibration — which were likely the real advantages anyway. An honest mixed result with a clear interpretation is more credible than a suspiciously clean sweep.
+**If ARBITER does not beat the best baseline, report it.** The spec says to prepare for a mixed result: if the LLM matches on accuracy, the advantage is consistency, traceability and calibration - which were likely the real advantages anyway. An honest mixed result with a clear interpretation is more credible than a suspiciously clean sweep.
 
 - [ ] **Step 9: Commit**
 
@@ -8030,7 +8030,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 16: Golden files and CI — the numbers cannot drift
+## Task 16: Golden files and CI - the numbers cannot drift
 
 **What this task actually buys you.** The sharpest question in Q&A is *"are the numbers on your slide from the same code as the demo?"* Golden files make the answer structural: if anyone changes the engine, the rules, or the data in a way that moves a reported number, **the build fails**. Drift becomes a red CI run instead of a discovery mid-presentation.
 
@@ -8044,7 +8044,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: `results/metrics.json`
 - Produces:
-  - `extractGolden(metrics: unknown): GoldenNumbers` — the reported-number surface only
+  - `extractGolden(metrics: unknown): GoldenNumbers` - the reported-number surface only
   - `results/golden/metrics.golden.json`
   - scripts: `golden:check`, `golden:update`, `preflight`
 
@@ -8136,7 +8136,7 @@ describe("the committed golden numbers", () => {
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npm test -- apps/harness/test/golden.test.ts
 ```
 
-Expected: FAIL — `Cannot find module '../src/golden.js'`
+Expected: FAIL - `Cannot find module '../src/golden.js'`
 
 - [ ] **Step 3: Write the golden extractor**
 
@@ -8435,9 +8435,9 @@ When task 16 lands you have: a pure, deterministic reasoning engine with reinsta
 
 Three things in `2026-07-26-arbiter-design.md` are not implementable as written and must be amended:
 
-1. **§7/§8 say "temperature disclosed" and "temperature recorded and reported."** `temperature` does not exist on `claude-opus-5` — passing it returns HTTP 400. Replace with: *the API exposes no sampling parameters on this model; variance is measured at settings we could not have tuned.* This is strictly stronger, because it makes "you cranked the temperature" structurally impossible.
+1. **§7/§8 say "temperature disclosed" and "temperature recorded and reported."** `temperature` does not exist on `claude-opus-5` - passing it returns HTTP 400. Replace with: *the API exposes no sampling parameters on this model; variance is measured at settings we could not have tuned.* This is strictly stronger, because it makes "you cranked the temperature" structurally impossible.
 
-2. **§8 does not mention refusals.** `claude-opus-5` runs safety classifiers including a `bio` category, and drug-hepatotoxicity prompts can plausibly trip them. A refusal returns HTTP 200 with `stop_reason: "refusal"` and empty `content`. The harness must check `stop_reason` before reading `content`, count refusals, and **report the refusal rate alongside the ablation result** — a refused compound is an exclusion, not a wrong answer.
+2. **§8 does not mention refusals.** `claude-opus-5` runs safety classifiers including a `bio` category, and drug-hepatotoxicity prompts can plausibly trip them. A refusal returns HTTP 200 with `stop_reason: "refusal"` and empty `content`. The harness must check `stop_reason` before reading `content`, count refusals, and **report the refusal rate alongside the ablation result** - a refused compound is an exclusion, not a wrong answer.
 
 3. **§5 says the engine has zero runtime dependencies.** `zod` is admitted as the single exception, because validating at the seam is worth more than nominal purity and zod introduces no clock, no I/O, and no randomness. The ESLint rules still ban `fs`, `path`, `crypto`, `Math.random`, and parent-directory imports.
 

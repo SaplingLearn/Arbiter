@@ -1,4 +1,4 @@
-# ARBITER — the completion plan, from the day the key arrives
+# ARBITER - the completion plan, from the day the key arrives
 
 **Written 2026-08-09.** Supersedes the build order in
 `2026-08-09-arbiter-ai-redesign-design.md` §8, which was written before four things
@@ -31,11 +31,11 @@ ARBITER is complete when **all five** hold:
 2. Several named people submit positions blind, the reveal is simultaneous, and the
    record proves no position was edited after sealing.
 3. The AI adjudicates across positions and evidence, separates mechanism from
-   consequence, cites only findings that exist, and names what is missing — and it
+   consequence, cites only findings that exist, and names what is missing - and it
    says so when a room agrees about an untested question.
 4. One named person signs or overrides, on the record.
 5. **Every number the product quotes names its denominator, its class balance, and
-   the prompt hash that produced it** — and the consistency figure is measured, not
+   the prompt hash that produced it** - and the consistency figure is measured, not
    assumed.
 
 Items 2 and 4 are **done**. Item 3 is built and unmeasured. Items 1 and 5 are the work.
@@ -46,7 +46,7 @@ Items 2 and 4 are **done**. Item 3 is built and unmeasured. Items 1 and 5 are th
 
 Sequential, and each one can stop the project. That is the point of a gate.
 
-### Gate 0 — The consistency probe. Before anything else. ~1 hour, ~$1–3.
+### Gate 0 - The consistency probe. Before anything else. ~1 hour, ~$1–3.
 
 ```bash
 export ANTHROPIC_API_KEY=...
@@ -76,7 +76,7 @@ assertion.
 
 ---
 
-### Gate 1 — Extraction. The biggest unbuilt piece, and what makes it universal.
+### Gate 1 - Extraction. The biggest unbuilt piece, and what makes it universal.
 
 **What:** PDF → findings, each with `label`, `assertion`, `detail`, `sourcePage`, and
 a `covers` declaration naming the checklist questions it answers. A human approves
@@ -97,7 +97,7 @@ before any extractor:
 
 | pass mark | value |
 |---|---|
-| hallucination rate | **0.0** — a ceiling, not a target |
+| hallucination rate | **0.0** - a ceiling, not a target |
 | recall | **≥ 0.85** |
 | coverage-declaration accuracy | *to be registered before the first run, in a v1.1 pass-marks file* |
 
@@ -106,12 +106,12 @@ reviewer sees on the approval screen. An invented one is a gap they cannot see, 
 it destroys the product's reason to exist. That asymmetry is why the ceiling is zero.
 
 **Deliverable:** `services/api/extract.ts`, an approval screen in the client, and
-`covers` populated by the model and confirmed by a human — so the declaration carries
+`covers` populated by the model and confirmed by a human - so the declaration carries
 a signature rather than a heuristic.
 
 ---
 
-### Gate 2 — Adjudication, measured on the four cases. ~$5–15.
+### Gate 2 - Adjudication, measured on the four cases. ~$5–15.
 
 Run live adjudication on all four cases and hand-score the reasoning.
 
@@ -137,14 +137,14 @@ result.** On revision twelve the number that matters is twelve. This is committe
 |---|---|
 | TAK-994 | names the empty consequence half; does not mistake agreement for evidence |
 | Nipocalimab | identifies the 44× vs 6.7× margin dispute as the crux |
-| Slynd | says the questions are unanswered *by this document* — not that the sponsor was negligent |
+| Slynd | says the questions are unanswered *by this document* - not that the sponsor was negligent |
 | Turalio | states that animal injury begins **below** human exposure, and does not call it reassuring |
 
 ---
 
-### Gate 3 — Prediction scoring. Blocked on two things that do not exist.
+### Gate 3 - Prediction scoring. Blocked on two things that do not exist.
 
-**3a. The leakage screen — build first, and it is blocking.**
+**3a. The leakage screen - build first, and it is blocking.**
 
 A script that greps a nonclinical extract for clinical cross-references
 (`clinically`, `refer to Section 8`, `in the clinic`, `in patients`, transaminase
@@ -154,19 +154,19 @@ same style as `split_review.py`. Turalio fails this screen; nipocalimab passes.
 Without it, "predicted the clinical outcome" can mean "read the sentence that stated
 it".
 
-**3b. Group assembly — the longest pole, start during Gate 1.**
+**3b. Group assembly - the longest pole, start during Gate 1.**
 
 | group | status | what it needs |
 |---|---|---|
-| **Group 2** — real mechanism, fine in practice | **done**, free | already derived from the engine's own five over-calls |
-| **Group 1** — a documented liver signal | Turalio only, and it fails the leakage screen | modern reviews (1998+, ideally 2015+) whose clinical chapter documents a liver finding **and** whose nonclinical chapter does not leak it |
-| **Group 3** — genuinely clean | **not started** | LiverTox category **E** (explicitly not E\*), then a readable review for each |
+| **Group 2** - real mechanism, fine in practice | **done**, free | already derived from the engine's own five over-calls |
+| **Group 1** - a documented liver signal | Turalio only, and it fails the leakage screen | modern reviews (1998+, ideally 2015+) whose clinical chapter documents a liver finding **and** whose nonclinical chapter does not leak it |
+| **Group 3** - genuinely clean | **not started** | LiverTox category **E** (explicitly not E\*), then a readable review for each |
 
 | pass mark | value |
 |---|---|
-| group 1 missed | ≤ 0.20 — *"cannot conclude, here is what would settle it" counts as a pass* |
-| group 2 false alarm | ≤ 0.20 — five compounds, so at most one |
-| group 3 false alarm | ≤ 0.10 — the tightest bar on the board |
+| group 1 missed | ≤ 0.20 - *"cannot conclude, here is what would settle it" counts as a pass* |
+| group 2 false alarm | ≤ 0.20 - five compounds, so at most one |
+| group 3 false alarm | ≤ 0.10 - the tightest bar on the board |
 
 **All three groups reported together, from one prompt version, always.** A change that
 improves group 1 while degrading group 2 has not made the system smarter; it has made
@@ -176,13 +176,13 @@ it more trigger-happy. **Held-out cases run once.**
 
 ---
 
-### Gate 4 — The product surface. No AI in it; can run in parallel from Gate 1.
+### Gate 4 - The product surface. No AI in it; can run in parallel from Gate 1.
 
 | item | replaces |
 |---|---|
-| **Real accounts** — email/password, then the `signatureMethod` seam to SSO | `x-arbiter-user`, which is a header the server takes at its word |
+| **Real accounts** - email/password, then the `signatureMethod` seam to SSO | `x-arbiter-user`, which is a header the server takes at its word |
 | **Document upload + object storage** | the hand-written case files in `data/cases/` |
-| **Per-case access control** | nothing — required before any real sponsor data touches this |
+| **Per-case access control** | nothing - required before any real sponsor data touches this |
 | **Postgres, if wanted** | `FileStore`; `DeliberationStore` is the seam and the hash chain columns transfer as-is |
 
 **Do not skip the access-control line.** The moment this accepts a sponsor's study
@@ -191,25 +191,25 @@ precisely because it has no answer to that.
 
 ---
 
-### Gate 5 — Rule proposal and versioning. Last, because nothing waits on it.
+### Gate 5 - Rule proposal and versioning. Last, because nothing waits on it.
 
 The ruleset grows. A new rule is proposed, reviewed, and **versioned with a new hash**,
 and every result already reported stays attached to the ruleset version that produced
-it. Rules are never customised per person — §5.2, settled and closed.
+it. Rules are never customised per person - §5.2, settled and closed.
 
 ---
 
 ## 3. Sponsor-data mode is the product
 
-The four questions no regulatory review answers — human-cell hepatotoxicity, BSEP
+The four questions no regulatory review answers - human-cell hepatotoxicity, BSEP
 inhibition, mitochondrial toxicity, structural alert with a stated applicability
-domain — are exactly the assays a sponsor runs internally and does not publish.
+domain - are exactly the assays a sponsor runs internally and does not publish.
 
 So the demonstration and the product differ, and the plan should say which is which:
 
 - **Public-document mode** (what exists now) reaches 7 of 12 on the best available
   package. Good enough to show the mechanism; not the product.
-- **Sponsor-data mode** — a company pointing ARBITER at their own study reports — has
+- **Sponsor-data mode** - a company pointing ARBITER at their own study reports - has
   all twelve available. That is the real deployment, and it is also where the
   confidentiality obligations in Gate 4 become non-negotiable.
 
@@ -230,7 +230,7 @@ So the demonstration and the product differ, and the plan should say which is wh
 
 Gate 0 is an hour. Gate 1 is the substantial engineering. Gate 2 is short and mostly
 reading. **Gate 3 is gated on document collection, which is slow, uncertain, and the
-single most likely thing to stall** — two of the first five documents were unusable,
+single most likely thing to stall** - two of the first five documents were unusable,
 and that rate is the measurement, not bad luck. Gate 4 is ordinary product work with
 no research risk. Gate 5 waits.
 

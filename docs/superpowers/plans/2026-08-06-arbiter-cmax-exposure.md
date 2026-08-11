@@ -1,10 +1,10 @@
-# Clinical Cmax Exposure Axis — Implementation Plan
+# Clinical Cmax Exposure Axis - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the hardcoded `exposureRelevant: False` on every Tox21 claim with a measured margin — the assay's top tested concentration over the drug's unbound clinical Cmax — so R3 fires on established facts rather than on an assumption nobody checked.
+**Goal:** Replace the hardcoded `exposureRelevant: False` on every Tox21 claim with a measured margin - the assay's top tested concentration over the drug's unbound clinical Cmax - so R3 fires on established facts rather than on an assumption nobody checked.
 
-**Architecture:** Two new Python ingest scripts write two new artifacts under `data/out/`; `assemble_evidence.py` becomes the single site that decides `exposureRelevant` by joining them against a pre-registered, hashed margin policy. `stream-tox21.json`, `compounds.json` and `splits.json` are never regenerated. The TypeScript engine is not modified at all — `relevanceDiscount` already consumes `exposureRelevant` correctly and has simply never been handed a `true`.
+**Architecture:** Two new Python ingest scripts write two new artifacts under `data/out/`; `assemble_evidence.py` becomes the single site that decides `exposureRelevant` by joining them against a pre-registered, hashed margin policy. `stream-tox21.json`, `compounds.json` and `splits.json` are never regenerated. The TypeScript engine is not modified at all - `relevanceDiscount` already consumes `exposureRelevant` correctly and has simply never been handed a `true`.
 
 **Tech Stack:** Python 3.12 (pandas, rdkit, requests, pytest) under `data/prep/`; TypeScript (tsx, vitest, zod) under `apps/harness/`.
 
@@ -42,7 +42,7 @@ Copied verbatim from the spec (`docs/superpowers/specs/2026-08-06-arbiter-cmax-e
 | `data/prep/tox21_concentrations.py` | create | Re-pull the **already-pinned** AIDs for concentration columns → `data/out/tox21-concentrations.json`. |
 | `data/prep/tox21_stream.py:275` | modify | Hardcoded `False` → `None`. The spec's §3 correction. |
 | `data/prep/assemble_evidence.py` | modify | The join. The **only** site that decides `exposureRelevant`. |
-| `apps/harness/src/baselines.ts` | modify | Add `cmaxThreshold` — the "is this just a Cmax rule in a costume" answer. |
+| `apps/harness/src/baselines.ts` | modify | Add `cmaxThreshold` - the "is this just a Cmax rule in a costume" answer. |
 | `apps/harness/test/baselines.test.ts` | modify | Test the new baseline, including that it abstains without a Cmax. |
 | `apps/harness/src/main.ts:29` | modify | Wire `single:cmax-threshold` into the baseline table. |
 | `apps/web/test/exposureGate.test.ts` | **verify only** | Already covers the gate in 6 tests. Must still pass once corpus claims carry `exposureRelevant: true`. Do not add duplicates. |
@@ -62,8 +62,8 @@ Registration must precede the first number, so this task ships before anything c
 - Test: `apps/harness/test/exposurePolicy.test.ts`
 
 **Interfaces:**
-- Consumes: `canonicalJson` and `rulesetHash` — both already exported, from `./preregistration.js` and `./hash.js` respectively.
-- Produces: `projectExposurePolicyForHash(p): Record<string, unknown>` and `PRE_REGISTERED_EXPOSURE_POLICY_HASH: string`, plus the exported type `ExposurePolicy = { version: string; registeredAt: string; marginFactor: number; basis: "unbound" | "total"; statement: string; rationale: string; appliesToStreams: string[] }`. **The policy is validated and discarded, not added to `Inputs`** — no TypeScript consumer needs its contents, since Python reads `marginFactor` directly from the file. Adding an unread field would be a claim that something downstream honours it.
+- Consumes: `canonicalJson` and `rulesetHash` - both already exported, from `./preregistration.js` and `./hash.js` respectively.
+- Produces: `projectExposurePolicyForHash(p): Record<string, unknown>` and `PRE_REGISTERED_EXPOSURE_POLICY_HASH: string`, plus the exported type `ExposurePolicy = { version: string; registeredAt: string; marginFactor: number; basis: "unbound" | "total"; statement: string; rationale: string; appliesToStreams: string[] }`. **The policy is validated and discarded, not added to `Inputs`** - no TypeScript consumer needs its contents, since Python reads `marginFactor` directly from the file. Adding an unread field would be a claim that something downstream honours it.
 
 - [ ] **Step 1: Write the policy file**
 
@@ -83,7 +83,7 @@ Create `rules/exposure-policy-v1.0.json`:
 
 - [ ] **Step 2: Add the projection and a deliberately wrong hash**
 
-Append to `apps/harness/src/preregistration.ts`. Note the placeholder hash — Step 4 replaces it with the computed value, and Step 3 proves the check can actually fail before we trust it.
+Append to `apps/harness/src/preregistration.ts`. Note the placeholder hash - Step 4 replaces it with the computed value, and Step 3 proves the check can actually fail before we trust it.
 
 ```ts
 /**
@@ -216,7 +216,7 @@ describe("exposure policy pre-registration", () => {
 ```
 
 Run: `npx vitest run apps/harness/test/exposurePolicy.test.ts`
-Expected: test 1 and test 4 FAIL with the real computed hash vs `000…0`; tests 2 and 3 PASS. **Read the failure message and copy the computed hash — that is Step 4's input.** If test 2 or 3 fails here, the projection is returning a constant and must be fixed before continuing.
+Expected: test 1 and test 4 FAIL with the real computed hash vs `000…0`; tests 2 and 3 PASS. **Read the failure message and copy the computed hash - that is Step 4's input.** If test 2 or 3 fails here, the projection is returning a constant and must be fixed before continuing.
 
 - [ ] **Step 4: Register the computed hash**
 
@@ -263,7 +263,7 @@ git push origin ablation-spec
 
 ### Task 2: The margin arithmetic
 
-Pure functions, no I/O, so the logic that decides every `exposureRelevant` value in the corpus is testable without a network or a data file. TDD applies literally here — the boundary and the null cases *are* the whole of the logic.
+Pure functions, no I/O, so the logic that decides every `exposureRelevant` value in the corpus is testable without a network or a data file. TDD applies literally here - the boundary and the null cases *are* the whole of the logic.
 
 **Files:**
 - Create: `data/prep/exposure_margin.py`
@@ -335,7 +335,7 @@ def test_missing_input_is_none_not_false():
 - [ ] **Step 2: Run it to make sure it fails**
 
 Run: `cd data/prep && $PY -m pytest tests/test_exposure_margin.py -v`
-Expected: FAIL — `ModuleNotFoundError: No module named 'exposure_margin'`
+Expected: FAIL - `ModuleNotFoundError: No module named 'exposure_margin'`
 
 - [ ] **Step 3: Write the minimal implementation**
 
@@ -395,7 +395,7 @@ def exposure_relevant(
 Run: `cd data/prep && $PY -m pytest tests/test_exposure_margin.py -v`
 Expected: 6 passed.
 
-Then confirm the boundary test can fail — change `>= factor` to `> factor`, re-run, and watch `test_exactly_at_the_factor_is_relevant` fail. Revert.
+Then confirm the boundary test can fail - change `>= factor` to `> factor`, re-run, and watch `test_exactly_at_the_factor_is_relevant` fail. Revert.
 
 - [ ] **Step 5: Commit and push**
 
@@ -691,7 +691,7 @@ if __name__ == "__main__":
     main()
 ```
 
-**If the source CSV's columns differ from `inchikey` / `cmax_um` / `fraction_unbound`, map them explicitly at the top of `main` and record the mapping in a comment.** Do not rename the source file's columns in place — the raw file stays as downloaded.
+**If the source CSV's columns differ from `inchikey` / `cmax_um` / `fraction_unbound`, map them explicitly at the top of `main` and record the mapping in a comment.** Do not rename the source file's columns in place - the raw file stays as downloaded.
 
 - [ ] **Step 4: Run the ingest, then the tests**
 
@@ -737,7 +737,7 @@ git push origin ablation-spec
 
 ### Task 4: Tox21 concentration re-pull
 
-The first task that touches the network. It reuses the AIDs **already pinned** in `stream-tox21.json` rather than re-running discovery — a re-discovery that silently selected different assays would change the evidence base while looking like a refresh.
+The first task that touches the network. It reuses the AIDs **already pinned** in `stream-tox21.json` rather than re-running discovery - a re-discovery that silently selected different assays would change the evidence base while looking like a refresh.
 
 **Files:**
 - Create: `data/prep/tox21_concentrations.py`
@@ -911,12 +911,12 @@ if __name__ == "__main__":
 Run: `cd data/prep && $PY tox21_concentrations.py`
 Expected: per-AID progress lines, a per-stream count, and `data/out/tox21-concentrations.json` written.
 
-**If it exits with "no recognisable concentration column", read the actual CSV header before adding a name** — inspect one AID by hand with `curl "https://pubchem.ncbi.nlm.nih.gov/rest/pug/assay/aid/<AID>/CSV?cid=2244" | head -1` and add the real column name to `CONC_COLUMNS`. Do not work around it with a constant.
+**If it exits with "no recognisable concentration column", read the actual CSV header before adding a name** - inspect one AID by hand with `curl "https://pubchem.ncbi.nlm.nih.gov/rest/pug/assay/aid/<AID>/CSV?cid=2244" | head -1` and add the real column name to `CONC_COLUMNS`. Do not work around it with a constant.
 
 - [ ] **Step 3: Verify the frozen artifact did not move**
 
 Run: `git diff --exit-code data/out/stream-tox21.json`
-Expected: exit 0, no output. **If this fails, the script rewrote a frozen artifact — stop and fix it.**
+Expected: exit 0, no output. **If this fails, the script rewrote a frozen artifact - stop and fix it.**
 
 - [ ] **Step 4: Commit and push**
 
@@ -943,7 +943,7 @@ git push origin ablation-spec
 
 ---
 
-### Task 5: The join — the only site that decides `exposureRelevant`
+### Task 5: The join - the only site that decides `exposureRelevant`
 
 **Files:**
 - Modify: `data/prep/tox21_stream.py:275`
@@ -1007,7 +1007,7 @@ def test_an_exposure_relevant_claim_has_a_margin_recorded():
 ```
 
 Run: `cd data/prep && $PY -m pytest tests/test_evidence_assembly.py -v`
-Expected: the three new tests FAIL — `exposureResolution` is absent.
+Expected: the three new tests FAIL - `exposureResolution` is absent.
 
 - [ ] **Step 3: Write the join**
 
@@ -1081,7 +1081,7 @@ Run: `cd data/prep && $PY assemble_evidence.py`
 Expected: prints `exposure relevance: {'true': N, 'false': M, 'null': K} at 100x unbound Cmax`.
 
 Run: `cd data/prep && $PY -m pytest -v`
-Expected: all tests pass — the original 32 plus the new ones.
+Expected: all tests pass - the original 32 plus the new ones.
 
 Run: `git diff --exit-code data/out/stream-tox21.json data/out/compounds.json data/out/splits.json`
 Expected: exit 0. **The frozen artifacts must not have moved.**
@@ -1089,7 +1089,7 @@ Expected: exit 0. **The frozen artifacts must not have moved.**
 Run: `npm run validate:evidence`
 Expected: passes.
 
-**`exposureMargin` is deliberately NOT added to `EvidenceClaimSchema`.** Verified on zod 3.25.76: `EvidenceClaimSchema` is a plain `z.object()` with no `.strict()`, and zod strips unknown keys rather than rejecting them — so the field passes validation and is simply absent on the TypeScript side. That is the intended outcome. It exists as an audit record inside `evidence.json`, read by the Python test that enforces the HANDOVER §3.1 prohibition ("no flag without a margin standing behind it"); nothing in TypeScript consumes it. Modifying `packages/engine/src` to type a field no TypeScript code reads would breach a Global Constraint to no benefit.
+**`exposureMargin` is deliberately NOT added to `EvidenceClaimSchema`.** Verified on zod 3.25.76: `EvidenceClaimSchema` is a plain `z.object()` with no `.strict()`, and zod strips unknown keys rather than rejecting them - so the field passes validation and is simply absent on the TypeScript side. That is the intended outcome. It exists as an audit record inside `evidence.json`, read by the Python test that enforces the HANDOVER §3.1 prohibition ("no flag without a margin standing behind it"); nothing in TypeScript consumes it. Modifying `packages/engine/src` to type a field no TypeScript code reads would breach a Global Constraint to no benefit.
 
 - [ ] **Step 5: Commit and push**
 
@@ -1131,7 +1131,7 @@ Cmax alone separates most-DILI from no-DILI at roughly 80/73% on the LTKB benchm
 - Test: `apps/harness/test/baselines.test.ts` (append)
 
 **Interfaces:**
-- Consumes: `Prediction`, `ABSTAIN` — both already in `baselines.ts`.
+- Consumes: `Prediction`, `ABSTAIN` - both already in `baselines.ts`.
 - Produces: `cmaxThreshold(cmaxTotalUM: number | null): Prediction`, wired as `single:cmax-threshold`.
 
 - [ ] **Step 1: Write the failing test**
@@ -1162,7 +1162,7 @@ describe("cmaxThreshold baseline", () => {
 ```
 
 Run: `npx vitest run apps/harness/test/baselines.test.ts`
-Expected: FAIL — `cmaxThreshold is not defined`.
+Expected: FAIL - `cmaxThreshold is not defined`.
 
 - [ ] **Step 2: Implement**
 
@@ -1222,7 +1222,7 @@ const cmaxById = new Map(
 );
 ```
 
-**`main.ts:1` currently imports only `mkdirSync, writeFileSync` from `node:fs`** — add `readFileSync`, or the file will not compile:
+**`main.ts:1` currently imports only `mkdirSync, writeFileSync` from `node:fs`** - add `readFileSync`, or the file will not compile:
 
 ```ts
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -1255,7 +1255,7 @@ git push origin ablation-spec
 
 ### Task 7: Re-run, and record what moved BEFORE interpreting it
 
-The only task that moves a reported number. Recording precedes interpretation deliberately — the spec's §10.1 prediction is worth nothing if the numbers are read first and the prediction reconciled afterwards.
+The only task that moves a reported number. Recording precedes interpretation deliberately - the spec's §10.1 prediction is worth nothing if the numbers are read first and the prediction reconciled afterwards.
 
 **Files:**
 - Modify: `results/metrics.json`, `results/results.json`, `results/verdict-manifest.json`, `results/golden/metrics.golden.json` (all regenerated, none hand-edited)
@@ -1298,7 +1298,7 @@ EOF
 - [ ] **Step 4: Update the golden file**
 
 Run: `npm run golden:update && git diff --stat results/`
-Expected: a diff. This is intended — see the spec's §10.
+Expected: a diff. This is intended - see the spec's §10.
 
 **On Windows the golden file may look modified when it is not** (HANDOVER §0): the script writes LF and `autocrlf` rewrites to CRLF. Distinguish a real change from a phantom before believing it:
 
@@ -1310,7 +1310,7 @@ sha256sum results/golden/metrics.golden.json   # identical => nothing moved
 - [ ] **Step 5: Run everything**
 
 Run: `npm run lint && npm run typecheck && npm test && npm run web:build && npm run e2e`
-Expected: all green. Also `cd data/prep && $PY -m pytest` — these do not run in CI (HANDOVER §3.5d).
+Expected: all green. Also `cd data/prep && $PY -m pytest` - these do not run in CI (HANDOVER §3.5d).
 
 - [ ] **Step 6: Commit and push**
 
@@ -1337,12 +1337,12 @@ git push origin ablation-spec
 
 - [ ] **Step 1: Confirm the existing exposure-gate tests still hold**
 
-**An earlier draft of this task added tests to `apps/web/test/load.test.ts`, claiming the `load.ts:47` corpus exemption "has never been tested". Both halves were wrong.** That file does not exist, and `apps/web/test/exposureGate.test.ts` already covers the gate in six tests — including, at lines 55-58, an isolation of the exact `source !== "fixture"` clause the draft claimed was uncovered, with a comment explaining why the sibling test cannot isolate it. Writing near-duplicate tests in a second file would give a future change to the gate two places to update.
+**An earlier draft of this task added tests to `apps/web/test/load.test.ts`, claiming the `load.ts:47` corpus exemption "has never been tested". Both halves were wrong.** That file does not exist, and `apps/web/test/exposureGate.test.ts` already covers the gate in six tests - including, at lines 55-58, an isolation of the exact `source !== "fixture"` clause the draft claimed was uncovered, with a comment explaining why the sibling test cannot isolate it. Writing near-duplicate tests in a second file would give a future change to the gate two places to update.
 
-So this step **verifies rather than adds.** After Task 5, corpus claims genuinely carry `exposureRelevant: true` for the first time — which is precisely the condition tests 4 and 5 assert is exempt, so they should hold unchanged:
+So this step **verifies rather than adds.** After Task 5, corpus claims genuinely carry `exposureRelevant: true` for the first time - which is precisely the condition tests 4 and 5 assert is exempt, so they should hold unchanged:
 
 Run: `npx vitest run apps/web/test/exposureGate.test.ts`
-Expected: 6 passed. **If the last test fails, TAK-994's murine claim has been disturbed by the pipeline change — stop and investigate rather than editing the test.**
+Expected: 6 passed. **If the last test fails, TAK-994's murine claim has been disturbed by the pipeline change - stop and investigate rather than editing the test.**
 
 - [ ] **Step 2: Rewrite HANDOVER §2**
 
@@ -1352,11 +1352,11 @@ Pull every number from `results/metrics.json`. **Never retype one.** §2's exist
 - The stream-coverage table is unchanged (no compounds were added).
 - Add `single:cmax-threshold` to the pipeline comparison table.
 - If accuracy fell, say so in §2's first sentence and give the §10.1 reading: acute HepG2 cytotoxicity is a poor instrument for idiosyncratic DILI, and R3's blanket discount was compensating for that. Link the prediction's commit so it is visibly prior.
-- Update the §3.7 Q&A answer on abstention — `nStructurallyForced` has moved.
+- Update the §3.7 Q&A answer on abstention - `nStructurallyForced` has moved.
 
 - [ ] **Step 3: Rewrite HANDOVER §3.1 and the §3 table**
 
-§3.1 is titled "BLOCKING AND TIME-CRITICAL — the Cmax hunt (before 2 Aug)" and is now done. Replace it with what was built, what it measured, and what remains. Mark row 1 of the §3 work-item table complete. Add a §13 recording this work in the style of §10 and §11.
+§3.1 is titled "BLOCKING AND TIME-CRITICAL - the Cmax hunt (before 2 Aug)" and is now done. Replace it with what was built, what it measured, and what remains. Mark row 1 of the §3 work-item table complete. Add a §13 recording this work in the style of §10 and §11.
 
 - [ ] **Step 4: Verify every command in the touched sections**
 

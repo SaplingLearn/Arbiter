@@ -39,7 +39,7 @@ describe("hero cases", () => {
   });
 });
 
-describe("hero case 2 — Cyclosporine", () => {
+describe("hero case 2 - Cyclosporine", () => {
   const data = loadData();
 
   it("is corpus-backed and carries no claims of its own", () => {

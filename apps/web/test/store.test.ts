@@ -204,7 +204,7 @@ describe("EvidenceEdit's legal field set (§5.3)", () => {
   });
 });
 
-describe("isEdited — one predicate for both working copies (§9.3)", () => {
+describe("isEdited - one predicate for both working copies (§9.3)", () => {
   it("reports a dragged-and-returned slider as UNEDITED", () => {
     // Preflight.tsx tested this by reference and Ruleset.tsx by deep compare, so
     // the badge cleared while the panel still warned. The value compare wins:

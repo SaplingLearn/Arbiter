@@ -13,6 +13,8 @@ import { TourFooter } from "./tour/TourFooter.js";
 import { NavigatorBar } from "./ai/NavigatorBar.js";
 import { useAnchorScroll } from "./ai/useAnchorScroll.js";
 import { Preflight } from "./ui/Preflight.js";
+import { Guide } from "./ui/Guide.js";
+import { landingHref } from "./links.js";
 import { isTypingTarget } from "./ui/isTypingTarget.js";
 import "./ui/motion.css";
 
@@ -57,6 +59,9 @@ const TAB_LABEL: Record<TabId, string> = {
 function AppShell({ tab }: { tab: TabId }) {
   const { motion } = useAppState();
   const [preflight, setPreflight] = useState(false);
+  // Read once: it depends on the protocol and the build, neither of which changes
+  // while the app is open.
+  const [landing] = useState(landingHref);
 
   // Here rather than inside NavigatorBar: the hook needs the tab that is
   // actually rendered, which is what tells it the deferred hashchange has
@@ -90,7 +95,17 @@ function AppShell({ tab }: { tab: TabId }) {
       </a>
 
       <nav className="nav">
-        <a className="nav-brand" href="#/about">ARBITER<span> · evidence under conflict</span></a>
+        {/* The mark is decorative: "ARBITER" is right beside it and says the same
+            thing, so announcing four squares would only add noise.
+
+            The brand goes HOME when there is a home to go to - the convention
+            everywhere - and stays on the app's own front page in the artifact,
+            where there is none. It used to point at #/about unconditionally, which
+            duplicated the ABOUT tab sitting two centimetres to its right. */}
+        <a className="nav-brand" href={landing ?? "#/about"}>
+          <span className="mark" aria-hidden="true"><i /><i /><i /><i /></span>
+          ARBITER<span> · evidence under conflict</span>
+        </a>
         {TAB_IDS.map((t) => (
           // aria-current, not only the underline: which tab you are on was
           // previously carried by a text-decoration and nothing else, so it was
@@ -103,7 +118,17 @@ function AppShell({ tab }: { tab: TabId }) {
         {/* The `?` pre-flight key is deliberately NOT advertised here: it is for
             the presenter before going live, not part of what a judge is shown.
             It is written down on the About tab, where the rest of the keys are. */}
-        <div className="nav-right"><span className="nav-hint">←/→ beats · M motion</span></div>
+        <div className="nav-right">
+          {/* Explicit and labelled, not just the clickable logo. Someone who arrived
+              from the landing page and wants to go back does not necessarily think
+              to click a wordmark, which is exactly how this got reported. Rendered
+              only when there is somewhere to go, so the artifact grows no dead
+              chrome. */}
+          {landing === null ? null : (
+            <a className="nav-back" href={landing}>← Landing</a>
+          )}
+          <span className="nav-hint">←/→ beats · M motion</span>
+        </div>
       </nav>
 
       {/* Between the nav and the tab body, per spec section 7.3: a question is
@@ -111,10 +136,19 @@ function AppShell({ tab }: { tab: TabId }) {
           outside it - the same reasoning that keeps TourFooter outside <main>. */}
       <NavigatorBar />
 
+      {/* BLUEPRINT's hatched band, used once: the boundary between the app chrome
+          and the argument. On the landing page the device is the rest between
+          major sections, which a dense evidence screen has no room for. */}
+      <div className="hatch-band" aria-hidden="true" />
+
       {/* tabIndex -1 so the skip link can actually move focus here; a plain
           fragment jump scrolls without moving the caret in some browsers. */}
       <main className="main" id="main" tabIndex={-1}>
         <div className="container">
+          {/* Mounted here rather than inside each of the seven tabs: one place to
+              read the whole set of introductions, and no tab can quietly ship
+              without one. */}
+          <Guide tab={tab} />
           {tab === "about" ? <AboutTab />
             : tab === "case" ? <CaseTab />
             : tab === "compounds" ? <CompoundsTab />

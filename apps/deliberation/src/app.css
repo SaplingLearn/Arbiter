@@ -1,107 +1,141 @@
 /* ============================================================================
-   ARBITER — product design system
+   ARBITER - BLUEPRINT
    ----------------------------------------------------------------------------
-   Positioning: a considered instrument for a serious decision. Light app chrome,
-   a single strong brand mark, and Georgia for headings — the serif is the
-   distinctive note and it reads as a document rather than a dashboard, which is
-   what this actually is.
+   One design system across all three surfaces: the landing page (apps/landing),
+   the evidence artifact (apps/web) and this deliberation client. Engineering
+   drawing / technical spec sheet - Swiss-minimal, flat, precise. No shadows, no
+   gradients, no rounded cards, no decorative colour, one electric blue.
 
-   TYPE. Georgia ships with every operating system, so nothing silently falls back
-   to a face nobody chose. A webfont would be a subresource that fails quietly.
+   TYPE. Inter Tight for display and body, IBM Plex Mono for every utility label,
+   both loaded in index.html. This client is a CLIENT FOR A SERVICE: without the
+   API there is nothing to show, so a webfont request is not the liability it is in
+   apps/web, which is opened from the filesystem and must make zero requests. That
+   app runs BLUEPRINT on system faces for exactly that reason, and it is the only
+   difference between the two.
 
-   COLOUR. Red, green and amber are spoken for by the evidence states, so the
-   brand accent stays in indigo and never competes with them. Nothing meaningful
-   is ever carried by colour alone — every state also carries its word.
+   COLOUR. Red and green are spoken for by the evidence states, so the accent stays
+   the one blue and never competes with them. There is no amber: BLUEPRINT has no
+   third hue, and "inconclusive" is the ABSENCE of a finding rather than a warning,
+   so it reads neutral. Nothing meaningful is carried by colour alone - every state
+   also carries its word.
+
+   THE TOKEN NAMES ARE UNCHANGED and only their values are remapped. app.css,
+   pages.tsx and screens.tsx reference them in well over a hundred places;
+   remapping values rethemes the product without touching a selector, which is the
+   difference between a change that can be reviewed and one that cannot.
    ========================================================================== */
 
 :root {
   /* surfaces */
-  --app: #F7F8FC;
+  --app: #F2F2EF;
   --paper: #FFFFFF;
-  --sunken: #F1F3F9;
-  --brand-deep: #141A38;
+  --sunken: #ECECE9;
+  --brand-deep: #0E0E0E;
 
   /* ink */
-  --ink: #0F1428;
-  --ink-2: #565E7E;
-  --ink-3: #8A91AB;
+  --ink: #0E0E0E;
+  --ink-2: #5B5B60;
+  --ink-3: #74747B;
   --on-brand: #FFFFFF;
 
-  /* lines */
-  --line: #E3E7F1;
-  --line-soft: #EDF0F7;
+  /* lines. BLUEPRINT has ONE hairline weight: cells share a single 1px border, so
+     --line-soft is the same value rather than a lighter second tier. */
+  --line: #DEDEDA;
+  --line-soft: #DEDEDA;
 
   /* accent */
-  --accent: #3350C7;
-  --accent-hover: #2A43AA;
-  --accent-wash: #EEF1FD;
-  --accent-line: #C7D0F5;
+  --accent: #2B2BF0;
+  --accent-hover: #2222D6;
+  --accent-wash: #E6E8FC;
+  --accent-line: #C3C8F6;
 
   /* semantics */
-  --stop: #B3243C;   --stop-wash: #FDF2F4;   --stop-line: #F3CBD3;
-  --go: #0B7A55;     --go-wash: #EFF8F4;     --go-line: #BFE3D5;
-  --open: #96610F;   --open-wash: #FCF6EA;   --open-line: #EBD9B4;
+  --stop: #E5484D;   --stop-wash: #FCEFEF;   --stop-line: #F2C9CA;
+  --go: #1CA64C;     --go-wash: #EDF7F0;     --go-line: #BFE3CC;
+  --open: #74747B;   --open-wash: #ECECE9;   --open-line: #DEDEDA;
 
-  /* elevation */
-  --e1: 0 1px 2px rgba(15, 20, 40, .05);
-  --e2: 0 1px 3px rgba(15, 20, 40, .06), 0 8px 24px -14px rgba(15, 20, 40, .22);
-  --e3: 0 2px 6px rgba(15, 20, 40, .08), 0 20px 48px -20px rgba(15, 20, 40, .3);
+  /* Elevation, which BLUEPRINT does not have. Kept as tokens because ~15 rules
+     name them; --e1 disappears, and the two that separate something genuinely
+     floating become a hard 1px ring rather than a soft shadow. A ring is a rule,
+     which is on-system; a blur is not. */
+  --e1: none;
+  --e2: 0 0 0 1px var(--line);
+  --e3: 0 0 0 1px var(--ink);
 
-  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --display: "Inter Tight", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --sans: var(--display);
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
-  --r-sm: 6px; --r: 10px; --r-lg: 14px;
+  /* Radius 0 everywhere except chips (2px) and avatars (6px). A square corner is
+     the cheapest possible signal that this is a spec sheet, not a dashboard. */
+  --r-sm: 2px; --r: 0px; --r-lg: 0px;
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px;
   --s5: 24px; --s6: 32px; --s7: 48px; --s8: 72px;
   --measure: 66ch;
   --col: 1160px;
 }
 
+/* BLUEPRINT DOES NOT DEFINE A DARK PALETTE. This one is derived by swapping the
+   paper/ink relationship rather than invented: the ground becomes ink, the insets
+   sit just above it, and the hairline keeps the same job at the weight that reads
+   on a dark ground.
+
+   THE ACCENT IS THE ONE VALUE THAT CANNOT CARRY OVER. #2B2BF0 on a near-black
+   ground is roughly 1.3:1 - unreadable - so dark mode lifts it. It is the same
+   hue doing the same three jobs, at the only lightness that clears AA.
+
+   Duplicated below for the explicit toggle because a media query and an attribute
+   selector cannot share one rule; the two bodies must be kept in step. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --app: #080B15;
-    --paper: #101528;
-    --sunken: #161C33;
-    --brand-deep: #05080F;
-    --ink: #EAEDF8;
-    --ink-2: #9BA3C0;
-    --ink-3: #6F7794;
-    --line: #242B47;
-    --line-soft: #1C2239;
-    --accent: #8B9EF7;
-    --accent-hover: #A4B3FA;
-    --accent-wash: #171E3C;
-    --accent-line: #2E3A66;
-    --stop: #FF8397;  --stop-wash: #2A1520;  --stop-line: #4A2333;
-    --go: #4DC89B;    --go-wash: #0F241D;    --go-line: #1F4438;
-    --open: #DDA641;  --open-wash: #261F12;  --open-line: #453620;
-    --e1: 0 1px 2px rgba(0, 0, 0, .5);
-    --e2: 0 1px 3px rgba(0, 0, 0, .5), 0 8px 24px -14px rgba(0, 0, 0, .8);
-    --e3: 0 2px 6px rgba(0, 0, 0, .6), 0 20px 48px -20px rgba(0, 0, 0, .9);
+    --app: #0E0E0E;
+    --paper: #171717;
+    --sunken: #202020;
+    /* THE ONE TOKEN THAT DOES NOT INVERT. `.auth-brand` hardcodes `color: #fff`,
+       so a paper-coloured --brand-deep renders white text on a light panel -
+       measured, and completely unreadable. It stays dark and separates from the
+       ground by being one step lighter than it, not by flipping. */
+    --brand-deep: #171717;
+    --ink: #F2F2EF;
+    --ink-2: #A5A5A8;
+    --ink-3: #7E7E84;
+    --line: #2A2A28;
+    --line-soft: #2A2A28;
+    --accent: #7B84FF;
+    --accent-hover: #9AA1FF;
+    --accent-wash: #191A33;
+    --accent-line: #33366B;
+    --stop: #FF8A8E;  --stop-wash: #2A1516;  --stop-line: #4A2325;
+    --go: #55C97F;    --go-wash: #10241A;    --go-line: #1F4430;
+    --open: #9A9AA0;  --open-wash: #202020;  --open-line: #2A2A28;
+    --e1: none;
+    --e2: 0 0 0 1px var(--line);
+    --e3: 0 0 0 1px var(--ink);
   }
 }
 
+/* Keep in step with the media-query block above. */
 :root[data-theme="dark"] {
-  --app: #080B15;
-  --paper: #101528;
-  --sunken: #161C33;
-  --brand-deep: #05080F;
-  --ink: #EAEDF8;
-  --ink-2: #9BA3C0;
-  --ink-3: #6F7794;
-  --line: #242B47;
-  --line-soft: #1C2239;
-  --accent: #8B9EF7;
-  --accent-hover: #A4B3FA;
-  --accent-wash: #171E3C;
-  --accent-line: #2E3A66;
-  --stop: #FF8397;  --stop-wash: #2A1520;  --stop-line: #4A2333;
-  --go: #4DC89B;    --go-wash: #0F241D;    --go-line: #1F4438;
-  --open: #DDA641;  --open-wash: #261F12;  --open-line: #453620;
-  --e1: 0 1px 2px rgba(0, 0, 0, .5);
-  --e2: 0 1px 3px rgba(0, 0, 0, .5), 0 8px 24px -14px rgba(0, 0, 0, .8);
-  --e3: 0 2px 6px rgba(0, 0, 0, .6), 0 20px 48px -20px rgba(0, 0, 0, .9);
+  --app: #0E0E0E;
+  --paper: #171717;
+  --sunken: #202020;
+  /* Does not invert - see the note above. */
+  --brand-deep: #171717;
+  --ink: #F2F2EF;
+  --ink-2: #A5A5A8;
+  --ink-3: #7E7E84;
+  --line: #2A2A28;
+  --line-soft: #2A2A28;
+  --accent: #7B84FF;
+  --accent-hover: #9AA1FF;
+  --accent-wash: #191A33;
+  --accent-line: #33366B;
+  --stop: #FF8A8E;  --stop-wash: #2A1516;  --stop-line: #4A2325;
+  --go: #55C97F;    --go-wash: #10241A;    --go-line: #1F4430;
+  --open: #9A9AA0;  --open-wash: #202020;  --open-line: #2A2A28;
+  --e1: none;
+  --e2: 0 0 0 1px var(--line);
+  --e3: 0 0 0 1px var(--ink);
 }
 
 * { box-sizing: border-box; }
@@ -116,14 +150,16 @@ body {
 }
 
 /* ---- type ---------------------------------------------------------------- */
-h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; margin: 0; text-wrap: balance; }
+h1, h2, h3, h4 { font-family: var(--display); font-weight: 600; margin: 0; text-wrap: balance; }
 h1 { font-size: clamp(26px, 3.6vw, 34px); line-height: 1.16; letter-spacing: -.015em; }
 h2 { font-size: 21px; line-height: 1.28; letter-spacing: -.008em; }
 h3 { font-size: 17px; line-height: 1.35; }
 h4 { font-family: var(--sans); font-size: 13px; font-weight: 650; letter-spacing: .02em; }
 p { margin: 0; max-width: var(--measure); }
 
-.eyebrow { font: 650 10.5px/1 var(--sans); text-transform: uppercase; letter-spacing: .14em; color: var(--ink-3); }
+/* BLUEPRINT's utility voice: mono UPPERCASE at .08em, the same treatment the
+   landing page gives its section counters and apps/web gives its .label. */
+.eyebrow { font: 400 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
 .mono, code { font-family: var(--mono); font-size: .87em; font-variant-numeric: tabular-nums; }
 .muted { color: var(--ink-2); }
 .small { font-size: 13.5px; }
@@ -142,21 +178,37 @@ a { color: var(--accent); text-underline-offset: 3px; }
 /* ---- app chrome ---------------------------------------------------------- */
 .page { min-height: 100vh; display: flex; flex-direction: column; }
 
+/* Paper, not white. BLUEPRINT's chrome is the same ground as the page, separated
+   by a hairline and the hatched band below it - exactly as the landing header is. */
 .topbar {
-  background: var(--paper);
+  background: var(--app);
   border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 20;
+}
+
+/* The hatched band, used once, as the boundary between the app chrome and the
+   work - the same single application it gets in apps/web. */
+.hatch-band {
+  height: 10px;
+  background: repeating-linear-gradient(45deg, transparent 0 10px, var(--line) 10px 11px);
+  border-bottom: 1px solid var(--line);
 }
 .topbar .col { display: flex; align-items: center; gap: var(--s5); min-height: 62px; }
 .col { max-width: var(--col); margin: 0 auto; padding-inline: var(--s5); width: 100%; }
 
 .brand { display: inline-flex; align-items: center; gap: var(--s3); text-decoration: none; color: inherit; }
+/* The mark: four squares on a 2x2 grid, one at 40% and the bottom-right inset a
+   pixel, so it reads as a panel that has not quite agreed with itself - which is
+   the product. Identical construction across all three surfaces. */
 .mark {
-  width: 30px; height: 30px; border-radius: 8px; background: var(--brand-deep);
-  color: #fff; display: grid; place-items: center; flex: none;
-  font: 600 15px/1 var(--serif); letter-spacing: .02em;
+  position: relative; width: 22px; height: 22px; flex: none; display: inline-block;
 }
-.brand b { font: 600 17px/1 var(--serif); letter-spacing: .02em; }
+.mark i { position: absolute; width: 9px; height: 9px; background: var(--accent); }
+.mark i:nth-child(1) { top: 0; left: 0; }
+.mark i:nth-child(2) { top: 0; right: 0; opacity: .4; }
+.mark i:nth-child(3) { bottom: 0; left: 0; }
+.mark i:nth-child(4) { bottom: 0; right: 2px; }
+.brand b { font: 600 20px/1 var(--display); letter-spacing: -.02em; }
 .brand span { font: 600 9.5px/1 var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); display: block; margin-top: 3px; }
 
 .nav { display: flex; gap: var(--s1); align-items: center; }
@@ -169,10 +221,11 @@ a { color: var(--accent); text-underline-offset: 3px; }
 .spacer { margin-left: auto; }
 
 .account { display: flex; align-items: center; gap: var(--s3); }
+/* 6px, which is the one radius BLUEPRINT grants an avatar. */
 .avatar {
-  width: 30px; height: 30px; border-radius: 50%; flex: none;
+  width: 30px; height: 30px; border-radius: 6px; flex: none;
   background: var(--accent-wash); color: var(--accent); border: 1px solid var(--accent-line);
-  display: grid; place-items: center; font: 650 12px/1 var(--sans);
+  display: grid; place-items: center; font: 400 12px/1 var(--mono);
 }
 
 main { flex: 1; padding-block: var(--s6) var(--s8); }
@@ -203,7 +256,9 @@ main { flex: 1; padding-block: var(--s6) var(--s8); }
   background: var(--paper); border: 1px solid var(--line); border-radius: var(--r);
   padding: var(--s4) var(--s5); display: flex; flex-direction: column; gap: var(--s1);
 }
-.tile b { font: 600 30px/1.05 var(--serif); font-variant-numeric: tabular-nums; }
+/* Mono, like every other measured figure in the system: a number always reads as
+   something a run produced rather than as a headline. */
+.tile b { font: 400 30px/1.05 var(--mono); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .tile.act { border-color: var(--accent-line); background: var(--accent-wash); }
 .tile.act b { color: var(--accent); }
 
@@ -216,7 +271,9 @@ main { flex: 1; padding-block: var(--s6) var(--s8); }
   box-shadow: var(--e1); text-decoration: none; color: inherit; text-align: left;
 }
 a.card, button.card { cursor: pointer; }
-a.card:hover, button.card:hover { border-color: var(--accent-line); box-shadow: var(--e2); transform: translateY(-1px); }
+/* No lift. BLUEPRINT is flat, so a hovered card answers with a fill and a border
+   rather than by pretending to leave the page. */
+a.card:hover, button.card:hover { border-color: var(--ink-3); background: var(--sunken); }
 .card h3 { letter-spacing: -.005em; }
 .card .row { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; margin-top: auto; padding-top: var(--s2); }
 .card[aria-pressed="true"] { border-color: var(--accent); box-shadow: var(--e2); }
@@ -238,8 +295,8 @@ a.card:hover, button.card:hover { border-color: var(--accent-line); box-shadow: 
 /* ---- badges -------------------------------------------------------------- */
 .badge {
   display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
-  font: 650 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .07em;
-  padding: 5px var(--s2); border-radius: 999px; border: 1px solid var(--line);
+  font: 400 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .06em;
+  padding: 5px var(--s2); border-radius: var(--r-sm); border: 1px solid var(--line);
   color: var(--ink-2); background: var(--paper);
 }
 .badge.go { color: var(--go); border-color: var(--go-line); background: var(--go-wash); }
@@ -263,14 +320,14 @@ a.card:hover, button.card:hover { border-color: var(--accent-line); box-shadow: 
 .tabbar a:hover { color: var(--ink); }
 .tabbar a::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
-  background: transparent; border-radius: 2px 2px 0 0;
+  background: transparent; border-radius: 0;
 }
 .tabbar a[aria-current="page"] { color: var(--ink); font-weight: 650; }
 .tabbar a[aria-current="page"]::after { background: var(--accent); }
 .tabbar a[aria-disabled="true"] { color: var(--ink-3); pointer-events: none; }
 .tabbar a[aria-disabled="true"] .lock { opacity: .8; }
 .tabbar .pip {
-  font: 650 10.5px/1 var(--sans); padding: 3px 6px; border-radius: 999px;
+  font: 400 10.5px/1 var(--mono); padding: 3px 6px; border-radius: var(--r-sm);
   background: var(--sunken); color: var(--ink-2);
 }
 .tabbar a[aria-current="page"] .pip { background: var(--accent-wash); color: var(--accent); }
@@ -348,12 +405,12 @@ button.danger:hover { border-color: var(--stop-line); color: var(--stop); }
 .pos.external { border-left-color: var(--open); }
 .pos.unsupported { border-left-color: var(--stop); }
 .pos-head { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; }
-.pos-head .call { font-family: var(--serif); font-size: 18px; }
+.pos-head .call { font-family: var(--display); font-size: 18px; }
 .pos blockquote { margin: 0; font-size: 15.5px; line-height: 1.6; max-width: var(--measure); }
 
 .basis {
-  font: 650 10px/1 var(--sans); text-transform: uppercase; letter-spacing: .09em;
-  padding: 5px var(--s2); border-radius: 999px; border: 1px solid currentColor; color: var(--ink-3);
+  font: 400 10px/1 var(--mono); text-transform: uppercase; letter-spacing: .08em;
+  padding: 5px var(--s2); border-radius: var(--r-sm); border: 1px solid currentColor; color: var(--ink-3);
 }
 .basis.cited { color: var(--go); }
 .basis.external { color: var(--open); }
@@ -394,12 +451,16 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
   display: flex; flex-direction: column; gap: var(--s5); justify-content: center;
 }
 .auth-brand h1 { color: #fff; max-width: 16ch; }
-.auth-brand p { color: #AEB7D8; max-width: 46ch; }
-.auth-brand .mark { width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,.1); font-size: 19px; }
+.auth-brand p { color: #A5A5A8; max-width: 46ch; }
+/* The mark inverted onto the ink panel: same four squares, paper instead of blue,
+   because the accent would vibrate against a near-black ground at this size. */
+.auth-brand .mark { width: 32px; height: 32px; }
+.auth-brand .mark i { width: 13px; height: 13px; background: #fff; }
+.auth-brand .mark i:nth-child(4) { right: 3px; }
 .auth-brand ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--s3); }
-.auth-brand li { display: grid; grid-template-columns: 22px 1fr; gap: var(--s3); color: #C6CDE8; font-size: 14.5px; align-items: start; }
+.auth-brand li { display: grid; grid-template-columns: 22px 1fr; gap: var(--s3); color: #C9C9C6; font-size: 14.5px; align-items: start; }
 .auth-brand li b { color: #fff; font-weight: 650; }
-.auth-brand .num { font: 650 11px/1.9 var(--mono); color: #8E99C4; border-top: 1px solid rgba(255,255,255,.18); }
+.auth-brand .num { font: 400 11px/1.9 var(--mono); color: #8A8A8E; border-top: 1px solid rgba(255,255,255,.18); }
 
 .auth-form { display: flex; align-items: center; justify-content: center; padding: var(--s7) var(--s5); background: var(--app); }
 .auth-form > div { width: 100%; max-width: 400px; }
@@ -408,9 +469,9 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
 .tabs { display: inline-flex; background: var(--sunken); padding: 3px; border-radius: var(--r-sm); margin-bottom: var(--s5); }
 .tabs button {
   border: 0; background: none; cursor: pointer; padding: var(--s2) var(--s4);
-  font: 600 13.5px/1.6 var(--sans); color: var(--ink-2); border-radius: 5px;
+  font: 400 12px/1.6 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); border-radius: 0;
 }
-.tabs button[aria-pressed="true"] { background: var(--paper); color: var(--ink); box-shadow: var(--e1); }
+.tabs button[aria-pressed="true"] { background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
 
 @media (prefers-reduced-motion: no-preference) {
   a.card, button.card, button.ghost, button.primary, .nav a { transition: border-color .15s, background .15s, color .15s, box-shadow .15s, transform .15s; }

@@ -1,12 +1,12 @@
-# ARBITER multiple hero cases — Implementation Plan
+# ARBITER multiple hero cases - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Carry three demonstrated compounds instead of one, so the demo shows the engine abstaining, committing, and (when the data exists) advancing — without touching the pre-registered ruleset or moving a reported number.
+**Goal:** Carry three demonstrated compounds instead of one, so the demo shows the engine abstaining, committing, and (when the data exists) advancing - without touching the pre-registered ruleset or moving a reported number.
 
 **Architecture:** The singular `LoadedData.fixture` becomes `LoadedData.heroCases: Map<string, HeroCase>`. A hero case is either *fixture-backed* (carries its own hand-authored claims, like TAK-994) or *corpus-backed* (carries `claims: null` and resolves through `data.claimsByCompound`, like Cyclosporine). Corpus-backed cases add no evidence to the repo, so the benchmark cannot move. The tour gains an optional per-beat `compoundId`, and the audit record gains a hashed `compoundId`.
 
-**Tech Stack:** TypeScript, React 18, Vite, Vitest + Testing Library, Playwright, zod. Python 3 (`data/prep`) is **not touched by this plan** — hero case 2 is corpus-backed and authors no new evidence.
+**Tech Stack:** TypeScript, React 18, Vite, Vitest + Testing Library, Playwright, zod. Python 3 (`data/prep`) is **not touched by this plan** - hero case 2 is corpus-backed and authors no new evidence.
 
 **Spec:** `docs/superpowers/specs/2026-08-05-arbiter-multi-case-design.md`. Read §2 and §3 before Task 3; they are why Cyclosporine and not something better-known.
 
@@ -24,7 +24,7 @@
 
 | file | responsibility | task |
 |---|---|---|
-| `apps/web/src/data/heroCases.ts` | **new** — the hero-case type and the registry that builds the map | 1, 3 |
+| `apps/web/src/data/heroCases.ts` | **new** - the hero-case type and the registry that builds the map | 1, 3 |
 | `apps/web/src/data/load.ts` | validate bundled artifacts; build `heroCases`; enforce the exposure gate | 1, 4 |
 | `apps/web/src/state/store.tsx` | `registeredClaims` map lookup; `initialState`; `ReviewerPosition.compoundId` | 1, 5 |
 | `apps/web/src/tabs/Case/CaseHeader.tsx` | per-case name, subtitle, split disclosure, as-of milestones | 1, 2, 3 |
@@ -41,7 +41,7 @@
 
 ### Task 1: The hero-case model
 
-Replaces the singular `fixture` with a map. **Behaviour must not change** — TAK-994 stays the only hero case and the only boot compound. This task is a rename with one new fall-through; if any rendered number moves, something is wrong.
+Replaces the singular `fixture` with a map. **Behaviour must not change** - TAK-994 stays the only hero case and the only boot compound. This task is a rename with one new fall-through; if any rendered number moves, something is wrong.
 
 **Files:**
 - Create: `apps/web/src/data/heroCases.ts`
@@ -101,7 +101,7 @@ describe("hero cases", () => {
 - [ ] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run apps/web/test/heroCases.test.ts`
-Expected: FAIL — `data.heroCases` is undefined.
+Expected: FAIL - `data.heroCases` is undefined.
 
 - [ ] **Step 3: Create the hero-case module**
 
@@ -115,7 +115,7 @@ import type { EvidenceClaim } from "@arbiter/engine";
  * descriptive.
  *
  * A `fixture` case carries its own hand-authored literature claims and therefore
- * its own citation risk — TAK-994's are marked UNVERIFIED and rendered as such.
+ * its own citation risk - TAK-994's are marked UNVERIFIED and rendered as such.
  * A `corpus` case carries NOTHING: `claims` is null and the case resolves through
  * `data.claimsByCompound` like any library row.
  *
@@ -128,7 +128,7 @@ import type { EvidenceClaim } from "@arbiter/engine";
  */
 export type CaseSource = "fixture" | "corpus";
 
-/** A cited clinical exposure. See load.ts's gate and spec §5 — this type exists so
+/** A cited clinical exposure. See load.ts's gate and spec §5 - this type exists so
  *  that `exposureRelevant: true` cannot be asserted without one. */
 export interface FixtureExposure {
   cmax: number;
@@ -332,7 +332,7 @@ and the comment above it (lines 134-135) becomes:
 Every `data.fixture.claims` becomes `data.heroCases.get("TAK-994")!.claims!` and every `data.fixture.citationStatus` becomes `data.heroCases.get("TAK-994")!.citationStatus`. Affected files, from `grep -rn "data\.fixture" apps/web`:
 `evidencePanel.test.tsx`, `evidenceDigest.test.ts`, `interpretCache.test.ts`, `rung1.test.ts`, `interpret.test.ts`, `preflight.test.tsx`, `anchors.test.tsx`, `beats.test.tsx`, `chain.test.ts`, `store.test.ts`, `load.test.ts`, `tablePanel.test.tsx`.
 
-`apps/web/test/load.test.ts:23-27` asserts `d.fixture.claims.length > 0`; make it `d.heroCases.get("TAK-994")!.claims!.length` and **leave the `d.compounds.has("TAK-994") === false` assertion exactly as it is** — that is the benchmark-exclusion guard and it is still what it was.
+`apps/web/test/load.test.ts:23-27` asserts `d.fixture.claims.length > 0`; make it `d.heroCases.get("TAK-994")!.claims!.length` and **leave the `d.compounds.has("TAK-994") === false` assertion exactly as it is** - that is the benchmark-exclusion guard and it is still what it was.
 
 - [ ] **Step 8: Run the full suite**
 
@@ -342,7 +342,7 @@ Expected: PASS, and the count is the previous 513 plus the 4 new tests in `heroC
 - [ ] **Step 9: Prove no reported number moved**
 
 Run: `npm run golden:update && git diff --exit-code results/`
-Expected: exit 0, no output. If this diffs, stop — a rename has changed a computation.
+Expected: exit 0, no output. If this diffs, stop - a rename has changed a computation.
 
 - [ ] **Step 10: Commit**
 
@@ -356,7 +356,7 @@ git push
 
 ### Task 2: Per-case as-of milestones
 
-Closes a live defect: `CaseHeader.tsx:30` reads the fixture's milestones unconditionally, so selecting any of the 267 library compounds today offers `preFirstInHuman (2021-06-01)` and `postMurineStudy (2023-01-01)` — TAK-994's dates, on a different drug.
+Closes a live defect: `CaseHeader.tsx:30` reads the fixture's milestones unconditionally, so selecting any of the 267 library compounds today offers `preFirstInHuman (2021-06-01)` and `postMurineStudy (2023-01-01)` - TAK-994's dates, on a different drug.
 
 Task 1 already made `milestones` read from the hero case. **This task is the test that proves it**, and it is separated because a behaviour fix deserves its own failing-test-first cycle rather than riding along inside a rename.
 
@@ -417,7 +417,7 @@ export function StoreProvider(
 - [ ] **Step 2: Run it and watch the second half fail**
 
 Run: `npx vitest run apps/web/test/caseHeader.test.tsx`
-Expected: FAIL on the `toBeNull()` assertions if Task 1's `CaseHeader` edit was not applied. If it passes immediately, **revert `CaseHeader.tsx:30` to `Object.entries(data.heroCases.get("TAK-994")!.asOfMilestones)` and confirm it then fails** — otherwise the test is not testing anything.
+Expected: FAIL on the `toBeNull()` assertions if Task 1's `CaseHeader` edit was not applied. If it passes immediately, **revert `CaseHeader.tsx:30` to `Object.entries(data.heroCases.get("TAK-994")!.asOfMilestones)` and confirm it then fails** - otherwise the test is not testing anything.
 
 - [ ] **Step 3: Confirm the fix is Task 1's edit**
 
@@ -438,11 +438,11 @@ git push
 
 ---
 
-### Task 3: Hero case 2 — Cyclosporine
+### Task 3: Hero case 2 - Cyclosporine
 
 **Read spec §3 and §4 first.** Two properties were measured false while choosing this compound; the reasoning that survives is not the reasoning that was written down first.
 
-Measured on 5 August 2026 — these are the assertion values:
+Measured on 5 August 2026 - these are the assertion values:
 
 | | value |
 |---|---|
@@ -470,7 +470,7 @@ Append to `apps/web/test/heroCases.test.ts`:
 import { reason } from "@arbiter/engine";
 import { CYCLOSPORINE } from "../src/data/heroCases.js";
 
-describe("hero case 2 — Cyclosporine", () => {
+describe("hero case 2 - Cyclosporine", () => {
   const data = loadData();
 
   it("is corpus-backed and carries no claims of its own", () => {
@@ -523,7 +523,7 @@ describe("hero case 2 — Cyclosporine", () => {
 - [ ] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run apps/web/test/heroCases.test.ts`
-Expected: FAIL — `CYCLOSPORINE` is not exported.
+Expected: FAIL - `CYCLOSPORINE` is not exported.
 
 - [ ] **Step 3: Declare the compound**
 
@@ -536,8 +536,8 @@ Append to `apps/web/src/data/heroCases.ts`:
  * Chosen over better-known DILI compounds for reasons recorded in spec §3-4, two of
  * which were measured false on the first pass and corrected. What survives: it
  * COMMITS where TAK-994 abstains (belief 0.886 against 0.090), its gap is 0.098
- * against TAK-994's 0.910 — the contrast an audience reads without being told what
- * it means — it is `contested` with conflict mass 0.122, and it is the only rendered
+ * against TAK-994's 0.910 - the contrast an audience reads without being told what
+ * it means - it is `contested` with conflict mass 0.122, and it is the only rendered
  * case where Dempster-Shafer conflict is non-zero. It is also in the test split, so
  * nothing needs disclosing.
  *
@@ -588,7 +588,7 @@ In `apps/web/src/tabs/Case/CaseHeader.tsx`, after the `<p className="muted case-
           )}
 ```
 
-Cyclosporine sets this to `null`, so nothing renders today. It exists because spec §4 records Troglitazone as the alternate and its only blocker is an in-sample QSAR disclosure — adding it later becomes data, not code. Step 6 tests the mechanism so it is not untested scaffolding.
+Cyclosporine sets this to `null`, so nothing renders today. It exists because spec §4 records Troglitazone as the alternate and its only blocker is an in-sample QSAR disclosure - adding it later becomes data, not code. Step 6 tests the mechanism so it is not untested scaffolding.
 
 - [ ] **Step 6: Test the disclosure renders when set**
 
@@ -710,7 +710,7 @@ describe("the exposure gate", () => {
 - [ ] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run apps/web/test/exposureGate.test.ts`
-Expected: FAIL — `assertExposureBacked` is not exported.
+Expected: FAIL - `assertExposureBacked` is not exported.
 
 - [ ] **Step 3: Implement the gate**
 
@@ -723,13 +723,13 @@ Add to `apps/web/src/data/load.ts`:
  *
  * This is HANDOVER §3.1's prohibition, made unrepresentable. Reaching an `advance`
  * verdict requires `exposureRelevant: true` on safe evidence, and the cheapest way
- * to get one is to type `true` — which is precisely the shortcut §3.1 considered and
+ * to get one is to type `true` - which is precisely the shortcut §3.1 considered and
  * rejected, and precisely the shortcut that is most tempting at 11pm before a
  * submission. A rule that lives in a document is a rule someone has to remember; a
  * rule that fails the build is not.
  *
  * SAFE claims only, deliberately. R3 says a positive finding at clinically relevant
- * exposure defeats a negative one whose margin is unstated — the asymmetry is the
+ * exposure defeats a negative one whose margin is unstated - the asymmetry is the
  * rule's whole content. A toxic finding needs no margin to be defensible, and
  * TAK-994's murine claim is exactly that case.
  *
@@ -742,7 +742,7 @@ export function assertExposureBacked(hero: HeroCase): void {
     if (c.assertion === "safe" && c.exposureRelevant === true) {
       throw new DataLoadError(
         `${hero.compoundId}: claim ${c.id} asserts exposureRelevant on a safe finding, ` +
-        `but the fixture carries no cited clinical Cmax. See HANDOVER §3.1 — this flag ` +
+        `but the fixture carries no cited clinical Cmax. See HANDOVER §3.1 - this flag ` +
         `may not be set without one.`,
       );
     }
@@ -783,7 +783,7 @@ git push
 
 ### Task 5: The audit record gains a compound
 
-`ReviewerPosition` carries no `compoundId`, so signing on two compounds produces one interleaved chain in which no link says what it was about. Adding it to the render alone would reproduce HANDOVER §6.4's `prevRecordHash` defect exactly — a field a reader trusts that tampering does not disturb — so it goes into the hash.
+`ReviewerPosition` carries no `compoundId`, so signing on two compounds produces one interleaved chain in which no link says what it was about. Adding it to the render alone would reproduce HANDOVER §6.4's `prevRecordHash` defect exactly - a field a reader trusts that tampering does not disturb - so it goes into the hash.
 
 `canonicalRecord` uses `Object.entries`, so a new field is covered automatically. **That is a property to test, not to assume.**
 
@@ -819,7 +819,7 @@ it("covers compoundId in the record hash", async () => {
 - [ ] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run apps/web/test/chain.test.ts`
-Expected: FAIL — `compoundId` is not a property of `ReviewerPosition` (typecheck error).
+Expected: FAIL - `compoundId` is not a property of `ReviewerPosition` (typecheck error).
 
 - [ ] **Step 3: Add the field**
 
@@ -832,8 +832,8 @@ In `apps/web/src/state/store.tsx`, inside `ReviewerPosition`, after `role`:
    * distinguishable only by their evidence snapshot, which is a digest rather than
    * a statement.
    *
-   * It is inside `canonicalRecord` — which enumerates with Object.entries, so this
-   * is covered by construction — and not merely rendered. Rendering alone would
+   * It is inside `canonicalRecord` - which enumerates with Object.entries, so this
+   * is covered by construction - and not merely rendered. Rendering alone would
    * repeat HANDOVER §6.4's defect: a field a reader trusts that tampering does not
    * disturb.
    */
@@ -882,7 +882,7 @@ Expected: FAIL on the new test. Revert the filter.
 
 Run: `npm run lint && npm run typecheck && npm test`
 
-Other tests construct `ReviewerPosition` literals and will not typecheck until they carry `compoundId`. Fix each by adding `compoundId: "TAK-994"` — they all sign on the fixture today.
+Other tests construct `ReviewerPosition` literals and will not typecheck until they carry `compoundId`. Fix each by adding `compoundId: "TAK-994"` - they all sign on the fixture today.
 
 ```bash
 git add apps/web/src apps/web/test
@@ -894,7 +894,7 @@ git push
 
 ### Task 6: The tour carries a compound
 
-Two changes: beats are built from `data` so the tour's as-of dates cannot drift from the fixture's, and a beat may name a compound. The second closes a latent bug — **no beat dispatches `selectCompound` today**, so clicking a library row and then pressing `→` narrates TAK-994's script over another compound's numbers.
+Two changes: beats are built from `data` so the tour's as-of dates cannot drift from the fixture's, and a beat may name a compound. The second closes a latent bug - **no beat dispatches `selectCompound` today**, so clicking a library row and then pressing `→` narrates TAK-994's script over another compound's numbers.
 
 **Files:**
 - Modify: `apps/web/src/tour/beats.ts`
@@ -965,12 +965,12 @@ describe("beats carry a compound", () => {
 
 describe("no beat inherits its as-of date", () => {
   // Beat 5 (the record tab) used to carry `actions: []`. Reached FORWARD from
-  // beat 4 it inherited `postMurineStudy`, correctly — but reached BACKWARD from
+  // beat 4 it inherited `postMurineStudy`, correctly - but reached BACKWARD from
   // beat 6 it inherited `null`, because beat 6 sets `null` and nothing restored
   // it. That is the same class of bug that made `compoundId` required: a beat
   // with no `setAsOf` of its own inherits whatever the previous beat left behind,
   // and inheritance is direction-dependent. It is not cosmetic on this beat
-  // specifically — `Record.tsx` hashes `visibleClaims(all, asOf)` into the signed
+  // specifically - `Record.tsx` hashes `visibleClaims(all, asOf)` into the signed
   // evidence snapshot and stores `asOfDate: asOf` on the position, so a presenter
   // stepping backward onto the record beat and signing would have recorded a
   // position against a different evidence snapshot than the forward path
@@ -1006,7 +1006,7 @@ The file needs these imports added at the top: `buildBeats` from `../src/tour/be
 - [ ] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run apps/web/test/beats.test.tsx`
-Expected: FAIL — `buildBeats` is not exported.
+Expected: FAIL - `buildBeats` is not exported.
 
 - [ ] **Step 3: Rewrite `beats.ts`**
 
@@ -1029,7 +1029,7 @@ export interface Beat {
    * compound, pressing ← from it lands on a beat that names none, which leaves
    * Cyclosporine selected while the record beat narrates TAK-994. Making it required
    * means every beat states its subject and no beat inherits one, so the tour is
-   * correct from any entry point and in both directions — including after a judge
+   * correct from any entry point and in both directions - including after a judge
    * has clicked a library row, which is the latent bug this closes.
    */
   compoundId: string;
@@ -1044,14 +1044,14 @@ export interface Beat {
    * wrong, for the same reason `compoundId` is required rather than optional: a
    * beat with no `setAsOf` of its own INHERITS whatever the previous beat left
    * behind, and inheritance is direction-dependent. Beat 5 (the record tab) used
-   * to carry `actions: []` — reached forward from beat 4 it inherited
+   * to carry `actions: []` - reached forward from beat 4 it inherited
    * `postMurineStudy`, correctly, but reached backward from beat 6 it inherited
    * `null`, because beat 6 sets `null` and nothing restores it. That is not
    * cosmetic on the record beat specifically: `Record.tsx` hashes
    * `visibleClaims(all, asOf)` into the signed evidence snapshot and stores
    * `asOfDate: asOf` on the position, so a presenter who steps backward onto this
    * beat and signs would record a position against a different evidence snapshot
-   * than the one the forward path produces — inside the hash-chained audit log.
+   * than the one the forward path produces - inside the hash-chained audit log.
    * Stating every beat's date explicitly means no beat inherits one, so the tour
    * is correct from any entry point and in both directions.
    */
@@ -1100,7 +1100,7 @@ export function buildBeats(data: LoadedData): Beat[] {
       n: 4, title: "The experiment it asks for", tab: "case",
       compoundId: tak.compoundId, focus: "trace",
       actions: [{ type: "setAsOf", asOf: postMurine }],
-      line: "It asks for a human BSEP assay at matched exposure. Takeda ran a mouse study instead — and even that does not license a conclusion, because it is a mouse.",
+      line: "It asks for a human BSEP assay at matched exposure. Takeda ran a mouse study instead - and even that does not license a conclusion, because it is a mouse.",
     },
     {
       n: 5, title: "The table", tab: "record",
@@ -1112,7 +1112,7 @@ export function buildBeats(data: LoadedData): Beat[] {
       n: 6, title: "When it does commit", tab: "case",
       compoundId: cyclo.compoundId, focus: "trace",
       actions: [{ type: "setAsOf", asOf: null }],
-      line: `Same rules, same engine. On ${cyclo.displayName} the human streams disagree at the mechanism — and it commits.`,
+      line: `Same rules, same engine. On ${cyclo.displayName} the human streams disagree at the mechanism - and it commits.`,
     },
     {
       // Corpus-wide statistics, so the compound is immaterial to what is rendered.
@@ -1165,7 +1165,7 @@ with `import { useEffect, useMemo } from "react";` and `import { buildBeats } fr
 
 Run: `npm run lint && npm run typecheck && npm test`
 Run: `npm run web:build && npm run e2e`
-Expected: PASS. If the static-file spec fails, read HANDOVER §10.2 before touching it — over `file://` the network panel is not evidence, and that spec's console-error listener is load-bearing.
+Expected: PASS. If the static-file spec fails, read HANDOVER §10.2 before touching it - over `file://` the network panel is not evidence, and that spec's console-error listener is load-bearing.
 
 - [ ] **Step 7: Verify the beat actually switches compound**
 
@@ -1227,11 +1227,11 @@ describe("the fixture leak check", () => {
 - [ ] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run apps/harness/test/validateEvidence.test.ts`
-Expected: FAIL — `findLeakedFixtures` is not exported.
+Expected: FAIL - `findLeakedFixtures` is not exported.
 
 - [ ] **Step 3: Expose `fixtureIds`**
 
-In `apps/harness/src/load.ts`, read `fixtureCompoundIds` off `data/out/evidence.json` — it is **already a list** — and add it to `loadInputs()`'s returned object as `fixtureIds: string[]`.
+In `apps/harness/src/load.ts`, read `fixtureCompoundIds` off `data/out/evidence.json` - it is **already a list** - and add it to `loadInputs()`'s returned object as `fixtureIds: string[]`.
 
 - [ ] **Step 4: Rewrite the check**
 
@@ -1242,7 +1242,7 @@ In `apps/harness/src/load.ts`, read `fixtureCompoundIds` off `data/out/evidence.
  * Fixture ids that reached the benchmark population.
  *
  * Membership, not `startsWith("TAK-994")`. The prefix form was correct for exactly
- * one fixture and silently correct-looking for any other — the failure mode
+ * one fixture and silently correct-looking for any other - the failure mode
  * HANDOVER §6.4 names, where a silent empty result looks exactly like a working
  * pipeline. The list comes from `evidence.json`'s `fixtureCompoundIds`, which the
  * Python assembly layer has always emitted as a list.
@@ -1258,7 +1258,7 @@ if (leaked.length > 0) throw new Error(`Fixture leaked into the benchmark: ${lea
 
 with `fixtureIds` added to the destructuring on line 3.
 
-The module runs its check at import time, so the test importing it also runs it. That is intentional — the test file cannot import the function without proving the shipped data passes.
+The module runs its check at import time, so the test importing it also runs it. That is intentional - the test file cannot import the function without proving the shipped data passes.
 
 - [ ] **Step 5: Verify by injection**
 
@@ -1281,8 +1281,8 @@ git push
 
 ## Closing out
 
-- [ ] Update `HANDOVER.md`: add a §11 recording what this work found — that Cyclosporine shows no defeat and TAK-994 shows four, that no test-split compound is both severe-DILI and defeat-bearing, and that hero case 3 is gated in code rather than by discipline. HANDOVER §7 is explicit that conclusions living only in a gitignored ledger are lost; this plan is a tracked file but the *measurements* belong there.
+- [ ] Update `HANDOVER.md`: add a §11 recording what this work found - that Cyclosporine shows no defeat and TAK-994 shows four, that no test-split compound is both severe-DILI and defeat-bearing, and that hero case 3 is gated in code rather than by discipline. HANDOVER §7 is explicit that conclusions living only in a gitignored ledger are lost; this plan is a tracked file but the *measurements* belong there.
 - [ ] Update the master spec's §3 beat table to eight beats.
 - [ ] Open the PR against `main`.
 
-**Not in this plan, and deliberately:** hero case 3 itself (blocked on a clinical Cmax — spec §5, HANDOVER §3.1), Troglitazone as a fourth case (spec §14, needs only data once Task 3 ships), and any Python change (no new evidence is authored).
+**Not in this plan, and deliberately:** hero case 3 itself (blocked on a clinical Cmax - spec §5, HANDOVER §3.1), Troglitazone as a fourth case (spec §14, needs only data once Task 3 ships), and any Python change (no new evidence is authored).

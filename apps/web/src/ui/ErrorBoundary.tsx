@@ -24,7 +24,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
     if (this.state.error) {
       return (
         <div style={{ padding: 32, fontFamily: "var(--sans)" }}>
-          <h1 style={{ fontFamily: "var(--serif)" }}>ARBITER could not render</h1>
+          <h1 style={{ fontFamily: "var(--display)" }}>ARBITER could not render</h1>
           <pre style={{ color: "var(--toxic)", whiteSpace: "pre-wrap" }}>{this.state.error.message}</pre>
         </div>
       );

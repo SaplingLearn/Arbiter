@@ -235,7 +235,7 @@ describe("Verdict", () => {
 
   it("marks a stub result as a stub, in the place a reader cannot miss", () => {
     render(<Verdict adjudication={adj} source="stub" onSign={() => {}} />);
-    expect(screen.getByText(/STUB — no model was called/)).toBeInTheDocument();
+    expect(screen.getByText(/STUB - no model was called/)).toBeInTheDocument();
   });
 
   it("carries no stub banner on a live result", () => {
@@ -263,7 +263,7 @@ describe("Verdict", () => {
     expect(screen.getByRole("button", { name: /Sign the record/ })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Override" }));
     expect(screen.getByRole("button", { name: /Sign the record/ })).toBeDisabled();
-    expect(screen.getByText(/Why you are overriding — required/)).toBeInTheDocument();
+    expect(screen.getByText(/Why you are overriding - required/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/Why you are overriding/), { target: { value: "Margin is 40x." } });
     fireEvent.click(screen.getByRole("button", { name: /Sign the record/ }));

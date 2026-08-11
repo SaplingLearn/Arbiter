@@ -1,6 +1,6 @@
 # Data prep
 
-## DILIrank (manual download — no stable direct URL)
+## DILIrank (manual download - no stable direct URL)
 
 1. Go to the FDA Liver Toxicity Knowledge Base (LTKB) DILIrank page.
 2. Download the DILIrank dataset spreadsheet (`.xlsx`).
@@ -12,14 +12,14 @@ click once.
 
 `data/raw/` is deliberately **not** gitignored. The workbook is 110KB of
 US-government public-domain data, and committing it pins the exact dataset
-version a result came from — DILIrank 2.0 reclassified 49 drugs relative to 1.0,
+version a result came from - DILIrank 2.0 reclassified 49 drugs relative to 1.0,
 so "which version" is part of any result's provenance.
 
 ### Two sheets, and they are not interchangeable
 
 | sheet | dataset | drugs |
 |-------|---------|-------|
-| 0 | DILIrank **2.0** — use this one | 1,336 |
+| 0 | DILIrank **2.0** - use this one | 1,336 |
 | 1 | DILIrank 1.0, superseded | 1,036 |
 
 Row 0 of each sheet is a title banner, so every reader must pass `header=1`.
@@ -30,7 +30,7 @@ With the default `header=0` every column comes back as `Unnamed: N`.
 precedes the label column, so a column lookup matching `"severity"` selects the
 wrong one.
 
-### Category strings are internally inconsistent — always normalise
+### Category strings are internally inconsistent - always normalise
 
 The file mixes case and punctuation (`vMost-DILI-concern` 215 rows vs
 `vMOST-DILI-concern` 2; `vNo-DILI-concern` 413 vs `vNo-DILI-Concern` 1), and

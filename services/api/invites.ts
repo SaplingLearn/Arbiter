@@ -6,7 +6,7 @@ import { normaliseEmail } from "./auth.js";
  * Pending invitations: somebody was added to a case before they had an account.
  *
  * WHY THIS EXISTS. Requiring every participant to register first makes the product
- * unusable for the thing it is for — you convene a case because you want a specific
+ * unusable for the thing it is for - you convene a case because you want a specific
  * colleague's read, and telling the convener "ask them to sign up, then come back"
  * loses the case. Worse, it quietly encourages leaving that person off, and the
  * person most likely to be left off is the one who disagrees.

@@ -74,7 +74,7 @@ const R3_DISABLE = "why does R3 only apply to negative findings? that looks conv
 const R3_LOWER = "isn't the discounting just a fudge factor to get the answer you wanted";
 const R5_LOWER = "klimisch 3 gets hammered too hard here. plenty of non-GLP work is perfectly sound";
 const CYTOTOX =
-  "the in-vitro panel was run against clinical Cmax — a hundred-fold margin IS an exposure margin. stop calling it untested";
+  "the in-vitro panel was run against clinical Cmax - a hundred-fold margin IS an exposure margin. stop calling it untested";
 
 describe("TablePanel - the request", () => {
   it("sends claim ids and labels ONLY, never a raw evidence value", async () => {
@@ -197,7 +197,7 @@ describe("TablePanel - the evidence check is re-run at Apply, not only at Interp
     // The murine claim is the one the as-of control actually hides: it carries
     // availableFrom 2022-03-01, so it is in play under "all evidence" and gone at
     // pre-first-in-human. (Every other TAK-994 claim predates 2021-06-01, which is
-    // why the first version of this test — winding back with a cytotox proposal —
+    // why the first version of this test - winding back with a cytotox proposal -
     // passed against the unfixed code. Measured, not assumed.)
     interpretSpy.mockResolvedValueOnce({
       value: {
