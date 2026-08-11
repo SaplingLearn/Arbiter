@@ -5,8 +5,8 @@ import { api, ApiError, type CaseListing, type CaseSummary, type Person } from "
 
 /**
  * The composition pages: authentication, the dashboard, case creation, and the
- * method explainer. The working screens — inventory, position form, reveal,
- * verdict, audit, documents — stay in screens.tsx, where they carry behaviour and
+ * method explainer. The working screens - inventory, position form, reveal,
+ * verdict, audit, documents - stay in screens.tsx, where they carry behaviour and
  * tests. Moving them for the sake of a folder layout would churn a passing suite
  * for nothing.
  */
@@ -54,10 +54,10 @@ export function AuthPage({ onSignedIn }: { onSignedIn: (token: string, user: Per
   return (
     <div className="auth">
       <aside className="auth-brand">
-        <span className="mark" aria-hidden="true">A</span>
+        <span className="mark" aria-hidden="true"><i /><i /><i /><i /></span>
         <h1>Decide before you know, and leave a record of how.</h1>
         <p>
-          Arbiter runs the safety review a drug programme has to hold anyway — but
+          Arbiter runs the safety review a drug programme has to hold anyway - but
           each person answers privately first, so the room produces four independent
           readings instead of one confident one.
         </p>
@@ -83,7 +83,7 @@ export function AuthPage({ onSignedIn }: { onSignedIn: (token: string, user: Per
                   : "Enter your reset token"}
           </h2>
           <p className="hint">
-            {mode === "in" ? "Your session lasts twelve hours and is not stored in this browser — closing the tab signs you out."
+            {mode === "in" ? "Your session lasts twelve hours and is not stored in this browser - closing the tab signs you out."
               : mode === "up" ? "Anyone can create an account. You will be able to open cases and be added to other people's."
                 : mode === "forgot" ? "Nothing is emailed from this deployment. A token is issued to whoever runs the server, and they hand it to you."
                   : "Paste the token you were given, and choose a new password. Every existing session is signed out."}
@@ -123,7 +123,7 @@ export function AuthPage({ onSignedIn }: { onSignedIn: (token: string, user: Per
                 value={password} onChange={(e) => setPassword(e.target.value)} />
               {(mode === "up" || mode === "reset") && (
                 <span className="hint">
-                  At least 12 characters. No symbol or digit rules — length is what
+                  At least 12 characters. No symbol or digit rules - length is what
                   actually protects a password, and composition rules just produce
                   <span className="mono"> Password1!</span>
                 </span>
@@ -218,7 +218,7 @@ export function Dashboard({ mine, me }: { mine: CaseListing[]; me: Person }): Re
           <h3>No cases yet</h3>
           <p className="muted">
             Open a case for a compound you are deciding about, or start from one of the
-            prepared cases in the library — each is built from a real regulatory review.
+            prepared cases in the library - each is built from a real regulatory review.
           </p>
           <div className="btn-row" style={{ marginTop: 0, justifyContent: "center" }}>
             <a href={href({ name: "new" })}><button className="primary">Create a case</button></a>
@@ -316,8 +316,8 @@ export function NewCasePage({ token, people, onCreated }: {
           <div className="field">
             <label>Modality</label>
             <span className="hint" style={{ marginTop: 0 }}>
-              Four of the twelve questions do not apply to an antibody — it has no
-              reactive metabolite and no structure a QSAR model can score — so this
+              Four of the twelve questions do not apply to an antibody - it has no
+              reactive metabolite and no structure a QSAR model can score - so this
               decides which questions get asked at all.
             </span>
             <div className="choice">
@@ -334,7 +334,7 @@ export function NewCasePage({ token, people, onCreated }: {
             <h3>Who answers</h3>
             <p className="hint">
               They need an account already. Nobody can see anyone else's answer until
-              all of them are in — including you.
+              all of them are in - including you.
             </p>
           </div>
 
@@ -377,7 +377,7 @@ export function LibraryPage({ catalogue, onOpen, busy }: {
         lede="Each is built from a real regulatory review, with every finding transcribed by hand and carrying the page it came from."
       />
       <div className="note" style={{ marginBottom: 32 }}>
-        Five documents were collected and <strong>two cannot be used</strong> — one is
+        Five documents were collected and <strong>two cannot be used</strong> - one is
         scanned images with no readable text, one turned out to be a labelling
         supplement with no toxicology in it. They are listed anyway: that ratio is the
         finding, and a library showing only what worked would imply every document works.
@@ -412,7 +412,7 @@ export function MethodPage(): ReactElement {
           <p>
             Everyone reads the same neutral account of the documents before anyone
             states a position. It is ordered by checklist identifier and by nothing
-            else — ranking gaps by severity would push the room before it has spoken.
+            else - ranking gaps by severity would push the room before it has spoken.
           </p>
           <p>
             A finding covers a question only when it <em>declares</em> that it does.
@@ -426,7 +426,7 @@ export function MethodPage(): ReactElement {
           <p>
             While a case is open the server returns your own position and, for everyone
             else, one bit: submitted or not. Not their call, not their reasoning, not a
-            running tally — a tally drags a room as hard as the positions themselves.
+            running tally - a tally drags a room as hard as the positions themselves.
             It is enforced by not sending the data, never by a screen choosing not to
             render it.
           </p>

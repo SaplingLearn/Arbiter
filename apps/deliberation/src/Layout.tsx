@@ -5,7 +5,7 @@ import type { Person } from "./api.js";
 /**
  * App chrome: a light sticky top bar, a single strong brand mark, and a quiet
  * footer. The one heavy colour in the product is the mark itself, so the palette
- * stays available for the evidence states — red, green and amber mean something
+ * stays available for the evidence states - red, green and amber mean something
  * specific here and must never be spent on decoration.
  */
 
@@ -33,7 +33,7 @@ export function Layout({ route, me, onSignOut, children }: {
       <header className="topbar">
         <div className="col">
           <a className="brand" href={href({ name: "dashboard" })}>
-            <span className="mark" aria-hidden="true">A</span>
+            <span className="mark" aria-hidden="true"><i /><i /><i /><i /></span>
             <span>
               <b>Arbiter</b>
               <span>Preclinical safety review</span>
@@ -62,6 +62,11 @@ export function Layout({ route, me, onSignOut, children }: {
           )}
         </div>
       </header>
+
+      {/* BLUEPRINT's hatched band, used once: the boundary between the app chrome
+          and the work. On the landing page the device is the rest between major
+          sections, which a working screen has no room for. */}
+      <div className="hatch-band" aria-hidden="true" />
 
       <main>
         <div className="col">{children}</div>
