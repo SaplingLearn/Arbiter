@@ -32,7 +32,11 @@
 .case-grid[data-focus="trace"]    { grid-template-columns: var(--rail) 1fr var(--rail); }
 .case-grid[data-focus="table"]    { grid-template-columns: var(--rail) var(--rail) 1fr; }
 
-.case-region { background: var(--canvas); padding: var(--s5); overflow: auto; }
+/* White, on the paper ground. BLUEPRINT reserves --white for the insets that sit
+   ON the page - the case rails here, the mini tables on the landing page - so the
+   three regions read as cells laid on the sheet, separated by the 1px grid gap and
+   nothing else. */
+.case-region { background: var(--white); padding: var(--s5); overflow: auto; }
 /* A collapsed region keeps its content - it is a rail, not a hidden panel - so
    it only loses the padding it no longer has room for. */
 .case-region.is-rail { padding: var(--s3) var(--s1); overflow: hidden; }
@@ -41,10 +45,10 @@
 .case-rail {
   display: flex; flex-direction: column; align-items: center; gap: var(--s2);
   width: 100%; padding: var(--s2) 0;
-  background: none; border: 0; border-radius: var(--radius-sm);
-  font: inherit; font-size: var(--t-label); font-weight: 600;
-  letter-spacing: 0.09em; text-transform: uppercase;
-  color: var(--muted); cursor: pointer;
+  background: none; border: 0; border-radius: 0;
+  font-family: var(--mono); font-size: var(--t-label); font-weight: 400;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-2); cursor: pointer;
   transition: background-color var(--speed) ease, color var(--speed) ease;
 }
 .case-rail:hover { background: var(--surface); color: var(--ink); }
@@ -79,10 +83,11 @@
 
 /* ---------- evidence ---------- */
 
-/* Ink, not amber: this is the caveat that stops us overclaiming, so it takes
-   the most legible colour on the page and hands the "unverified" signal to a
-   rule in the margin - the same idiom as .figure on the landing page. Sized by
-   .caveat (15px/600), which static-file.spec.ts measures at >= 14px/600. */
+/* Ink text with the "unverified" signal handed to a rule in the margin - the same
+   idiom as .figure. Under BLUEPRINT --ambiguous is no longer amber but --ink-3,
+   because the palette has no amber and abstain is the absence of a commitment
+   rather than a warning. The word still carries the meaning; the rule is second.
+   Sized by .caveat (15px/600), which static-file.spec.ts measures at >= 14px/600. */
 .case-caveat {
   border-left: 2px solid var(--ambiguous);
   padding-left: var(--s3);
@@ -116,16 +121,18 @@
 .trace-step {
   padding: var(--s2);
   margin-left: calc(var(--s2) * -1);
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   transition: background-color var(--speed) ease;
 }
 .trace-step:hover { background: var(--surface); }
 
-/* The engine's own words for the verdict. Serif, because it is a sentence the
-   document says rather than UI chrome - the voice of .title without claiming to
-   be a heading. */
+/* The engine's own words for the verdict. The display face rather than body,
+   because it is a sentence the document says rather than UI chrome - the voice of
+   .title without claiming to be a heading. (It was Georgia before BLUEPRINT; the
+   system has no book face now, so the distinction is carried by size and measure
+   instead of by a change of family.) */
 .case-reason {
-  font-family: var(--serif);
+  font-family: var(--display);
   font-size: 17px; line-height: 1.5;
   margin: var(--s4) 0 0;
 }
