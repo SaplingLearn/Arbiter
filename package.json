@@ -10,7 +10,7 @@
   "scripts": {
     "test": "vitest run",
     "lint": "eslint packages apps services --ext .ts,.tsx",
-    "typecheck": "tsc -b packages/engine apps/harness && tsc -p apps/web --noEmit && tsc -p apps/deliberation --noEmit && tsc -p services/api --noEmit",
+    "typecheck": "tsc -b packages/engine apps/harness && tsc -p apps/web --noEmit && tsc -p apps/deliberation --noEmit && tsc -p apps/landing --noEmit && tsc -p services/api --noEmit",
     "harness": "tsx apps/harness/src/main.ts",
     "validate:evidence": "tsx apps/harness/src/validate-evidence.ts",
     "metrics": "tsx apps/harness/src/run-metrics.ts",
@@ -26,7 +26,9 @@
     "api": "tsx services/api/server.ts",
     "seed:demo": "tsx services/api/seed-demo.ts",
     "deliberate:dev": "npm run dev -w @arbiter/deliberation",
-    "deliberate:build": "npm run build -w @arbiter/deliberation"
+    "deliberate:build": "npm run build -w @arbiter/deliberation",
+    "landing:dev": "npm run dev -w @arbiter/landing",
+    "landing:build": "npm run build -w @arbiter/landing"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",
@@ -35,6 +37,7 @@
     "@types/node": "^20.12.0",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
+    "@types/three": "^0.185.4",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@vitejs/plugin-react": "^4.7.0",
