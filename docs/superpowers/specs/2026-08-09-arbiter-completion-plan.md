@@ -49,9 +49,18 @@ Sequential, and each one can stop the project. That is the point of a gate.
 ### Gate 0 - The consistency probe. Before anything else. ~1 hour, ~$1–3.
 
 ```bash
-export ANTHROPIC_API_KEY=...
+export ARBITER_GCP_PROJECT=...        # Vertex AI project; auth is ADC, not an API key
 npm run probe:case && npm run probe && npm run probe:report
 ```
+
+**Amended 2026-08-10.** This read `export ANTHROPIC_API_KEY=...` until the model
+provider moved to Gemini on Vertex AI — see `2026-08-10-model-provider-decision.md`,
+which is the explicit recorded decision §9 of the redesign requires. Authentication is
+Application Default Credentials (`gcloud auth application-default login` locally, a
+service account in deployment), so there is no key to export. `ARBITER_MODEL` and
+`ARBITER_ADJUDICATION_MODEL` still override the model, and the provider is inferred
+from the model name, so this gate can still be run against an Anthropic model by
+setting one variable and supplying `ANTHROPIC_API_KEY`.
 
 Twenty runs of one case, no answer key needed.
 

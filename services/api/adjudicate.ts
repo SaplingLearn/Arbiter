@@ -60,7 +60,41 @@ export interface AdjudicateRequest {
   findings: Finding[];
   /** Fields searched for and not found. Absent is a finding; see spec §3.2. */
   absent: { field: string; whatItBlocks: string }[];
+  /**
+   * Checklist items the inventory marks PRESENT, tagged by half. Feeds
+   * `consequenceBasis` below: a severity verdict must name evidence from here, so an
+   * absent dimension is unnameable rather than merely discouraged.
+   *
+   * OPTIONAL, deliberately. The deliberation path builds a request from an inventory
+   * and supplies it; `data/probe-case.json` is built by tools/build_probe_case.py from
+   * a fixture and carries no inventory at all, so it cannot. Making this required would
+   * have forced that script to reimplement inventory.ts in Python - the duplicated
+   * DEFINITION this project keeps refusing - or invalidated the committed 20-run
+   * baseline in results/probe-runs.json.
+   *
+   * The cost is stated rather than hidden: the basis requirement binds on the PRODUCT
+   * path and is inert on the probe. So the probe cannot measure it, and closing that
+   * gap means giving the probe case an inventory rather than weakening this.
+   */
+  present?: { field: string; half: "mechanism" | "consequence" }[];
 }
+
+/**
+ * THE ONE COPY OF THE ADJUDICATOR PROMPT PATH.
+ *
+ * Same argument as interpret.ts's model constants, and the same failure it prevents.
+ * This literal was written out in five files - server.ts, probe.ts,
+ * deliberation-demo.ts and two test files - so minting prompt v1.1 was five chances to
+ * update four of them. probe.ts is the trap again: it hashes whatever it loaded into
+ * `promptHash` and writes that beside the result, so a probe reading v1.0 while the
+ * server ran v1.1 would produce a correctly-hashed, honestly-labelled measurement OF
+ * THE WRONG PROMPT. §7.2a's rule that a number belongs to the prompt version that
+ * produced it is only enforceable if there is one answer to which version that was.
+ *
+ * v1.0 is never deleted and never edited - it is the version every result already
+ * committed was measured under. Pointing here at v1.1 changes what runs NEXT.
+ */
+export const ADJUDICATOR_PROMPT_PATH = "prompts/adjudicator-v1.1.json";
 
 export type ConsequenceVerdict = "do_not_advance" | "advance" | "cannot_conclude";
 
@@ -75,9 +109,30 @@ export interface Adjudication {
     reasoning: string;
     citedFindingIds: string[];
   };
+  /**
+   * Which PRESENT consequence-half checklist items the severity call rests on.
+   *
+   * §0's defect in one field. The engine said `do_not_advance` about prochlorperazine,
+   * thioridazine, glyburide, mifepristone and irbesartan on mechanism evidence alone,
+   * and the audit's conclusion was structural rather than a threshold: "a system with
+   * no severity inputs cannot produce severity judgments." A model given the same six
+   * thin fields fails the same way but persuasively - §9's *fluent wrongness*.
+   *
+   * Measured, on a live run of this exact prompt: the model justified `do_not_advance`
+   * with "single-cell necrosis is a severe, IRREVERSIBLE form of cellular injury" while
+   * the inventory it had been handed recorded `C4 Reversibility on withdrawal` as
+   * ABSENT. Neither "severe" nor "irreversible" appears in any finding. Every
+   * deterministic check passed, because they check ids and this was an adjective.
+   *
+   * Enum-constrained to the request's PRESENT consequence-half fields, so a severity
+   * claim on an unmeasured dimension is unrepresentable - the same guarantee
+   * interpret.ts describes as "there is nowhere to put an invented rule". It does NOT
+   * stop the prose saying "irreversible"; it stops the VERDICT resting on it.
+   */
+  consequenceBasis: string[];
   ruleDisclosure: {
     ruleId: string;
-    position: "applies" | "does_not_apply";
+    position: "applies" | "does_not_apply" | "cannot_determine";
     reasoning: string;
     citedFindingIds: string[];
   }[];
@@ -98,6 +153,11 @@ export interface Adjudication {
 export function adjudicationSchema(req: AdjudicateRequest): Record<string, unknown> {
   const findingIds = req.findings.map((f) => f.id);
   const ruleIds = req.rules.map((r) => r.id);
+  const absentFields = req.absent.map((a) => a.field);
+  // Consequence half only. A severity call resting on mechanism evidence is precisely
+  // the §0 defect - five over-calls on approved drugs - so mechanism-half items are
+  // deliberately not offered here even though they are present.
+  const basisFields = (req.present ?? []).filter((p) => p.half === "consequence").map((p) => p.field);
 
   const citedIds = {
     type: "array",
@@ -112,7 +172,7 @@ export function adjudicationSchema(req: AdjudicateRequest): Record<string, unkno
   return {
     type: "object",
     additionalProperties: false,
-    required: ["mechanism", "consequence", "ruleDisclosure", "missing", "nextExperiment"],
+    required: ["mechanism", "consequence", "consequenceBasis", "ruleDisclosure", "missing", "nextExperiment"],
     properties: {
       mechanism: {
         type: "object",
@@ -147,11 +207,52 @@ export function adjudicationSchema(req: AdjudicateRequest): Record<string, unkno
           required: ["ruleId", "position", "reasoning", "citedFindingIds"],
           properties: {
             ruleId: { type: "string", enum: ruleIds },
-            position: { type: "string", enum: ["applies", "does_not_apply"] },
+            // THREE positions, not two. Added 2026-08-10.
+            //
+            // §5.1 is right that "a rule that does not apply must be stated as not
+            // applying, with a reason - that is information, not a gap". But "this rule
+            // does not bite on this evidence" and "this package does not contain what
+            // the rule turns on" are different facts, and a two-value enum forces the
+            // second to be reported as the first. That is §10 rule 7 - "not measured"
+            // and "measured negative" rendering alike - inside the disclosure itself.
+            //
+            // Measured: at default temperature R4 sat at exactly 50/50 across 20 runs
+            // (applies:10, does_not_apply:10). Its determining field never reaches the
+            // model, so both answers were guesses and the model had no legal way to
+            // say so. A coin flip is what a forced binary looks like from outside.
+            //
+            // THE RISK, stated because it must be measured rather than assumed: a
+            // third option is an escape hatch, and a model that reaches for it on rules
+            // it could have answered produces less information than the binary did.
+            // `reasoning` is required on every disclosure, so the escape is at least
+            // never silent - but whether it is over-used is a number, and the probe is
+            // where it should be read.
+            position: { type: "string", enum: ["applies", "does_not_apply", "cannot_determine"] },
             reasoning: { type: "string" },
             citedFindingIds: citedIds,
           },
         },
+      },
+      // Enum-constrained to PRESENT consequence-half fields.
+      //
+      // WHEN THERE ARE NONE - the probe case carries no inventory, and TAK-994 has all
+      // six of C1..C6 absent - this falls back to a free string rather than an empty
+      // enum, matching `citedIds` above. That fallback is weaker HERE than it is there,
+      // and the difference is worth naming: an empty `findingIds` means any string is
+      // as useless as another, whereas an empty `basisFields` means no string is legal
+      // and the fallback actively invites the model to invent one. An empty `enum` would
+      // express it exactly, but validator support for that is not uniform and an
+      // unsatisfiable schema fails the whole request rather than one field.
+      //
+      // So in the empty case the constraint is enforced by `verifyAdjudication`, not by
+      // the schema: an invented basis is `unknown_basis`, and a decisive verdict with
+      // none is `consequence_without_basis`. Structural where it can be, verified where
+      // it cannot - and said out loud so nobody reads the enum as a guarantee it isn't.
+      consequenceBasis: {
+        type: "array",
+        items: basisFields.length > 0
+          ? { type: "string", enum: basisFields }
+          : { type: "string" },
       },
       missing: {
         type: "array",
@@ -160,7 +261,23 @@ export function adjudicationSchema(req: AdjudicateRequest): Record<string, unkno
           additionalProperties: false,
           required: ["field", "whyItMatters"],
           properties: {
-            field: { type: "string" },
+            // Built FROM THE REQUEST, exactly as ruleId and citedFindingIds are, so
+            // there is nowhere to put an invented gap.
+            //
+            // This was a free string until 2026-08-10, which left `missing` as the one
+            // model-authored field in this schema with NEITHER a structural constraint
+            // nor a verification check - on the surface §3.2 calls "the failure mode
+            // this project exists to prevent". A fabricated absence is worse than a
+            // fabricated citation: a citation names a finding a reader can go and fail
+            // to find, whereas an invented gap sends someone to run an experiment that
+            // was already run, and a dropped one is the TAK-994 silence itself.
+            //
+            // Same empty-case fallback as citedIds: a case with nothing recorded as
+            // searched-for-and-absent must still produce a legal (empty) array rather
+            // than an unsatisfiable schema.
+            field: absentFields.length > 0
+              ? { type: "string", enum: absentFields }
+              : { type: "string" },
             whyItMatters: { type: "string" },
           },
         },
@@ -190,17 +307,48 @@ export function userPrompt(req: AdjudicateRequest, template: string[]): string {
     ? "(nothing recorded as searched-for-and-absent)"
     : req.absent.map((a) => `${a.field} - blocks: ${a.whatItBlocks}`).join("\n");
 
+  // The legal values for `consequenceBasis`, shown to the model rather than left to be
+  // guessed. Until prompt v1.1 the schema required this field and the template never
+  // named the list it must be drawn from, so the model supplied a finding id and
+  // verifyAdjudication rejected it as unknown_basis - a contract the model could not
+  // satisfy, not a model that would not follow it.
+  //
+  // Consequence half only, matching adjudicationSchema's enum exactly. Offering the
+  // mechanism half here would invite the substitution §0 measured.
+  //
+  // The empty case is spelled out rather than left blank: "(none)" beside a required
+  // field reads as an omission, and this is a finding - it is the sentence that makes
+  // cannot_conclude the answerable verdict.
+  const consequencePresent = (req.present ?? []).filter((p) => p.half === "consequence");
+  const present = consequencePresent.length === 0
+    ? "(none - nothing on the consequence side of this package was measured)"
+    : consequencePresent.map((p) => p.field).join("\n");
+
   return template
     .join("\n")
     .replace("{{compoundLabel}}", req.compoundLabel)
     .replace("{{context}}", req.context.trim() === "" ? "(none supplied)" : req.context)
     .replace("{{rules}}", rules)
     .replace("{{findings}}", findings)
-    .replace("{{absent}}", absent);
+    .replace("{{absent}}", absent)
+    // A no-op against prompt v1.0, which has no such placeholder. That is deliberate:
+    // an older prompt version must keep rendering exactly as it did, or a result
+    // reported under it stops being reproducible - §7.2a's rule that a number belongs
+    // to the prompt version that produced it.
+    .replace("{{present}}", present);
 }
 
 export interface VerificationFailure {
-  kind: "unknown_finding_id" | "unknown_rule_id" | "rule_not_addressed" | "rule_addressed_twice";
+  kind:
+    | "unknown_finding_id"
+    | "unknown_rule_id"
+    | "rule_not_addressed"
+    | "rule_addressed_twice"
+    | "unknown_absence"
+    | "absence_not_addressed"
+    | "absence_addressed_twice"
+    | "unknown_basis"
+    | "consequence_without_basis";
   detail: string;
 }
 
@@ -253,6 +401,81 @@ export function verifyAdjudication(
   for (const id of registered) {
     if (!seen.has(id)) {
       failures.push({ kind: "rule_not_addressed", detail: `Rule ${id} was not addressed. A rule that does not apply must say so.` });
+    }
+  }
+
+  // The same three checks again, for absences, because §3.2 makes absence a finding and
+  // a finding gets checked. Until 2026-08-10 `missing` was the only model-authored field
+  // here that nothing verified, which put the project's own stated failure mode on its
+  // one unguarded surface: TAK-994's package looked complete because nobody named what
+  // was missing, and an adjudication that quietly drops a recorded gap reproduces that
+  // exactly - fluently, and over a signature.
+  //
+  // `unknown_absence` should now be unreachable for a schema-honouring model, since
+  // `missing.field` is enum-constrained. It is checked anyway: the schema is the model's
+  // constraint and this is ours, and §10 rule 3 is about what reaches the screen rather
+  // than about what the model was asked for.
+  const recorded = new Set(req.absent.map((x) => x.field));
+  const addressed = new Set<string>();
+
+  for (const m of a.missing) {
+    if (!recorded.has(m.field)) {
+      failures.push({
+        kind: "unknown_absence",
+        detail: `Missing-evidence list names "${m.field}", which is not recorded as searched-for-and-absent in this case.`,
+      });
+      continue;
+    }
+    if (addressed.has(m.field)) {
+      failures.push({ kind: "absence_addressed_twice", detail: `Absence "${m.field}" is listed more than once.` });
+    }
+    addressed.add(m.field);
+  }
+
+  for (const field of recorded) {
+    if (!addressed.has(field)) {
+      failures.push({
+        kind: "absence_not_addressed",
+        detail: `"${field}" was recorded as searched-for-and-absent and the adjudication does not carry it. A gap that is dropped rather than stated is the silence §3.2 exists to prevent.`,
+      });
+    }
+  }
+
+  // §0, enforced. A severity verdict must name present consequence-half evidence.
+  //
+  // ONLY when the request carries an inventory: `present` is optional because the
+  // probe case is built from a fixture and has none, and a check that silently
+  // passed on a request that could never satisfy it would be worse than absent.
+  if (req.present !== undefined) {
+    const allowed = new Set(req.present.filter((p) => p.half === "consequence").map((p) => p.field));
+    const cited = new Set<string>();
+
+    // `?? []` because `a` is JSON.parse of model output, not a typed value. A model
+    // that omits the field despite the schema's `required` must produce a recorded
+    // failure, not a TypeError from this function - and an omitted basis on a decisive
+    // verdict then falls through to `consequence_without_basis` below, which is the
+    // right answer rather than a lenient one.
+    for (const b of a.consequenceBasis ?? []) {
+      if (!allowed.has(b)) {
+        failures.push({
+          kind: "unknown_basis",
+          detail: `Consequence rests on "${b}", which the inventory does not record as present consequence-half evidence in this case.`,
+        });
+        continue;
+      }
+      cited.add(b);
+    }
+
+    // `cannot_conclude` is exempt, and that exemption is the whole design. The verdict
+    // this check forces when the consequence half is unmeasured is not a refusal to
+    // answer - it IS the answer, and it is the one §0 says the engine should have given
+    // about irbesartan. Requiring a basis for it too would leave no legal output at all.
+    const decisive = a.consequence.verdict === "advance" || a.consequence.verdict === "do_not_advance";
+    if (decisive && cited.size === 0) {
+      failures.push({
+        kind: "consequence_without_basis",
+        detail: `Verdict "${a.consequence.verdict}" is a severity call and cites no present consequence-half evidence. Nothing on the consequence side of this package was measured, so there is nothing for it to rest on; the answerable verdict is "cannot_conclude".`,
+      });
     }
   }
 

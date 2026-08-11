@@ -6,8 +6,8 @@ import { DeliberationService } from "./deliberation-service.js";
 import { FileStore } from "./store.js";
 import type { Position } from "./deliberation.js";
 import type { CoveringFinding, EvidenceChecklist, Modality } from "./inventory.js";
-import { handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
-import { completeFromEnv } from "./interpret.js";
+import { ADJUDICATOR_PROMPT_PATH, handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
+import { completeFromEnv, resolveModel } from "./interpret.js";
 import { stubComplete } from "./probe.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
 import { AuthStore, normaliseEmail, type PublicUser } from "./auth.js";
@@ -342,7 +342,11 @@ export function makeHandler(deps: ServerDeps) {
           case "adjudicate": {
             const request = deps.service.adjudicationRequest(caseId, deps.rules);
             if (request === null) return json(res, 404, { error: "no_case" });
-            const live = completeFromEnv();
+            // "adjudication", not the default "short". This route was the original
+            // site of the shape bug: it handed interpret's 1024-token, thinking-off
+            // closure to handleAdjudicate, which produces prose, citations and one
+            // disclosure per registered rule.
+            const live = completeFromEnv(process.env, "adjudication");
             const out = await handleAdjudicate(request, live ?? stubComplete(request), deps.prompt);
             if (out.status !== 200) return json(res, out.status, out.body);
             const r = deps.service.adjudicate(caseId, out.body, (body as { at: string }).at, live === null ? "stub" : "model");
@@ -524,7 +528,7 @@ function handleDemo(deps: ServerDeps, res: ServerResponse, body: unknown, user: 
 
 export function buildDeps(logPath: string): ServerDeps {
   const checklist = JSON.parse(readFileSync("rules/evidence-checklist-v1.0.json", "utf8")) as EvidenceChecklist;
-  const prompt = JSON.parse(readFileSync("prompts/adjudicator-v1.0.json", "utf8")) as { system: string[]; userTemplate: string[] };
+  const prompt = JSON.parse(readFileSync(ADJUDICATOR_PROMPT_PATH, "utf8")) as { system: string[]; userTemplate: string[] };
   const probe = JSON.parse(readFileSync("data/probe-case.json", "utf8")) as { rules: AdjudicateRequest["rules"] };
   return {
     service: new DeliberationService(new FileStore(logPath), checklist),
@@ -554,7 +558,9 @@ if (invokedDirectly) {
   const deps = buildDeps("results/deliberation-log.jsonl");
   createServer((req, res) => { void makeHandler(deps)(req, res); }).listen(port, HOST, () => {
     console.log(`ARBITER deliberation API on http://${HOST}:${port}`);
-    console.log(`Adjudication: ${completeFromEnv() === null ? "STUB (no ANTHROPIC_API_KEY) - responses are labelled source:stub" : "LIVE"}`);
+    const adjudicationModel = resolveModel("adjudication");
+    console.log(`Adjudication: ${completeFromEnv(process.env, "adjudication") === null ? `STUB (no credentials for ${adjudicationModel}) - responses are labelled source:stub` : `LIVE (${adjudicationModel})`}`);
+    console.log(`Short calls:  ${resolveModel("short")}`);
     console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token; there is no TLS here, which is why this binds to loopback only.`);
     if (deps.auth.list().length === 0) console.log("No accounts yet. Run `npm run seed:demo` to create the demonstration team.");
   });

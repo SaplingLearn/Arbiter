@@ -209,6 +209,33 @@ export function absentForAdjudication(inv: Inventory): { field: string; whatItBl
     }));
 }
 
+/**
+ * The other half of `absentForAdjudication`, and the reason it exists is §0.
+ *
+ * The audit found the engine committing `do_not_advance` on five approved, widely
+ * prescribed drugs, and named the cause structurally: "the ruleset has no vocabulary
+ * for severity... a system with no severity inputs cannot produce severity judgments."
+ * §3.4 splits the verdict in two for the same reason - mechanism is answered by assay
+ * evidence, consequence by dose, injury type, margin, reversibility and frequency.
+ *
+ * Handing the adjudicator what is PRESENT, tagged by half, is what lets the schema
+ * make a consequence verdict name the evidence carrying it, and lets an absent
+ * dimension be unnameable rather than merely discouraged. See adjudicate.ts's
+ * `consequenceBasis`.
+ *
+ * `inconclusive` is EXCLUDED, and that is not an oversight. An inconclusive item is
+ * already handed over by `absentForAdjudication`, labelled "(tested, inconclusive)" -
+ * counting it here as well would let a severity verdict rest on evidence the inventory
+ * says resolved neither way, which is the same error in a politer word.
+ */
+export function presentForAdjudication(
+  inv: Inventory,
+): { field: string; half: "mechanism" | "consequence" }[] {
+  return inv.entries
+    .filter((e) => e.state === "present")
+    .map((e) => ({ field: e.field, half: e.half }));
+}
+
 export function isChecklist(u: unknown): u is EvidenceChecklist {
   if (typeof u !== "object" || u === null) return false;
   const c = u as Record<string, unknown>;

@@ -38,6 +38,26 @@ def main() -> None:
             bits.append("NOT tested at clinically relevant exposure")
         else:
             bits.append("exposure relevance unstated")
+        # R4, and it was missing until 2026-08-10. Every other registered rule had its
+        # determining field written into the detail here - stream for R6, system for R1,
+        # measuresKeyEvent for R2, exposureRelevant for R3, klimisch for R5 - and R4's
+        # did not, so the adjudicator was asked for a position on R4 with the one field
+        # that decides it withheld.
+        #
+        # It showed. At default temperature R4 sat at exactly 50/50 across 20 runs
+        # (applies:10, does_not_apply:10) while R2, R3 and R5 sat at 100%. The fixture
+        # states inApplicabilityDomain on all six claims, so this is not a gap in the
+        # evidence - it was a gap between the fixture and the case built from it.
+        #
+        # Three-way like exposureRelevant above, and for the same reason: None is
+        # "nobody assessed it", which spec 3.2 forbids rendering as "assessed and
+        # negative". The engine agrees - plan.ts reads `=== True`, not `!== False`.
+        if c.get("inApplicabilityDomain") is True:
+            bits.append("within the model's stated applicability domain")
+        elif c.get("inApplicabilityDomain") is False:
+            bits.append("OUTSIDE the model's stated applicability domain")
+        else:
+            bits.append("applicability domain unstated")
         if c.get("klimisch") is not None:
             bits.append(f"Klimisch {c['klimisch']}")
         bits.append(f"stated confidence {c['strength']}")

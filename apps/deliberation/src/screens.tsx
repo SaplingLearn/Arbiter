@@ -22,6 +22,24 @@ const CALL_LABEL: Record<string, string> = {
   cannot_conclude: "Cannot conclude",
 };
 
+/**
+ * Three positions, three labels.
+ *
+ * This screen rendered `d.position === "applies" ? "applies" : "does not apply"` until
+ * 2026-08-10 - a binary ternary, so the moment a third position existed it would have
+ * displayed "cannot be determined" AS "does not apply". That is §10 rule 7 on the
+ * screen: a rule nobody could answer would have read as a rule that was answered in the
+ * negative, which is the one confusion this project exists to prevent.
+ *
+ * Falls through to the raw value rather than a default label, for the same reason
+ * CALL_LABEL does: an unrecognised position should look wrong, not look plausible.
+ */
+const POSITION_LABEL: Record<string, string> = {
+  applies: "applies",
+  does_not_apply: "does not apply",
+  cannot_determine: "cannot be determined from this package",
+};
+
 /** ------------------------------------------------------------------ inventory */
 /** -------------------------------------------------------------- the roster */
 /**
@@ -596,7 +614,7 @@ export function Verdict({ adjudication, source, onSign }: {
       <h3>Every rule, answered</h3>
       {adjudication.ruleDisclosure.map((d) => (
         <p key={d.ruleId} className="small">
-          <span className="mono">{d.ruleId}</span> - {d.position === "applies" ? "applies" : "does not apply"}. {d.reasoning}
+          <span className="mono">{d.ruleId}</span> - {POSITION_LABEL[d.position] ?? d.position}. {d.reasoning}
         </p>
       ))}
 

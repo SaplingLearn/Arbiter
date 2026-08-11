@@ -13,10 +13,10 @@ import { InviteStore } from "../invites.js";
 import { LoginThrottle } from "../throttle.js";
 import { seedDemoTeam, DEMO_PASSWORD } from "../seed-demo.js";
 import type { EvidenceChecklist, CoveringFinding } from "../inventory.js";
-import type { AdjudicateRequest } from "../adjudicate.js";
+import { ADJUDICATOR_PROMPT_PATH, type AdjudicateRequest } from "../adjudicate.js";
 
 const CHECKLIST = JSON.parse(readFileSync("rules/evidence-checklist-v1.0.json", "utf8")) as EvidenceChecklist;
-const PROMPT = JSON.parse(readFileSync("prompts/adjudicator-v1.0.json", "utf8")) as { system: string[]; userTemplate: string[] };
+const PROMPT = JSON.parse(readFileSync(ADJUDICATOR_PROMPT_PATH, "utf8")) as { system: string[]; userTemplate: string[] };
 const RULES: AdjudicateRequest["rules"] = [
   { id: "R1", name: "Human relevance", statement: "Human-cell evidence defeats animal in vivo.", enabled: true, strength: 0.9 },
 ];

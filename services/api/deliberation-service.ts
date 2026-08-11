@@ -5,7 +5,7 @@ import {
   type BlindView, type DeliberationCase, type Position, type Result, type Signature,
   type UnanimityReport,
 } from "./deliberation.js";
-import { absentForAdjudication, buildInventory, type CoveringFinding, type EvidenceChecklist, type Inventory, type Modality } from "./inventory.js";
+import { absentForAdjudication, buildInventory, presentForAdjudication, type CoveringFinding, type EvidenceChecklist, type Inventory, type Modality } from "./inventory.js";
 import { commitmentFor, verifyChain, verifySeals, type DeliberationStore, type LogEntry, type LogKind } from "./store.js";
 import { visibleCases } from "./access.js";
 import type { AdjudicateRequest } from "./adjudicate.js";
@@ -320,6 +320,12 @@ export class DeliberationService {
         ...(f.sourcePage === undefined ? {} : { sourcePage: f.sourcePage }),
       })),
       absent: [...absentForAdjudication(inv), ...externalClaimsAsGaps(c)],
+      // The other half of the same inventory. Feeds `consequenceBasis`, so a severity
+      // verdict has to name measured consequence-half evidence rather than assert a
+      // severity nobody established. External claims are deliberately NOT added here:
+      // they arrive as gaps above because they are asserted-not-yet-in-evidence (§6.5),
+      // and letting one carry a verdict would promote an uncited assertion to evidence.
+      present: presentForAdjudication(inv),
     };
   }
 

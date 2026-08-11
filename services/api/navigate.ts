@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { buildComplete, resolveModel, SHAPE_NAVIGATE } from "./interpret.js";
 import type { ApiResponse, Complete } from "./interpret.js";
 
 /**
@@ -86,29 +86,13 @@ export async function handleNavigate(
   }
 }
 
-/** Same construction as interpret.ts; see the comment there on thinking and effort. */
+/**
+ * Same construction as interpret.ts, now through the one provider dispatch in that
+ * file rather than a second copy of it here. What is duplicated is the CALL SHAPE -
+ * navigate's answer is at most three ids and a boolean, so 512 tokens where interpret
+ * takes 1024 - and a shape is a fact about this handler, not a definition shared
+ * with another one.
+ */
 export function completeFromEnv(env: NodeJS.ProcessEnv = process.env): Complete | null {
-  const apiKey = env["ANTHROPIC_API_KEY"];
-  if (apiKey === undefined || apiKey === "") return null;
-
-  const client = new Anthropic({ apiKey });
-  const model = env["ARBITER_MODEL"] ?? "claude-opus-5";
-
-  return async (system, user, schema) => {
-    const message = await client.messages.create({
-      model,
-      // A list of at most three ids and a boolean. 512 is generous for that.
-      max_tokens: 512,
-      system,
-      thinking: { type: "disabled" },
-      output_config: { effort: "low", format: { type: "json_schema", schema } },
-      messages: [{ role: "user", content: user }],
-    });
-
-    if (message.stop_reason === "refusal") throw new Error("refused");
-
-    const text = message.content.find((b) => b.type === "text");
-    if (text === undefined || text.type !== "text") throw new Error("no text block");
-    return JSON.parse(text.text) as unknown;
-  };
+  return buildComplete(resolveModel("short", env), SHAPE_NAVIGATE, env);
 }
