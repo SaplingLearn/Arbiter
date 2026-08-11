@@ -27,7 +27,7 @@ const CALL_LABEL: Record<string, string> = {
 /**
  * Who is on the case, and inviting somebody who has no account yet.
  *
- * An invitation here does NOT send an email — nothing does, from this deployment —
+ * An invitation here does NOT send an email - nothing does, from this deployment -
  * and the copy says so rather than implying a message went out. A convener who
  * believes a mail was sent will wait for an answer that is never coming.
  */
@@ -50,7 +50,7 @@ export function RosterPanel({ roster, canEdit, isOwner, ownerName, onInvite, onR
           be a control whose authority the reader has to infer. */}
       <div className="note">
         <strong>{isOwner ? "You convene this case." : `${ownerName} convenes this case.`}</strong>{" "}
-        The convener chooses who answers and signs at the end — and does not answer, so
+        The convener chooses who answers and signs at the end - and does not answer, so
         nobody both sets the question and votes on it.
         {canEdit
           ? " Every change here goes on the record: adding or removing somebody is a logged event anyone can read afterwards."
@@ -75,7 +75,7 @@ export function RosterPanel({ roster, canEdit, isOwner, ownerName, onInvite, onR
             <div>
               <strong className="mono">{p.email}</strong>
               <div className="small muted">
-                No account yet. They join automatically when they register — nothing was
+                No account yet. They join automatically when they register - nothing was
                 emailed, so tell them.
               </div>
               {canEdit && (
@@ -115,7 +115,7 @@ export function RosterPanel({ roster, canEdit, isOwner, ownerName, onInvite, onR
 /**
  * Entering the evidence by hand.
  *
- * Extraction — a model reading a PDF and proposing findings — is not built. Until it
+ * Extraction - a model reading a PDF and proposing findings - is not built. Until it
  * is, somebody types them; when it lands, it pre-fills exactly this form for a human
  * to approve. The approval step is not scaffolding that disappears later, because a
  * coverage declaration has to carry a human signature either way.
@@ -186,7 +186,7 @@ export function FindingsEditor({ checklist, findings, documents, frozen, onAdd, 
             <h3>Add a finding</h3>
             <p className="hint">
               One result from the documents. When automatic extraction is built it will
-              fill this in for you to check — the checking step stays either way.
+              fill this in for you to check - the checking step stays either way.
             </p>
           </div>
 
@@ -239,7 +239,7 @@ export function FindingsEditor({ checklist, findings, documents, frozen, onAdd, 
             <label>Which questions does this answer?</label>
             <span className="hint" style={{ marginTop: 0 }}>
               Tick only what this result genuinely addresses. Coverage is never guessed
-              from the wording — a question wrongly marked answered never comes back on
+              from the wording - a question wrongly marked answered never comes back on
               the missing list.
             </span>
             {checklist.filter((i) => i.state !== "not_applicable").map((i) => (
@@ -277,8 +277,8 @@ export function Documents({ docs, onUpload, busy, error }: {
       <h2>Documents</h2>
       <p className="muted">
         A PDF is measured before it is accepted. Two of the first five regulatory
-        documents collected for this project were unusable — one was 48 pages of
-        scanned images with no readable text, one was the wrong document entirely —
+        documents collected for this project were unusable - one was 48 pages of
+        scanned images with no readable text, one was the wrong document entirely -
         and neither failure was visible without measuring. An unreadable file is
         refused here, while you still have it in front of you.
       </p>
@@ -331,7 +331,7 @@ export function Refused({ r }: { r: Refusal }): ReactElement {
       <h3>Why it is on this list at all</h3>
       <p className="muted">
         Two of the four documents collected cannot be used, and that ratio is the
-        finding — it is what killed the plan to replay the drugs withdrawn for
+        finding - it is what killed the plan to replay the drugs withdrawn for
         hepatotoxicity. A picker showing only what worked would imply every document
         works.
       </p>
@@ -349,7 +349,7 @@ export function InventoryPanel({ inv, documentScope }: { inv: Inventory; documen
     <section>
       <h2>What the documents contain</h2>
       <p className="muted">
-        Published to everyone before anybody answers. No verdict, no score, no ranking —
+        Published to everyone before anybody answers. No verdict, no score, no ranking -
         ordered by checklist id and by nothing else, because ordering gaps by importance
         would push the room before it has spoken.
       </p>
@@ -378,10 +378,10 @@ export function InventoryPanel({ inv, documentScope }: { inv: Inventory; documen
       </div>
       <p className="small muted">
         Checklist v{inv.checklistVersion}. {absent} of {inv.entries.length} questions unanswered
-        {consequenceAbsent > 0 && <>, {consequenceAbsent} of them on the consequence side — dose, exposure margin,
+        {consequenceAbsent > 0 && <>, {consequenceAbsent} of them on the consequence side - dose, exposure margin,
           injury pattern, reversibility. A mechanism can be real and still not be a reason to stop.</>}
         {na > 0 && <> {na} do not arise for a {inv.modality.replace("_", " ")} and are marked n/a rather than
-          missing — an antibody has no reactive metabolite and no QSAR model, and listing those as gaps
+          missing - an antibody has no reactive metabolite and no QSAR model, and listing those as gaps
           would fill the list with items nobody can supply.</>}
       </p>
     </section>
@@ -425,8 +425,8 @@ export function PositionForm({ token, caseId, findings, onDone }: {
     <section>
       <h2>Your position</h2>
       <p className="muted">
-        Sealed the moment you submit, and you cannot change it. Nobody sees it — and you
-        see nobody — until everyone has answered.
+        Sealed the moment you submit, and you cannot change it. Nobody sees it - and you
+        see nobody - until everyone has answered.
       </p>
 
       <label htmlFor="call">Your call</label>
@@ -445,7 +445,7 @@ export function PositionForm({ token, caseId, findings, onDone }: {
       <label>What you are relying on, from this case</label>
       <p className="small muted">
         A selection, not free text. A selected citation points at a specific object, so
-        the check is arithmetic — and a typed one would have to be run through a model to
+        the check is arithmetic - and a typed one would have to be run through a model to
         decide whether it referred to anything real, which would put a model in charge of
         which dissent counts.
       </p>
@@ -453,7 +453,7 @@ export function PositionForm({ token, caseId, findings, onDone }: {
         <div className="cite" key={f.id}>
           <input type="checkbox" id={f.id} checked={cited.includes(f.id)} onChange={() => toggle(f.id)} />
           <label htmlFor={f.id} style={{ margin: 0, fontWeight: 400 }}>
-            <strong>{f.label}</strong> <span className="muted">— asserts {f.assertion}</span>
+            <strong>{f.label}</strong> <span className="muted">- asserts {f.assertion}</span>
             <div className="small muted">{f.detail}</div>
           </label>
         </div>
@@ -461,7 +461,7 @@ export function PositionForm({ token, caseId, findings, onDone }: {
 
       <label htmlFor="claim">Relying on something outside these documents? State it.</label>
       <p className="small muted">
-        Not a weaker citation — an assertion not yet in evidence, and useful because
+        Not a weaker citation - an assertion not yet in evidence, and useful because
         somebody can go and check it. It joins the missing-evidence list rather than
         evaporating.
       </p>
@@ -472,7 +472,7 @@ export function PositionForm({ token, caseId, findings, onDone }: {
 
       <p className="small">
         Your position will be recorded as <span className={`basis ${basis}`}>{basis}</span>
-        {basis === "unsupported" && " — which is allowed, is never deleted, and is visible to whoever signs."}
+        {basis === "unsupported" && " - which is allowed, is never deleted, and is visible to whoever signs."}
       </p>
 
       <button className="primary" disabled={busy || reasoning.trim() === ""} onClick={() => void submit()}>
@@ -515,7 +515,7 @@ export function Waiting({ view, isOwner, nameOf, onReveal }: {
             <p className="small muted">
               Waiting on {outstanding.map((o) => nameOf(o.participantId)).join(", ")}.{" "}
               <button className="ghost" onClick={() => onReveal("close_early")}>Close without them</button>{" "}
-              — their absence is written into the record.
+              - their absence is written into the record.
             </p>
           )}
         </>
@@ -541,7 +541,7 @@ export function Reveal({ view, unanimity, nameOf }: {
           <p>{p.reasoning}</p>
           {p.citedFindingIds.length > 0 && <div className="mono muted">cites: {p.citedFindingIds.join(", ")}</div>}
           {p.external.map((e, i) => (
-            <div className="small muted" key={i}>outside this case: “{e.claim}”{e.source !== undefined && ` — ${e.source}`}</div>
+            <div className="small muted" key={i}>outside this case: “{e.claim}”{e.source !== undefined && ` - ${e.source}`}</div>
           ))}
         </div>
       ))}
@@ -574,29 +574,29 @@ export function Verdict({ adjudication, source, onSign }: {
       <h2>The adjudication</h2>
       {source === "stub" && (
         <div className="stub">
-          STUB — no model was called. The wiring is real; the words below are not a
+          STUB - no model was called. The wiring is real; the words below are not a
           judgment about this compound and must not be quoted as one.
         </div>
       )}
 
-      <h3>Mechanism — is there a route to liver injury?</h3>
+      <h3>Mechanism - is there a route to liver injury?</h3>
       <p>{adjudication.mechanism.present ? "Present." : "Not established."} {adjudication.mechanism.pathway}</p>
 
-      <h3>Consequence — is it severe enough to stop?</h3>
+      <h3>Consequence - is it severe enough to stop?</h3>
       <p><strong>{CALL_LABEL[adjudication.consequence.verdict] ?? adjudication.consequence.verdict}</strong></p>
       <p>{adjudication.consequence.reasoning}</p>
 
       <h3>Every rule, answered</h3>
       {adjudication.ruleDisclosure.map((d) => (
         <p key={d.ruleId} className="small">
-          <span className="mono">{d.ruleId}</span> — {d.position === "applies" ? "applies" : "does not apply"}. {d.reasoning}
+          <span className="mono">{d.ruleId}</span> - {d.position === "applies" ? "applies" : "does not apply"}. {d.reasoning}
         </p>
       ))}
 
       {adjudication.missing.length > 0 && (
         <>
           <h3>Still unanswered</h3>
-          {adjudication.missing.map((m, i) => <p key={i} className="small">{m.field} — {m.whyItMatters}</p>)}
+          {adjudication.missing.map((m, i) => <p key={i} className="small">{m.field} - {m.whyItMatters}</p>)}
         </>
       )}
       {adjudication.nextExperiment !== null && (
@@ -608,14 +608,14 @@ export function Verdict({ adjudication, source, onSign }: {
 
       <h2 style={{ marginTop: 32 }}>Sign</h2>
       <p className="muted">
-        One named person. No quorum, no threshold, no consensus mechanism — a committee
+        One named person. No quorum, no threshold, no consensus mechanism - a committee
         advises and an individual decides, and you may override this adjudication.
       </p>
       <div className="rail">
         <button type="button" className="persona" aria-pressed={agrees} onClick={() => setAgrees(true)}>Agree</button>
         <button type="button" className="persona" aria-pressed={!agrees} onClick={() => setAgrees(false)}>Override</button>
       </div>
-      <label htmlFor="reason">{agrees ? "Anything to add (optional)" : "Why you are overriding — required"}</label>
+      <label htmlFor="reason">{agrees ? "Anything to add (optional)" : "Why you are overriding - required"}</label>
       <textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
       <button className="primary" disabled={!agrees && reason.trim() === ""} onClick={() => onSign(agrees, reason)}>
         Sign the record
