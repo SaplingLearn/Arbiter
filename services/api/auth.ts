@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 /**
- * Accounts and sessions. Spec §3.3 — the identity row, built for real.
+ * Accounts and sessions. Spec §3.3 - the identity row, built for real.
  *
  * WHAT THIS REPLACES. Until now identity was an `x-arbiter-user` header the server
  * took at its word, which meant the blindness guarantee held against the UI and
@@ -11,7 +11,7 @@ import { dirname } from "node:path";
  * position is now attributable to someone who proved they hold a password.
  *
  * NO DEPENDENCIES, DELIBERATELY. Password hashing is the one place where reaching
- * for a library is usually right, and `node:crypto`'s scrypt is the exception — it
+ * for a library is usually right, and `node:crypto`'s scrypt is the exception - it
  * IS the recommended primitive, it is in the standard library, and adding an
  * unaudited transitive dependency tree to a project that will hold unpublished
  * safety data is the worse trade.
@@ -30,7 +30,7 @@ import { dirname } from "node:path";
 
 /** Cost parameters. N=2^15 is the current OWASP floor for scrypt; r and p are the
  *  standard pairing. Stored per-record so raising them later does not invalidate
- *  every existing password — an old hash verifies under its own parameters. */
+ *  every existing password - an old hash verifies under its own parameters. */
 const SCRYPT_N = 32768;
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;
@@ -48,7 +48,7 @@ export interface User {
   id: string;
   email: string;
   displayName: string;
-  /** scrypt(password, salt) — the password itself is never stored or logged. */
+  /** scrypt(password, salt) - the password itself is never stored or logged. */
   passwordHash: string;
   salt: string;
   params: { N: number; r: number; p: number; keyLen: number };
@@ -92,7 +92,7 @@ export function publicUser(u: User): PublicUser {
  * outright with `ERR_CRYPTO_INVALID_SCRYPT_PARAMS`.
  *
  * DERIVED, not a constant. Writing `maxmem: 64 * 1024 * 1024` would work today and
- * break silently the next time somebody raises N — which is exactly the change the
+ * break silently the next time somebody raises N - which is exactly the change the
  * per-record `params` field exists to make easy. Doubling gives headroom without
  * handing the process an unbounded allocation.
  */
