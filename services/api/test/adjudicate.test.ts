@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-  adjudicationSchema, handleAdjudicate, userPrompt, verifyAdjudication,
+  ADJUDICATOR_PROMPT_PATH, adjudicationSchema, handleAdjudicate, userPrompt, verifyAdjudication,
   type AdjudicateRequest, type Adjudication,
 } from "../adjudicate.js";
 
-const PROMPT = JSON.parse(readFileSync("prompts/adjudicator-v1.0.json", "utf8")) as {
+const PROMPT = JSON.parse(readFileSync(ADJUDICATOR_PROMPT_PATH, "utf8")) as {
   system: string[]; userTemplate: string[];
 };
 

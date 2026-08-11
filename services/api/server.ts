@@ -6,7 +6,7 @@ import { DeliberationService } from "./deliberation-service.js";
 import { FileStore } from "./store.js";
 import type { Position } from "./deliberation.js";
 import type { CoveringFinding, EvidenceChecklist, Modality } from "./inventory.js";
-import { handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
+import { ADJUDICATOR_PROMPT_PATH, handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
 import { completeFromEnv, resolveModel } from "./interpret.js";
 import { stubComplete } from "./probe.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
@@ -528,7 +528,7 @@ function handleDemo(deps: ServerDeps, res: ServerResponse, body: unknown, user: 
 
 export function buildDeps(logPath: string): ServerDeps {
   const checklist = JSON.parse(readFileSync("rules/evidence-checklist-v1.0.json", "utf8")) as EvidenceChecklist;
-  const prompt = JSON.parse(readFileSync("prompts/adjudicator-v1.0.json", "utf8")) as { system: string[]; userTemplate: string[] };
+  const prompt = JSON.parse(readFileSync(ADJUDICATOR_PROMPT_PATH, "utf8")) as { system: string[]; userTemplate: string[] };
   const probe = JSON.parse(readFileSync("data/probe-case.json", "utf8")) as { rules: AdjudicateRequest["rules"] };
   return {
     service: new DeliberationService(new FileStore(logPath), checklist),

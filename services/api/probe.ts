@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { completeFromEnv, resolveModel, type Complete } from "./interpret.js";
-import { adjudicationSchema, userPrompt, verifyAdjudication, type AdjudicateRequest } from "./adjudicate.js";
+import { ADJUDICATOR_PROMPT_PATH, adjudicationSchema, userPrompt, verifyAdjudication, type AdjudicateRequest } from "./adjudicate.js";
 
 /**
  * The consistency probe's COLLECTION half. Spec §7.1.
@@ -168,7 +168,7 @@ async function main(): Promise<void> {
   const casePath = process.env["PROBE_CASE"] ?? "data/probe-case.json";
   const outPath = process.env["PROBE_OUT"] ?? "results/probe-runs.json";
 
-  const prompt = JSON.parse(readFileSync("prompts/adjudicator-v1.0.json", "utf8"));
+  const prompt = JSON.parse(readFileSync(ADJUDICATOR_PROMPT_PATH, "utf8"));
   const req = JSON.parse(readFileSync(casePath, "utf8")) as AdjudicateRequest;
   // "adjudication", not the default "short": this probe measures an adjudication,
   // and the two shapes differ. Called with the short shape it would run the

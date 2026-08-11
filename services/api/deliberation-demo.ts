@@ -4,7 +4,7 @@ import { MemoryStore, commitmentFor, verifySeals } from "./store.js";
 import { disagreementReport, positionBasis, type Position } from "./deliberation.js";
 import type { EvidenceChecklist } from "./inventory.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor, type CaseName } from "./cases.js";
-import { handleAdjudicate } from "./adjudicate.js";
+import { ADJUDICATOR_PROMPT_PATH, handleAdjudicate } from "./adjudicate.js";
 import { completeFromEnv } from "./interpret.js";
 import { stubComplete } from "./probe.js";
 
@@ -416,7 +416,7 @@ async function main(): Promise<void> {
   console.log("  outside the documents. Uncited expertise arrives as an open question rather");
   console.log("  than being dropped.\n");
 
-  const prompt = JSON.parse(readFileSync("prompts/adjudicator-v1.0.json", "utf8")) as { system: string[]; userTemplate: string[] };
+  const prompt = JSON.parse(readFileSync(ADJUDICATOR_PROMPT_PATH, "utf8")) as { system: string[]; userTemplate: string[] };
   const res = await handleAdjudicate(req, live ?? stubComplete(req), prompt);
   console.log(`  handleAdjudicate -> ${res.status}${res.status === 200 ? " (shape legal AND every citation resolves)" : ""}`);
   if (res.status !== 200) {

@@ -79,6 +79,23 @@ export interface AdjudicateRequest {
   present?: { field: string; half: "mechanism" | "consequence" }[];
 }
 
+/**
+ * THE ONE COPY OF THE ADJUDICATOR PROMPT PATH.
+ *
+ * Same argument as interpret.ts's model constants, and the same failure it prevents.
+ * This literal was written out in five files - server.ts, probe.ts,
+ * deliberation-demo.ts and two test files - so minting prompt v1.1 was five chances to
+ * update four of them. probe.ts is the trap again: it hashes whatever it loaded into
+ * `promptHash` and writes that beside the result, so a probe reading v1.0 while the
+ * server ran v1.1 would produce a correctly-hashed, honestly-labelled measurement OF
+ * THE WRONG PROMPT. §7.2a's rule that a number belongs to the prompt version that
+ * produced it is only enforceable if there is one answer to which version that was.
+ *
+ * v1.0 is never deleted and never edited - it is the version every result already
+ * committed was measured under. Pointing here at v1.1 changes what runs NEXT.
+ */
+export const ADJUDICATOR_PROMPT_PATH = "prompts/adjudicator-v1.1.json";
+
 export type ConsequenceVerdict = "do_not_advance" | "advance" | "cannot_conclude";
 
 export interface Adjudication {
@@ -290,13 +307,35 @@ export function userPrompt(req: AdjudicateRequest, template: string[]): string {
     ? "(nothing recorded as searched-for-and-absent)"
     : req.absent.map((a) => `${a.field} - blocks: ${a.whatItBlocks}`).join("\n");
 
+  // The legal values for `consequenceBasis`, shown to the model rather than left to be
+  // guessed. Until prompt v1.1 the schema required this field and the template never
+  // named the list it must be drawn from, so the model supplied a finding id and
+  // verifyAdjudication rejected it as unknown_basis - a contract the model could not
+  // satisfy, not a model that would not follow it.
+  //
+  // Consequence half only, matching adjudicationSchema's enum exactly. Offering the
+  // mechanism half here would invite the substitution §0 measured.
+  //
+  // The empty case is spelled out rather than left blank: "(none)" beside a required
+  // field reads as an omission, and this is a finding - it is the sentence that makes
+  // cannot_conclude the answerable verdict.
+  const consequencePresent = (req.present ?? []).filter((p) => p.half === "consequence");
+  const present = consequencePresent.length === 0
+    ? "(none - nothing on the consequence side of this package was measured)"
+    : consequencePresent.map((p) => p.field).join("\n");
+
   return template
     .join("\n")
     .replace("{{compoundLabel}}", req.compoundLabel)
     .replace("{{context}}", req.context.trim() === "" ? "(none supplied)" : req.context)
     .replace("{{rules}}", rules)
     .replace("{{findings}}", findings)
-    .replace("{{absent}}", absent);
+    .replace("{{absent}}", absent)
+    // A no-op against prompt v1.0, which has no such placeholder. That is deliberate:
+    // an older prompt version must keep rendering exactly as it did, or a result
+    // reported under it stops being reproducible - §7.2a's rule that a number belongs
+    // to the prompt version that produced it.
+    .replace("{{present}}", present);
 }
 
 export interface VerificationFailure {
