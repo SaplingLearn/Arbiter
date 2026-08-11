@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
 import type { ApiResponse, Complete } from "./interpret.js";
+import { resolveProvider } from "./provider.js";
 
 /**
  * POST /api/navigate - Surface 3's rung 1.
@@ -86,29 +86,8 @@ export async function handleNavigate(
   }
 }
 
-/** Same construction as interpret.ts; see the comment there on thinking and effort. */
+/** Same single resolution point as interpret.ts; see provider.ts on why there is one. */
 export function completeFromEnv(env: NodeJS.ProcessEnv = process.env): Complete | null {
-  const apiKey = env["ANTHROPIC_API_KEY"];
-  if (apiKey === undefined || apiKey === "") return null;
-
-  const client = new Anthropic({ apiKey });
-  const model = env["ARBITER_MODEL"] ?? "claude-opus-5";
-
-  return async (system, user, schema) => {
-    const message = await client.messages.create({
-      model,
-      // A list of at most three ids and a boolean. 512 is generous for that.
-      max_tokens: 512,
-      system,
-      thinking: { type: "disabled" },
-      output_config: { effort: "low", format: { type: "json_schema", schema } },
-      messages: [{ role: "user", content: user }],
-    });
-
-    if (message.stop_reason === "refusal") throw new Error("refused");
-
-    const text = message.content.find((b) => b.type === "text");
-    if (text === undefined || text.type !== "text") throw new Error("no text block");
-    return JSON.parse(text.text) as unknown;
-  };
+  // A list of at most three ids and a boolean. 512 is generous for that.
+  return resolveProvider(env, { maxTokens: 512 })?.complete ?? null;
 }

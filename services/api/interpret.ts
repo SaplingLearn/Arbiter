@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { resolveProvider } from "./provider.js";
 
 /**
  * POST /api/interpret - Surface 1's rung 1.
@@ -180,41 +180,12 @@ export async function handleInterpret(
  * can descend, not refuse to start.
  */
 export function completeFromEnv(env: NodeJS.ProcessEnv = process.env): Complete | null {
-  const apiKey = env["ANTHROPIC_API_KEY"];
-  if (apiKey === undefined || apiKey === "") return null;
-
-  const client = new Anthropic({ apiKey });
-  // Spec §16 leaves provider and model a deployment decision recorded at deploy
-  // time. The default is written down here so the decision is visible in source
-  // rather than only in a Railway dashboard.
-  const model = env["ARBITER_MODEL"] ?? "claude-opus-5";
-
-  return async (system, user, schema) => {
-    const message = await client.messages.create({
-      model,
-      // Small on purpose. The proposal is seven short fields, and the client aborts
-      // at 2.5s (apps/web/src/ai/client.ts LIVE_TIMEOUT_MS) - a large budget here
-      // buys nothing the caller would still be waiting for.
-      max_tokens: 1024,
-      system,
-      // Thinking is ON BY DEFAULT on claude-opus-5 and shares the max_tokens budget
-      // with the answer, so a thinking pass would spend the whole 2.5s window before
-      // the first field of the proposal was emitted. Disabling it is accepted at
-      // effort "high" or below and is rejected at "xhigh"/"max", hence "low" beside
-      // it. There are no tools on this call and the response is schema-constrained,
-      // so neither of the disabled-thinking failure modes (a tool call written as
-      // prose, internal tags in the text) can reach the caller.
-      thinking: { type: "disabled" },
-      output_config: { effort: "low", format: { type: "json_schema", schema } },
-      messages: [{ role: "user", content: user }],
-    });
-
-    // Check stop_reason BEFORE reading content: on a refusal the content array is
-    // empty and indexing it throws something less informative than this does.
-    if (message.stop_reason === "refusal") throw new Error("refused");
-
-    const text = message.content.find((b) => b.type === "text");
-    if (text === undefined || text.type !== "text") throw new Error("no text block");
-    return JSON.parse(text.text) as unknown;
-  };
+  // Delegated to provider.ts so there is ONE place that decides which model
+  // answered. Surface 1 keeps its own small budget: the proposal is seven short
+  // fields and the client aborts at 2.5s (apps/web/src/ai/client.ts
+  // LIVE_TIMEOUT_MS), so a large ceiling buys nothing the caller would still be
+  // waiting for. Spec §16 leaves provider and model a deployment decision; the
+  // defaults are written down in provider.ts so the decision is visible in source
+  // rather than only in a dashboard.
+  return resolveProvider(env, { maxTokens: 1024 })?.complete ?? null;
 }

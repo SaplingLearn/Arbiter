@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { completeFromEnv, type Complete } from "./interpret.js";
+import { type Complete } from "./interpret.js";
+import { resolveProvider, type ProviderInfo } from "./provider.js";
 import { adjudicationSchema, userPrompt, verifyAdjudication, type AdjudicateRequest } from "./adjudicate.js";
 
 /**
@@ -33,6 +34,17 @@ export interface ProbeRun {
 export interface ProbeOutput {
   probeVersion: 1;
   source: "live" | "stub";
+  /**
+   * WHICH model, from the provider that actually built the call - not re-derived
+   * from the environment here. Both fields are null on a stub run.
+   *
+   * This used to read `process.env["ARBITER_MODEL"] ?? "claude-opus-5"`, a second
+   * read of the environment beside the one that constructed the client. With one
+   * provider that was merely redundant; with two it would have written "claude-opus-5"
+   * into the provenance of a run Gemini answered. A flip rate is a property of a
+   * model, and a flip rate labelled with the wrong one is worse than an unlabelled one.
+   */
+  provider: string | null;
   model: string | null;
   promptVersion: string;
   /** SHA-256 over the prompt's system + userTemplate. Every result names the prompt that made it. */
@@ -85,6 +97,7 @@ export async function runProbe(
   prompt: { version: string; system: string[]; userTemplate: string[] },
   runs: number,
   complete: Complete | null,
+  info: ProviderInfo | null = null,
 ): Promise<ProbeOutput> {
   const live = complete !== null;
   const call = complete ?? stubComplete(req);
@@ -112,7 +125,8 @@ export async function runProbe(
   return {
     probeVersion: 1,
     source: live ? "live" : "stub",
-    model: live ? (process.env["ARBITER_MODEL"] ?? "claude-opus-5") : null,
+    provider: live ? (info?.provider ?? "unrecorded") : null,
+    model: live ? (info?.model ?? "unrecorded") : null,
     promptVersion: prompt.version,
     promptHash: promptHash(prompt),
     compoundLabel: req.compoundLabel,
@@ -128,19 +142,19 @@ async function main(): Promise<void> {
 
   const prompt = JSON.parse(readFileSync("prompts/adjudicator-v1.0.json", "utf8"));
   const req = JSON.parse(readFileSync(casePath, "utf8")) as AdjudicateRequest;
-  const complete = completeFromEnv();
+  const resolved = resolveProvider();
 
-  if (complete === null) {
-    console.log("No ANTHROPIC_API_KEY. Running against the STUB - this exercises the");
-    console.log("path and produces NO result. Set a key to measure anything.\n");
+  if (resolved === null) {
+    console.log("No ANTHROPIC_API_KEY or GEMINI_API_KEY. Running against the STUB - this");
+    console.log("exercises the path and produces NO result. Set a key to measure anything.\n");
   }
 
-  const output = await runProbe(req, prompt, runs, complete);
+  const output = await runProbe(req, prompt, runs, resolved?.complete ?? null, resolved);
   mkdirSync("results", { recursive: true });
   writeFileSync(outPath, JSON.stringify(output, null, 2) + "\n", "utf8");
 
   const ok = output.runs.filter((r) => r.ok).length;
-  console.log(`source          ${output.source}${output.model === null ? "" : ` (${output.model})`}`);
+  console.log(`source          ${output.source}${output.model === null ? "" : ` (${output.provider}/${output.model})`}`);
   console.log(`prompt          v${output.promptVersion} ${output.promptHash.slice(0, 12)}`);
   console.log(`runs            ${output.runs.length} requested ${output.requestedRuns}`);
   console.log(`verified ok     ${ok}/${output.runs.length}`);

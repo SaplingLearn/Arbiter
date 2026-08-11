@@ -5,7 +5,7 @@ import { disagreementReport, positionBasis, type Position } from "./deliberation
 import type { EvidenceChecklist } from "./inventory.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor, type CaseName } from "./cases.js";
 import { handleAdjudicate } from "./adjudicate.js";
-import { completeFromEnv } from "./interpret.js";
+import { resolveProvider } from "./provider.js";
 import { stubComplete } from "./probe.js";
 
 /**
@@ -406,9 +406,14 @@ async function main(): Promise<void> {
   }
 
   // ---- 5. Adjudication -----------------------------------------------------
-  const live = completeFromEnv();
+  // resolveProvider rather than completeFromEnv - see the note at the adjudicate
+  // route in server.ts on why surface 1's token ceiling is wrong here.
+  const resolved = resolveProvider();
+  const live = resolved?.complete ?? null;
   const req = svc.adjudicationRequest(CASE_ID, kase.rules)!;
-  console.log(bar(`5. ADJUDICATION  [${live === null ? "STUB - NO API KEY - NOT A RESULT" : "LIVE MODEL"}]`));
+  console.log(bar(`5. ADJUDICATION  [${resolved === null
+    ? "STUB - NO API KEY - NOT A RESULT"
+    : `LIVE - ${resolved.provider}/${resolved.model}`}]`));
   console.log(`  Gaps handed to the adjudicator: ${req.absent.length}`);
   console.log(`  ...of which came from a participant's external claim: ${req.absent.filter((a) => a.field.startsWith("External claim")).length}`);
   console.log("  The model is told the same gaps the humans read, plus every claim made from");
