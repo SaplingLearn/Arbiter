@@ -1,14 +1,14 @@
-# ARBITER Phase 3 — the three AI surfaces Implementation Plan
+# ARBITER Phase 3 - the three AI surfaces Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add the challenge interpreter and navigator to the ARBITER web app, complete and testable with no network, with a live model call as one optional rung on top.
 
-**Architecture:** One generic fallback-ladder walker in `apps/web/src/ai/`; each surface declares its rungs as data and every resolution returns `{ value, rung, source }`, so "which rung answered" is a value the tests assert on and the pre-flight panel displays. A single `client.ts` is the only module permitted to issue a request, gated twice — by a build flag and by a `file://` protocol check — so the submitted ZIP never attempts a call. Two thin endpoints in `services/api/` back rung 1 when a service exists.
+**Architecture:** One generic fallback-ladder walker in `apps/web/src/ai/`; each surface declares its rungs as data and every resolution returns `{ value, rung, source }`, so "which rung answered" is a value the tests assert on and the pre-flight panel displays. A single `client.ts` is the only module permitted to issue a request, gated twice - by a build flag and by a `file://` protocol check - so the submitted ZIP never attempts a call. Two thin endpoints in `services/api/` back rung 1 when a service exists.
 
 **Tech Stack:** TypeScript 5.x, React 18, Vite 5, vitest + Testing Library, Playwright, zod 3.
 
-## Post-execution corrections (2026-07-29) — read before transcribing any code block below
+## Post-execution corrections (2026-07-29) - read before transcribing any code block below
 
 All fourteen tasks are closed. A final whole-branch review then found eight defects that
 per-task review could not see, and **changed source that this plan carries code blocks for.**
@@ -18,16 +18,16 @@ here is a historical record of what the task was asked to build.**
 
 | file | what changed after execution |
 |---|---|
-| `apps/web/src/ui/Preflight.tsx` | `surfaceLine` reports one branch per `Source`; the "reads `cache` for every surface" header claim is retired (measured false — both probes land on rung 4, `local`) |
-| `apps/web/src/tabs/Case/TablePanel.tsx` | **both ends** of the applied delta are snapshot at apply time (spec §5.5 corrected); §5.3's `measuresKeyEvent` constraint implemented. Freezing only the baseline fixed one direction and opened the other — an as-of press after Apply was credited to the proposal |
+| `apps/web/src/ui/Preflight.tsx` | `surfaceLine` reports one branch per `Source`; the "reads `cache` for every surface" header claim is retired (measured false - both probes land on rung 4, `local`) |
+| `apps/web/src/tabs/Case/TablePanel.tsx` | **both ends** of the applied delta are snapshot at apply time (spec §5.5 corrected); §5.3's `measuresKeyEvent` constraint implemented. Freezing only the baseline fixed one direction and opened the other - an as-of press after Apply was credited to the proposal |
 | `apps/web/src/ai/interpret.ts` | `ProposalSchema` gained `.strict()`, chained **before** `.superRefine()` |
 | `apps/web/src/ai/navigate.ts` | rung 1 routes through `sanitizeNavResult` instead of an inline `isKnownAnchor` filter |
-| `apps/web/src/ai/client.ts` | docstring correction only — see the Global Constraints note on `static-file.spec.ts` |
+| `apps/web/src/ai/client.ts` | docstring correction only - see the Global Constraints note on `static-file.spec.ts` |
 | `apps/web/e2e/static-file.spec.ts` | console-error listener added and the pre-flight panel opened, because the `request`/`requestfailed` assertions could not fail over `file://` |
 
 Each affected block below also carries an inline **SUPERSEDED** marker, because nobody
 transcribing Task 7 reads line 19 of an 8,000-line file. If you add a correction here, add the
-marker too — the table is the record, the marker is the guard.
+marker too - the table is the record, the marker is the guard.
 
 The full record, with what was measured for each, is **HANDOVER §10**.
 
@@ -46,14 +46,14 @@ git checkout main && git pull
 git checkout -b phase3
 ```
 
-Every task ends by pushing to it. Commit and push after every task — not batched.
+Every task ends by pushing to it. Commit and push after every task - not batched.
 
 ## Global Constraints
 
 - **Never edit `rules/ruleset-v1.0.json`.** It is pre-registered and hashed: `ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136`. The harness refuses to run if the computed hash differs.
 - **The engine stays pure.** No `Date`, `Math.random`, `node:*`, `fs`/`path`/`crypto`, dynamic `import`, or parent imports anywhere in `packages/engine/src`. Lint enforces every one.
 - **Language discipline.** Write "review-ready evidence package" never "regulator-ready dossier"; "positions / sign-off / decision owner" never "voting / tally / majority"; "hash-chained audit log" never "blockchain". Applies to code, comments, UI copy, commit messages, and test names.
-- **`apps/web/e2e/static-file.spec.ts` is not modified** *during this plan's tasks*. It must still pass unchanged with every surface on cache. **Correction, measured after Task 11 and applied in the final review:** this line used to claim that its `page.on("request")` and `requestfailed` listeners were what made the zero-network guarantee falsifiable. They are not, over `file://`. A relative `/api/interpret` resolves to `file:///api/interpret` and the Fetch API refuses the `file:` scheme synchronously, before any CDP network event exists — with `liveEnabled` ablated to `true` so both ladders fire real fetches, **neither channel fired and all five tests in the file stayed green.** The only trace is a console error (`Fetch API cannot load file:///api/interpret. URL scheme "file" is not supported.`). The file now also collects console errors and opens the pre-flight panel so both ladders actually run; `request`/`requestfailed` are kept as belt-and-braces for a regression on a *served* build. See `ai-static.spec.ts:39-43`, which had it right first.
+- **`apps/web/e2e/static-file.spec.ts` is not modified** *during this plan's tasks*. It must still pass unchanged with every surface on cache. **Correction, measured after Task 11 and applied in the final review:** this line used to claim that its `page.on("request")` and `requestfailed` listeners were what made the zero-network guarantee falsifiable. They are not, over `file://`. A relative `/api/interpret` resolves to `file:///api/interpret` and the Fetch API refuses the `file:` scheme synchronously, before any CDP network event exists - with `liveEnabled` ablated to `true` so both ladders fire real fetches, **neither channel fired and all five tests in the file stayed green.** The only trace is a console error (`Fetch API cannot load file:///api/interpret. URL scheme "file" is not supported.`). The file now also collects console errors and opens the pre-flight panel so both ladders actually run; `request`/`requestfailed` are kept as belt-and-braces for a regression on a *served* build. See `ai-static.spec.ts:39-43`, which had it right first.
 - **No runtime `fetch` in `apps/web` outside `apps/web/src/ai/client.ts`,** and there only when `liveEnabled`. This is the first legitimate relaxation of the Phase 2 invariant; nothing else relaxes it.
 - **Cache artifacts are imported as ES modules at build time,** exactly as `apps/web/src/data/bundle.ts` imports evidence and metrics. Never fetched.
 - **No number in `results/` may move.** `npm run golden:update` must produce no diff.
@@ -151,7 +151,7 @@ export function evidenceClaim(claimId: string): string;  // `evidence.claim:${cl
 export function ruleAnchor(id: RuleId): string;          // `rule.${id}`
 export function isKnownAnchor(id: string): boolean;
 
-// apps/web/src/state/store.tsx — additions
+// apps/web/src/state/store.tsx - additions
 export type EvidenceEdit = Partial<Pick<EvidenceClaim, ReclassifiableField>>;
 export function workingClaims(state: AppState, compoundId: string): EvidenceClaim[];
 // new AppState fields:  evidenceEdits: Record<string, EvidenceEdit>;  pendingAnchor: string | null;
@@ -164,14 +164,14 @@ export function workingClaims(state: AppState, compoundId: string): EvidenceClai
 
 | # | Task | Depends on |
 |---|---|---|
-| 1 | The ladder walker, the client, and trigram similarity | — |
-| 2 | The anchor registry and `data-anchor` attributes | — |
-| 3 | The `workingClaims` selector and the evidence working copy | — |
-| 4 | Surface 1 — the authored cache and rungs 2–5 | 1 |
-| 5 | Surface 1 — confirm, apply, and the delta | 3, 4 |
-| 6 | The Ruleset tab — precedence order and the abstention threshold | 2 |
-| 7 | Surface 3 — the anchor map, rungs 2–5, and navigator state | 1, 2 |
-| 8 | Surface 3 — deferred resolve, scroll, and the motion-aware spotlight | 7 |
+| 1 | The ladder walker, the client, and trigram similarity | - |
+| 2 | The anchor registry and `data-anchor` attributes | - |
+| 3 | The `workingClaims` selector and the evidence working copy | - |
+| 4 | Surface 1 - the authored cache and rungs 2–5 | 1 |
+| 5 | Surface 1 - confirm, apply, and the delta | 3, 4 |
+| 6 | The Ruleset tab - precedence order and the abstention threshold | 2 |
+| 7 | Surface 3 - the anchor map, rungs 2–5, and navigator state | 1, 2 |
+| 8 | Surface 3 - deferred resolve, scroll, and the motion-aware spotlight | 7 |
 | 9 | The API service and rung 1 for both surfaces | 4, 7 |
 | 10 | The pre-flight rewrite and the registered evidence digest | 3, 9 |
 | 11 | The §11 failure matrix and Surface 2's disabled row | 9 |
@@ -297,7 +297,7 @@ describe("resolve - the shared ladder walker (spec section 3)", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/resolve.test.ts`
-Expected: FAIL — `Failed to load url ../src/ai/resolve.js` (cannot resolve `../src/ai/resolve.js` from `apps/web/test/resolve.test.ts`)
+Expected: FAIL - `Failed to load url ../src/ai/resolve.js` (cannot resolve `../src/ai/resolve.js` from `apps/web/test/resolve.test.ts`)
 
 - [ ] **Step 3: Write the walker**
 
@@ -443,7 +443,7 @@ describe("jaccard against FUZZY_THRESHOLD", () => {
 - [ ] **Step 5: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/trigram.test.ts`
-Expected: FAIL — `Failed to load url ../src/ai/trigram.js`
+Expected: FAIL - `Failed to load url ../src/ai/trigram.js`
 
 - [ ] **Step 6: Write the similarity module**
 
@@ -673,7 +673,7 @@ describe("postJson - a miss, never a throw (spec sections 3 and 11)", () => {
 - [ ] **Step 8: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/client.test.ts`
-Expected: FAIL — `Failed to load url ../src/ai/client.js` (14 tests, all erroring on the same unresolved import)
+Expected: FAIL - `Failed to load url ../src/ai/client.js` (14 tests, all erroring on the same unresolved import)
 
 - [ ] **Step 9: Write the client and declare the build flag**
 
@@ -854,14 +854,14 @@ Spec section 8: the navigator may only point at declared anchors, and five exist
 - Produces:
   - `export interface Anchor { label: string; tab: TabId; region: Region | null }`
   - `export const ANCHORS` (`as const satisfies Record<string, Anchor>`) and `export type AnchorId = keyof typeof ANCHORS`
-  - `export const CONDITIONAL_ANCHORS` — the five declared-but-sometimes-absent ids of spec section 7.2
-  - `export function traceStep(claimId: string): string` — `trace.step:${claimId}`
-  - `export function evidenceClaim(claimId: string): string` — `evidence.claim:${claimId}`
-  - `export function ruleAnchor(id: RuleId): string` — `rule.${id}`
-  - `export function recordPosition(index: number): string` — `record.position:${index}`
+  - `export const CONDITIONAL_ANCHORS` - the five declared-but-sometimes-absent ids of spec section 7.2
+  - `export function traceStep(claimId: string): string` - `trace.step:${claimId}`
+  - `export function evidenceClaim(claimId: string): string` - `evidence.claim:${claimId}`
+  - `export function ruleAnchor(id: RuleId): string` - `rule.${id}`
+  - `export function recordPosition(index: number): string` - `record.position:${index}`
   - `export function isKnownAnchor(id: string): boolean`
   - `export interface ParsedAnchor { family: string; payload: string | null; anchor: Anchor }`
-  - `export function parseAnchor(id: string): ParsedAnchor | null` — additive to the skeleton, and load-bearing twice: Task 8's `useAnchorScroll` needs the `{ tab, region }` of a DYNAMIC id in order to switch tab and un-collapse before scrolling, and `payload` is what makes spec section 8's "prefix-slice, never split(':')" rule enforceable by a test instead of by a comment. `isKnownAnchor` is defined as `parseAnchor(id) !== null`.
+  - `export function parseAnchor(id: string): ParsedAnchor | null` - additive to the skeleton, and load-bearing twice: Task 8's `useAnchorScroll` needs the `{ tab, region }` of a DYNAMIC id in order to switch tab and un-collapse before scrolling, and `payload` is what makes spec section 8's "prefix-slice, never split(':')" rule enforceable by a test instead of by a comment. `isKnownAnchor` is defined as `parseAnchor(id) !== null`.
   - `export const TRACE_STEP_PREFIX`, `EVIDENCE_CLAIM_PREFIX`, `RECORD_POSITION_PREFIX`
 
 - [ ] **Step 1: Write the failing test**
@@ -1067,7 +1067,7 @@ describe("data-anchor is a new attribute, not a reshaped testid", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/anchors.test.tsx`
-Expected: FAIL — `Failed to load url ../src/ai/anchors.js` (cannot resolve `../src/ai/anchors.js`)
+Expected: FAIL - `Failed to load url ../src/ai/anchors.js` (cannot resolve `../src/ai/anchors.js`)
 
 - [ ] **Step 3: Confirm the ten frozen testids before touching a component**
 
@@ -1080,7 +1080,7 @@ grep -rho 'getByTestId("[^"]*")' apps/web/e2e | sort -u
 Expected, exactly these ten and nothing else: `verdict`, `belief-fill`,
 `single-class-warning`, `live-belief`, `strength-R1`, `modified-badge`,
 `position-row`, `check-ruleset`, `check-manifest`, `citation-status`. Every one of
-them must survive Steps 5 to 12 unrenamed — `apps/web/e2e/static-file.spec.ts` is
+them must survive Steps 5 to 12 unrenamed - `apps/web/e2e/static-file.spec.ts` is
 not modified in this phase and must still pass unchanged. If the grep returns an
 eleventh name, add it to the frozen list in Step 1's test before continuing.
 
@@ -1560,22 +1560,22 @@ git push origin phase3
 ---
 ### Task 3: One selector for "the claims for this compound", so the verdict and the panel beside it can never disagree
 
-Spec §9 — the lookup is duplicated at four call sites; wired into three of the four an evidence working copy produces a verdict computed from evidence the panel is not showing. §9.1 sets the polarity, §9.3 settles the edited predicate, §5.3 derives the legal field set, §5.4 validates before storing.
+Spec §9 - the lookup is duplicated at four call sites; wired into three of the four an evidence working copy produces a verdict computed from evidence the panel is not showing. §9.1 sets the polarity, §9.3 settles the edited predicate, §5.3 derives the legal field set, §5.4 validates before storing.
 
 **Files:**
-- Modify: `apps/web/src/state/store.tsx` (whole file — adds `ReclassifiableField`, `EvidenceEdit`, `evidenceEdits`, `workingClaims`, `isEdited`, `reclassifyClaim`, `resetEvidence`)
+- Modify: `apps/web/src/state/store.tsx` (whole file - adds `ReclassifiableField`, `EvidenceEdit`, `evidenceEdits`, `workingClaims`, `isEdited`, `reclassifyClaim`, `resetEvidence`)
 - Modify: `apps/web/src/engine/useCaseReasoning.ts:10-18` (call site 1)
 - Modify: `apps/web/src/tabs/Case/CaseHeader.tsx:9-20` (call site 2)
 - Modify: `apps/web/src/tabs/Record.tsx:9-21` (call site 4)
 - Modify: `apps/web/src/tabs/Case/EvidencePanel.tsx:5-11,36-53` (call site 3, plus the per-claim badge)
-- Modify: `apps/web/src/tabs/Ruleset.tsx:25` (§9.3 — one predicate)
-- Modify: `apps/web/src/ui/Preflight.tsx:40` (§9.3 — the same predicate)
+- Modify: `apps/web/src/tabs/Ruleset.tsx:25` (§9.3 - one predicate)
+- Modify: `apps/web/src/ui/Preflight.tsx:40` (§9.3 - the same predicate)
   - **Task 10 supersedes this line.** Task 3's job is to stop the badge and the
     panel disagreeing, which is §9.3's actual complaint. Task 10 then replaces the
     ruleset predicate with a digest comparison, because the panel's own rule is that
-    every line is a check computed now. Do not skip it here — the divergence test in
+    every line is a check computed now. Do not skip it here - the divergence test in
     this task is what proves the two were ever out of step.
-- Test: `apps/web/test/store.test.ts` (modify — existing cases kept verbatim)
+- Test: `apps/web/test/store.test.ts` (modify - existing cases kept verbatim)
 - Test: `apps/web/test/evidenceEdits.test.tsx` (create)
 
 **Interfaces:**
@@ -1592,7 +1592,7 @@ Spec §9 — the lookup is duplicated at four call sites; wired into three of th
 `pendingAnchor` and `setPendingAnchor` are **not** added here. They are navigator state and belong to Task 7; the skeleton lists all three store additions in one row because they land in one file, not in one task.
 
 Task 4's `apps/web/src/ai/interpret.ts` satisfies its skeleton line by re-exporting rather than redeclaring:
-`export type { ReclassifiableField } from "../state/store.js";` — one definition, derived from `AssayOperator["produces"]`, in the module that validates against it.
+`export type { ReclassifiableField } from "../state/store.js";` - one definition, derived from `AssayOperator["produces"]`, in the module that validates against it.
 
 - [ ] **Step 1: Write the failing store test**
 
@@ -1801,7 +1801,7 @@ describe("EvidenceEdit's legal field set (§5.3)", () => {
   });
 });
 
-describe("isEdited — one predicate for both working copies (§9.3)", () => {
+describe("isEdited - one predicate for both working copies (§9.3)", () => {
   it("reports a dragged-and-returned slider as UNEDITED", () => {
     // Preflight.tsx:40 tested this by reference and Ruleset.tsx:25 by deep
     // compare, so the badge cleared while the panel still warned. The value
@@ -1845,7 +1845,7 @@ describe("useLibraryVerdicts error containment", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/store.test.ts`
-Expected: FAIL — `SyntaxError: The requested module '/apps/web/src/state/store.tsx' does not provide an export named 'workingClaims'`
+Expected: FAIL - `SyntaxError: The requested module '/apps/web/src/state/store.tsx' does not provide an export named 'workingClaims'`
 
 - [ ] **Step 3: Write the store**
 
@@ -2340,7 +2340,7 @@ export function RecordTab() {
       <ol>
         {positions.map((p, i) => (
           <li key={i} data-testid="position-row" style={{ marginTop: 10, fontSize: 13 }}>
-            <strong>{p.displayName}</strong> — {p.position}
+            <strong>{p.displayName}</strong> - {p.position}
             {p.rationale ? ` · ${p.rationale}` : ""}
             <div style={{ color: "var(--muted)" }}>
               snapshot {p.evidenceSnapshotHash.slice(0, 12)}… · prev {p.prevRecordHash.slice(0, 12)}… ·
@@ -2556,7 +2556,7 @@ describe("one edited predicate, both surfaces (§9.3)", () => {
 - [ ] **Step 6: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/evidenceEdits.test.tsx`
-Expected: FAIL — `Unable to find an element by: [data-testid="claim-modified-badge"]` in three cases, and `expected "false" to be "true"` on the §9.3 case, because `Preflight.tsx:40` still compares by reference. The two §9.1 cases and the verdict-movement case already pass on Step 3's store: they pin behaviour that must not regress when Task 5 wires the confirm panel, and both can fail — the isolation case fails the moment `useLibraryVerdicts` opts in.
+Expected: FAIL - `Unable to find an element by: [data-testid="claim-modified-badge"]` in three cases, and `expected "false" to be "true"` on the §9.3 case, because `Preflight.tsx:40` still compares by reference. The two §9.1 cases and the verdict-movement case already pass on Step 3's store: they pin behaviour that must not regress when Task 5 wires the confirm panel, and both can fail - the isolation case fails the moment `useLibraryVerdicts` opts in.
 
 - [ ] **Step 7: Route call site 3 and badge each reclassified claim**
 
@@ -2624,7 +2624,7 @@ export function EvidencePanel({ collapsed, onExpand }: { collapsed: boolean; onE
                 {modified(c.id) && (
                   <strong data-testid="claim-modified-badge"
                           style={{ color: "var(--toxic)", fontSize: 12 }}>
-                    MODIFIED — not the registered claim
+                    MODIFIED - not the registered claim
                   </strong>
                 )}
               </div>
@@ -2669,12 +2669,12 @@ import { isEdited, useAppState } from "../state/store.js";
   const edited = isEdited(ruleset, data.ruleset);
 ```
 
-The `check-evidence-edits` line §9.2 asks for is **not** added here — it needs the registered evidence digest that gives it something to check, and both land in Task 10.
+The `check-evidence-edits` line §9.2 asks for is **not** added here - it needs the registered evidence digest that gives it something to check, and both land in Task 10.
 
 - [ ] **Step 9: Run the tests to verify they pass**
 
 Run: `npm test -- apps/web && npm run typecheck && npm run web:build`
-Expected: PASS, build succeeds. `npm run typecheck` is the step that exercises the four `@ts-expect-error` cases — vitest transpiles without type-checking, so a widened `EvidenceEdit` would slip past `npm test` and be caught here as `Unused '@ts-expect-error' directive`.
+Expected: PASS, build succeeds. `npm run typecheck` is the step that exercises the four `@ts-expect-error` cases - vitest transpiles without type-checking, so a widened `EvidenceEdit` would slip past `npm test` and be caught here as `Unused '@ts-expect-error' directive`.
 
 - [ ] **Step 10: Commit**
 
@@ -2734,7 +2734,7 @@ git push origin phase3
 
 ### Task 4: The authored cache is the product, so rungs 2–5 run with no network at all
 
-Design §5.1 fixes Surface 1's five rungs and §13 fixes the cache they read; rungs 2–5 are entirely local, so the ladder is complete and testable before `services/api` exists — and this is the path the submitted ZIP actually runs (§2).
+Design §5.1 fixes Surface 1's five rungs and §13 fixes the cache they read; rungs 2–5 are entirely local, so the ladder is complete and testable before `services/api` exists - and this is the path the submitted ZIP actually runs (§2).
 
 **Files:**
 - Create: `apps/web/src/ai/interpret.ts`
@@ -2748,7 +2748,7 @@ Design §5.1 fixes Surface 1's five rungs and §13 fixes the cache they read; ru
 - Consumes (engine): `type AssayOperator`, `type RuleId` from `@arbiter/engine`
 - Produces: `export type InterpretAction = "disable" | "lower_strength" | "raise_strength" | "reclassify_field"`; `export type ReclassifiableField = keyof AssayOperator["produces"]`; `export interface Proposal { targetRule: RuleId | null; targetClaimId: string | null; action: InterpretAction; field: ReclassifiableField | null; newValue: unknown; paraphrase: string; confidence: "high" | "low" }`; `export interface InterpretInput { challenge: string; rules: { id: RuleId; enabled: boolean; strength: number }[]; claims: { id: string; label: string }[] }`; `export const ProposalSchema: z.ZodType<Proposal>`; `export function interpret(input: InterpretInput): Promise<Resolution<Proposal>>`
 
-> **`resolve` contract this task depends on.** When every rung returns `null`, `resolve` reports the **last rung tried** — `{ value: null, rung: 5, source: "none" }`. Rung 5 is therefore a real entry in the array with `source: "none"` whose `run` always returns `null`, not a special case in the walker. If Task 1 landed different semantics, fix Task 1; do not add a branch here.
+> **`resolve` contract this task depends on.** When every rung returns `null`, `resolve` reports the **last rung tried** - `{ value: null, rung: 5, source: "none" }`. Rung 5 is therefore a real entry in the array with `source: "none"` whose `run` always returns `null`, not a special case in the walker. If Task 1 landed different semantics, fix Task 1; do not add a branch here.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2893,7 +2893,7 @@ describe("ProposalSchema", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/interpret.test.ts`
-Expected: FAIL — `Error: Failed to load url ../src/ai/interpret.js (resolved id: apps/web/src/ai/interpret.js). Does the file exist?`
+Expected: FAIL - `Error: Failed to load url ../src/ai/interpret.js (resolved id: apps/web/src/ai/interpret.js). Does the file exist?`
 
 - [ ] **Step 3: Declare zod as a dependency of the web app**
 
@@ -2911,13 +2911,13 @@ Edit `apps/web/package.json` so `dependencies` reads:
 ```
 
 Run: `npm install`
-Expected: no package is downloaded — zod 3.25.76 is already at the repo root; only the workspace edge is recorded in `package-lock.json`.
+Expected: no package is downloaded - zod 3.25.76 is already at the repo root; only the workspace edge is recorded in `package-lock.json`.
 
 - [ ] **Step 4: Author the cache**
 
 Thirteen challenges covering all six rules, drawn from master spec §12b's prepared Q&A and the seven demo beats (design §13). Four carry `confidence: "low"` because they object to the discount *mechanism* rather than to a named rule, and a reasonable interpreter could land them on R1, R3 or all six.
 
-**The phrasing is the product.** These strings are what live input is matched against at rungs 2 and 3, so they are written the way a reviewer types — some blunt, some hedged, some in domain shorthand. Do not tidy them into "lower strength of R1"; that sentence has never been typed by a toxicologist and it would make rung 3 miss.
+**The phrasing is the product.** These strings are what live input is matched against at rungs 2 and 3, so they are written the way a reviewer types - some blunt, some hedged, some in domain shorthand. Do not tidy them into "lower strength of R1"; that sentence has never been typed by a toxicologist and it would make rung 3 miss.
 
 Create `apps/web/src/ai/cache/interpretations.json`:
 
@@ -3001,7 +3001,7 @@ Create `apps/web/src/ai/cache/interpretations.json`:
       "confidence": "low"
     },
     {
-      "challenge": "the in-vitro panel was run against clinical Cmax — a hundred-fold margin IS an exposure margin. stop calling it untested",
+      "challenge": "the in-vitro panel was run against clinical Cmax - a hundred-fold margin IS an exposure margin. stop calling it untested",
       "targetRule": "R3",
       "targetClaimId": "TAK-994:cytotox",
       "action": "reclassify_field",
@@ -3011,7 +3011,7 @@ Create `apps/web/src/ai/cache/interpretations.json`:
       "confidence": "high"
     },
     {
-      "challenge": "first-in-class orexin agonist. there is nothing like it in the training set — that QSAR call is out of domain",
+      "challenge": "first-in-class orexin agonist. there is nothing like it in the training set - that QSAR call is out of domain",
       "targetRule": "R4",
       "targetClaimId": "TAK-994:qsar",
       "action": "reclassify_field",
@@ -3070,7 +3070,7 @@ Measured before committing: the highest character-trigram Jaccard between any tw
 
 Create `apps/web/src/ai/interpret.ts`:
 
-> **SUPERSEDED — do not transcribe this block as written.** The source file is the
+> **SUPERSEDED - do not transcribe this block as written.** The source file is the
 > authority; see "Post-execution corrections" at the top of this plan. `ProposalSchema`
 > here has no `.strict()`, so zod STRIPS an unknown key instead of rejecting it and a live
 > response smuggling prose in an extra field is accepted as a trusted rung-1 hit. Note
@@ -3433,7 +3433,7 @@ Expected: PASS (13 tests)
 
 - [ ] **Step 7: Write the content test**
 
-Design §12 calls this one of "two cheap content tests worth more than they cost". It is what stops the authored cache drifting away from the ruleset and the fixture — a renamed claim id or a retyped field would otherwise surface as a proposal that silently fails to apply, in front of a judge.
+Design §12 calls this one of "two cheap content tests worth more than they cost". It is what stops the authored cache drifting away from the ruleset and the fixture - a renamed claim id or a retyped field would otherwise surface as a proposal that silently fails to apply, in front of a judge.
 
 Create `apps/web/test/interpretCache.test.ts`:
 
@@ -3522,10 +3522,10 @@ Run: `npm test -- apps/web/test/interpretCache.test.ts`
 Expected: PASS (7 tests)
 
 Now prove the guard bites. Temporarily change entry 9's `"targetClaimId"` from `"TAK-994:qsar"` to `"TAK-994:qsr"` and re-run.
-Expected: FAIL — `unknown claim id TAK-994:qsr` from "names a REAL claim id and a SCHEMA-LEGAL value on every reclassify entry".
+Expected: FAIL - `unknown claim id TAK-994:qsr` from "names a REAL claim id and a SCHEMA-LEGAL value on every reclassify entry".
 
 Then temporarily change entry 8's `"field"` from `"exposureRelevant"` to `"assertion"` and re-run.
-Expected: FAIL — `"the in-vitro panel was run against clinical Cmax…": Invalid enum value` from "parses every entry through ProposalSchema", **and** the count test still passing at 13, which is how you know the two checks are independent.
+Expected: FAIL - `"the in-vitro panel was run against clinical Cmax…": Invalid enum value` from "parses every entry through ProposalSchema", **and** the count test still passing at 13, which is how you know the two checks are independent.
 
 Revert both edits before continuing.
 
@@ -3593,7 +3593,7 @@ Design §5.2 makes display-before-apply non-negotiable and §5.5 records that th
 - Test: `apps/web/test/tablePanel.test.tsx`
 
 **Interfaces:**
-- Consumes (Task 3): `export function workingClaims(state: AppState, compoundId: string): EvidenceClaim[]` — returns the compound's claims with `evidenceEdits` applied and **no** `availableFrom` filtering, exactly as `useCaseReasoning.ts:13-15` produced `all` before the refactor; `export type EvidenceEdit = Partial<Pick<EvidenceClaim, ReclassifiableField>>`; the actions `{ type: "reclassifyClaim"; claimId: string; edit: EvidenceEdit }` and `{ type: "resetEvidence" }`; the `AppState` field `evidenceEdits: Record<string, EvidenceEdit>`. `useCaseReasoning`'s memo dependency list must include `evidenceEdits`, or the delta below reads a stale verdict.
+- Consumes (Task 3): `export function workingClaims(state: AppState, compoundId: string): EvidenceClaim[]` - returns the compound's claims with `evidenceEdits` applied and **no** `availableFrom` filtering, exactly as `useCaseReasoning.ts:13-15` produced `all` before the refactor; `export type EvidenceEdit = Partial<Pick<EvidenceClaim, ReclassifiableField>>`; the actions `{ type: "reclassifyClaim"; claimId: string; edit: EvidenceEdit }` and `{ type: "resetEvidence" }`; the `AppState` field `evidenceEdits: Record<string, EvidenceEdit>`. `useCaseReasoning`'s memo dependency list must include `evidenceEdits`, or the delta below reads a stale verdict.
 - Consumes (Task 4): `interpret(input: InterpretInput): Promise<Resolution<Proposal>>`, `type Proposal`, `type InterpretInput`, `type Resolution`
 - Consumes (existing): `useAppState`, `useDispatch`, `visibleClaims`, `useCaseReasoning`
 - Consumes (engine): `reasonVerdictOnly`, `relevanceDiscount`, `EvidenceClaimSchema`, `type EvidenceClaim`, `type Reasoning`, `type RuleId`, `type Ruleset`
@@ -3601,10 +3601,10 @@ Design §5.2 makes display-before-apply non-negotiable and §5.5 records that th
 
 - [ ] **Step 1: Confirm for yourself that no baseline is retained today**
 
-Read `apps/web/src/tabs/Ruleset.tsx:38-41`. It renders `r.belief.toFixed(3)` and `r.verdict` — current values only. The only before/after cue anywhere in the app is the CSS transition on `BeliefTrack`, which animates a change without stating it.
+Read `apps/web/src/tabs/Ruleset.tsx:38-41`. It renders `r.belief.toFixed(3)` and `r.verdict` - current values only. The only before/after cue anywhere in the app is the CSS transition on `BeliefTrack`, which animates a change without stating it.
 
 Run: `grep -rn "data.ruleset" apps/web/src`
-Expected: exactly two consumers hold a registered baseline — `Preflight.tsx:20` and `Preflight.tsx:33` — and neither is a delta. The Phase 2 spec's "shows the verdict and belief delta" is design §14 correction 5: it was never built.
+Expected: exactly two consumers hold a registered baseline - `Preflight.tsx:20` and `Preflight.tsx:33` - and neither is a delta. The Phase 2 spec's "shows the verdict and belief delta" is design §14 correction 5: it was never built.
 
 - [ ] **Step 2: Measure which rules can move the number on TAK-994**
 
@@ -3650,7 +3650,7 @@ R6 strength 0.05 abstain  belief=0.090  plaus=1.000  gap=0.910
 Three facts the panel is built on, all visible above and all confirmed in `rules.ts`:
 
 1. **R2, R4, R5 and R6 move nothing, either way.** `relevanceDiscount` cites R2 and R5 only on `TAK-994:qsar`, which carries `assertion: "ambiguous"` and `strength: 0.0` and so commits no mass; R4's clause is `inApplicabilityDomain === false` and every TAK-994 claim is `true`; R6 is diagnostic only and `rules.ts:283-289` says in terms that it is never applied to a mass.
-2. **R3 moves the position when disabled and moves nothing when lowered.** R3 acts here as a *defeat* rule — the base trace shows all four safe claims `defeated R3 by TAK-994:toxicogenomics-murine` — and `RULE_PREDICATES.R3` reads assertions and exposure flags, never `strength`. So the two authored R3 challenges, one `disable` and one `lower_strength`, differ by the entire verdict. That is the measured reason §5.2 requires `disable` to render visually distinct regardless of confidence.
+2. **R3 moves the position when disabled and moves nothing when lowered.** R3 acts here as a *defeat* rule - the base trace shows all four safe claims `defeated R3 by TAK-994:toxicogenomics-murine` - and `RULE_PREDICATES.R3` reads assertions and exposure flags, never `strength`. So the two authored R3 challenges, one `disable` and one `lower_strength`, differ by the entire verdict. That is the measured reason §5.2 requires `disable` to render visually distinct regardless of confidence.
 3. **The verdict label does not move on the hero case even when belief nearly quintuples.** Lowering R1 to the authored 0.45 takes belief 0.090 → 0.495 and the gap 0.910 → 0.505 while the label stays `abstain`. A verdict-only delta reads "nothing happened" there, which is §5.5's whole point.
 
 - [ ] **Step 3: Write the failing test**
@@ -3714,7 +3714,7 @@ const R3_DISABLE = "why does R3 only apply to negative findings? that looks conv
 const R3_LOWER = "isn't the discounting just a fudge factor to get the answer you wanted";
 const R5_LOWER = "klimisch 3 gets hammered too hard here. plenty of non-GLP work is perfectly sound";
 const CYTOTOX =
-  "the in-vitro panel was run against clinical Cmax — a hundred-fold margin IS an exposure margin. stop calling it untested";
+  "the in-vitro panel was run against clinical Cmax - a hundred-fold margin IS an exposure margin. stop calling it untested";
 
 describe("TablePanel - the request", () => {
   it("sends claim ids and labels ONLY, never a raw evidence value", async () => {
@@ -3904,13 +3904,13 @@ describe("TablePanel - Apply and the delta", () => {
 - [ ] **Step 4: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/tablePanel.test.tsx`
-Expected: FAIL — `SyntaxError: [vite] The requested module '/apps/web/src/tabs/Case/TablePanel.tsx' does not provide an export named 'claimLabel'`
+Expected: FAIL - `SyntaxError: [vite] The requested module '/apps/web/src/tabs/Case/TablePanel.tsx' does not provide an export named 'claimLabel'`
 
 - [ ] **Step 5: Write the panel**
 
 Replace `apps/web/src/tabs/Case/TablePanel.tsx` entirely:
 
-> **SUPERSEDED — do not transcribe this block as written.** The source file is the
+> **SUPERSEDED - do not transcribe this block as written.** The source file is the
 > authority; see "Post-execution corrections" at the top of this plan. The delta is baselined against the REGISTERED state here, which credits prior edits to the applied proposal. Both ends of the interval are now snapshot at apply time.
 
 ```tsx
@@ -4224,7 +4224,7 @@ export function TablePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
               panel that renders that as a blank is a panel that looks broken in
               front of a judge. */}
           <h4 style={{ margin: "0 0 6px" }}>
-            {didMove ? "Applied — the position moved" : "Applied — the position did not move"}
+            {didMove ? "Applied - the position moved" : "Applied - the position did not move"}
           </h4>
           <p data-testid="delta-belief" style={{ margin: 0, fontSize: 13 }}>
             Belief {before.belief.toFixed(3)} → {after.belief.toFixed(3)}
@@ -4258,7 +4258,7 @@ Expected: PASS (12 new tests), build succeeds
 Then confirm the static build is untouched by any of this.
 
 Run: `npm run e2e -- apps/web/e2e/static-file.spec.ts`
-Expected: PASS unchanged — every surface is on cache and no request is *attempted* over `file://`.
+Expected: PASS unchanged - every surface is on cache and no request is *attempted* over `file://`.
 
 - [ ] **Step 7: Commit**
 
@@ -4318,7 +4318,7 @@ git push origin phase3
 ---
 ### Task 6: Render the precedence order and the abstention threshold, so the pre-registration is visible rather than merely claimed
 
-Spec §8.1 — `precedenceOrder`, `precedenceRationale` and `abstentionGapThreshold` are in the registered ruleset and in the `Ruleset` type but rendered nowhere, so "why does R3 outrank R1?" and "why is the threshold 0.5?" return `noMatch` from the navigator on the strongest material in the project.
+Spec §8.1 - `precedenceOrder`, `precedenceRationale` and `abstentionGapThreshold` are in the registered ruleset and in the `Ruleset` type but rendered nowhere, so "why does R3 outrank R1?" and "why is the threshold 0.5?" return `noMatch` from the navigator on the strongest material in the project.
 
 **Files:**
 - Modify: `apps/web/src/tabs/Ruleset.tsx:27-43` (a block between the Reset button and the rule cards)
@@ -4440,7 +4440,7 @@ describe("navigator anchors (§8.1)", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/precedence.test.tsx`
-Expected: FAIL — `Unable to find an element by: [data-testid="precedence-entry"]`, seven cases failing.
+Expected: FAIL - `Unable to find an element by: [data-testid="precedence-entry"]`, seven cases failing.
 
 - [ ] **Step 3: Write the tab**
 
@@ -4495,7 +4495,7 @@ export function RulesetTab() {
         v{ruleset.version} · registered {ruleset.registeredAt} · {REGISTERED_HASH.slice(0, 8)}…
         {modified && (
           <strong data-testid="modified-badge" style={{ color: "var(--toxic)", marginLeft: 10 }}>
-            MODIFIED — not the registered ruleset
+            MODIFIED - not the registered ruleset
           </strong>
         )}
       </p>
@@ -4551,7 +4551,7 @@ export function RulesetTab() {
           <p style={{ margin: "6px 0" }}>{rule.statement}</p>
           <p style={{ color: "var(--muted)", fontSize: 13, margin: "6px 0" }}>
             {rule.framework.name} ({rule.framework.date})
-            {rule.framework.note ? ` — ${rule.framework.note}` : ""}
+            {rule.framework.note ? ` - ${rule.framework.note}` : ""}
           </p>
           <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
             Strength {rule.strength.toFixed(2)}
@@ -4576,7 +4576,7 @@ export function RulesetTab() {
 - [ ] **Step 4: Confirm the existing Ruleset tests still hold**
 
 Run: `npm test -- apps/web/test/ruleset.test.tsx apps/web/test/precedence.test.tsx`
-Expected: PASS (4 + 7 tests). `getAllByTestId("rule-card")` must still be 6 — the two new blocks are `div`s, not rule cards — and `getByText(/FDA Roadmap/)` must still be unique, which the rationale text does not disturb.
+Expected: PASS (4 + 7 tests). `getAllByTestId("rule-card")` must still be 6 - the two new blocks are `div`s, not rule cards - and `getByText(/FDA Roadmap/)` must still be unique, which the rationale text does not disturb.
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
@@ -4644,9 +4644,9 @@ Spec §7 fixes the response to `{ anchorIds, noMatch }`; §7.1 makes the ladder 
   - `export interface NavigateInput { question: string; anchors: { id: string; label: string }[] }`
   - `export const NavResultSchema: z.ZodType<NavResult>`
   - `export function navigate(input: NavigateInput): Promise<Resolution<NavResult>>`
-  - `export const SUGGESTED_QUESTIONS: string[]` — exactly 4
-  - `export function sanitizeNavResult(raw: NavResult): NavResult | null` — Task 9's rung 1 pipes its parsed response through this
-  - `export function anchorMeta(id: string): Anchor | null` — static lookup plus dynamic-family prefix resolution; Task 8 uses it for the tab and region
+  - `export const SUGGESTED_QUESTIONS: string[]` - exactly 4
+  - `export function sanitizeNavResult(raw: NavResult): NavResult | null` - Task 9's rung 1 pipes its parsed response through this
+  - `export function anchorMeta(id: string): Anchor | null` - static lookup plus dynamic-family prefix resolution; Task 8 uses it for the tab and region
   - `export function NavigatorBar(): JSX.Element`
 
 - [ ] **Step 1: Write the failing resolution test**
@@ -4826,7 +4826,7 @@ describe("dynamic anchor families", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/navigate.test.ts`
-Expected: FAIL — `Failed to resolve import "../src/ai/navigate.js"`; no module has been written yet.
+Expected: FAIL - `Failed to resolve import "../src/ai/navigate.js"`; no module has been written yet.
 
 - [ ] **Step 3: Write the cached question→anchor map**
 
@@ -4907,7 +4907,7 @@ Create `apps/web/src/ai/cache/suggested-questions.json`:
 ]
 ```
 
-These are rung 5, and rung 5 is the rung a judge sees when the other four missed —
+These are rung 5, and rung 5 is the rung a judge sees when the other four missed -
 so they steer towards what ARBITER is genuinely strong on rather than apologising.
 `record.chainExplainer` leads its pair deliberately: `record.position:0` exists only
 after somebody has signed, and §7.2's second case drops it when it does not.
@@ -5007,8 +5007,8 @@ export function sanitizeNavResult(raw: NavResult): NavResult | null {
  * (TAK-994:invivo_rodent) and so do baseline names (spec section 8).
  */
 const FAMILIES: { prefix: string; tab: TabId; region: Region | null; label: (rest: string) => string }[] = [
-  { prefix: "trace.step:", tab: "case", region: "trace", label: (r) => `Argument step — ${r}` },
-  { prefix: "evidence.claim:", tab: "case", region: "evidence", label: (r) => `Evidence row — ${r}` },
+  { prefix: "trace.step:", tab: "case", region: "trace", label: (r) => `Argument step - ${r}` },
+  { prefix: "evidence.claim:", tab: "case", region: "evidence", label: (r) => `Evidence row - ${r}` },
   { prefix: "record.position:", tab: "record", region: null, label: (r) => `Recorded position ${Number(r) + 1}` },
 ];
 
@@ -5258,7 +5258,7 @@ describe("the navigator bar and the global keys", () => {
 - [ ] **Step 8: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/navigatorBar.test.tsx`
-Expected: FAIL — `Failed to resolve import "../src/ai/NavigatorBar.js"`; the component does not exist.
+Expected: FAIL - `Failed to resolve import "../src/ai/NavigatorBar.js"`; the component does not exist.
 
 - [ ] **Step 9: Write the navigator bar**
 
@@ -5750,7 +5750,7 @@ describe("the spotlight", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/anchorScroll.test.tsx`
-Expected: FAIL — `Failed to resolve import "../src/ai/useAnchorScroll.js"`; and once resolved, `setPendingAnchor` is not a member of `Action`.
+Expected: FAIL - `Failed to resolve import "../src/ai/useAnchorScroll.js"`; and once resolved, `setPendingAnchor` is not a member of `Action`.
 
 - [ ] **Step 3: Add `pendingAnchor` to the store**
 
@@ -6094,7 +6094,7 @@ Expected: PASS, build succeeds
 - [ ] **Step 10: Run the Playwright specs, including the untouched static-file spec**
 
 Run: `npm run e2e`
-Expected: PASS — `static-file.spec.ts` unmodified and still green, with every surface answering from cache and no request attempted.
+Expected: PASS - `static-file.spec.ts` unmodified and still green, with every surface answering from cache and no request attempted.
 
 - [ ] **Step 11: Commit**
 
@@ -6143,7 +6143,7 @@ git push origin phase3
 ```
 ### Task 9: The key never reaches the browser, and a wrong-shaped 200 is a rung-1 miss
 
-Phase 3 spec §10 puts two thin handlers on the same Railway service as the static app — same-origin, no CORS, key server-side — and §11 requires the response to be *schema-validated*, not merely parsed, because a 200 carrying well-formed JSON of the wrong shape is the case that would otherwise reach the confirm panel.
+Phase 3 spec §10 puts two thin handlers on the same Railway service as the static app - same-origin, no CORS, key server-side - and §11 requires the response to be *schema-validated*, not merely parsed, because a 200 carrying well-formed JSON of the wrong shape is the case that would otherwise reach the confirm panel.
 
 **Files:**
 - Create: `services/api/package.json`
@@ -6151,8 +6151,8 @@ Phase 3 spec §10 puts two thin handlers on the same Railway service as the stat
 - Create: `services/api/interpret.ts`
 - Create: `services/api/navigate.ts`
 - Create: `services/api/test/handlers.test.ts`
-- Modify: `apps/web/src/ai/interpret.ts` (the `RUNGS` array — Task 4 left rung 1 stubbed)
-- Modify: `apps/web/src/ai/navigate.ts` (the `RUNGS` array — Task 7 left rung 1 stubbed)
+- Modify: `apps/web/src/ai/interpret.ts` (the `RUNGS` array - Task 4 left rung 1 stubbed)
+- Modify: `apps/web/src/ai/navigate.ts` (the `RUNGS` array - Task 7 left rung 1 stubbed)
 - Modify: `package.json:9-20` (workspaces, `typecheck`, `lint`)
 - Test: `apps/web/test/rung1.test.ts`
 - Test: `apps/web/test/boundaries.test.ts`
@@ -6274,7 +6274,7 @@ describe("POST /api/navigate", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- services/api`
-Expected: FAIL — `Error: Failed to load url ../interpret.js` (the module does not exist yet); zero tests collected from the file.
+Expected: FAIL - `Error: Failed to load url ../interpret.js` (the module does not exist yet); zero tests collected from the file.
 
 - [ ] **Step 3: Create the service workspace**
 
@@ -6307,7 +6307,7 @@ Create `services/api/tsconfig.json`:
 }
 ```
 
-Modify root `package.json` — add the workspace glob and put `services/api` under both gates. The lint hole HANDOVER §6.3 records (the entire web UI unlinted because the glob missed it) is the reason this is done in the same step as creating the directory rather than later:
+Modify root `package.json` - add the workspace glob and put `services/api` under both gates. The lint hole HANDOVER §6.3 records (the entire web UI unlinted because the glob missed it) is the reason this is done in the same step as creating the directory rather than later:
 
 ```json
 {
@@ -6356,7 +6356,7 @@ Modify root `package.json` — add the workspace glob and put `services/api` und
 - [ ] **Step 4: Install the SDK into the new workspace**
 
 Run: `npm install @anthropic-ai/sdk -w @arbiter/api`
-Expected: `services/api/package.json` gains a pinned `@anthropic-ai/sdk` caret range and `package-lock.json` updates. Record the resolved version in the commit message — it is the one dependency in this repo that talks to a network.
+Expected: `services/api/package.json` gains a pinned `@anthropic-ai/sdk` caret range and `package-lock.json` updates. Record the resolved version in the commit message - it is the one dependency in this repo that talks to a network.
 
 - [ ] **Step 5: Write the interpret handler**
 
@@ -6711,7 +6711,7 @@ export function completeFromEnv(env: NodeJS.ProcessEnv = process.env): Complete 
 - [ ] **Step 7: Run the service test to verify it passes**
 
 Run: `npm test -- services/api && npm run typecheck && npm run lint`
-Expected: PASS — 6 tests, typecheck clean (`tsc -p services/api --noEmit` now runs), lint clean.
+Expected: PASS - 6 tests, typecheck clean (`tsc -p services/api --noEmit` now runs), lint clean.
 
 - [ ] **Step 8: Write the failing client-side rung-1 test**
 
@@ -6914,7 +6914,7 @@ describe("module boundaries", () => {
 - [ ] **Step 10: Run both to verify they fail**
 
 Run: `npm test -- apps/web/test/rung1.test.ts apps/web/test/boundaries.test.ts`
-Expected: FAIL — `rung1.test.ts` fails with `expected 2 to be 1` on the Surface 3 live test (the ladder still starts at the cache rung because Tasks 4 and 7 left rung 1 stubbed), and the "no raw evidence value" test fails at `JSON.parse("")` because `fetch` was never called. `boundaries.test.ts` passes already and stays green — it is a regression guard, not a red-to-green step.
+Expected: FAIL - `rung1.test.ts` fails with `expected 2 to be 1` on the Surface 3 live test (the ladder still starts at the cache rung because Tasks 4 and 7 left rung 1 stubbed), and the "no raw evidence value" test fails at `JSON.parse("")` because `fetch` was never called. `boundaries.test.ts` passes already and stays green - it is a regression guard, not a red-to-green step.
 
 - [ ] **Step 11: Wire rung 1 into Surface 1's ladder**
 
@@ -6962,7 +6962,7 @@ Add `postJson` to the existing import from `./client.js`.
 
 The same edit in `apps/web/src/ai/navigate.ts`:
 
-> **SUPERSEDED — do not transcribe this block as written.** The source file is the
+> **SUPERSEDED - do not transcribe this block as written.** The source file is the
 > authority; see "Post-execution corrections" at the top of this plan. This inline filter bypasses `sanitizeNavResult`, so an all-stale live response stops the ladder at rung 1 with an empty result instead of falling through to the cache.
 
 ```ts
@@ -6999,7 +6999,7 @@ Add `postJson` to the `./client.js` import and `isKnownAnchor` to the `./anchors
 - [ ] **Step 13: Run the whole suite and the build**
 
 Run: `npm test -- apps/web && npm run typecheck && npm run lint && npm run web:build && npm run e2e`
-Expected: PASS, build succeeds, `dist/` is still a single `index.html` — `inlineEverything` throws if anything from `services/` reached the bundle, so a green build is itself the boundary check.
+Expected: PASS, build succeeds, `dist/` is still a single `index.html` - `inlineEverything` throws if anything from `services/` reached the bundle, so a green build is itself the boundary check.
 
 - [ ] **Step 14: Commit**
 
@@ -7055,7 +7055,7 @@ git push origin phase3
 
 ### Task 10: Every pre-flight line becomes a check again, including the one this phase made false
 
-Spec §10 records that `check-network` becomes false on a served build, and §9.2 records that there is no digest over evidence — so an evidence line beside the ruleset line would be a caption sitting next to a check, which is the exact defect HANDOVER §5.4 says this panel was rewritten to remove.
+Spec §10 records that `check-network` becomes false on a served build, and §9.2 records that there is no digest over evidence - so an evidence line beside the ruleset line would be a caption sitting next to a check, which is the exact defect HANDOVER §5.4 says this panel was rewritten to remove.
 
 **Files:**
 - Create: `apps/web/src/data/evidenceDigest.ts`
@@ -7130,7 +7130,7 @@ describe("browserEvidenceDigest", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/evidenceDigest.test.ts`
-Expected: FAIL — `Error: Failed to load url ../src/data/evidenceDigest.js`.
+Expected: FAIL - `Error: Failed to load url ../src/data/evidenceDigest.js`.
 
 - [ ] **Step 3: Write the digest module**
 
@@ -7198,7 +7198,7 @@ export async function browserEvidenceDigest(claims: EvidenceClaim[]): Promise<st
 - [ ] **Step 4: Run it to verify it passes**
 
 Run: `npm test -- apps/web/test/evidenceDigest.test.ts`
-Expected: PASS — 5 tests.
+Expected: PASS - 5 tests.
 
 - [ ] **Step 5: Write the failing pre-flight test**
 
@@ -7411,18 +7411,18 @@ describe("the ? key", () => {
 });
 ```
 
-Two of these tests pass `initialEvidenceEdits` to `StoreProvider`. Task 3 added `evidenceEdits` to `AppState`; if it did not also add a seed prop, add one now — a two-line change to `initialState` and `StoreProvider` — because the alternative is dispatching `reclassifyClaim` through `act()` in every test that needs edited evidence.
+Two of these tests pass `initialEvidenceEdits` to `StoreProvider`. Task 3 added `evidenceEdits` to `AppState`; if it did not also add a seed prop, add one now - a two-line change to `initialState` and `StoreProvider` - because the alternative is dispatching `reclassifyClaim` through `act()` in every test that needs edited evidence.
 
 - [ ] **Step 6: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/preflight.test.tsx`
-Expected: FAIL — `Unable to find an element by: [data-testid="check-evidence-edits"]`, plus `check-surface-1` and `check-surface-3` not found, plus the `check-network` removal test failing because the element is still there. The five pre-existing checks still pass.
+Expected: FAIL - `Unable to find an element by: [data-testid="check-evidence-edits"]`, plus `check-surface-1` and `check-surface-3` not found, plus the `check-network` removal test failing because the element is still there. The five pre-existing checks still pass.
 
 - [ ] **Step 7: Rewrite the pre-flight panel**
 
 Modify `apps/web/src/ui/Preflight.tsx` (whole file):
 
-> **SUPERSEDED — do not transcribe this block as written.** The source file is the
+> **SUPERSEDED - do not transcribe this block as written.** The source file is the
 > authority; see "Post-execution corrections" at the top of this plan. This string is self-contradicting for rungs 4 and 5 and claims a cache answer for a no-match; `surfaceLine` is now exhaustive over `Source`.
 
 ```tsx
@@ -7578,22 +7578,22 @@ export function Preflight() {
             : hash === null
               ? "Hashing the ruleset…"
               : hashOk
-                ? `Ruleset ${data.ruleset.version} — ${hash.slice(0, 8)}… matches the pre-registered hash`
-                : `Ruleset ${data.ruleset.version} hashes to ${hash.slice(0, 8)}… but ${PRE_REGISTERED_HASH.slice(0, 8)}… was pre-registered — do not present these numbers as pre-registered`}
+                ? `Ruleset ${data.ruleset.version} - ${hash.slice(0, 8)}… matches the pre-registered hash`
+                : `Ruleset ${data.ruleset.version} hashes to ${hash.slice(0, 8)}… but ${PRE_REGISTERED_HASH.slice(0, 8)}… was pre-registered - do not present these numbers as pre-registered`}
         </li>
 
         <li data-testid="check-manifest" data-ok={String(mismatches.length === 0)}
             style={mismatches.length === 0 ? undefined : bad}>
           {mismatches.length === 0
             ? `Live recomputation agrees with the committed manifest on all ${data.testSplit.length} compounds`
-            : `${mismatches.length} of ${data.testSplit.length} compounds disagree with the committed manifest (${mismatches.slice(0, 3).join(", ")}…) — investigate before presenting`}
+            : `${mismatches.length} of ${data.testSplit.length} compounds disagree with the committed manifest (${mismatches.slice(0, 3).join(", ")}…) - investigate before presenting`}
         </li>
 
         <li data-testid="check-errors" data-ok={String(errored.length === 0)}
             style={errored.length === 0 ? undefined : bad}>
           {errored.length === 0
             ? "No compound threw during recomputation"
-            : `${errored.length} compounds threw and are being shown as abstain — ${errored.slice(0, 3).join(", ")}`}
+            : `${errored.length} compounds threw and are being shown as abstain - ${errored.slice(0, 3).join(", ")}`}
         </li>
 
         <li data-testid="check-edits"
@@ -7602,7 +7602,7 @@ export function Preflight() {
           {workingHash === null
             ? "Hashing the ruleset on screen…"
             : rulesetEdited
-              ? `The ruleset on screen hashes to ${workingHash.slice(0, 8)}… and has live edits — press Reset on the Ruleset tab before quoting a metric`
+              ? `The ruleset on screen hashes to ${workingHash.slice(0, 8)}… and has live edits - press Reset on the Ruleset tab before quoting a metric`
               : "No live edits: the ruleset on screen is the registered one"}
         </li>
 
@@ -7617,7 +7617,7 @@ export function Preflight() {
           {evidence === null
             ? "Digesting the evidence on screen…"
             : evidenceEdited
-              ? `The evidence on screen has live edits — ${evidence.working.slice(0, 8)}… against registered ${evidence.registered.slice(0, 8)}… — press Reset on the Case tab before quoting a metric`
+              ? `The evidence on screen has live edits - ${evidence.working.slice(0, 8)}… against registered ${evidence.registered.slice(0, 8)}… - press Reset on the Case tab before quoting a metric`
               : `No live edits: the evidence on screen digests to ${evidence.registered.slice(0, 8)}…, the registered value`}
         </li>
 
@@ -7648,12 +7648,12 @@ export function Preflight() {
 - [ ] **Step 8: Run the pre-flight tests to verify they pass**
 
 Run: `npm test -- apps/web/test/preflight.test.tsx apps/web/test/evidenceDigest.test.ts`
-Expected: PASS — 18 tests.
+Expected: PASS - 18 tests.
 
 - [ ] **Step 9: Run the whole suite and the artifact**
 
 Run: `npm test -- apps/web && npm run typecheck && npm run lint && npm run web:build && npm run e2e`
-Expected: PASS, build succeeds. `static-file.spec.ts` is unmodified and its Web Crypto test still asserts `check-ruleset` and `check-manifest` are `data-ok="true"` over `file://` — neither testid changed, and opening the panel over `file://` runs both ladders with `liveEnabled` false, so no request is attempted and the two `page.on("request")` assertions in that file stay empty.
+Expected: PASS, build succeeds. `static-file.spec.ts` is unmodified and its Web Crypto test still asserts `check-ruleset` and `check-manifest` are `data-ok="true"` over `file://` - neither testid changed, and opening the panel over `file://` runs both ladders with `liveEnabled` false, so no request is attempted and the two `page.on("request")` assertions in that file stay empty.
 
 - [ ] **Step 10: Commit**
 
@@ -7708,7 +7708,7 @@ git push origin phase3
 
 ### Task 11: Fifteen matrix cells collapse to nine tests, and Surface 2's row is a disabled button
 
-Master spec §11 requires each surface exercised against network-off, HTTP 500, malformed JSON, timeout and missing key, asserting the UI still renders and degrades to the correct rung — and §3's invariant, that rung 1 either succeeds or is skipped and never errors upward, is what makes the conditions differ only at the transport boundary.
+Master spec §11 requires each surface exercised against network-off, HTTP 500, malformed JSON, timeout and missing key, asserting the UI still renders and degrades to the correct rung - and §3's invariant, that rung 1 either succeeds or is skipped and never errors upward, is what makes the conditions differ only at the transport boundary.
 
 **Files:**
 - Create: `apps/web/test/failureMatrix.test.ts`
@@ -7956,7 +7956,7 @@ describe("each surface degrades to the CORRECT rung under a forced rung-1 miss",
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/failureMatrix.test.ts`
-Expected: FAIL — the timeout test hangs to its assertion and reports `expected Promise to resolve to null` (fake timers plus a never-settling fetch is the one case that fails loudly if `postJson` has no abort wired), and any walker assertion whose `rung` is off by one reports `expected 2 to be 3`. Watch each of the fourteen fail at least once before making it pass; a green run on the first attempt means the file is not exercising what it claims.
+Expected: FAIL - the timeout test hangs to its assertion and reports `expected Promise to resolve to null` (fake timers plus a never-settling fetch is the one case that fails loudly if `postJson` has no abort wired), and any walker assertion whose `rung` is off by one reports `expected 2 to be 3`. Watch each of the fourteen fail at least once before making it pass; a green run on the first attempt means the file is not exercising what it claims.
 
 - [ ] **Step 3: Write the failing Surface 2 test**
 
@@ -8042,7 +8042,7 @@ describe("Surface 2 - the live ablation spot check", () => {
 - [ ] **Step 4: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/surface2.test.tsx`
-Expected: FAIL — `Unable to find an element by: [data-testid="live-ablation-run"]` on four of the five tests.
+Expected: FAIL - `Unable to find an element by: [data-testid="live-ablation-run"]` on four of the five tests.
 
 - [ ] **Step 5: Add Surface 2's disabled control to the Validation tab**
 
@@ -8086,7 +8086,7 @@ export function ValidationTab() {
   const ablation = m["metric2a_llmConsistency"] as Record<string, unknown>;
   const ablationNote = typeof ablation?.["note"] === "string" ? (ablation["note"] as string) : null;
   const ablationTooltip = ablationNote
-    ?? "The live spot check is specified but not built (Phase 3 spec §6) — the button stays disabled.";
+    ?? "The live spot check is specified but not built (Phase 3 spec §6) - the button stays disabled.";
 
   return (
     <section style={{ padding: 20 }}>
@@ -8122,7 +8122,7 @@ export function ValidationTab() {
         <p data-testid="single-class-warning"
            style={{ color: "var(--toxic)", fontSize: 15, fontWeight: 600 }}>
           <strong>Single-class:</strong> ARBITER committed on only one label, so this balanced accuracy is
-          half a substituted 0.5. It must not be quoted as an accuracy. Coverage is the finding — no compound
+          half a substituted 0.5. It must not be quoted as an accuracy. Coverage is the finding - no compound
           in this set carries exposure-relevant evidence, so R3 discounts every safe claim.
         </p>
       )}
@@ -8178,7 +8178,7 @@ export function ValidationTab() {
 - [ ] **Step 6: Run the Surface 2 test to verify it passes**
 
 Run: `npm test -- apps/web/test/surface2.test.tsx apps/web/test/validation.test.tsx apps/web/test/a11y.test.tsx`
-Expected: PASS — the new button carries visible text so `a11y.test.tsx`'s accessible-name assertion holds, and `validation.test.tsx`'s `llm-ablation` assertion still matches because the note is now rendered as prose rather than JSON.
+Expected: PASS - the new button carries visible text so `a11y.test.tsx`'s accessible-name assertion holds, and `validation.test.tsx`'s `llm-ablation` assertion still matches because the note is now rendered as prose rather than JSON.
 
 - [ ] **Step 7: Write the file:// guard for the live surfaces**
 
@@ -8240,12 +8240,12 @@ test("the evidence digest resolves over file://, so check-evidence-edits is a re
 - [ ] **Step 8: Run the full verification**
 
 Run: `npm test -- apps/web && npm run typecheck && npm run lint && npm run web:build && npm run e2e`
-Expected: PASS, build succeeds. `apps/web/e2e/static-file.spec.ts` runs unchanged and green — all five of its tests, including "the artifact requests nothing over the network", with every surface on cache.
+Expected: PASS, build succeeds. `apps/web/e2e/static-file.spec.ts` runs unchanged and green - all five of its tests, including "the artifact requests nothing over the network", with every surface on cache.
 
 - [ ] **Step 9: Confirm no committed number moved**
 
 Run: `npm run golden:update && git diff --exit-code results/`
-Expected: exit 0, no diff. Nothing in this task touches the harness — but Surface 2 renders from `results/metrics.json`, and reading a file is the step before someone decides to write one. On Windows `golden:update` reports a phantom modification on line endings; re-check with `git diff --stat` before treating it as real.
+Expected: exit 0, no diff. Nothing in this task touches the harness - but Surface 2 renders from `results/metrics.json`, and reading a file is the step before someone decides to write one. On Windows `golden:update` reports a phantom modification on line endings; re-check with `git diff --stat` before treating it as real.
 
 - [ ] **Step 10: Commit**
 
@@ -8311,23 +8311,23 @@ Each criterion is tied to a number or an observation, never to inspection. A cri
 - [ ] `npm run web:build && npm run e2e` green at **8 or more Playwright tests**.
 - [ ] **`apps/web/e2e/static-file.spec.ts` passes unchanged** *through Task 12*. Not relaxed, not skipped. **Corrected in the final review** (see Global Constraints): asserting on *attempted* requests does not prove this over `file://`, because a refused `file:` fetch emits no `request` and no `requestfailed`. The criterion that proves the submitted ZIP never reaches for the network is the **console-error** assertion added there, with the pre-flight panel opened so both ladders run.
 - [ ] `npm run golden:update && git diff --exit-code results/` produces **no diff**. Phase 3 touches no reported number; if one moves, something is wrong that a rebaseline would hide.
-- [ ] The built `dist/index.html`, opened from the filesystem on a machine that is not the one that built it, renders the verdict, walks all seven beats, and reports, for **every** surface in the pre-flight panel, a rung that is not `live` and not `pending`. **Corrected in the final review:** "every surface on cache" was unmet and unmeetable as written — the probe strings appear verbatim in neither cache artifact, so both surfaces resolve at rung 4, source `local`. The probes are deliberately unpinned so that cache drift is *reported* (`Preflight.tsx`), so no rung may be asserted; what the artifact guarantees is that nothing answers `live`.
-- [ ] Both gates on the live path are tested in both directions — the build flag and the `file://` protocol check, independently. A false positive here is the §6.1 failure mode returning.
+- [ ] The built `dist/index.html`, opened from the filesystem on a machine that is not the one that built it, renders the verdict, walks all seven beats, and reports, for **every** surface in the pre-flight panel, a rung that is not `live` and not `pending`. **Corrected in the final review:** "every surface on cache" was unmet and unmeetable as written - the probe strings appear verbatim in neither cache artifact, so both surfaces resolve at rung 4, source `local`. The probes are deliberately unpinned so that cache drift is *reported* (`Preflight.tsx`), so no rung may be asserted; what the artifact guarantees is that nothing answers `live`.
+- [ ] Both gates on the live path are tested in both directions - the build flag and the `file://` protocol check, independently. A false positive here is the §6.1 failure mode returning.
 - [ ] The §11 matrix is complete: five transport conditions each proven to produce a rung-1 miss, and each surface proven to degrade to its **correct rung** rather than merely to "an answer".
-- [ ] Every cached challenge references a real rule id, and every `reclassify_field` entry a real claim id and a schema-legal value — proven by a test that was watched failing against a deliberately corrupted entry.
+- [ ] Every cached challenge references a real rule id, and every `reclassify_field` entry a real claim id and a schema-legal value - proven by a test that was watched failing against a deliberately corrupted entry.
 - [ ] Every declared static anchor resolves in the DOM when its tab is active, and the conditional anchors are distinguished from unknown ids rather than skipped.
-- [ ] Pressing `M` stops the navigator's scroll, not just its highlight — asserted on the `behavior` argument, because CSS cannot reach it.
+- [ ] Pressing `M` stops the navigator's scroll, not just its highlight - asserted on the `behavior` argument, because CSS cannot reach it.
 - [ ] The pre-flight panel's `check-network` line no longer claims no network call is ever made, and each surface's live-or-cache state is **computed**, not captioned.
 
 **Not met, and it needs a person:**
 
-- The three cached challenges flagged in spec §13 need a toxicologist, not an engineer: treating a >100× in-vitro margin as `exposureRelevant`, clearing a Klimisch score on a QSAR claim as a category error, and whether the ICH M3 two-species phrasing is how a reviewer actually opens that objection. The first is the highest-leverage field in the system — no benchmark compound carries `exposureRelevant: true` — so a naive framing there is naive in the most visible place. **Register is the whole point:** these strings are what live input is matched against at rungs 2 and 3, and a cache that reads like templates falls through to keyword matching in front of a judge.
+- The three cached challenges flagged in spec §13 need a toxicologist, not an engineer: treating a >100× in-vitro margin as `exposureRelevant`, clearing a Klimisch score on a QSAR claim as a category error, and whether the ICH M3 two-species phrasing is how a reviewer actually opens that objection. The first is the highest-leverage field in the system - no benchmark compound carries `exposureRelevant: true` - so a naive framing there is naive in the most visible place. **Register is the whole point:** these strings are what live input is matched against at rungs 2 and 3, and a cache that reads like templates falls through to keyword matching in front of a judge.
 - Whether the live path is deployed at all. The plan is complete without it by construction.
 
 ## Deliberately not in this plan
 
-- **The harness LLM ablation.** `npm run ablation` does not exist and neither does any implementation; `results/metrics.json` carries a placeholder that correctly reports its own absence. It needs its own decisions — the prompt, how evidence is serialised into it, the consistency metric, caching, and how committed run data stays out of `golden:update`'s way, since a model's output is not reproducible from a seed and everything else in `results/` is. Budget it as a real task with a spec. Surface 2 is specified in the Phase 3 spec §6 and built here only as far as its disabled state, so it costs nothing to cut and nothing to resume.
-- **The provider, model and temperature for Surfaces 1 and 3.** Master spec §11 explicitly refuses to test LLM content quality — only schema validity and failure behaviour are testable — so these are unguarded by tests and are a deployment decision recorded at deploy time.
+- **The harness LLM ablation.** `npm run ablation` does not exist and neither does any implementation; `results/metrics.json` carries a placeholder that correctly reports its own absence. It needs its own decisions - the prompt, how evidence is serialised into it, the consistency metric, caching, and how committed run data stays out of `golden:update`'s way, since a model's output is not reproducible from a seed and everything else in `results/` is. Budget it as a real task with a spec. Surface 2 is specified in the Phase 3 spec §6 and built here only as far as its disabled state, so it costs nothing to cut and nothing to resume.
+- **The provider, model and temperature for Surfaces 1 and 3.** Master spec §11 explicitly refuses to test LLM content quality - only schema validity and failure behaviour are testable - so these are unguarded by tests and are a deployment decision recorded at deploy time.
 - **Whether the navigator may change the selected compound.** It requires `selectCompound`, a data action rather than a presentational one. The pattern to follow is the tour's: the navigator dispatches `setFocus` itself, and any compound change goes through the existing action, visibly, exactly as a user would.
 - **`Reasoning.rulesetHash`**, passed as `""` by `useCaseReasoning.ts:16`. Nothing reads it and no claim is falsified, but it is the third `*Hash` field in this area that does not hold a hash. Recorded in HANDOVER rather than fixed here.
-- **The Cmax hunt.** Not engineering, and on a different clock — the data freeze is 2 August. It is the difference between "coverage is the finding" and a reportable headline, and no amount of work in this plan substitutes for it.
+- **The Cmax hunt.** Not engineering, and on a different clock - the data freeze is 2 August. It is the difference between "coverage is the finding" and a reportable headline, and no amount of work in this plan substitutes for it.

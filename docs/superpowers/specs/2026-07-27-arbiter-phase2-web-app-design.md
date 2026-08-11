@@ -1,11 +1,11 @@
-# ARBITER Phase 2 — the web app
+# ARBITER Phase 2 - the web app
 
 **Date:** 27 July 2026 · **Submission due:** 16 August 2026 · **Data freeze:** 2 August 2026
 
 Companion to `2026-07-26-arbiter-design.md` (the master spec). This document decides what the master spec
 left open for the application layer, and records three corrections that measurement forced. Where the master
-spec is already specific — the token palette (§9), the five-tab split (§9), the consensus record model
-(§7a), motion rules and accessibility (§9) — this document does not repeat it.
+spec is already specific - the token palette (§9), the five-tab split (§9), the consensus record model
+(§7a), motion rules and accessibility (§9) - this document does not repeat it.
 
 ## 1. Scope
 
@@ -17,7 +17,7 @@ navigator) and the API service that backs them. Two of the three mount inside Ca
 exist yet, so their spec is written after this app runs.
 
 The seam is infrastructure: everything here works with no server and no API key. Phase 3 adds a deployed
-service, credentials, and fallback ladders — different risk, different failure modes.
+service, credentials, and fallback ladders - different risk, different failure modes.
 
 ## 2. The decision this app rests on: the engine runs in the browser
 
@@ -42,8 +42,8 @@ possible, on every commit, for the whole project. It bundles as-is.
 - The static `file://` build is functionally complete on its own, which the master spec's deployment section
   already assumes.
 
-**The cost, and the mitigation.** Running the full `reason()` — which includes the ~130-evaluation
-counterfactual search and the planner — across 267 compounds on page load would be slow. So:
+**The cost, and the mitigation.** Running the full `reason()` - which includes the ~130-evaluation
+counterfactual search and the planner - across 267 compounds on page load would be slow. So:
 
 - The **Compounds tab uses `reasonVerdictOnly`**, which skips both. Cheap enough for the whole library.
 - The **Case tab uses full `reason()`**, for one selected compound at a time.
@@ -76,7 +76,7 @@ added to `apps/harness/src/main.ts` writing `{rulesetHash, rows: [{compoundId, v
 listed here rather than assumed because a plan that starts with the app would find the file missing.
 
 **Everything is validated on load** through the engine's existing zod schemas, and a failure is an explicit
-error screen naming the file — never a blank app or a silently empty library.
+error screen naming the file - never a blank app or a silently empty library.
 
 ## 4. Module boundaries
 
@@ -136,12 +136,12 @@ interface AppState {
 ```
 
 **No state-management dependency.** React `useReducer` behind one context provider. The state above is small,
-entirely synchronous, and derived values come from memoised engine calls rather than from stored copies —
+entirely synchronous, and derived values come from memoised engine calls rather than from stored copies -
 a store library would add a dependency and an indirection for no benefit. This matches the discipline that
 kept the engine at one runtime dependency.
 
 **The tour holds no data, and this is enforced by construction.** The master spec requires that guided and
-free-navigation modes cannot disagree. But beats 5 and 6 *do* change data — beat 5 moves the as-of date,
+free-navigation modes cannot disagree. But beats 5 and 6 *do* change data - beat 5 moves the as-of date,
 beat 6 applies a rule edit. The resolution: a beat definition carries an optional list of **the same actions
 a user could dispatch manually** (`setAsOf`, `setRuleStrength`). The tour never holds its own copy of a
 verdict or a ruleset; it drives the identical code path a human would. Advancing a beat and clicking the
@@ -151,31 +151,31 @@ control by hand are the same operation, so the two modes cannot diverge.
 pre-registered hash alongside a "modified" badge the moment it diverges, and a reset restores the registered
 values. An edited ruleset must never be presentable as the registered one.
 
-## 6. The five tabs — deltas from the master spec only
+## 6. The five tabs - deltas from the master spec only
 
-### Compounds — tag by conflict, not by verdict
+### Compounds - tag by conflict, not by verdict
 
 The master spec tags each compound agree / conflict / abstain. Measured, 260 of 267 abstain, so a
 verdict-tagged library is a flat grey wall that tells a worse story than the truth.
 
-**Primary axis is conflict status** — 61 of 267, 22.8% — which is the number that proves the hero case was
+**Primary axis is conflict status** - 61 of 267, 22.8% - which is the number that proves the hero case was
 not cherry-picked, and which is healthy. Verdict is a secondary column. The header states both: *"61 of 267
-compounds have streams in genuine conflict. ARBITER declines on 260 — see Validation for why."*
+compounds have streams in genuine conflict. ARBITER declines on 260 - see Validation for why."*
 
-### Case — unchanged in structure, with a corrected beat 5
+### Case - unchanged in structure, with a corrected beat 5
 
 Three regions, spotlight via `grid-template-columns`, as-of control in the case header, exactly as the master
 spec specifies. The corrections are in what it displays, not how:
 
 - **The belief track is the hero visual.** Pass 2 moves belief 0.000 → 0.090 with the range staying open; the
-  verdict label does not change. The animation the master spec wanted — the gap spreading outward from
-  centre — is now carrying the beat rather than decorating it.
+  verdict label does not change. The animation the master spec wanted - the gap spreading outward from
+  centre - is now carrying the beat rather than decorating it.
 - **The evidence panel states how many claims the current as-of date hides**, so the two-pass replay is
   legible rather than mysterious.
 - **The planner names a human BSEP assay, not the murine study.** Beat 5's script is corrected in the master
   spec; the UI simply renders `nextExperiment`.
 
-### Ruleset — the tab that needs the browser engine
+### Ruleset - the tab that needs the browser engine
 
 R1–R6 with statement, framework citation, and an editable strength slider. Editing recomputes the current
 case live and shows the verdict and belief delta. Disabled rules are togglable. The registered hash and a
@@ -184,17 +184,17 @@ case live and shows the verdict and belief delta. Disabled rules are togglable. 
 This is where "expert-governed, not algorithm-invented" becomes touchable, and it is the tab that would be
 theatre if verdicts were precomputed.
 
-### Validation — coverage before accuracy
+### Validation - coverage before accuracy
 
 The master spec orders this tab by metric. Measurement reorders it: **n and coverage are shown before any
 accuracy figure**, and `singleClass` is rendered as a visible warning rather than being a field in a JSON
 file nobody opens.
 
 The tab must be able to state, in its own words, that ARBITER commits on 4 of 61 conflict-subset compounds
-and the best baseline on 3 — and that the number that *is* reportable is the planner's 0.992 stability under
+and the best baseline on 3 - and that the number that *is* reportable is the planner's 0.992 stability under
 ±50% prior perturbation. `metrics.json` already emits every field this needs, including the warnings.
 
-### Record — as specified
+### Record - as specified
 
 The consensus record model in master spec §7a is implemented as written, including `evidenceSnapshotHash`,
 `prevRecordHash`, and `signatureMethod: 'demo-persona'`. The hash-chained audit log is described as exactly
@@ -217,17 +217,17 @@ The demo must survive every failure that does not involve the machine being off.
 Vitest, already the repo's runner, with `@testing-library/react` and `jsdom` for anything that renders. No
 second test framework.
 
-- **Unit** — router, store actions, `data/load.ts` validation, each `ui/primitive`.
-- **Component** — every tab renders from a fixture without touching the real bundle.
+- **Unit** - router, store actions, `data/load.ts` validation, each `ui/primitive`.
+- **Component** - every tab renders from a fixture without touching the real bundle.
 - **The seven-beat integration test.** This is the important one. A test drives the tour from beat 0 to beat
   6 and asserts, at each beat, the verdict, the belief, and the planner recommendation that the master spec
   claims. **Beat 5 was wrong in the spec for a week and nothing caught it.** This test is what makes that
   class of failure impossible to ship again, and it must fail loudly if the engine, the fixture, or the
   script drift apart.
-- **Playwright walk** — the full demo path end to end, headless, in CI.
-- **Accessibility** — contrast ≥4.5:1, keyboard-only traversal of every interactive element, visible focus
+- **Playwright walk** - the full demo path end to end, headless, in CI.
+- **Accessibility** - contrast ≥4.5:1, keyboard-only traversal of every interactive element, visible focus
   rings, `prefers-reduced-motion` honoured.
-- **Teams-share legibility** — verified on a real share before 16 August, per the master spec. Not
+- **Teams-share legibility** - verified on a real share before 16 August, per the master spec. Not
   automatable; a scheduled task, not a test.
 
 ## 9. Build
@@ -235,14 +235,14 @@ second test framework.
 Vite + React + TypeScript, sharing the repo's existing `tsconfig.base.json` and eslint config. Two outputs
 from one codebase:
 
-1. **Served** — Railway, alongside the Phase 3 API.
-2. **Static** — `index.html` openable directly, submitted as a ZIP. Requires `base: './'`, the
+1. **Served** - Railway, alongside the Phase 3 API.
+2. **Static** - `index.html` openable directly, submitted as a ZIP. Requires `base: './'`, the
    build-time JSON imports above, and **a single self-contained file with no subresources**.
 
    `base: './'` alone is not sufficient, and the gap is not visible from a dev server. Vite tags its emitted
    `<script>` and `<link>` with `crossorigin`, which makes Chrome treat them as CORS requests; a page opened
    from the filesystem has origin `null`, and `file://` is not a scheme CORS can satisfy. Both the bundle and
-   the stylesheet failed with `ERR_FAILED` and the page rendered **completely blank** — measured, not
+   the stylesheet failed with `ERR_FAILED` and the page rendered **completely blank** - measured, not
    predicted. The `inlineEverything` plugin in `apps/web/vite.config.ts` folds the chunk and the stylesheet
    into `index.html`, and fails the build if any asset survives uninlined. The regression guard is
    `apps/web/e2e/static-file.spec.ts`, which opens `dist/index.html` over `file://`; with the plugin disabled
@@ -250,7 +250,7 @@ from one codebase:
    the only thing tested.
 
 The engine is consumed as the existing `@arbiter/engine` workspace package. No duplication of rule logic in
-the app, ever — if the app needs a rule behaviour, it calls the engine.
+the app, ever - if the app needs a rule behaviour, it calls the engine.
 
 ### 9a. Legibility
 
@@ -260,17 +260,17 @@ Type sizes measured on the built artifact at 1920×1080, 2026-07-28, per tab:
 |---|---|---|
 | body | 14px | 14px ✓ |
 | verdict | 27px | 24–27px ✓ |
-| tab heading | 21–22px | — |
-| smallest text with content | 13px | — |
+| tab heading | 21–22px | - |
+| smallest text with content | 13px | - |
 
 The finding was not a size but a **priority inversion**: the smallest and lightest text in the app was
-carrying the honesty caveats — `citations UNVERIFIED` at 13px, and the single-class warning at 14px/400, the
+carrying the honesty caveats - `citations UNVERIFIED` at 13px, and the single-class warning at 14px/400, the
 same weight as body copy. The single-class warning is the one line that must not be missed, because the
 balanced accuracy beside it is half a substituted 0.5. Raised to 15px/600 and 14px/600 respectively, and
 guarded by a `file://` e2e assertion on the computed style so they cannot drift back to caption size.
 
 **Outstanding, and it needs a person:** the actual Teams-share read at the far end of a real call. Screen-share
-compression degrades silently — everything above was measured on a local display, which is precisely the
+compression degrades silently - everything above was measured on a local display, which is precisely the
 condition under which this looks fine and still fails. Owner: whoever runs the first rehearsal. Record the
 date and any change here.
 
@@ -278,9 +278,9 @@ date and any change here.
 
 | Risk | Mitigation |
 |---|---|
-| Bundle size hurts first paint over a Teams share | **Measured 2026-07-28: `dist/index.html` is 1,077 kB raw, 177 kB gzipped — one file, zero subresources.** Comfortably inside the 3MB raw budget, so the planned trim of `metrics.json` prose and unused `compounds.json` SMILES is not needed. `results.json` deliberately excluded. Re-measure if a Cmax source lands. |
+| Bundle size hurts first paint over a Teams share | **Measured 2026-07-28: `dist/index.html` is 1,077 kB raw, 177 kB gzipped - one file, zero subresources.** Comfortably inside the 3MB raw budget, so the planned trim of `metrics.json` prose and unused `compounds.json` SMILES is not needed. `results.json` deliberately excluded. Re-measure if a Cmax source lands. |
 | Full `reason()` too slow for interactive slider dragging | Only the selected compound runs full `reason()`; debounce slider input; measure early, and fall back to `reasonVerdictOnly` during drag with a full run on release |
-| Five tabs is a lot of surface for the time available | Build in beat order — shell + Case first, so a runnable demo exists from day one rather than five half-tabs at Aug 14 |
+| Five tabs is a lot of surface for the time available | Build in beat order - shell + Case first, so a runnable demo exists from day one rather than five half-tabs at Aug 14 |
 | A Cmax source lands before 2 August and changes every number | Nothing in this app hard-codes a metric; Validation renders `metrics.json`. Re-running the harness updates the app with no code change. |
 
 ## 11. Explicitly not decided here

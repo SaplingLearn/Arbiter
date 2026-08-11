@@ -1,4 +1,4 @@
-# ARBITER — custom compound intake
+# ARBITER - custom compound intake
 
 **Date:** 6 August 2026 · **Submission due:** 16 August 2026
 
@@ -18,17 +18,17 @@ It answers one question the current build cannot:
 **A user does not upload a drug. A user uploads evidence.**
 
 This is measured, not stylistic. Given a structure and nothing else, the pipeline can manufacture
-exactly one claim — a QSAR prediction. R2 discounts structure-only evidence to 6% of stated
+exactly one claim - a QSAR prediction. R2 discounts structure-only evidence to 6% of stated
 confidence, or 1% where it carries least, because it measures no mechanism. A single claim at 1% has
 a ceiling of 0.01 committed mass against a bar of 0.5.
 
 **So a "paste a SMILES, get a verdict" feature abstains 100% of the time, correctly, and looks
 broken doing it.** It would also reproduce exactly the situation 140 of the 267 corpus compounds are
-already in — one claim, nothing to adjudicate.
+already in - one claim, nothing to adjudicate.
 
 The corollary is the more interesting half. The 97.4% abstention rate is an artifact of **public**
 data being thin. An organisation holds, for its own compounds, precisely what the public corpus
-lacks — internal cytotoxicity runs, transporter assays, in-vivo studies, and above all clinical
+lacks - internal cytotoxicity runs, transporter assays, in-vivo studies, and above all clinical
 Cmax, whose absence alone accounts for 118 discounted claims. **ARBITER should perform better inside
 an organisation than it does on the benchmark**, and that is a claim this feature can substantiate.
 
@@ -42,7 +42,7 @@ evidence would be needed to reach a committed position; and hard separation betw
 and the benchmark.
 
 **Out of scope for v1.** Any backend. Any persistence beyond the session. Authentication and
-multi-tenancy. Scoring a novel structure with the QSAR model — see §7. AI extraction — see §5, which
+multi-tenancy. Scoring a novel structure with the QSAR model - see §7. AI extraction - see §5, which
 specifies it as tier 3 and does not schedule it.
 
 **Not negotiable.** No change to `rules/ruleset-v1.0.json`. No change to `packages/engine`. No change
@@ -50,7 +50,7 @@ to anything under `results/`.
 
 ---
 
-## 3. Decision 1 — v1 needs no backend at all
+## 3. Decision 1 - v1 needs no backend at all
 
 The engine already runs in the browser. A form where a scientist enters their own claims therefore
 works entirely inside the existing self-contained `index.html`: no server, no deploy, no key, no
@@ -65,7 +65,7 @@ AI extraction (§5) sits on top later as an *accelerator*, never a dependency.
 
 ---
 
-## 4. Decision 2 — the intake contract is the existing claim contract
+## 4. Decision 2 - the intake contract is the existing claim contract
 
 No new shape. Intake produces objects that satisfy `EvidenceClaimSchema`
 (`packages/engine/src/schema.ts:11`) and nothing else. Eleven fields, and the reason they are
@@ -74,9 +74,9 @@ tractable to ask for is that **each of the six rules reads exactly one of them**
 | Field | The question a scientist is actually being asked | Rule it feeds |
 |---|---|---|
 | `stream` | What kind of test was this? | R6 (independence) |
-| `assertion` | What did it find? | — (direction) |
-| `strength` | How strong is the finding? | — (mass) |
-| `system` | Tested in what — human, rodent, non-rodent, in silico? | **R1** |
+| `assertion` | What did it find? | - (direction) |
+| `strength` | How strong is the finding? | - (mass) |
+| `system` | Tested in what - human, rodent, non-rodent, in silico? | **R1** |
 | `measuresKeyEvent` | Did it measure a specific mechanism, and which? | **R2** |
 | `exposureRelevant` | Tested at a dose a patient actually receives? | **R3** |
 | `inApplicabilityDomain` | Is this compound inside the model's competence? | **R4** |
@@ -95,7 +95,7 @@ property that makes the form explainable rather than bureaucratic.
 `measuresKeyEvent`, because letting a computational prediction claim to have *measured* a key event
 would let it escape R2's discount and be weighted like human clinical evidence.
 
-That is precisely the mistake an over-eager extractor makes — reading *"the model predicts
+That is precisely the mistake an over-eager extractor makes - reading *"the model predicts
 mitochondrial dysfunction"* and recording a measured mechanism. **It is already structurally
 impossible.** Intake inherits the guard for free and must not route around it.
 
@@ -108,7 +108,7 @@ rule to user-supplied claims.
 **Correction to this section's first draft, which said the gate applies to every claim. It does not,
 and the difference is the rule's whole content.** `assertExposureBacked` gates **safe** claims only.
 R3 says a positive finding at clinically relevant exposure defeats a negative one whose margin is
-unstated — the asymmetry *is* the rule. A toxic finding needs no margin to be defensible; TAK-994's
+unstated - the asymmetry *is* the rule. A toxic finding needs no margin to be defensible; TAK-994's
 murine claim is exactly that case. Applying the gate symmetrically would reject legitimate toxic
 evidence and would misstate R3 in code.
 
@@ -119,7 +119,7 @@ to fake one.
 
 ---
 
-## 5. Decision 3 — three tiers, and what AI is allowed to touch
+## 5. Decision 3 - three tiers, and what AI is allowed to touch
 
 The governing rule from Phase 3 §3.3 holds without exception: **models do language, never judgment.**
 
@@ -135,7 +135,7 @@ hurry.
 ### 5.1 What AI may propose
 
 `stream`, `system`, `assertion`, `measuresKeyEvent`, `availableFrom`, `provenance`. All six are
-reading comprehension — *what does this document say* — which is the language task the governing rule
+reading comprehension - *what does this document say* - which is the language task the governing rule
 permits.
 
 ### 5.2 What AI may not set
@@ -144,17 +144,17 @@ permits.
   data-entry costume.
 - **`inApplicabilityDomain`.** This must be **computed** by the QSAR model, never opined on. A model
   answering "yes, in domain" fabricates R4's input.
-- **`klimisch`.** A judgment about study quality — GLP compliance, documentation, protocol adherence.
+- **`klimisch`.** A judgment about study quality - GLP compliance, documentation, protocol adherence.
   Proposable as a suggestion, never accepted without a human setting it.
 
 ### 5.3 Every extracted field cites its source span, or is left blank
 
 **This is the decision that makes review a real control rather than a rubber stamp.**
 
-The obvious design — "the reviewer confirms each field" — degrades into clicking through eleven
+The obvious design - "the reviewer confirms each field" - degrades into clicking through eleven
 dropdowns per claim, and a reviewer facing forty claims will approve them all. Requiring the model to
 **cite the sentence it took each value from**, and to leave the field *empty* where it cannot, changes
-the reviewer's job from *"is this plausible?"* to *"does this quote say that?"* — a question a human
+the reviewer's job from *"is this plausible?"* to *"does this quote say that?"* - a question a human
 answers accurately and quickly.
 
 A field the model cannot cite is not guessed. It is blank, and a human types it or the claim does not
@@ -166,7 +166,7 @@ A novel compound's structure is among the most sensitive IP a pharmaceutical org
 sending it to a third-party model is likely prohibited outright.
 
 The existing design already answers this: Surface 1 receives *claim ids and labels only, never raw
-evidence values*. Intake extends the same discipline — **the extractor receives report text and
+evidence values*. Intake extends the same discipline - **the extractor receives report text and
 returns structure-free claim metadata. The compound identity and structure never leave.** Everything
 mechanistic runs locally.
 
@@ -175,13 +175,13 @@ system in which the AI is architecturally forbidden from seeing your compound.*
 
 ---
 
-## 6. Decision 4 — custom compounds must never touch the benchmark
+## 6. Decision 4 - custom compounds must never touch the benchmark
 
 `results/` is the pre-registered benchmark. A custom compound entering it would contaminate every
 reported number, and the contamination would be invisible in a diff.
 
 **Custom compounds are session-local and are never written to `results/`, `data/out/`, or the golden
-file.** The separation is enforced in code, not by convention — the same argument that produced
+file.** The separation is enforced in code, not by convention - the same argument that produced
 `findLeakedFixtures` in `apps/harness/src/validate-evidence.ts`, which exists because a fixture id
 reaching the benchmark is exactly this failure with a different source.
 
@@ -192,24 +192,24 @@ Intake therefore ships with a guard of the same shape and a test that can fail.
 ## 7. What is deliberately NOT solved here
 
 **Scoring a novel structure with the QSAR model.** `data/prep/qsar_stream.py:123` fits the classifier
-in-process and never persists it — only the resulting claims are written. Scoring an unseen molecule
+in-process and never persists it - only the resulting claims are written. Scoring an unseen molecule
 would need the fitted model *and* the conformal threshold serialised, plus a genuine
 applicability-domain determination. That is a Python-side change with its own leakage risk, and it is
 not attempted in v1.
 
 Consequence to state plainly in the UI: **a custom compound gets no QSAR claim.** Given R2 discounts
-that stream to 6% or 1% anyway, losing it costs the user almost nothing — but it must be said rather
+that stream to 6% or 1% anyway, losing it costs the user almost nothing - but it must be said rather
 than silently absent.
 
 ---
 
-## 8. Decision 5 — abstention has to be explained before it happens
+## 8. Decision 5 - abstention has to be explained before it happens
 
 A user who enters three weak claims and receives *abstain* will conclude the tool is broken. They are
 the 140-compound case, and the honest framing is available before they start.
 
 Intake carries a **pre-flight advisor**: given the claims entered so far, it reports whether any
-committed position is reachable *at all*, and if not, what is missing. This is not a new inference —
+committed position is reachable *at all*, and if not, what is missing. This is not a new inference -
 it is the ceiling argument §2 of HANDOVER already makes for 254 of the 260 declines: sum the surviving
 weight of every live claim, pretend each was stated at full confidence 1.0, and check whether that
 generous ceiling can reach the threshold.
@@ -225,7 +225,7 @@ That sentence is the difference between a demo that looks broken and one that lo
 
 ## 9. Testing
 
-Per HANDOVER §5.1 — every test must be able to fail, and be watched failing.
+Per HANDOVER §5.1 - every test must be able to fail, and be watched failing.
 
 | # | test | must fail when |
 |---|---|---|
@@ -248,7 +248,7 @@ Per HANDOVER §5.1 — every test must be able to fail, and be watched failing.
 2. **The pre-flight advisor**, with tests 5 and 6. Pure logic, reuses the engine.
 3. **CSV/JSON intake**, with test 7.
 4. **The form and the Case-tab wiring**, with test 1 end to end.
-5. **Tier 3 extraction** — separate work, separate approval, not scheduled here.
+5. **Tier 3 extraction** - separate work, separate approval, not scheduled here.
 
 Steps 1–3 are pure functions over data and are testable without a browser. **Step 4 is the only one
 that touches the UI**, which is deliberate: if the calendar takes this feature, it takes step 4 and

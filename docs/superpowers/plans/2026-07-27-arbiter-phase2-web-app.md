@@ -1,10 +1,10 @@
-# ARBITER Phase 2 — web app Implementation Plan
+# ARBITER Phase 2 - web app Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the five-tab ARBITER web application, with the reasoning engine running in the browser so every control recomputes live, plus the golden-file and CI guards that stop reported numbers drifting.
 
-**Architecture:** A Vite + React + TypeScript SPA at `apps/web`, consuming `@arbiter/engine` as a workspace package. All data is imported as ES modules at build time — no runtime `fetch` — so the served build and the static `file://` build run the identical code path. Verdicts are computed in the browser, not read from `results.json`, which becomes a cross-check instead of a source of truth.
+**Architecture:** A Vite + React + TypeScript SPA at `apps/web`, consuming `@arbiter/engine` as a workspace package. All data is imported as ES modules at build time - no runtime `fetch` - so the served build and the static `file://` build run the identical code path. Verdicts are computed in the browser, not read from `results.json`, which becomes a cross-check instead of a source of truth.
 
 **Tech Stack:** Vite 5, React 18, TypeScript 5.6, Vitest + @testing-library/react + jsdom, Playwright, GitHub Actions.
 
@@ -29,7 +29,7 @@
 | `.github/workflows/ci.yml` | Lint, typecheck, test, golden check, Playwright |
 | `apps/web/index.html`, `vite.config.ts`, `tsconfig.json`, `package.json` | App scaffold |
 | `apps/web/src/ui/tokens.css` | Master spec §9 palette, one file so real hexes are one commit |
-| `apps/web/src/ui/primitives/*` | `Dot`, `VerdictLabel`, `Hairline`, `Rail` — no domain logic |
+| `apps/web/src/ui/primitives/*` | `Dot`, `VerdictLabel`, `Hairline`, `Rail` - no domain logic |
 | `apps/web/src/router.ts` | Hash router; `TabId` union |
 | `apps/web/src/data/bundle.ts` | Every JSON import, in one place |
 | `apps/web/src/data/load.ts` | Validate and index into lookup maps |
@@ -58,7 +58,7 @@ Locks the reported numbers before any UI renders them, and emits the compact art
 - Consumes: `results/metrics.json` (already produced by `npm run metrics`)
 - Produces:
   - `extractGolden(raw: unknown): GoldenNumbers`
-  - `results/verdict-manifest.json` — `{ rulesetHash: string; rows: { compoundId: string; verdict: Verdict; belief: number }[] }`
+  - `results/verdict-manifest.json` - `{ rulesetHash: string; rows: { compoundId: string; verdict: Verdict; belief: number }[] }`
 
 - [ ] **Step 1: Write the failing golden test**
 
@@ -135,7 +135,7 @@ describe("the committed golden numbers", () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `npm test -- apps/harness/test/golden.test.ts`
-Expected: FAIL — `Cannot find module '../src/golden.js'`
+Expected: FAIL - `Cannot find module '../src/golden.js'`
 
 - [ ] **Step 3: Write the golden extractor**
 
@@ -245,7 +245,7 @@ console.log("Updated results/golden/metrics.golden.json - commit the diff with a
 - [ ] **Step 4: Run the test to verify the extractor passes**
 
 Run: `npm test -- apps/harness/test/golden.test.ts`
-Expected: PASS (the golden comparison returns early — no golden file yet)
+Expected: PASS (the golden comparison returns early - no golden file yet)
 
 - [ ] **Step 5: Emit the verdict manifest from the harness**
 
@@ -359,7 +359,7 @@ git push origin arbiter-round1
 **Interfaces:**
 - Produces:
   - `type TabId = 'compounds' | 'case' | 'ruleset' | 'validation' | 'record'`
-  - `parseHash(hash: string): TabId` — defaults to `'case'` for anything unrecognised
+  - `parseHash(hash: string): TabId` - defaults to `'case'` for anything unrecognised
   - `useHashRoute(): [TabId, (t: TabId) => void]`
 
 - [ ] **Step 1: Write the failing router test**
@@ -390,7 +390,7 @@ describe("parseHash", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/router.test.ts`
-Expected: FAIL — cannot resolve `../src/router.js`
+Expected: FAIL - cannot resolve `../src/router.js`
 
 - [ ] **Step 3: Create the workspace scaffold**
 
@@ -711,7 +711,7 @@ describe("loadData", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/load.test.ts`
-Expected: FAIL — cannot resolve `../src/data/load.js`
+Expected: FAIL - cannot resolve `../src/data/load.js`
 
 - [ ] **Step 3: Write the bundle**
 
@@ -939,7 +939,7 @@ describe("reducer", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/store.test.ts`
-Expected: FAIL — cannot resolve `../src/state/store.js`
+Expected: FAIL - cannot resolve `../src/state/store.js`
 
 - [ ] **Step 3: Write the store**
 
@@ -1178,7 +1178,7 @@ git push origin arbiter-round1
 
 ---
 
-## Task 5: Case tab — shell, header and the as-of control
+## Task 5: Case tab - shell, header and the as-of control
 
 The demo spine. Beats 1–5 happen inside this tab, and it does not split (master spec §9).
 
@@ -1190,9 +1190,9 @@ The demo spine. Beats 1–5 happen inside this tab, and it does not split (maste
 **Interfaces:**
 - Consumes: `useAppState`, `useDispatch`, `useCaseReasoning`, `Region`
 - Produces:
-  - `<VerdictLabel verdict={Verdict} />` — form plus colour, never colour alone
-  - `<CaseHeader />` — compound name, verdict, belief–plausibility readout, as-of control, hidden-claim count
-  - `<CaseTab />` — three-region CSS grid with a spotlight
+  - `<VerdictLabel verdict={Verdict} />` - form plus colour, never colour alone
+  - `<CaseHeader />` - compound name, verdict, belief–plausibility readout, as-of control, hidden-claim count
+  - `<CaseTab />` - three-region CSS grid with a spotlight
 
 - [ ] **Step 1: Write the failing header test**
 
@@ -1234,7 +1234,7 @@ describe("CaseHeader", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/caseHeader.test.tsx`
-Expected: FAIL — cannot resolve `../src/tabs/Case/CaseHeader.js`
+Expected: FAIL - cannot resolve `../src/tabs/Case/CaseHeader.js`
 
 - [ ] **Step 3: Write the verdict primitive**
 
@@ -1394,7 +1394,7 @@ export function TracePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
 }
 ```
 
-Create `apps/web/src/tabs/Case/TablePanel.tsx` — Phase 3 mounts the challenge interpreter here:
+Create `apps/web/src/tabs/Case/TablePanel.tsx` - Phase 3 mounts the challenge interpreter here:
 
 ```tsx
 /** The table region. Phase 3 mounts the challenge interpreter inside this panel. */
@@ -1478,7 +1478,7 @@ git push origin arbiter-round1
 
 ---
 
-## Task 6: Case tab — the evidence panel
+## Task 6: Case tab - the evidence panel
 
 **Files:**
 - Create: `apps/web/src/tabs/Case/EvidencePanel.tsx`, `apps/web/src/ui/primitives/Dot.tsx`
@@ -1535,7 +1535,7 @@ describe("EvidencePanel", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/evidencePanel.test.tsx`
-Expected: FAIL — cannot resolve `../src/tabs/Case/EvidencePanel.js`
+Expected: FAIL - cannot resolve `../src/tabs/Case/EvidencePanel.js`
 
 - [ ] **Step 3: Write the dot primitive**
 
@@ -1652,7 +1652,7 @@ git push origin arbiter-round1
 
 ---
 
-## Task 7: Case tab — the trace panel and the belief track
+## Task 7: Case tab - the trace panel and the belief track
 
 The belief track is the hero visual. Pass 2 moves belief 0.000 → 0.090 with the range staying open and the verdict label unchanged, so the animation carries the beat rather than decorating it.
 
@@ -1662,8 +1662,8 @@ The belief track is the hero visual. Pass 2 moves belief 0.000 → 0.090 with th
 
 **Interfaces:**
 - Produces:
-  - `<BeliefTrack belief={number} plausibility={number} />` — a centre-out range bar
-  - `<TracePanel collapsed onExpand />` — trace steps, counterfactual, next experiment
+  - `<BeliefTrack belief={number} plausibility={number} />` - a centre-out range bar
+  - `<TracePanel collapsed onExpand />` - trace steps, counterfactual, next experiment
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1701,7 +1701,7 @@ describe("BeliefTrack", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/beliefTrack.test.tsx`
-Expected: FAIL — cannot resolve `../src/tabs/Case/BeliefTrack.js`
+Expected: FAIL - cannot resolve `../src/tabs/Case/BeliefTrack.js`
 
 - [ ] **Step 3: Write the belief track**
 
@@ -1774,7 +1774,7 @@ export function TracePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
       <ol style={{ paddingLeft: 18 }}>
         {claimSteps.map((s) => (
           <li key={s.claimId} data-testid="trace-step" style={{ marginBottom: 8, fontSize: 13 }}>
-            <strong>{s.claimId}</strong> — {s.status}
+            <strong>{s.claimId}</strong> - {s.status}
             {s.byRule && <span style={{ color: "var(--pfizer-blue)" }}> · {s.byRule}</span>}
             <div style={{ color: "var(--muted)" }}>{s.rationale}</div>
           </li>
@@ -1831,7 +1831,7 @@ git push origin arbiter-round1
 
 ---
 
-## Task 8: Compounds tab — tagged by conflict, not by verdict
+## Task 8: Compounds tab - tagged by conflict, not by verdict
 
 **Files:**
 - Create: `apps/web/src/tabs/Compounds.tsx`
@@ -1886,7 +1886,7 @@ describe("CompoundsTab", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/compounds.test.tsx`
-Expected: FAIL — cannot resolve `../src/tabs/Compounds.js`
+Expected: FAIL - cannot resolve `../src/tabs/Compounds.js`
 
 - [ ] **Step 3: Write the tab**
 
@@ -1921,7 +1921,7 @@ export function CompoundsTab() {
         ({((conflicting / ids.length) * 100).toFixed(1)}%).
       </p>
       <p data-testid="decline-note" style={{ color: "var(--muted)" }}>
-        ARBITER declines on {declined} of {ids.length}. See Validation for why — no compound in this set
+        ARBITER declines on {declined} of {ids.length}. See Validation for why - no compound in this set
         carries exposure-relevant evidence.
       </p>
 
@@ -1983,7 +1983,7 @@ git push origin arbiter-round1
 
 ---
 
-## Task 9: Ruleset tab — the tab that needs the browser engine
+## Task 9: Ruleset tab - the tab that needs the browser engine
 
 **Files:**
 - Create: `apps/web/src/tabs/Ruleset.tsx`
@@ -2046,7 +2046,7 @@ describe("RulesetTab", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/ruleset.test.tsx`
-Expected: FAIL — cannot resolve `../src/tabs/Ruleset.js`
+Expected: FAIL - cannot resolve `../src/tabs/Ruleset.js`
 
 - [ ] **Step 3: Write the tab**
 
@@ -2078,7 +2078,7 @@ export function RulesetTab() {
       <h2 style={{ fontFamily: "var(--serif)" }}>Ruleset</h2>
       <p data-testid="ruleset-hash" style={{ color: "var(--muted)", fontSize: 13 }}>
         v{ruleset.version} · registered {ruleset.registeredAt} · {REGISTERED_HASH.slice(0, 8)}…
-        {modified && <strong data-testid="modified-badge" style={{ color: "var(--toxic)", marginLeft: 10 }}>MODIFIED — not the registered ruleset</strong>}
+        {modified && <strong data-testid="modified-badge" style={{ color: "var(--toxic)", marginLeft: 10 }}>MODIFIED - not the registered ruleset</strong>}
       </p>
       <p>
         Live on the selected case: belief <strong data-testid="live-belief">{r.belief.toFixed(3)}</strong>,
@@ -2095,7 +2095,7 @@ export function RulesetTab() {
           <p style={{ margin: "6px 0" }}>{rule.statement}</p>
           <p style={{ color: "var(--muted)", fontSize: 13, margin: "6px 0" }}>
             {rule.framework.name} ({rule.framework.date})
-            {rule.framework.note ? ` — ${rule.framework.note}` : ""}
+            {rule.framework.note ? ` - ${rule.framework.note}` : ""}
           </p>
           <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
             Strength {rule.strength.toFixed(2)}
@@ -2128,7 +2128,7 @@ pointer move. Measure before optimising:
 cd "C:/Users/Jack/Desktop/VS Code/Arbiter" && npx tsx -e "const t=Date.now();const{reason}=await import('./packages/engine/src/index.js');const rs=JSON.parse(require('node:fs').readFileSync('rules/ruleset-v1.0.json','utf8'));const f=JSON.parse(require('node:fs').readFileSync('data/out/tak994.json','utf8'));const a=JSON.parse(require('node:fs').readFileSync('data/assays.json','utf8')).assays;const s=Date.now();for(let i=0;i<50;i++)reason(f.claims,rs,'',a);console.log('ms per full reason():',(Date.now()-s)/50)"
 ```
 
-If the figure is **under 16ms**, leave the slider on plain `onChange` — a debounce
+If the figure is **under 16ms**, leave the slider on plain `onChange` - a debounce
 would add latency to an interaction whose whole point is that it responds under the
 cursor. If it is **over 16ms**, switch the slider to `reasonVerdictOnly` while
 dragging and run the full `reason()` on `onPointerUp`, and say so in a comment
@@ -2159,7 +2159,7 @@ git push origin arbiter-round1
 
 ---
 
-## Task 10: Validation tab — coverage before accuracy
+## Task 10: Validation tab - coverage before accuracy
 
 **Files:**
 - Create: `apps/web/src/tabs/Validation.tsx`
@@ -2221,7 +2221,7 @@ describe("ValidationTab", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/validation.test.tsx`
-Expected: FAIL — cannot resolve `../src/tabs/Validation.js`
+Expected: FAIL - cannot resolve `../src/tabs/Validation.js`
 
 - [ ] **Step 3: Write the tab**
 
@@ -2270,7 +2270,7 @@ export function ValidationTab() {
       {arbiter.singleClass && (
         <p data-testid="single-class-warning" style={{ color: "var(--toxic)" }}>
           <strong>Single-class:</strong> ARBITER committed on only one label, so this balanced accuracy is
-          half a substituted 0.5. It must not be quoted as an accuracy. Coverage is the finding — no compound
+          half a substituted 0.5. It must not be quoted as an accuracy. Coverage is the finding - no compound
           in this set carries exposure-relevant evidence, so R3 discounts every safe claim.
         </p>
       )}
@@ -2342,7 +2342,7 @@ git push origin arbiter-round1
 
 ---
 
-## Task 11: Record tab — the hash-chained decision log
+## Task 11: Record tab - the hash-chained decision log
 
 **Files:**
 - Create: `apps/web/src/tabs/Record.tsx`, `apps/web/src/record/chain.ts`
@@ -2351,8 +2351,8 @@ git push origin arbiter-round1
 
 **Interfaces:**
 - Produces:
-  - `sha256Hex(input: string): Promise<string>` — Web Crypto, browser-side only
-  - `evidenceSnapshot(claims, reasoning): string` — canonical string bound to what was on screen
+  - `sha256Hex(input: string): Promise<string>` - Web Crypto, browser-side only
+  - `evidenceSnapshot(claims, reasoning): string` - canonical string bound to what was on screen
   - `<RecordTab />`
 
 - [ ] **Step 1: Write the failing chain test**
@@ -2394,7 +2394,7 @@ describe("evidenceSnapshot", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/chain.test.ts`
-Expected: FAIL — cannot resolve `../src/record/chain.js`
+Expected: FAIL - cannot resolve `../src/record/chain.js`
 
 - [ ] **Step 3: Write the chain helpers**
 
@@ -2502,7 +2502,7 @@ export function RecordTab() {
       <ol>
         {positions.map((p, i) => (
           <li key={i} data-testid="position-row" style={{ marginTop: 10, fontSize: 13 }}>
-            <strong>{p.displayName}</strong> — {p.position}
+            <strong>{p.displayName}</strong> - {p.position}
             {p.rationale ? ` · ${p.rationale}` : ""}
             <div style={{ color: "var(--muted)" }}>
               snapshot {p.evidenceSnapshotHash.slice(0, 12)}… · prev {p.prevRecordHash.slice(0, 12)}… ·
@@ -2560,8 +2560,8 @@ The most important test in this plan. Beat 5 was wrong in the spec for a week an
 **Interfaces:**
 - Produces:
   - `interface Beat { n: number; title: string; tab: TabId; focus: Region | null; actions: Action[]; line: string }`
-  - `BEATS: Beat[]` — seven entries, indices 0..6
-  - `<TourFooter />` — `←`/`→` beats, `M` motion, `Esc` exits
+  - `BEATS: Beat[]` - seven entries, indices 0..6
+  - `<TourFooter />` - `←`/`→` beats, `M` motion, `Esc` exits
 
 - [ ] **Step 1: Write the failing seven-beat test**
 
@@ -2659,7 +2659,7 @@ describe("the seven beats", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/beats.test.tsx`
-Expected: FAIL — cannot resolve `../src/tour/beats.js`
+Expected: FAIL - cannot resolve `../src/tour/beats.js`
 
 - [ ] **Step 3: Write the beats**
 
@@ -2710,7 +2710,7 @@ export const BEATS: Beat[] = [
   {
     n: 4, title: "The experiment it asks for", tab: "case", focus: "trace",
     actions: [{ type: "setAsOf", asOf: POST_MURINE }],
-    line: "It asks for a human BSEP assay at matched exposure. Takeda ran a mouse study instead — and even that does not license a conclusion, because it is a mouse.",
+    line: "It asks for a human BSEP assay at matched exposure. Takeda ran a mouse study instead - and even that does not license a conclusion, because it is a mouse.",
   },
   {
     n: 5, title: "The table", tab: "record", focus: null,
@@ -2788,7 +2788,7 @@ Expected: PASS (8 tests)
 - [ ] **Step 6: Prove the guard works**
 
 Temporarily change beat 4's `actions` to `[]` so pass 2 never loads, and run the beat test.
-Expected: **FAIL** on "BEAT 5 — the planner names a HUMAN assay and pass 2 STILL abstains", because belief no longer moves. Restore, re-run, confirm green. A guard nobody has watched fail is not known to work.
+Expected: **FAIL** on "BEAT 5 - the planner names a HUMAN assay and pass 2 STILL abstains", because belief no longer moves. Restore, re-run, confirm green. A guard nobody has watched fail is not known to work.
 
 - [ ] **Step 7: Commit**
 
@@ -2860,7 +2860,7 @@ describe("accessibility basics", () => {
 - [x] **Step 2: Run it to verify it fails**
 
 Run: `npm test -- apps/web/test/a11y.test.tsx`
-Expected: FAIL — no `[data-motion]` node.
+Expected: FAIL - no `[data-motion]` node.
 Observed: `AssertionError: expected null not to be null` at the `[data-motion]` assertion, 2 passed 1 failed.
 
 - [x] **Step 3: Add the motion layer**
@@ -3021,13 +3021,13 @@ Two things in that file are corrections to the original plan, both load-bearing:
 Also exclude the e2e directory from vitest, spreading `configDefaults.exclude`
 rather than replacing it, and give `apps/web` a browser env in eslint so `window`
 and `document` resolve. That second change exposed a real hole: `npm run lint` passed
-`--ext .ts`, so every `.tsx` file in the web app — the entire UI — was never linted.
+`--ext .ts`, so every `.tsx` file in the web app - the entire UI - was never linted.
 It is now `--ext .ts,.tsx`, verified by planting an unused variable in a `.tsx`.
 
 - [x] **Step 5: Verify the static build opens from the filesystem**
 
 **This step found the artifact broken.** Built, then opened `apps/web/dist/index.html`
-from the filesystem in Chrome. The page rendered **completely blank** — `#root`
+from the filesystem in Chrome. The page rendered **completely blank** - `#root`
 innerHTML length 0:
 
 ```
@@ -3160,7 +3160,7 @@ export default defineConfig({
 Three non-obvious things in it, each found by measurement rather than reasoning:
 
 - **`type="module"` is kept on the inline script.** An inline module script issues no
-  request, so there is nothing for CORS to block — it was the `crossorigin` attribute
+  request, so there is nothing for CORS to block - it was the `crossorigin` attribute
   on the external `src` that broke `file://`, not module semantics. Dropping to a
   classic script runs it in `<head>` before `<body>` exists, and React throws
   minified error #299 on a null container.
@@ -3170,10 +3170,10 @@ Three non-obvious things in it, each found by measurement rather than reasoning:
   the code and produced `SyntaxError: missing ) after argument list`.
 - **The survivor check inspects the bundle, not the HTML text.** Scanning the HTML for
   leftover `src=`/`href=` scans the 1MB of inlined JS and trips over string literals
-  inside it — it reported 2 phantom leftovers on a correct build.
+  inside it - it reported 2 phantom leftovers on a correct build.
 
 An earlier attempt at this used `rollupOptions.output.format: "iife"` instead. It did
-not work — the emitted tag was still `type="module" crossorigin` — and it silently
+not work - the emitted tag was still `type="module" crossorigin` - and it silently
 dropped the entire 1.20 kB stylesheet from the build, so the app would have shipped
 unstyled. Recorded because the failure was invisible without diffing `dist/`.
 
@@ -3321,7 +3321,7 @@ keyboard walk on the artifact itself, Web Crypto availability, and the legibilit
 the honesty caveats - so the block above is the final content, not what Task 13 alone
 produced.
 
-Result after the fix — `dist/` is a single file, and over `file://`:
+Result after the fix - `dist/` is a single file, and over `file://`:
 
 ```
 ROOT_HTML_LENGTH 11818
@@ -3367,7 +3367,7 @@ lint, typecheck, build and `git diff --exit-code results/verdict-manifest.json` 
 - Modify: `docs/superpowers/specs/2026-07-27-arbiter-phase2-web-app-design.md` (§9a, the measured legibility result)
 
 **Interfaces:**
-- Produces: `<Preflight />` — a `?` panel of CHECKS, not captions; `isTypingTarget` — the shared guard for every global shortcut
+- Produces: `<Preflight />` - a `?` panel of CHECKS, not captions; `isTypingTarget` - the shared guard for every global shortcut
 
 - [x] **Step 1: Make the ruleset hash computable in the browser**
 
@@ -3439,7 +3439,7 @@ export const PRE_REGISTERED_HASH =
 
 `hash.ts` keeps `rulesetHash` (node:crypto) and re-exports the rest, so `load.ts`
 and `hash.test.ts` did not move. **The refactor is proven inert by the existing test
-that asserts the exact pre-registered constant** — the strongest available check that
+that asserts the exact pre-registered constant** - the strongest available check that
 the canonicalisation is byte-identical.
 
 The browser side, `apps/web/src/data/rulesetHash.ts`:
@@ -3517,8 +3517,8 @@ describe("browserRulesetHash", () => {
 Found while wiring the `?` key, and it was already broken for the existing keys. The
 tour keys are bound on `window`, so every keystroke in the app reached them:
 
-- Arrow keys nudging a focused ruleset slider — the natural way to nudge a range
-  input — also jumped the beat and switched tabs.
+- Arrow keys nudging a focused ruleset slider - the natural way to nudge a range
+  input - also jumped the beat and switched tabs.
 - Typing `murine`, `malformed` or `metabolite` into the Record tab's Rationale field
   silently stripped the motion out of the demo.
 
@@ -3670,22 +3670,22 @@ export function Preflight() {
             : hash === null
               ? "Hashing the ruleset…"
               : hashOk
-                ? `Ruleset ${data.ruleset.version} — ${hash.slice(0, 8)}… matches the pre-registered hash`
-                : `Ruleset ${data.ruleset.version} hashes to ${hash.slice(0, 8)}… but ${PRE_REGISTERED_HASH.slice(0, 8)}… was pre-registered — do not present these numbers as pre-registered`}
+                ? `Ruleset ${data.ruleset.version} - ${hash.slice(0, 8)}… matches the pre-registered hash`
+                : `Ruleset ${data.ruleset.version} hashes to ${hash.slice(0, 8)}… but ${PRE_REGISTERED_HASH.slice(0, 8)}… was pre-registered - do not present these numbers as pre-registered`}
         </li>
 
         <li data-testid="check-manifest" data-ok={String(mismatches.length === 0)}
             style={mismatches.length === 0 ? undefined : bad}>
           {mismatches.length === 0
             ? `Live recomputation agrees with the committed manifest on all ${data.testSplit.length} compounds`
-            : `${mismatches.length} of ${data.testSplit.length} compounds disagree with the committed manifest (${mismatches.slice(0, 3).join(", ")}…) — investigate before presenting`}
+            : `${mismatches.length} of ${data.testSplit.length} compounds disagree with the committed manifest (${mismatches.slice(0, 3).join(", ")}…) - investigate before presenting`}
         </li>
 
         <li data-testid="check-errors" data-ok={String(errored.length === 0)}
             style={errored.length === 0 ? undefined : bad}>
           {errored.length === 0
             ? "No compound threw during recomputation"
-            : `${errored.length} compounds threw and are being shown as abstain — ${errored.slice(0, 3).join(", ")}`}
+            : `${errored.length} compounds threw and are being shown as abstain - ${errored.slice(0, 3).join(", ")}`}
         </li>
 
         {/* Not a failure. Editing the ruleset is the product - but saying so out
@@ -3693,7 +3693,7 @@ export function Preflight() {
         <li data-testid="check-edits" data-ok={String(!edited)}
             style={edited ? { color: "var(--muted)", fontWeight: 600 } : undefined}>
           {edited
-            ? "The ruleset on screen has live edits — press Reset on the Ruleset tab before quoting a metric"
+            ? "The ruleset on screen has live edits - press Reset on the Ruleset tab before quoting a metric"
             : "No live edits: the ruleset on screen is the registered one"}
         </li>
 
@@ -3828,7 +3828,7 @@ describe("the ? key", () => {
 ```
 
 Note what these assert and why. `data-ok` rather than the copy, because the obvious
-test — `textContent` matching `/registered/i` — **passes on both branches**: the
+test - `textContent` matching `/registered/i` - **passes on both branches**: the
 failure message also contains the word "registered". A test that cannot tell a
 passing check from a failing one is a caption with a test around it.
 
@@ -3914,7 +3914,7 @@ headings 21–22px, smallest text with content 13px. Body and verdict match the
 intended 14px and 24–27px.
 
 The finding was not a size but a **priority inversion**: the smallest and lightest
-text in the app was carrying the honesty caveats — `citations UNVERIFIED` at 13px,
+text in the app was carrying the honesty caveats - `citations UNVERIFIED` at 13px,
 and the single-class warning at **14px/400, the same weight as body copy**, when it
 is the one line that must not be missed, because the balanced accuracy beside it is
 half a substituted 0.5. Raised to 15px/600 and 14px/600, and guarded by a `file://`
@@ -3924,12 +3924,12 @@ Also verified over `file://` that **Web Crypto is available**, by signing two
 positions and asserting the second chains to the first rather than to the genesis
 zeros, and that the pre-flight hash check reports a match. `crypto.subtle` is gated
 on a secure context and whether `file://` qualifies is a browser policy decision, not
-something this code controls — so the hash-chained audit log and the hash check are
+something this code controls - so the hash-chained audit log and the hash check are
 measured on the actual artifact rather than assumed from the localhost run.
 
 **Still outstanding, and it needs a person: the Teams-share read at the far end of a
 real call.** Screen-share compression degrades silently, and everything above was
-measured on a local display — precisely the condition under which this looks fine and
+measured on a local display - precisely the condition under which this looks fine and
 still fails. Recorded in spec §9a with an owner: whoever runs the first rehearsal.
 
 - [x] **Step 6: Commit**
@@ -3943,13 +3943,13 @@ lint, typecheck, build clean; `results/` unchanged.
 
 All met as of `2026-07-28`, each against measured evidence rather than inspection:
 
-- [x] `npm test` green — **269 tests across 32 files**, run 12 consecutive times to clear a
+- [x] `npm test` green - **269 tests across 32 files**, run 12 consecutive times to clear a
   single unreproduced failure (traced to `expect.poll` not wrapping in `act()` around the
   async Web Crypto `setState`; switched to `waitFor`). `npm run lint` and `npm run typecheck`
   clean, `npm run e2e` green at **8 tests**.
-- [x] `npm run golden:update` produces no diff — the reported numbers have not moved.
+- [x] `npm run golden:update` produces no diff - the reported numbers have not moved.
 - [x] `apps/web/dist/index.html` opens from the filesystem with no server and walks all seven
-  beats on the keyboard — asserted on the ARTIFACT in `static-file.spec.ts`, including that the
+  beats on the keyboard - asserted on the ARTIFACT in `static-file.spec.ts`, including that the
   seven beats are distinct rather than one beat re-rendered seven times. This criterion is the
   one that found the build broken; see Task 13 Step 5.
 - [x] `python tools/sync_plan.py` reports `DRIFT-FREE` for the Phase 1 plan, and every code
@@ -3965,6 +3965,6 @@ condition under which screen-share compression looks fine and still fails.
 
 ## Deliberately not in this plan
 
-- **Phase 3** — the three AI surfaces and the API service. Its own spec, written once this shell exists.
+- **Phase 3** - the three AI surfaces and the API service. Its own spec, written once this shell exists.
 - **The Cmax hunt.** It is the difference between "coverage is the finding" and a reportable headline, and it competes for the same days. A team-capacity call, not an engineering one.
 - **The R1 discount question.** Recorded in master spec §5 as a v1.1 re-registration question, not acted on.

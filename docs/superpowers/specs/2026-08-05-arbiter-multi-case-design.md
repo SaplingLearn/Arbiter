@@ -1,10 +1,10 @@
-# ARBITER — multiple hero cases
+# ARBITER - multiple hero cases
 
 **Date:** 5 August 2026 · **Submission due:** 16 August 2026 · **Data freeze: 2 August 2026, already passed.**
 
 Companion to `2026-07-26-arbiter-design.md` (the master spec), `2026-07-27-arbiter-phase2-web-app-design.md`
 and `2026-07-28-arbiter-phase3-ai-surfaces-design.md`. It decides how the app carries more than one
-demonstrated compound, and it records four corrections that measuring the corpus forced — including one to a
+demonstrated compound, and it records four corrections that measuring the corpus forced - including one to a
 recommendation made earlier in the conversation that produced this document.
 
 Every number below was produced by running `reason()` from `packages/engine/src/index.ts` over the committed
@@ -33,8 +33,8 @@ Measured across the 267-compound test split:
 | do_not_advance | 7 |
 | **advance** | **0** |
 
-TAK-994 abstains too. So the naive reading of "support more drugs" — author two more literature fixtures in
-the shape of the first — produces a demo that says *the same thing three times* and hands a judge the "you
+TAK-994 abstains too. So the naive reading of "support more drugs" - author two more literature fixtures in
+the shape of the first - produces a demo that says *the same thing three times* and hands a judge the "you
 abstain on 97% of everything" objection on three separate screens instead of one.
 
 **The second and third cases earn their place only by showing the engine doing something the first one does
@@ -42,7 +42,7 @@ not.** That is the whole design constraint, and everything below follows from it
 
 All three verdicts are reachable with the pre-registered ruleset untouched. Case 1 and case 2 are measured on
 real committed evidence. Case 3's reachability was confirmed against a **hypothetical** claim set and is
-recorded as such in §5 — it is a statement about the engine, not about any compound.
+recorded as such in §5 - it is a statement about the engine, not about any compound.
 
 ## 3. What the corpus actually contains, and a correction
 
@@ -54,9 +54,9 @@ trace.** What the engine actually does on Cyclosporine:
 
 | claim | status | rule |
 |---|---|---|
-| `…:cytotox` (safe) | admitted, weight reduced to 15% | R3 discount — negative result outside the clinically relevant exposure range |
-| `…:qsar` (ambiguous) | **downweighted** | R4 — outside the model's applicability domain |
-| `…:transporter` (toxic) | admitted, unchallenged | — |
+| `…:cytotox` (safe) | admitted, weight reduced to 15% | R3 discount - negative result outside the clinically relevant exposure range |
+| `…:qsar` (ambiguous) | **downweighted** | R4 - outside the model's applicability domain |
+| `…:transporter` (toxic) | admitted, unchallenged | - |
 
 Nothing is defeated. The safe and toxic human streams coexist and produce conflict mass. The correction
 matters because "a defeat is visible" was the stated reason for the recommendation, and it is not true.
@@ -86,8 +86,8 @@ Scanning all 890 compounds for *severe DILI, contested, with a defeat in the tra
 | Ritonavir | train | do_not_advance | 0.891 | R2 |
 | Posaconazole | calibration | do_not_advance | 0.886 | R2 |
 
-**None is in the test split.** The three test-split compounds that do show a defeat — Mifepristone,
-Irbesartan, Glyburide — are all `vLess-DILI-concern`, are numerically identical to each other, and are
+**None is in the test split.** The three test-split compounds that do show a defeat - Mifepristone,
+Irbesartan, Glyburide - are all `vLess-DILI-concern`, are numerically identical to each other, and are
 widely-prescribed drugs on which a rendered `do_not_advance` reads badly to anyone who knows them, however
 correct it is under the registered binarisation policy.
 
@@ -102,7 +102,7 @@ So the choice is forced: a visible defeat costs either a train-split disclosure 
   every Tox21 claim `2010-01-01`. A corpus-backed hero case therefore has no two-pass story. This is a
   property of the streams, not a defect, and §7 makes the UI say so rather than imply otherwise.
 
-## 4. Hero case 2 — Cyclosporine
+## 4. Hero case 2 - Cyclosporine
 
 **Selected.** `PMATZTZNYRCHOR-CGLBZJNRSA-N`, test split, `vMost-DILI-concern`, y=1.
 
@@ -119,12 +119,12 @@ The contrast that carries the beat is the **gap**, not the verdict label: 0.910 
 audience reads without being told what it means, which is the same argument `BeliefTrack.tsx:6` already makes
 for the belief track.
 
-**Note what the last row does not say.** TAK-994 is *not* short of defeats — once the murine study becomes
+**Note what the last row does not say.** TAK-994 is *not* short of defeats - once the murine study becomes
 visible, R3 defeats all four safe claims, because a positive finding at clinically relevant exposure outranks
 a negative one whose exposure margin was never established. Beat 2's line "nothing is defeated" is true only
 of the **pre-first-in-human** pass, which is the as-of date that beat runs at (measured: 0 defeats,
 `contested: false`, belief 0.000, gap 0.761). Cyclosporine's contribution is therefore **not** "a defeat is
-finally visible" — it is a *contested* case, with non-zero conflict mass, that **commits**. TAK-994 has never
+finally visible" - it is a *contested* case, with non-zero conflict mass, that **commits**. TAK-994 has never
 done any of those three.
 
 Three further reasons, in order of weight:
@@ -141,12 +141,12 @@ real content on this case; neither is empty.
 
 **Troglitazone is the recorded alternate**, not a rejection. It is the canonical DILI withdrawal, it commits
 at 0.890, it is contested, and it *does* show the R2 defeat. Its cost is that it is in the **train** split,
-so its QSAR claim is an in-sample prediction. That is disclosable rather than disqualifying — and there is a
-real argument in it, since the in-sample claim is the one the engine defeats anyway — but it requires a
+so its QSAR claim is an in-sample prediction. That is disclosable rather than disqualifying - and there is a
+real argument in it, since the in-sample claim is the one the engine defeats anyway - but it requires a
 rendered split-provenance badge, not a footnote. If it is added, §6's `splitDisclosure` field is what carries
 it, and the badge is built whether or not Troglitazone ships.
 
-## 5. Hero case 3 — the `advance` slot, and a gate instead of a rule
+## 5. Hero case 3 - the `advance` slot, and a gate instead of a rule
 
 The strongest available answer to *"your system abstains on 97% of cases"* is a case where it does not.
 Confirmed reachable: a **hypothetical** claim set of safe human evidence carrying `exposureRelevant: true`
@@ -154,7 +154,7 @@ returns `advance` at belief 0.000, plausibility 0.014, gap 0.014. **This is a st
 is not evidence about any compound, and it must never be presented as one.**
 
 Reaching it on a real compound requires `exposureRelevant: true`, which requires a clinical Cmax, which is
-HANDOVER §3.1's data-acquisition problem — and §3.1 explicitly forbids setting that flag without one. The
+HANDOVER §3.1's data-acquisition problem - and §3.1 explicitly forbids setting that flag without one. The
 2 August data freeze has now passed, so this is later than it was.
 
 **This document does not restate the prohibition. It makes it unrepresentable.**
@@ -174,7 +174,7 @@ and the loader in `apps/web/src/data/load.ts` **throws `DataLoadError`** if any 
 
 This converts a discipline into a build failure. It costs about fifteen lines, it cannot be forgotten under
 time pressure at 11pm on 14 August, and it means case 3 drops in the day the data exists and cannot be faked
-before then. The existing TAK-994 murine claim — the corpus's only `exposureRelevant: true` — is
+before then. The existing TAK-994 murine claim - the corpus's only `exposureRelevant: true` - is
 `assertion: "toxic"`, so the gate is written against safe claims specifically and TAK-994 continues to load
 unchanged. This is asserted by a test, not by inspection.
 
@@ -205,8 +205,8 @@ interface LoadedData {
 
 **A corpus-backed hero case carries no claims of its own.** It resolves through `data.claimsByCompound` like
 any library row, so the Case tab and the Compounds table read one source and *cannot* disagree. This is the
-hazard `store.tsx:147-151` already anticipates in writing — the fixture-beats-corpus precedence exists so the
-two may diverge without the Case tab silently switching source — and the cheapest way to never trip it is to
+hazard `store.tsx:147-151` already anticipates in writing - the fixture-beats-corpus precedence exists so the
+two may diverge without the Case tab silently switching source - and the cheapest way to never trip it is to
 give corpus-backed cases nothing to diverge with.
 
 Consequently `registeredClaims` (`store.tsx:153-157`) becomes:
@@ -220,17 +220,17 @@ function registeredClaims(data: LoadedData, compoundId: string): EvidenceClaim[]
 ```
 
 Set membership replaces the single equality, and a corpus-backed case falls through to the corpus by having a
-null `claims` — one expression, no branch on `source`.
+null `claims` - one expression, no branch on `source`.
 
 `bundle.ts:15` imports the fixture files it is given rather than one literal path. `evidence.json`'s
 `fixtureCompoundIds` is **already a list** (currently length 1), so the Python assembly layer needs no
-structural change — only `assemble_evidence.py:27`'s hardcoded filename list and
+structural change - only `assemble_evidence.py:27`'s hardcoded filename list and
 `tak994_fixture.py`'s module-level `CID`.
 
 ## 7. As-of, per case
 
 `CaseHeader.tsx:30` reads `data.fixture.asOfMilestones` **unconditionally**, so selecting any of the 267
-library compounds today offers `preFirstInHuman (2021-06-01)` and `postMurineStudy (2023-01-01)` — TAK-994's
+library compounds today offers `preFirstInHuman (2021-06-01)` and `postMurineStudy (2023-01-01)` - TAK-994's
 milestones, rendered on a different drug. Nothing is hidden at those dates on corpus evidence, so the numbers
 are right and only the buttons are wrong. It is a live defect regardless of this work.
 
@@ -268,14 +268,14 @@ another compound's numbers.
 
 **The new beat sits between the record table (beat 5) and the validation tab (beat 6):**
 
-> *"Same rules, same engine. Here the human streams disagree at the mechanism — and it commits."*
+> *"Same rules, same engine. Here the human streams disagree at the mechanism - and it commits."*
 
 The placement is deliberate. Beat 6 is where coverage is named as the finding, and an audience that has just
 watched the engine commit hears "it abstains on 97%" as a calibration claim rather than as an admission.
 
 Seven beats become eight. `apps/web/e2e/demo.spec.ts:8-14` and `static-file.spec.ts:45-62` assert
 `Beat n of 7` and a terminal URL; both are ours and both are updated. `static-file.spec.ts:27-28` asserts the
-literal string `"TAK-994"` appears in the shipped artifact — that assertion stays, since TAK-994 remains the
+literal string `"TAK-994"` appears in the shipped artifact - that assertion stays, since TAK-994 remains the
 boot case and its disappearance would be a real regression.
 
 ## 9. The audit chain
@@ -286,7 +286,7 @@ it was about.
 
 `compoundId` is added to `ReviewerPosition` **and to `canonicalRecord`**, so it is covered by the hash rather
 than merely displayed. Adding it to the render alone would reproduce HANDOVER §6.4's `prevRecordHash` defect
-exactly — a field a reader trusts that tampering does not disturb.
+exactly - a field a reader trusts that tampering does not disturb.
 
 One chain is kept rather than one per compound. The chain records a session's decisions in the order they
 were taken; interleaving is honest once every link states its subject. The Record tab gains a compound column.
@@ -298,8 +298,8 @@ Nothing here can move a reported number, and each guard is structural rather tha
 - The ruleset is untouched, so `rulesetHash` is unchanged.
 - A corpus-backed hero case **adds no claims**, so `evidence.json` is byte-identical and the 267-row scoring
   loop in `apps/harness/src/main.ts:20` sees exactly what it saw before.
-- `validate-evidence.ts:7` stops leak-checking with the literal `id.startsWith("TAK-994")` — which would
-  silently miss a second fixture with any other prefix — and checks membership in `fixtureCompoundIds`.
+- `validate-evidence.ts:7` stops leak-checking with the literal `id.startsWith("TAK-994")` - which would
+  silently miss a second fixture with any other prefix - and checks membership in `fixtureCompoundIds`.
 - `npm run golden:update` must produce **no diff**, and `results/verdict-manifest.json` must stay
   byte-identical. Both are asserted in CI already; this document adds no new guard because the existing one
   is the right one.
@@ -324,7 +324,7 @@ Required, each verified by injecting the defect it guards against, per HANDOVER 
 | 4 | TAK-994 still loads, its murine `exposureRelevant: true` claim intact | the same ablation as 3 |
 | 5 | a beat carrying a `compoundId` changes the selected compound | dropping the `selectCompound` dispatch |
 | 6 | `compoundId` is inside the record hash | mutating it post-sign and asserting the chain breaks |
-| 7 | `golden:update` produces no diff | — (existing CI guard) |
+| 7 | `golden:update` produces no diff | - (existing CI guard) |
 
 Test 2 is the one that matters most and is the easiest to write vacuously: it must compare two *rendered*
 verdicts across a real `selectCompound`, not two calls to the same selector. `useLibraryVerdicts` and
@@ -341,18 +341,18 @@ verdicts across a real `selectCompound`, not two calls to the same selector. `us
 4. **"The demo never shows a defeat" was false**, and it was nearly written into §4 as Cyclosporine's
    justification. Measured: TAK-994 at all-evidence carries **four** R3 defeats. The claim is true only of
    the pre-first-in-human pass. Recorded because it is the second time in this document that a property was
-   inferred from stream polarity rather than read off a trace, after §3.1 — the same mistake twice, caught
+   inferred from stream polarity rather than read off a trace, after §3.1 - the same mistake twice, caught
    both times only by running the engine.
 5. **The Phase 3 spec's §16 leaves "whether the navigator may change the selected compound" undecided.** With
-   more than one hero case that question is now load-bearing. It stays **no** — `NavigatorBar.tsx:65-71`'s
-   rule is unchanged — which means a cached answer naming a TAK-994 claim anchor is unreachable while
+   more than one hero case that question is now load-bearing. It stays **no** - `NavigatorBar.tsx:65-71`'s
+   rule is unchanged - which means a cached answer naming a TAK-994 claim anchor is unreachable while
    Cyclosporine is selected. `validAgainstEvidence` already drops such proposals silently; §11 does not add a
    test for it because the behaviour is correct and unchanged.
 
 ## 13. Risks
 
 - **Eight beats is a longer demo than seven.** The added beat is worth roughly 30 seconds against a
-  240-second budget. If the rehearsal says otherwise, **cutting the new beat is the first thing to cut** — the
+  240-second budget. If the rehearsal says otherwise, **cutting the new beat is the first thing to cut** - the
   hero case remains reachable by clicking, and nothing else in this document depends on the beat existing.
 - **The test surface is the larger half of the work.** Around forty test files reference the fixture; most
   need only the singular-to-map rename, but "most" is not "all" and the count is from `grep`, not from having
