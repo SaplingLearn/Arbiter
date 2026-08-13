@@ -473,6 +473,79 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
 }
 .tabs button[aria-pressed="true"] { background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
 
+/* ---- ask, as a thread ---------------------------------------------------- */
+/* A conversation drawn in BLUEPRINT, which has no pills, no tinted clouds and no
+   avatars. A turn is a block of type with a rule down its side: the question sits
+   right and quiet, the answer sits left and full width, because the answer is the
+   thing being read and its citations are full-width evidence rows exactly as they
+   are on every other screen in this app. Nothing here is shrunk to look like a
+   messaging client. */
+.thread { display: flex; flex-direction: column; gap: var(--s5); margin: var(--s6) 0; }
+.thread > div { display: flex; flex-direction: column; gap: var(--s3); }
+
+.turn { display: flex; flex-direction: column; gap: var(--s3); }
+.turn.asked {
+  align-self: flex-end; max-width: 62ch;
+  border-right: 2px solid var(--accent); background: var(--accent-wash);
+  padding: var(--s3) var(--s4); border-radius: var(--r-sm) 0 0 var(--r-sm);
+}
+.turn.asked p { text-align: right; font-weight: 550; }
+.turn.said {
+  align-self: stretch; border-left: 2px solid var(--line);
+  padding: var(--s3) 0 var(--s3) var(--s5);
+}
+.turn.said p { max-width: 74ch; }
+/* Pending is a state, not an animation. The pulse says the request is live; with
+   motion turned off the words alone still say it. */
+.turn.pending { border-left-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) {
+  .turn.pending p { animation: ask-pulse 1.4s ease-in-out infinite; }
+}
+@keyframes ask-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+/* The boundary of the model's memory, stated by the server and drawn here. Above the
+   line is on screen and out of context, which is a fact worth showing rather than a
+   silence to leave under a scrollbar. */
+.memory-line {
+  display: flex; align-items: center; gap: var(--s3);
+  font: 400 10.5px/1 var(--mono); text-transform: uppercase; letter-spacing: .09em;
+  color: var(--ink-3); margin: var(--s2) 0;
+}
+.memory-line::before, .memory-line::after {
+  content: ""; flex: 1; border-top: 1px dashed var(--line);
+}
+
+/* Sticky rather than fixed: it rides the bottom of the viewport while the thread
+   scrolls behind it, and still sits in normal flow, so it cannot cover the last
+   answer on a short page or strand itself over a footer on a long one. */
+.composer {
+  position: sticky; bottom: 0; z-index: 2;
+  background: var(--app); border-top: 1px solid var(--line);
+  padding: var(--s4) 0 var(--s5);
+}
+.composer-row { display: flex; gap: var(--s3); align-items: flex-end; }
+.composer-row textarea { min-height: 0; margin-top: 0; }
+.composer-row button.primary { flex: none; }
+.composer-foot { display: flex; gap: var(--s4); align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.composer-foot .hint { margin-top: var(--s2); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--s2); margin-bottom: var(--s3); }
+.chips button.ghost { font-size: 13px; padding: 6px var(--s3); }
+
+.pagehead .actions .field { min-width: 268px; }
+
+/* Labelled for a screen reader, silent for everybody else: the composer's purpose is
+   obvious from its position, and a visible "Your question" label above a chat box is
+   the sort of form furniture a thread is meant to lose. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+@media (max-width: 640px) {
+  .turn.asked { max-width: 100%; }
+  .composer-row { flex-direction: column; align-items: stretch; }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   a.card, button.card, button.ghost, button.primary, .nav a { transition: border-color .15s, background .15s, color .15s, box-shadow .15s, transform .15s; }
 }

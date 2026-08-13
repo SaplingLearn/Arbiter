@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactElement } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
 import { PageHead, Section } from "./Layout.js";
 import { href } from "./router.js";
 import { api, ApiError, uploadDocument, type AskAnswer, type CaseListing, type CaseSummary, type Person } from "./api.js";
@@ -576,6 +576,15 @@ export function MethodPage(): ReactElement {
  * evidence: passages are retrieved fresh for every turn and every claim must still
  * cite one. An answer may not rest on an earlier answer, because an earlier answer is
  * not a document.
+ *
+ * WHY IT READS AS A THREAD AND NOT AS BUBBLES. The whole transcript is sent and the
+ * server says how much of it it read, so the conversation is real and the page shows
+ * where the model's memory starts - a thread that silently forgot its own opening
+ * would be worse than one that never remembered. What it does not borrow from a chat
+ * client is the styling: BLUEPRINT has no pills, no tinted clouds and no avatars, so a
+ * turn is a block of type with a rule down its side, and the citations under an answer
+ * stay the full-width evidence rows they are everywhere else in this app. They are the
+ * reason the surface exists; they do not get shrunk to fit a chat aesthetic.
  */
 const SUGGESTED = [
   "What exposure margin does the report give, and on what basis?",
@@ -586,6 +595,12 @@ const SUGGESTED = [
   "What does the report say was not investigated?",
 ];
 
+/** An exchange. A null answer is one in flight, which the thread shows as pending. */
+interface AskTurn {
+  question: string;
+  answer: AskAnswer | null;
+}
+
 export function AskPage({ token, cases }: {
   token: string;
   cases: CaseListing[];
@@ -594,7 +609,15 @@ export function AskPage({ token, cases }: {
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [turns, setTurns] = useState<{ question: string; answer: AskAnswer }[]>([]);
+  const [turns, setTurns] = useState<AskTurn[]>([]);
+  const foot = useRef<HTMLDivElement>(null);
+
+  // Follows the conversation down as it grows. Depends on the turn COUNT rather than
+  // on `turns`, so an answer landing in a turn already on screen does not yank the
+  // page while somebody is reading the citations above it.
+  useEffect(() => {
+    if (turns.length > 0) foot.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [turns.length]);
 
   // Turns belong to the case they were asked of. Carrying them across a case change
   // would put one compound's answers under another's name on screen, and would feed
@@ -605,18 +628,32 @@ export function AskPage({ token, cases }: {
     const text = q.trim();
     if (text === "" || busy || caseId === "") return;
     setBusy(true); setError(null);
+    // The whole thread, oldest first. The server windows it and reports what it read;
+    // trimming here as well would mean two truncations that can disagree.
+    const history = turns.flatMap((t) =>
+      t.answer === null ? [] : [{ question: t.question, answer: t.answer.answer }]);
+    setTurns((t) => [...t, { question: text, answer: null }]);
+    setQuestion("");
     try {
-      const history = turns.slice(0, 4).reverse()
-        .map((t) => ({ question: t.question, answer: t.answer.answer }));
       const answer = await api.ask(token, caseId, text, history);
-      setTurns((t) => [{ question: text, answer }, ...t]);
-      setQuestion("");
+      setTurns((t) => t.map((turn, i) => (i === t.length - 1 ? { ...turn, answer } : turn)));
     } catch (e) {
+      // The pending turn goes with the failure. Leaving a question on screen with no
+      // answer and an error underneath reads as an answer that has not arrived yet.
+      setTurns((t) => t.slice(0, -1));
+      setQuestion(text);
       setError(e instanceof ApiError ? e.message : "That question could not be answered just now.");
     } finally {
       setBusy(false);
     }
   };
+
+  // Where the model's memory begins. The newest answered turn states how many turns
+  // preceded it in the window; everything before that point was on screen but not in
+  // front of the model. Computed from the server's count alone.
+  const answered = turns.map((t, i) => ({ t, i })).filter((x) => x.t.answer !== null);
+  const newest = answered.at(-1);
+  const remembersFrom = newest === undefined ? 0 : newest.i - newest.t.answer!.historyTurnsUsed;
 
   if (cases.length === 0) {
     return (
@@ -635,48 +672,17 @@ export function AskPage({ token, cases }: {
   return (
     <>
       <PageHead crumb={<span>Ask</span>} title="Ask the documents"
-        lede="Every answer comes from the uploaded PDFs and names the page it rests on." />
-
-      <div className="panel">
-        <div className="field">
-          <label htmlFor="ask-case">Which case</label>
-          <select id="ask-case" value={caseId} onChange={(e) => pick(e.target.value)} disabled={busy}>
-            {cases.map((c) => (
-              <option key={c.caseId} value={c.caseId}>{c.compoundLabel}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="field">
-          <label htmlFor="ask-suggested">Common questions</label>
-          <select id="ask-suggested" value="" disabled={busy}
-            onChange={(e) => { if (e.target.value !== "") void send(e.target.value); }}>
-            <option value="">Pick a question, or write your own below</option>
-            {SUGGESTED.map((q) => <option key={q} value={q}>{q}</option>)}
-          </select>
-        </div>
-
-        <div className="field">
-          <label htmlFor="ask-q">Your question</label>
-          <textarea id="ask-q" rows={3} value={question} disabled={busy}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void send(question); }}
-            placeholder="What exposure margin does the report give, and on what basis?" />
-          <span className="hint">
-            The search is over the words on the page, so naming the study, finding or
-            number you want helps. Ctrl+Enter sends.
-          </span>
-        </div>
-        <div className="btn-row">
-          <button className="primary" disabled={busy || question.trim() === ""} onClick={() => void send(question)}>
-            {busy ? "Reading the documents..." : "Ask"}
-          </button>
-          {turns.length > 0 && (
-            <button className="ghost" disabled={busy} onClick={() => setTurns([])}>Clear</button>
-          )}
-        </div>
-        {error !== null && <div className="err">{error}</div>}
-      </div>
+        lede="Every answer comes from the uploaded PDFs and names the page it rests on."
+        actions={
+          <div className="field">
+            <label htmlFor="ask-case">Which case</label>
+            <select id="ask-case" value={caseId} onChange={(e) => pick(e.target.value)} disabled={busy}>
+              {cases.map((c) => (
+                <option key={c.caseId} value={c.caseId}>{c.compoundLabel}</option>
+              ))}
+            </select>
+          </div>
+        } />
 
       <div className="note">
         This reports what the documents say. It does not judge the compound and will not
@@ -684,27 +690,86 @@ export function AskPage({ token, cases }: {
         to weigh. Nothing asked here is written to the case record.
       </div>
 
-      {turns.map((t, i) => (
-        <div className="panel" key={`${turns.length - i}-${t.question}`}>
-          <p className="small muted">{t.question}</p>
-          {t.answer.answerable
-            ? <>
-                <p>{t.answer.answer}</p>
-                <div className="inv">
-                  {t.answer.citations.map((c) => (
-                    <div className="inv-row" key={`${c.documentId}-${c.page}`}>
-                      <div className="state present">p.{c.page}</div>
-                      <div className="tiny mono">{c.filename}</div>
-                    </div>
-                  ))}
+      <div className="thread">
+        {turns.map((t, i) => (
+          <div key={`${i}-${t.question}`}>
+            {/* Drawn ABOVE the first remembered turn, so what is above the line is
+                visibly out of the model's reach rather than quietly ignored. */}
+            {i === remembersFrom && remembersFrom > 0 && (
+              <div className="memory-line"><span>remembers from here</span></div>
+            )}
+            <div className="turn asked">
+              <p>{t.question}</p>
+            </div>
+            {t.answer === null
+              ? <div className="turn said pending"><p className="muted">Reading the documents...</p></div>
+              : (
+                <div className="turn said">
+                  {t.answer.answerable
+                    ? <>
+                        <p>{t.answer.answer}</p>
+                        <div className="inv">
+                          {t.answer.citations.map((c) => (
+                            <div className="inv-row" key={`${c.documentId}-${c.page}`}>
+                              <div className="state present">p.{c.page}</div>
+                              <div className="tiny mono">{c.filename}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    : <>
+                        <p><strong>The documents do not answer this.</strong></p>
+                        <p className="muted">{t.answer.answer}</p>
+                      </>}
                 </div>
-              </>
-            : <>
-                <p><strong>The documents do not answer this.</strong></p>
-                <p className="muted">{t.answer.answer}</p>
-              </>}
+              )}
+          </div>
+        ))}
+        <div ref={foot} />
+      </div>
+
+      <div className="composer">
+        {error !== null && <div className="err">{error}</div>}
+        {/* A cold start aid. Once a thread exists the reader has better questions than
+            these, and six of them under every follow-up is furniture. */}
+        {turns.length === 0 && (
+          <div className="chips">
+            {SUGGESTED.map((q) => (
+              <button key={q} className="ghost" disabled={busy} onClick={() => void send(q)}>{q}</button>
+            ))}
+          </div>
+        )}
+        <div className="composer-row">
+          <label className="sr-only" htmlFor="ask-q">Your question</label>
+          <textarea id="ask-q" rows={2} value={question} disabled={busy}
+            onChange={(e) => setQuestion(e.target.value)}
+            // Enter sends, Shift+Enter is a newline. Ctrl+Enter keeps working because
+            // it was the documented key here before this page became a thread.
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              if (e.shiftKey) return;
+              e.preventDefault();
+              void send(question);
+            }}
+            placeholder={turns.length === 0
+              ? "What exposure margin does the report give, and on what basis?"
+              : "Ask a follow-up..."} />
+          <button className="primary" disabled={busy || question.trim() === ""} onClick={() => void send(question)}>
+            {busy ? "Reading..." : "Ask"}
+          </button>
         </div>
-      ))}
+        <div className="composer-foot">
+          <span className="hint">
+            The search is over the words on the page, so naming the study, finding or
+            number you want helps. Enter sends, Shift+Enter for a new line.
+          </span>
+          {turns.length > 0 && (
+            <button className="link" disabled={busy} onClick={() => { setTurns([]); setError(null); }}>
+              Clear thread
+            </button>
+          )}
+        </div>
+      </div>
     </>
   );
 }

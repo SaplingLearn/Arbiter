@@ -119,6 +119,12 @@ export interface AskAnswer {
   citedPassages: string[];
   /** Resolved server-side, so the client never reconstructs provenance itself. */
   citations: { documentId: string; filename: string; page: number }[];
+  /**
+   * How many earlier turns were actually in front of the model, stated by the side
+   * that did the truncating. The thread draws its memory boundary from this and never
+   * from a copy of the windowing rule.
+   */
+  historyTurnsUsed: number;
 }
 
 export interface Adjudication {
