@@ -6,7 +6,25 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 PREP = ROOT / "data" / "prep"
-PY = PREP / ".venv" / "Scripts" / "python.exe"
+
+
+def _interpreter() -> str:
+    """The interpreter to re-run make_splits.py with.
+
+    This used to be hardcoded to the venv's Windows layout, which meant the
+    reproducibility test - the one guarding the foundation of every reported
+    number - died with FileNotFoundError on Linux and CI before it asserted
+    anything. A test that cannot run is not a guard. Prefer the project venv in
+    either layout, and fall back to the interpreter already running the suite.
+    """
+    for candidate in (PREP / ".venv" / "Scripts" / "python.exe",
+                      PREP / ".venv" / "bin" / "python"):
+        if candidate.exists():
+            return str(candidate)
+    return sys.executable
+
+
+PY = _interpreter()
 SPLITS = ROOT / "data" / "out" / "splits.json"
 COMPOUNDS = ROOT / "data" / "out" / "compounds.json"
 
@@ -40,7 +58,7 @@ def test_splits_cover_every_compound_exactly_once():
 def test_split_is_reproducible_from_the_committed_seed():
     """Re-running the script must reproduce the committed split byte for byte."""
     before = SPLITS.read_text()
-    r = subprocess.run([str(PY), str(PREP / "make_splits.py")], cwd=ROOT,
+    r = subprocess.run([PY, str(PREP / "make_splits.py")], cwd=ROOT,
                        capture_output=True, text=True)
     assert r.returncode == 0, f"make_splits.py failed:\n{r.stdout}\n{r.stderr}"
     assert SPLITS.read_text() == before, "split is not reproducible from its seed"
