@@ -120,7 +120,31 @@ export interface AppState {
    * exists to catch from a different source.
    */
   customCompounds: Record<string, EvidenceClaim[]>;
+  /**
+   * The reader's own call, recorded BEFORE the engine's verdict is shown, keyed by
+   * compound id.
+   *
+   * Buccinca, Malaya & Gajos 2021 (CSCW, Article 188) measured that explanations
+   * alone INCREASE uncritical acceptance, because a plausible rationale invites
+   * agreement rather than scrutiny, and that a forcing function compelling an
+   * analytical commitment reduces it, at a cost in effort. apps/deliberation
+   * already embodies the strongest form of this in blind submission; this is the
+   * single-reader equivalent.
+   *
+   * Per compound, because the point is a fresh judgement on each case rather than a
+   * mode the reader switches off once.
+   *
+   * NOT PERSISTED, and that is deliberate rather than unfinished. This is a reading
+   * discipline. The record of a real position is signed, hash chained and carries an
+   * accountable name, and it lives in the deliberation client. Storing this would
+   * create a second, unsigned thing that looks like a position.
+   */
+  provisionalCall: Record<string, ProvisionalCall>;
 }
+
+/** The three calls a reader may commit to, matching the deliberation client's
+ *  vocabulary so the two surfaces never describe the same judgement differently. */
+export type ProvisionalCall = "advance" | "do_not_advance" | "cannot_conclude";
 
 export type Action =
   | { type: "selectCompound"; compoundId: string }
@@ -135,7 +159,8 @@ export type Action =
   | { type: "addPosition"; position: ReviewerPosition }
   | { type: "toggleMotion" }
   | { type: "setPendingAnchor"; anchorId: string | null }
-  | { type: "addCustomCompound"; compoundId: string; claims: EvidenceClaim[] };
+  | { type: "addCustomCompound"; compoundId: string; claims: EvidenceClaim[] }
+  | { type: "setProvisionalCall"; compoundId: string; call: ProvisionalCall };
 
 export function initialState(
   data: LoadedData,
@@ -152,6 +177,7 @@ export function initialState(
     motion: true,
     pendingAnchor: null,
     customCompounds: {},
+    provisionalCall: {},
   };
 }
 
@@ -283,6 +309,11 @@ function mapRule(rs: Ruleset, id: RuleId, fn: (r: Rule) => Rule): Ruleset {
 export function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
     case "selectCompound": return { ...s, selectedCompoundId: a.compoundId };
+    // No un-set action, on purpose. A reader who could withdraw their call after
+    // seeing the verdict would be able to un-commit, and the commitment is the
+    // whole mechanism.
+    case "setProvisionalCall":
+      return { ...s, provisionalCall: { ...s.provisionalCall, [a.compoundId]: a.call } };
     case "setAsOf": return { ...s, asOf: a.asOf };
     case "setRuleStrength":
       // Reject rather than store an invalid ruleset. The engine clamps

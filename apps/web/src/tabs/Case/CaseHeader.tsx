@@ -1,4 +1,12 @@
-import { useAppState, useDispatch, visibleClaims, workingClaims } from "../../state/store.js";
+import { useAppState, useDispatch, visibleClaims, workingClaims, type ProvisionalCall } from "../../state/store.js";
+
+/** Written out rather than printing the raw union, so the screen never shows a
+ *  reader `do_not_advance` where the rest of the interface says "Do not advance". */
+const PROVISIONAL_LABEL: Record<ProvisionalCall, string> = {
+  advance: "Advance",
+  do_not_advance: "Do not advance",
+  cannot_conclude: "Cannot conclude",
+};
 import { useCaseReasoning } from "../../engine/useCaseReasoning.js";
 import { VerdictLabel } from "../../ui/primitives/VerdictLabel.js";
 
@@ -43,6 +51,18 @@ export function CaseHeader() {
             testid `verdict` is frozen by Playwright and VerdictLabel is shared. */}
         <span data-anchor="case.verdict"><VerdictLabel verdict={r.verdict} /></span>
       </div>
+
+      {/* The reader's own call beside the engine's, and this is the entire payoff
+          of having asked for it. Without the comparison the gate is only a speed
+          bump; with it, agreeing and disagreeing are both informative to the person
+          who just committed. Absent on a case that was never gated. */}
+      {state.provisionalCall[state.selectedCompoundId] !== undefined && (
+        <p className="small muted your-call" data-testid="your-call">
+          You said{" "}
+          <strong>{PROVISIONAL_LABEL[state.provisionalCall[state.selectedCompoundId]!]}</strong>{" "}
+          before seeing this.
+        </p>
+      )}
 
       {/* Belief, plausibility and the gap are read against each other, so they
           are one set of pairs in tabular figures rather than a sentence. */}
