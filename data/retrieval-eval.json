@@ -1,0 +1,216 @@
+{
+  "version": "1.0",
+  "note": "Retrieval fixture for the ask surface. Every gold page carries the VERBATIM sentence that makes it gold, and the scorer refuses to run if a quote is no longer on its page - a fixture nobody can audit is an assertion, and one that rots silently is worse. Quotes were located by regular expression over the extracted text of the library documents and read before being written down. `group` marks questions a reviewer would call the same question: retrieval that changes its answer when the words change is the failure this set exists to measure. `kind: unanswerable` items have no gold pages by construction - the document genuinely does not contain the answer, and they are scored on refusal rather than on recall.",
+  "items": [
+    {
+      "id": "nipo-noael-a",
+      "document": "nipocalimab",
+      "group": "nipocalimab:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "goldPages": [
+        { "page": 36, "quote": "NOAEL) was set at 306 mg/kg based on the absence of findings" },
+        { "page": 37, "quote": "NOAEL in the 26-week study was set by the applicant at the highest dose used in that study of 300 mg/kg/week" }
+      ]
+    },
+    {
+      "id": "nipo-noael-b",
+      "document": "nipocalimab",
+      "group": "nipocalimab:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "goldPages": [
+        { "page": 36, "quote": "NOAEL) was set at 306 mg/kg based on the absence of findings" },
+        { "page": 37, "quote": "NOAEL in the 26-week study was set by the applicant at the highest dose used in that study of 300 mg/kg/week" }
+      ]
+    },
+    {
+      "id": "nipo-noael-c",
+      "document": "nipocalimab",
+      "group": "nipocalimab:noael",
+      "kind": "answerable",
+      "question": "what was the highest dose that produced no adverse effects",
+      "goldPages": [
+        { "page": 36, "quote": "NOAEL) was set at 306 mg/kg based on the absence of findings" },
+        { "page": 37, "quote": "NOAEL in the 26-week study was set by the applicant at the highest dose used in that study of 300 mg/kg/week" }
+      ]
+    },
+    {
+      "id": "nipo-reversible-a",
+      "document": "nipocalimab",
+      "group": "nipocalimab:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "goldPages": [
+        { "page": 36, "quote": "reversibility was evaluated for 9 and 8 weeks, respectively" },
+        { "page": 37, "quote": "recovery period, thus showing reversibility" }
+      ]
+    },
+    {
+      "id": "nipo-reversible-b",
+      "document": "nipocalimab",
+      "group": "nipocalimab:reversibility",
+      "kind": "answerable",
+      "question": "was there a recovery phase in the repeat-dose studies",
+      "goldPages": [
+        { "page": 36, "quote": "reversibility was evaluated for 9 and 8 weeks, respectively" },
+        { "page": 37, "quote": "recovery period, thus showing reversibility" }
+      ]
+    },
+    {
+      "id": "nipo-reversible-c",
+      "document": "nipocalimab",
+      "group": "nipocalimab:reversibility",
+      "kind": "answerable",
+      "question": "did the changes resolve after dosing stopped",
+      "goldPages": [
+        { "page": 36, "quote": "reversibility was evaluated for 9 and 8 weeks, respectively" },
+        { "page": 37, "quote": "recovery period, thus showing reversibility" }
+      ]
+    },
+    {
+      "id": "nipo-margin-a",
+      "document": "nipocalimab",
+      "group": "nipocalimab:margins",
+      "kind": "answerable",
+      "question": "What safety margins were reported?",
+      "goldPages": [
+        { "page": 37, "quote": "safety margins, an AUC comparison of a two-week interval period was used" },
+        { "page": 42, "quote": "Safety margins were considered adequate as exposure values in cynomolgus monkeys" }
+      ]
+    },
+    {
+      "id": "nipo-margin-b",
+      "document": "nipocalimab",
+      "group": "nipocalimab:margins",
+      "kind": "answerable",
+      "question": "how does the monkey exposure compare with the clinical dose",
+      "goldPages": [
+        { "page": 37, "quote": "safety margins, an AUC comparison of a two-week interval period was used" },
+        { "page": 42, "quote": "Safety margins were considered adequate as exposure values in cynomolgus monkeys" }
+      ]
+    },
+    {
+      "id": "tur-liver-a",
+      "document": "turalio",
+      "group": "turalio:liver-findings",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "goldPages": [
+        { "page": 40, "quote": "hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase" },
+        { "page": 50, "quote": "ALT and AST at doses ≥20 mg/kg" }
+      ]
+    },
+    {
+      "id": "tur-liver-b",
+      "document": "turalio",
+      "group": "turalio:liver-findings",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "goldPages": [
+        { "page": 40, "quote": "hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase" },
+        { "page": 50, "quote": "ALT and AST at doses ≥20 mg/kg" }
+      ]
+    },
+    {
+      "id": "tur-liver-c",
+      "document": "turalio",
+      "group": "turalio:liver-findings",
+      "kind": "answerable",
+      "question": "hepatotoxicity in the animal studies",
+      "goldPages": [
+        { "page": 40, "quote": "hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase" },
+        { "page": 50, "quote": "ALT and AST at doses ≥20 mg/kg" }
+      ]
+    },
+    {
+      "id": "tur-liver-d",
+      "document": "turalio",
+      "group": "turalio:liver-findings",
+      "kind": "answerable",
+      "question": "were transaminases elevated in the toxicology studies",
+      "goldPages": [
+        { "page": 40, "quote": "hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase" },
+        { "page": 50, "quote": "ALT and AST at doses ≥20 mg/kg" }
+      ]
+    },
+    {
+      "id": "tur-noael-a",
+      "document": "turalio",
+      "group": "turalio:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set?",
+      "goldPages": [{ "page": 67, "quote": "NOAEL of 10 mg/kg/day was approximately 0" }]
+    },
+    {
+      "id": "tur-noael-b",
+      "document": "turalio",
+      "group": "turalio:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "goldPages": [{ "page": 67, "quote": "NOAEL of 10 mg/kg/day was approximately 0" }]
+    },
+    {
+      "id": "tur-reversible-a",
+      "document": "turalio",
+      "group": "turalio:clinical-reversibility",
+      "kind": "answerable",
+      "question": "Was the liver injury in patients reversible?",
+      "goldPages": [
+        { "page": 21, "quote": "reversible liver injury among the 768 patients in the overall development program of pexidartinib" },
+        { "page": 23, "quote": "reversible liver injury, and biopsies in a few patients indicating ductopenia" }
+      ]
+    },
+    {
+      "id": "tur-reversible-b",
+      "document": "turalio",
+      "group": "turalio:clinical-reversibility",
+      "kind": "answerable",
+      "question": "did the patients recover from the hepatotoxicity",
+      "goldPages": [
+        { "page": 21, "quote": "reversible liver injury among the 768 patients in the overall development program of pexidartinib" },
+        { "page": 23, "quote": "reversible liver injury, and biopsies in a few patients indicating ductopenia" }
+      ]
+    },
+    {
+      "id": "slynd-nonclinical-a",
+      "document": "slynd",
+      "group": "slynd:nonclinical",
+      "kind": "answerable",
+      "question": "What nonclinical studies were submitted with this application?",
+      "goldPages": [
+        { "page": 124, "quote": "no further nonclinical studies were necessary to support an NDA filing" },
+        { "page": 130, "quote": "nonclinical safety for" }
+      ]
+    },
+    {
+      "id": "slynd-nonclinical-b",
+      "document": "slynd",
+      "group": "slynd:nonclinical",
+      "kind": "answerable",
+      "question": "were any new animal studies conducted",
+      "goldPages": [
+        { "page": 124, "quote": "no further nonclinical studies were necessary to support an NDA filing" },
+        { "page": 130, "quote": "nonclinical safety for" }
+      ]
+    },
+    {
+      "id": "slynd-noael-unanswerable",
+      "document": "slynd",
+      "group": "slynd:unanswerable",
+      "kind": "unanswerable",
+      "question": "What NOAEL was set in the repeat-dose toxicity study?",
+      "goldPages": [],
+      "why": "A 505(b)(2) with no new nonclinical studies. The word NOAEL appears on no page of this review, so any dose quoted in an answer is invented."
+    },
+    {
+      "id": "tur-price-unanswerable",
+      "document": "turalio",
+      "group": "turalio:unanswerable",
+      "kind": "unanswerable",
+      "question": "What is the annual cost of treatment?",
+      "goldPages": [],
+      "why": "A multi-disciplinary review carries no pricing. Plausible to ask of a drug, absent from this document."
+    }
+  ]
+}

@@ -60,34 +60,16 @@ export interface RetrievalIndex {
 }
 
 /**
- * Words carried by nearly every page of a regulatory document, which therefore
- * separate nothing. Kept deliberately SHORT: an aggressive list silently removes
- * terms that are discriminating in this domain, and BM25's idf already suppresses
- * common words on its own. This is a floor for the obvious, not a substitute for it.
- */
-const STOP = new Set([
-  "the", "a", "an", "and", "or", "of", "to", "in", "for", "on", "at", "by", "with",
-  "is", "was", "were", "are", "be", "been", "that", "this", "these", "those", "it",
-  "as", "from", "has", "have", "had", "not", "no", "any", "all", "which", "than",
-  "there", "their", "they", "we", "its", "if", "but", "can", "may", "will", "would",
-  "what", "does", "do", "did", "how", "when", "where", "who", "why",
-]);
-
-/**
- * Lowercase, split on anything that is not a letter or digit, drop stopwords and
- * one-character tokens.
+ * Tokenisation lives in `terms.ts`, applied identically to the query and to the page.
  *
- * NUMBERS ARE KEPT, and that is not incidental. "NOAEL 100 mg/kg", "44x", "6.7x" and
- * a page's exposure margins are exactly what somebody asks about, and a tokeniser
- * that discarded digits would make the most citable facts in the document the least
- * findable.
+ * It was a lowercase split and a stopword list here, and that was measurably too
+ * little: on `data/retrieval-eval.json` the plain form found a page holding the
+ * answer for 55.6% of questions, and two phrasings of one question shared 12.9% of
+ * their results. Stemming, phrase expansion and a small concept map are the fix, and
+ * they must be applied to BOTH sides or the mismatch only moves.
  */
-export function tokenise(s: string): string[] {
-  return s
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((t) => t.length > 1 && !STOP.has(t));
-}
+export { normalise as tokenise } from "./terms.js";
+import { normalise as tokenise } from "./terms.js";
 
 export function buildIndex(docs: DocumentPages[]): RetrievalIndex {
   const chunks: Chunk[] = [];
