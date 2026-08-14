@@ -1,7 +1,9 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { buildIndex, search } from "./retrieval.js";
+import { LibraryStore } from "./library.js";
+import { isCaseName } from "./cases.js";
 
 /**
  * Measuring the retriever, because "the ask surface works" is not a claim until
@@ -174,11 +176,19 @@ export function loadFixture(path = FIXTURE_PATH): EvalItem[] {
   return (JSON.parse(readFileSync(path, "utf8")) as { items: EvalItem[] }).items;
 }
 
-/** Pages come from the library extraction cache, which is what the server searches. */
-export function pagesFromCache(document: string): { page: number; text: string }[] {
-  const path = `results/library/${document}.pages.json`;
-  if (!existsSync(path)) return [];
-  return JSON.parse(readFileSync(path, "utf8")) as { page: number; text: string }[];
+/**
+ * Pages come from the LibraryStore, not from its cache file.
+ *
+ * The store is what the server searches, and it is where boilerplate is stripped. A
+ * scorer that read the cache directly would measure whatever happened to be on disk
+ * and would silently score the wrong text the day that pipeline changed - and it did
+ * change, which is how this comment came to exist. Extraction is cached, so the first
+ * run pays for PyMuPDF once and the rest are free.
+ */
+const library = new LibraryStore();
+
+export function pagesFor(document: string): { page: number; text: string }[] {
+  return isCaseName(document) ? library.textFor(document) : [];
 }
 
 export function runFixture(items: EvalItem[], k = 8): EvalReport {
@@ -188,7 +198,7 @@ export function runFixture(items: EvalItem[], k = 8): EvalReport {
   const indexFor = (document: string): ReturnType<typeof buildIndex> => {
     const existing = indexes.get(document);
     if (existing !== undefined) return existing;
-    const built = buildIndex([{ documentId: document, filename: document, pages: pagesFromCache(document) }]);
+    const built = buildIndex([{ documentId: document, filename: document, pages: pagesFor(document) }]);
     indexes.set(document, built);
     return built;
   };
@@ -212,7 +222,7 @@ const invokedDirectly = process.argv[1] !== undefined
 
 if (invokedDirectly) {
   const items = loadFixture();
-  const failures = verifyFixture(items, pagesFromCache);
+  const failures = verifyFixture(items, pagesFor);
   if (failures.length > 0) {
     console.error("The fixture does not match the documents:");
     for (const f of failures) console.error(`  ${f}`);

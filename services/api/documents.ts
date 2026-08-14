@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { stripBoilerplate } from "./pages.js";
 
 /**
  * Document upload. Spec §3.3 - the storage row.
@@ -195,7 +196,9 @@ export class DocumentStore {
         maxBuffer: 64 * 1024 * 1024,
       });
       const parsed = JSON.parse(out) as { ok: boolean; pages?: { page: number; text: string }[] };
-      const pages = parsed.ok && parsed.pages !== undefined ? parsed.pages : [];
+      // Running headers stripped before caching, exactly as the library does. Short
+      // uploads are left untouched - see pages.ts for why the threshold exists.
+      const pages = stripBoilerplate(parsed.ok && parsed.pages !== undefined ? parsed.pages : []);
       writeFileSync(cache, JSON.stringify(pages), "utf8");
       return pages;
     } catch {

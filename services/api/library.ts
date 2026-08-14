@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { refusalFor, type CaseName } from "./cases.js";
+import { stripBoilerplate } from "./pages.js";
 
 /**
  * The library's own documents, as things that can be ASKED rather than opened.
@@ -170,7 +171,10 @@ export class LibraryStore {
       });
       const parsed = JSON.parse(out) as { ok: boolean; pages?: { page: number; text: string }[]; reason?: string };
       if (!parsed.ok) console.error(`library: ${name} could not be extracted - ${parsed.reason ?? "no reason given"}`);
-      const pages = parsed.ok && parsed.pages !== undefined ? parsed.pages : [];
+      // Furniture removed once, here, so every reader downstream is spared it: the
+      // retriever, the passages a question is answered from, and the whole document a
+      // summary walks. See pages.ts for what it costs to leave in.
+      const pages = stripBoilerplate(parsed.ok && parsed.pages !== undefined ? parsed.pages : []);
       writeFileSync(cache, JSON.stringify(pages), "utf8");
       return pages;
     } catch (e) {

@@ -22,6 +22,7 @@
     "probe:case": "python tools/build_probe_case.py",
     "probe": "tsx services/api/probe.ts",
     "probe:report": "tsx apps/harness/src/consistency-report.ts",
+    "retrieval:eval": "tsx services/api/retrieval-eval.ts",
     "deliberate:demo": "tsx services/api/deliberation-demo.ts",
     "api": "tsx services/api/server.ts",
     "seed:demo": "tsx services/api/seed-demo.ts",

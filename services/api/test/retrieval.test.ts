@@ -39,8 +39,21 @@ describe("buildIndex", () => {
     // A scanned page yields nothing. Indexing it would put a citable page number on a
     // page a reader cannot read - the "never measured vs measured empty" confusion.
     const idx = buildIndex(DOCS);
-    expect(idx.chunks.map((c) => `${c.documentId}:${c.page}`)).not.toContain("doc_a:4");
-    expect(idx.chunks).toHaveLength(4);
+    const pages = new Set(idx.chunks.map((c) => `${c.documentId}:${c.page}`));
+    expect([...pages]).not.toContain("doc_a:4");
+    expect(pages.size).toBe(4);
+  });
+
+  it("indexes one chunk per page, which is also the citation unit", () => {
+    // Sub-page windows were built and measured on 2026-08-13; every size that changed
+    // anything made recall worse. The header records the sweep. This asserts the unit
+    // stayed the page, so a future change to it is a deliberate one.
+    const idx = buildIndex([{
+      documentId: "d", filename: "f.pdf",
+      pages: [{ page: 1, text: "necrosis ".repeat(400) }, { page: 2, text: "short page" }],
+    }]);
+    expect(idx.chunks.filter((c) => c.page === 1)).toHaveLength(1);
+    expect(idx.chunks.filter((c) => c.page === 2)).toHaveLength(1);
   });
 });
 
@@ -89,5 +102,28 @@ describe("search", () => {
 
   it("survives an empty corpus without throwing", () => {
     expect(search(buildIndex([]), "anything", 5)).toEqual([]);
+  });
+
+  it("returns each page once, with the whole page for the model to read", () => {
+    const idx = buildIndex([{
+      documentId: "d", filename: "f.pdf",
+      pages: [{ page: 1, text: `necrosis ${"hepatic ".repeat(300)} necrosis` }],
+    }]);
+    const hits = search(idx, "necrosis hepatic", 5);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]!.text).toContain("necrosis hepatic");
+  });
+
+  it("matches a question to a page that never uses the question's words", () => {
+    // What terms.ts bought, at the level of one search: the page says hepatic and
+    // ALT, the reader says liver, and BM25 alone shared no term with it at all.
+    const idx = buildIndex([{
+      documentId: "d", filename: "f.pdf",
+      pages: [
+        { page: 1, text: "Manufacturing controls and container closure integrity." },
+        { page: 2, text: "Hepatic changes with raised alanine aminotransferase at 20 mg/kg." },
+      ],
+    }]);
+    expect(search(idx, "does this drug damage the liver?", 2)[0]!.page).toBe(2);
   });
 });
