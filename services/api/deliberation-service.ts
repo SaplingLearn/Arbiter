@@ -1,9 +1,10 @@
 import {
-  addParticipant, attachAdjudication, closeEarly, describeCase, externalClaimsAsGaps,
+  addParticipant, agreement, attachAdjudication, closeEarly, describeCase,
+  disagreementReport, externalClaimsAsGaps,
   lock, openCase, removeParticipant, sign,
   submitPosition, unanimityCheck, visibleTo,
-  type BlindView, type DeliberationCase, type Position, type Result, type Signature,
-  type UnanimityReport,
+  type BlindView, type DeliberationCase, type DisagreementView, type Position,
+  type Result, type Signature, type UnanimityReport,
 } from "./deliberation.js";
 import { absentForAdjudication, buildInventory, presentForAdjudication, type CoveringFinding, type EvidenceChecklist, type Inventory, type Modality } from "./inventory.js";
 import { commitmentFor, verifyChain, verifySeals, type DeliberationStore, type LogEntry, type LogKind } from "./store.js";
@@ -361,6 +362,22 @@ export class DeliberationService {
     // from being nothing at all.
     if (c.status === "open") return null;
     return unanimityCheck(c, inv);
+  }
+
+  /**
+   * Where the room split, and what share held the most common call.
+   *
+   * Both halves in one call because they are one panel: a split with no sense of
+   * its size reads as a bigger disagreement than it is, and a share with no split
+   * reads as a vote.
+   */
+  disagreement(caseId: string): DisagreementView | null {
+    const c = this.store.getCase(caseId);
+    if (c === null) return null;
+    // Same gate as `unanimity`, for the same reason and more so: `split` names who
+    // called what, which is precisely what blindness withholds.
+    if (c.status === "open") return null;
+    return { report: disagreementReport(c), agreement: agreement(c) };
   }
 
   /**

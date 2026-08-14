@@ -178,5 +178,44 @@ describe("DeliberationService - the whole path with no model in it", () => {
     expect(svc.inventory("nope")).toBeNull();
     expect(svc.adjudicationRequest("nope", RULES)).toBeNull();
     expect(svc.unanimity("nope")).toBeNull();
+    expect(svc.disagreement("nope")).toBeNull();
+  });
+});
+
+describe("disagreement", () => {
+  it("is withheld while the case is open", () => {
+    const svc = service();
+    opened(svc, ["ann", "bea"]);
+    svc.submit("c1", pos("ann", { call: "advance" }));
+    svc.submit("c1", pos("bea", { call: "do_not_advance" }));
+    expect(svc.disagreement("c1")).toBeNull();
+  });
+
+  it("reports the split and the agreement share once revealed", () => {
+    const svc = service();
+    opened(svc, ["ann", "bea"]);
+    svc.submit("c1", pos("ann", { call: "advance", citedFindingIds: ["f-rodent"] }));
+    svc.submit("c1", pos("bea", { call: "do_not_advance", citedFindingIds: ["f-rodent"] }));
+    svc.reveal("c1", "owner", "t", "all_in");
+
+    const d = svc.disagreement("c1")!;
+    expect(d.report!.split).toEqual([
+      { call: "advance", participantIds: ["ann"] },
+      { call: "do_not_advance", participantIds: ["bea"] },
+    ]);
+    expect(d.report!.contested).toEqual(["f-rodent"]);
+    expect(d.agreement).toEqual({ percent: 0.5, n: 2, modalCall: "advance" });
+  });
+
+  it("returns a null report but a real agreement stat when the room is unanimous", () => {
+    const svc = service();
+    opened(svc, ["ann", "bea"]);
+    svc.submit("c1", pos("ann"));
+    svc.submit("c1", pos("bea"));
+    svc.reveal("c1", "owner", "t", "all_in");
+
+    const d = svc.disagreement("c1")!;
+    expect(d.report).toBeNull();
+    expect(d.agreement.percent).toBe(1);
   });
 });

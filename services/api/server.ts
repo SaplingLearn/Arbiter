@@ -316,6 +316,13 @@ export function makeHandler(deps: ServerDeps) {
             const u = deps.service.unanimity(caseId);
             return u === null ? json(res, 404, { error: "no_case" }) : json(res, 200, u);
           }
+          case "disagreement": {
+            // 404 while the case is open, from the service's own gate rather than
+            // from a check repeated here. `split` names who called what, so this is
+            // the same door as `unanimity` and it is shut in the same place.
+            const d = deps.service.disagreement(caseId);
+            return d === null ? json(res, 404, { error: "no_case" }) : json(res, 200, d);
+          }
           case "audit":
             return json(res, 200, deps.service.audit(caseId));
           case "documents":

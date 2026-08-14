@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
+import { api, ApiError, type Adjudication, type BlindView, type DisagreementView, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
 
 /**
  * The screens of the deliberation, in the order §3.5 fixes them:
@@ -550,8 +550,12 @@ export function Waiting({ view, isOwner, nameOf, onReveal }: {
 }
 
 /** -------------------------------------------------------------------- reveal */
-export function Reveal({ view, unanimity, nameOf }: {
-  view: BlindView; unanimity: UnanimityReport | null; nameOf: (id: string) => string;
+export function Reveal({ view, unanimity, disagreement, nameOf }: {
+  view: BlindView; unanimity: UnanimityReport | null;
+  /** Served only after the reveal. Optional so a caller that has not fetched it
+   *  renders the positions rather than nothing. */
+  disagreement?: DisagreementView | null;
+  nameOf: (id: string) => string;
 }): ReactElement {
   return (
     <section>
@@ -580,6 +584,61 @@ export function Reveal({ view, unanimity, nameOf }: {
           </p>
           {unanimity.concerns.map((c, i) => <div className="concern" key={i}>{c}</div>)}
           {unanimity.concerns.length === 0 && <p className="ok">No gaps and every position rests on cited evidence.</p>}
+        </>
+      )}
+
+      {/*
+        A DESCRIPTION, NOT A RULE. The share is printed with its own disclaimer
+        attached because a percentage next to a decision reads as a threshold
+        whether or not one exists. Nothing consumes this number: no code branches
+        on it, no route gates on it, and the accountable owner still signs. That is
+        the whole reason it is allowed to be on screen at all (spec 6.4).
+      */}
+      {disagreement != null && (
+        <div data-testid="agreement-stat" className="note" style={{ marginTop: 24 }}>
+          {Math.round(disagreement.agreement.percent * 100)}% of positions held the most
+          common call (n = {disagreement.agreement.n}). This describes the record, not the
+          answer: nothing here counts votes, and the decision owner still signs.
+        </div>
+      )}
+
+      {disagreement?.report != null && (
+        <>
+          <h2 style={{ marginTop: 32 }}>Where the room split, and on what.</h2>
+          <p className="muted small">
+            Plain arithmetic over the positions. It reports the shape of the disagreement
+            and stops - deciding which reading is right is the adjudication, and then the
+            signature.
+          </p>
+          {disagreement.report.split.map((camp) => (
+            <div className="pos" key={camp.call}>
+              <span className="mono">{camp.call}</span>{" "}
+              {camp.participantIds.map(nameOf).join(", ")}
+            </div>
+          ))}
+          {disagreement.report.contested.length > 0 && (
+            <>
+              <p className="muted small" style={{ marginTop: 16 }}>
+                Cited by more than one camp - the same evidence, read two ways.
+              </p>
+              {disagreement.report.contested.map((id) => (
+                <div className="concern" key={id}><span className="mono">{id}</span></div>
+              ))}
+            </>
+          )}
+          {disagreement.report.oneSided.length > 0 && (
+            <>
+              <p className="muted small" style={{ marginTop: 16 }}>
+                Cited by one camp only - evidence the other side has not answered.
+              </p>
+              {disagreement.report.oneSided.map((o) => (
+                <div className="note" key={o.findingId}>
+                  <span className="mono">{o.findingId}</span>{" "}
+                  <span className="muted small">({o.call})</span>
+                </div>
+              ))}
+            </>
+          )}
         </>
       )}
     </section>

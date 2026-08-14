@@ -473,6 +473,56 @@ export function disagreementReport(c: DeliberationCase): DisagreementReport | nu
 }
 
 /**
+ * How much of the room landed on the most common call. §6.4-safe because it is
+ * DESCRIPTIVE and POST-REVEAL: nothing reads it, no threshold consumes it, and it
+ * is derivable from `split` which the same response already carries. It is not a
+ * quorum, and it decides nothing.
+ *
+ * NOT A KAPPA. Three to five reviewers is too thin for chance-corrected agreement
+ * to mean anything, so the honest figure is the plain share with `n` printed
+ * beside it. A kappa here would look more rigorous and be less true.
+ *
+ * `cannot_conclude` is a call, not a non-response, so it counts in the
+ * denominator. Genuine non-responders have no Position at all and are outside `n`
+ * already.
+ *
+ * DELIBERATELY NOT ON `UnanimityReport`. That type has exactly three keys and a
+ * test asserts it, because there is nowhere in it to put a tally - which is the
+ * design. A share that lived beside a call would be read as supporting it.
+ */
+export interface AgreementStat {
+  /** Share of positions holding the most common call. 1 when unanimous. */
+  percent: number;
+  /** Positions submitted. Reported beside percent because 2 of 3 is not 67%. */
+  n: number;
+  modalCall: Call | null;
+}
+
+export function agreement(c: DeliberationCase): AgreementStat {
+  const n = c.positions.length;
+  if (n === 0) return { percent: 0, n: 0, modalCall: null };
+
+  const counts = new Map<Call, number>();
+  for (const p of c.positions) counts.set(p.call, (counts.get(p.call) ?? 0) + 1);
+
+  // Ties break on the sorted call name, so the same room always prints the same
+  // figure. Which call wins a tie carries no meaning and must not look like it does.
+  const ranked = [...counts.entries()].sort(
+    ([aCall, aN], [bCall, bN]) => (bN - aN) || (aCall < bCall ? -1 : 1),
+  );
+  const [modalCall, top] = ranked[0]!;
+  return { percent: top / n, n, modalCall };
+}
+
+/** The split and the share, together, because they are one panel. `report` is null
+ *  when the room agreed - there is no split to describe - and the stat is still
+ *  real, which is why they are separate fields rather than one nullable object. */
+export interface DisagreementView {
+  report: DisagreementReport | null;
+  agreement: AgreementStat;
+}
+
+/**
  * External claims become missing evidence rather than evaporating. §6.5.
  *
  * "This assay overcalls for phenothiazines" is not a weaker citation; it is a claim

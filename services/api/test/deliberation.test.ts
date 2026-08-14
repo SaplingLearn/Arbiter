@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  allSubmitted, closeEarly, disagreementReport, externalClaimsAsGaps, lock, openCase, positionBasis, sign,
+  agreement, allSubmitted, closeEarly, disagreementReport, externalClaimsAsGaps, lock, openCase, positionBasis, sign,
   submitPosition, unanimityCheck, visibleTo,
   type Call, type DeliberationCase, type Position,
 } from "../deliberation.js";
@@ -428,5 +428,35 @@ describe("externalClaimsAsGaps", () => {
 
   it("returns nothing when nobody claimed anything external", () => {
     expect(externalClaimsAsGaps(CASE)).toEqual([]);
+  });
+});
+
+describe("agreement", () => {
+  it("is 1 when everyone made the same call", () => {
+    const c = submitAll(CASE, { ann: "advance", bea: "advance", cal: "advance" });
+    expect(agreement(c)).toEqual({ percent: 1, n: 3, modalCall: "advance" });
+  });
+
+  it("reports the modal share, with n beside it because 2 of 3 is not a percentage", () => {
+    const c = submitAll(CASE, { ann: "advance", bea: "advance", cal: "do_not_advance" });
+    const a = agreement(c);
+    expect(a.n).toBe(3);
+    expect(a.modalCall).toBe("advance");
+    expect(a.percent).toBeCloseTo(2 / 3, 10);
+  });
+
+  it("counts cannot_conclude as a call, not as a non-response", () => {
+    const c = submitAll(CASE, { ann: "cannot_conclude", bea: "cannot_conclude" });
+    expect(agreement(c)).toEqual({ percent: 1, n: 2, modalCall: "cannot_conclude" });
+  });
+
+  it("is empty rather than 100% when nobody has answered", () => {
+    expect(agreement(CASE)).toEqual({ percent: 0, n: 0, modalCall: null });
+  });
+
+  it("breaks a tie deterministically so the output is stable", () => {
+    const c = submitAll(CASE, { ann: "advance", bea: "do_not_advance" });
+    expect(agreement(c).modalCall).toBe("advance");
+    expect(agreement(c).percent).toBeCloseTo(0.5, 10);
   });
 });

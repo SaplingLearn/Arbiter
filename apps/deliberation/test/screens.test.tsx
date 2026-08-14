@@ -252,6 +252,41 @@ describe("Reveal", () => {
     const { container } = render(<Reveal nameOf={(id) => id} view={view} unanimity={{ unanimous: false, call: null, concerns: [] }} />);
     expect(container.textContent).not.toContain("Everyone agreed");
   });
+
+  it("shows where the room split instead of leaving raw positions unexplained", () => {
+    render(
+      <Reveal
+        nameOf={(id) => id}
+        view={view}
+        unanimity={{ unanimous: false, call: null, concerns: [] }}
+        disagreement={{
+          report: {
+            split: [
+              { call: "advance", participantIds: ["ann"] },
+              { call: "do_not_advance", participantIds: ["bea"] },
+            ],
+            contested: ["f-rodent"],
+            oneSided: [{ findingId: "f-qsar", call: "advance" }],
+          },
+          agreement: { percent: 0.5, n: 2, modalCall: "advance" },
+        }}
+      />,
+    );
+    expect(screen.getByText(/Where the room split/i)).toBeInTheDocument();
+    expect(screen.getByTestId("agreement-stat")).toHaveTextContent(/50%/);
+    expect(screen.getByTestId("agreement-stat")).toHaveTextContent(/n\s*=\s*2/);
+    expect(screen.getByText(/f-rodent/)).toBeInTheDocument();
+    expect(screen.getByText(/f-qsar/)).toBeInTheDocument();
+  });
+
+  it("does not present the share as a decision rule", () => {
+    render(
+      <Reveal nameOf={(id) => id} view={view}
+        unanimity={{ unanimous: false, call: null, concerns: [] }}
+        disagreement={{ report: null, agreement: { percent: 1, n: 2, modalCall: "advance" } }} />,
+    );
+    expect(screen.getByTestId("agreement-stat")).toHaveTextContent(/describes the record, not the answer/i);
+  });
 });
 
 describe("Verdict", () => {

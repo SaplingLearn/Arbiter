@@ -173,7 +173,7 @@ describe("cases, with access control", () => {
   it("hides the case from an account not named on it, as a 404", async () => {
     // 404 rather than 403: a 403 would confirm the case exists, which is the one
     // fact an unauthorised caller is asking for.
-    for (const p of ["view", "inventory", "audit", "unanimity"]) {
+    for (const p of ["view", "inventory", "audit", "unanimity", "disagreement"]) {
       const r = await call("GET", `/api/cases/c1/${p}`, "outsider");
       expect(r.status, p).toBe(404);
       expect(JSON.stringify(r.body)).not.toContain("TAK-994");

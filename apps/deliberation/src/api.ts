@@ -131,6 +131,34 @@ export interface UnanimityReport {
   concerns: string[];
 }
 
+export interface DisagreementReport {
+  split: { call: Call; participantIds: string[] }[];
+  /** Cited by more than one camp - the same evidence, read differently. */
+  contested: string[];
+  /** Cited by exactly one camp - evidence the others did not answer. */
+  oneSided: { findingId: string; call: Call }[];
+}
+
+/**
+ * Descriptive, post-reveal, and never an input to anything.
+ *
+ * The server serves this only after the reveal, so it describes a record everyone
+ * can already read rather than a running tally. Nothing in this client may branch
+ * on it: it is rendered and it decides nothing.
+ */
+export interface AgreementStat {
+  /** Share of positions holding the most common call. 1 when unanimous. */
+  percent: number;
+  /** Positions submitted. Reported beside percent because 2 of 3 is not 67%. */
+  n: number;
+  modalCall: Call | null;
+}
+
+export interface DisagreementView {
+  report: DisagreementReport | null;
+  agreement: AgreementStat;
+}
+
 export interface AskAnswer {
   answerable: boolean;
   answer: string;
@@ -334,6 +362,9 @@ export const api = {
 
   unanimity: (token: string, caseId: string) =>
     call<UnanimityReport>("GET", `/api/cases/${caseId}/unanimity`, token),
+
+  disagreement: (token: string, caseId: string) =>
+    call<DisagreementView>("GET", `/api/cases/${caseId}/disagreement`, token),
 
   adjudicate: (token: string, caseId: string, at: string) =>
     call<{ adjudication: Adjudication; source: "stub" | "live" }>("POST", `/api/cases/${caseId}/adjudicate`, token, { at }),
