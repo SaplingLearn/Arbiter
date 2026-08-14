@@ -1,4 +1,5 @@
 import { useAppState } from "../state/store.js";
+import { ScoringVersionNotice } from "../ui/ScoringVersionNotice.js";
 
 /**
  * Coverage before accuracy, deliberately.
@@ -48,6 +49,12 @@ export function ValidationTab() {
         <p className="label">Measured</p>
         <h2 className="display">Validation</h2>
 
+        {/* First thing in the section, ahead of the provenance line and the
+            headline both. Every accuracy on this tab - the headline, the baselines
+            table - is a v1.0 figure, and the scoping has to arrive before the
+            numbers rather than after them. */}
+        <ScoringVersionNotice />
+
         <p className="small muted" data-testid="provenance" data-anchor="validation.provenance">
           ruleset <span className="mono">{m.provenance.rulesetHash.slice(0, 8)}…</span> · split seed{" "}
           {m.provenance.splitSeed} · perturbation seed {m.provenance.perturbationSeed} · scored on the{" "}
@@ -92,6 +99,9 @@ export function ValidationTab() {
       <section data-anchor="validation.baselines">
         <h3 className="subtitle">Baselines</h3>
         <table className="table">
+          <caption className="label">
+            Conflict subset, n = {acc.n} · graded under target v1.0
+          </caption>
           <thead>
             <tr>
               <th scope="col">Pipeline</th>

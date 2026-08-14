@@ -24,7 +24,14 @@ describe("the landing page", () => {
     const acc = data.metrics.metric1_conflictSubsetAccuracy.arbiter;
     expect(tie.textContent).toContain(acc.balancedAccuracy.toFixed(3));
     expect(tie.textContent).toContain(`${(acc.coverage * 100).toFixed(1)}%`);
-    expect(screen.getByText(/does not beat the best baseline/i)).toBeTruthy();
+    // The heading this pinned - "It does not beat the best baseline. It ties one,
+    // exactly." - asserted the tie as the current position. It is a v1.0 figure and
+    // v1.0 is superseded, so the heading now scopes it to the target it was graded
+    // on and states what the corrected target does to it. The pin moves with the
+    // prose it was written to protect; what it protects is unchanged, that the tie
+    // is stated on the landing page rather than left to the Validation tab.
+    expect(screen.getByText(/ties one baseline exactly/i)).toBeTruthy();
+    expect(screen.getByTestId("scoring-version").textContent).toMatch(/graded under target v1\.0/i);
   });
 
   it("names the abstention rate and its cause, not just the good number", () => {

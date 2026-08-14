@@ -1,4 +1,5 @@
 import { useAppState } from "../state/store.js";
+import { ScoringVersionNotice } from "../ui/ScoringVersionNotice.js";
 
 /**
  * The landing page - the first thing anyone sees, because an empty hash resolves
@@ -150,8 +151,16 @@ export function AboutTab() {
 
       <section className="stack">
         <p className="label">The result, stated plainly</p>
+
+        {/* Before the figures, not after them. The tie below is a v1.0 figure and
+            the reader has to know that before reading it, not on the way out. */}
+        <ScoringVersionNotice />
+
         <div className="prose stack">
-          <h2 className="title">It does not beat the best baseline. It ties one, exactly.</h2>
+          <h2 className="title">
+            Under the target it was graded on, it ties one baseline exactly. Under the
+            corrected one, nothing works.
+          </h2>
           <p className="caveat" data-testid="about-tie">
             On the pre-registered conflict subset, ARBITER and <span className="mono">{TIED}</span>{" "}
             return the same figure in every column: {arbiter.balancedAccuracy.toFixed(3)} balanced
@@ -168,7 +177,12 @@ export function AboutTab() {
 
         {tied ? (
           <table className="table table-narrow">
-            <caption className="label">Conflict subset, n = {acc.n}, test split only</caption>
+            {/* The caption carries the target as well as the population, because a
+                table is the part of a page that gets screenshotted away from the
+                notice above it. */}
+            <caption className="label">
+              Conflict subset, n = {acc.n}, test split only · graded under target v1.0
+            </caption>
             <thead>
               <tr>
                 <th scope="col">Pipeline</th>
