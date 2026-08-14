@@ -1,5 +1,8 @@
-import { readFileSync } from "node:fs";
-import { consistencyReport, formatConsistencyReport, type AdjudicationSubset } from "./consistency.js";
+import { readFileSync, readdirSync } from "node:fs";
+import {
+  consistencyReport, currentPromptVersion, formatConsistencyReport,
+  type AdjudicationSubset, type PromptRegistration,
+} from "./consistency.js";
 
 /**
  * The consistency probe's ANALYSIS half. Spec §7.1.
@@ -38,6 +41,27 @@ function main(): void {
   console.log(`source          ${file.source}${file.model === null ? "" : ` (${file.model})`}`);
   console.log(`prompt          v${file.promptVersion} ${file.promptHash.slice(0, 12)}`);
   console.log(`runs verified   ${usable.length}/${file.runs.length}`);
+
+  // WHICH PROMPT DID THIS MEASURE? The flip rate belongs to the prompt it was run
+  // under. Both prompt revisions in prompts/ state outright that no result measured
+  // under an earlier version is reported under theirs, so a probe left behind by a
+  // superseded prompt is a stale number wearing a current label - the same defect
+  // as an accuracy figure graded under a retired target, which is the one this
+  // project already had to correct in public.
+  const registered = readdirSync("prompts")
+    .filter((f) => f.startsWith("adjudicator-v") && f.endsWith(".json"))
+    .map((f) => JSON.parse(readFileSync(`prompts/${f}`, "utf8")) as PromptRegistration);
+  const current = currentPromptVersion(registered);
+  if (current === null) {
+    console.log(`PROMPT CHAIN    unresolved: ${registered.length} registrations, no single head.`);
+    console.log(`                Fix the supersedes chain before quoting this figure.`);
+  } else if (current !== file.promptVersion) {
+    console.log("");
+    console.log(`STALE PROBE     measured under prompt v${file.promptVersion}, but v${current} is in force.`);
+    console.log(`                This figure does not describe the shipped adjudicator. Re-run the`);
+    console.log(`                probe under v${current}, or quote it as a v${file.promptVersion} result and say so.`);
+    console.log(`                Do NOT report it as the current consistency number.`);
+  }
   const unverified = file.runs.length - usable.length;
   if (unverified > 0) {
     console.log(`UNVERIFIED      ${unverified} run(s) cited something that does not exist, or errored.`);

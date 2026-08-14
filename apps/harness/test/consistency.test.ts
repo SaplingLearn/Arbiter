@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { consistencyReport, formatConsistencyReport, type AdjudicationSubset } from "../src/consistency.js";
+import {
+  consistencyReport, currentPromptVersion, formatConsistencyReport,
+  type AdjudicationSubset,
+} from "../src/consistency.js";
 
 /**
  * Every test here was written by breaking the implementation first and watching it
@@ -129,5 +132,31 @@ describe("formatConsistencyReport", () => {
     expect(last).toContain("FAIL");
     expect(last).toContain("DESIGN defect");
     expect(last).toContain("Do not respond by rewriting the prompt");
+  });
+});
+
+describe("currentPromptVersion", () => {
+  it("picks the prompt no other prompt supersedes", () => {
+    expect(currentPromptVersion([
+      { version: "1.0" },
+      { version: "1.1", supersedes: "1.0" },
+      { version: "1.2", supersedes: "1.1" },
+    ])).toBe("1.2");
+  });
+
+  it("is order-independent, because a directory listing is not a chain", () => {
+    expect(currentPromptVersion([
+      { version: "1.2", supersedes: "1.1" },
+      { version: "1.0" },
+      { version: "1.1", supersedes: "1.0" },
+    ])).toBe("1.2");
+  });
+
+  it("returns null rather than guessing when the chain forks", () => {
+    // Two unsuperseded heads is a registration error, not something to pick from.
+    expect(currentPromptVersion([
+      { version: "1.0" },
+      { version: "2.0" },
+    ])).toBeNull();
   });
 });

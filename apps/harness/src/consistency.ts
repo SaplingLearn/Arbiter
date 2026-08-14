@@ -139,3 +139,31 @@ export function formatConsistencyReport(r: ConsistencyReport, passMark: number):
   ];
   return lines;
 }
+
+/** The registered fields this needs; the prompt files carry much more. */
+export interface PromptRegistration {
+  version: string;
+  supersedes?: string;
+}
+
+/**
+ * The prompt currently in force: the one no other registration supersedes.
+ *
+ * WHY DERIVED RATHER THAN NAMED. A reported flip rate belongs to the prompt it was
+ * measured under - the prompt is a model parameter, and §7.2a keeps revisions
+ * separable from tuning precisely so a number cannot drift onto a version that did
+ * not produce it. Both prompt revisions in this repo say so in as many words: "No
+ * result measured under 1.0 or 1.1 is reported under this version." Reading the
+ * chain means registering a new prompt makes a stale probe visible on the next
+ * report, instead of requiring somebody to remember.
+ *
+ * Returns null on a forked chain. Two unsuperseded heads is a registration error,
+ * and picking one of them would be inventing an answer.
+ */
+export function currentPromptVersion(prompts: PromptRegistration[]): string | null {
+  const superseded = new Set(
+    prompts.map((p) => p.supersedes).filter((v): v is string => v !== undefined),
+  );
+  const heads = prompts.filter((p) => !superseded.has(p.version));
+  return heads.length === 1 ? heads[0]!.version : null;
+}
