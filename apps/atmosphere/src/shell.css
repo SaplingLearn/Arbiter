@@ -1,0 +1,309 @@
+/* ===========================================================================
+   DEMO CHROME
+   ---------------------------------------------------------------------------
+   Deliberately thin. This is a stage for the backgrounds, not a frontend — every
+   element here exists either because the reference has one (rail, progress bar,
+   scroll hint, corner utilities) or because the backgrounds need something in
+   front of them to prove they can carry type.
+
+   Everything that can animate, does. Nothing static is left static: the rail
+   items carry a sweep, the labels shift on activation, the counters tick.
+   =========================================================================== */
+
+:root {
+  --abyss: #02030a;
+  --void: #05061a;
+  --navy: #00004e;
+  --reflex: #000484;
+  --violet: #22009b;
+  --electric: #2b00c2;
+  --azure: #0077cc;
+  --cyan: #0095ff;
+  --sky: #66c5fa;
+  --pale: #d3e9f8;
+  --white: #eaf5ff;
+  --mist: #8a8aa5;
+  --haze: #b9b9ce;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: var(--abyss);
+  color: var(--white);
+  font-family: "Inter Tight", system-ui, sans-serif;
+  overflow: hidden;
+  /* The demo drives its own scroll; a real scrollbar would fight the state machine. */
+  overscroll-behavior: none;
+}
+
+#atmosphere {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+}
+
+#shell {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+#shell button, #shell a, #shell .rail-item { pointer-events: auto; }
+
+.mono {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+/* --------------------------------------------------------------- overture */
+#overture {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--abyss);
+  display: grid;
+  place-items: center;
+  transition: opacity 0.9s var(--ease), visibility 0.9s;
+}
+#overture.done { opacity: 0; visibility: hidden; }
+
+.ov-inner { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+.ov-bar { display: flex; gap: 6px; align-items: flex-end; }
+.ov-bar i {
+  display: block;
+  width: 9px; height: 9px;
+  background: var(--reflex);
+  transform: scaleY(0.35);
+  transition: background 0.3s var(--ease), transform 0.3s var(--ease);
+}
+.ov-bar i.on {
+  background: var(--cyan);
+  transform: scaleY(1);
+  box-shadow: 0 0 12px rgba(0, 149, 255, 0.85);
+}
+
+.ov-meta {
+  display: flex; justify-content: space-between; width: 100%;
+  color: var(--mist);
+}
+.ov-meta b { color: var(--sky); font-weight: 500; }
+
+.ov-mark {
+  font-size: clamp(30px, 5vw, 54px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+}
+.ov-mark.in { opacity: 1; transform: none; }
+.ov-sub { color: var(--mist); opacity: 0; transition: opacity 0.6s 0.15s var(--ease); }
+.ov-sub.in { opacity: 1; }
+
+/* ------------------------------------------------------------------- rail */
+.rail {
+  position: fixed;
+  left: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 10;
+}
+
+.rail-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px 9px 0;
+  background: none;
+  border: 0;
+  color: var(--mist);
+  cursor: pointer;
+  opacity: 0.34;
+  transition: opacity 0.5s var(--ease), color 0.5s var(--ease);
+  font: inherit;
+}
+.rail-item .mono { transition: letter-spacing 0.55s var(--ease); }
+
+/* The leading pip: a hairline that extends into a lit bar on activation. */
+.rail-item::before {
+  content: "";
+  width: 0; height: 1px;
+  background: var(--cyan);
+  transition: width 0.55s var(--ease), box-shadow 0.55s var(--ease);
+  flex: none;
+}
+.rail-item:hover { opacity: 0.72; color: var(--haze); }
+.rail-item:hover::before { width: 10px; }
+
+.rail-item.active {
+  opacity: 1;
+  color: var(--white);
+}
+.rail-item.active::before {
+  width: 26px;
+  box-shadow: 0 0 10px rgba(0, 149, 255, 0.9);
+}
+.rail-item.active .mono { letter-spacing: 0.30em; }
+
+/* Codename, revealed only on the active item — the rail carries two registers of
+   information without ever showing ten strings at once. */
+.rail-code {
+  position: absolute;
+  left: 100%;
+  margin-left: 14px;
+  white-space: nowrap;
+  color: var(--azure);
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+}
+.rail-item.active .rail-code { opacity: 1; transform: none; }
+
+/* ------------------------------------------------------------------ stage */
+.stage {
+  position: fixed;
+  left: 50%;
+  bottom: 15%;
+  transform: translateX(-50%);
+  width: min(880px, 74vw);
+  text-align: center;
+  z-index: 5;
+}
+
+.headline {
+  font-size: clamp(34px, 5.6vw, 82px);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+}
+.headline .line { display: block; overflow: hidden; }
+.headline .ch { display: inline-block; will-change: transform, opacity; }
+
+.lede {
+  margin-top: 20px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--haze);
+  max-width: 46ch;
+  margin-left: auto;
+  margin-right: auto;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+}
+.lede.in { opacity: 1; transform: none; }
+
+/* ------------------------------------------------------------------ chrome */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 26px 40px;
+  z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 11px; font-weight: 650; letter-spacing: -0.02em; font-size: 15px; }
+.brand .mark {
+  width: 15px; height: 15px;
+  display: grid; grid-template: 1fr 1fr / 1fr 1fr; gap: 2px;
+}
+.brand .mark i { background: var(--cyan); opacity: 0.35; animation: markPulse 3.2s var(--ease-io) infinite; }
+.brand .mark i:nth-child(2) { animation-delay: 0.18s; }
+.brand .mark i:nth-child(3) { animation-delay: 0.54s; }
+.brand .mark i:nth-child(4) { animation-delay: 0.36s; }
+@keyframes markPulse {
+  0%, 70%, 100% { opacity: 0.28; }
+  22% { opacity: 1; box-shadow: 0 0 8px rgba(0, 149, 255, 0.8); }
+}
+
+.tabs { display: flex; gap: 4px; }
+.tab {
+  position: relative;
+  background: none; border: 0; cursor: pointer;
+  color: var(--mist);
+  padding: 8px 14px;
+  font: inherit;
+  transition: color 0.4s var(--ease);
+}
+.tab::after {
+  content: "";
+  position: absolute; left: 14px; right: 14px; bottom: 2px;
+  height: 1px; background: var(--cyan);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.5s var(--ease);
+}
+.tab:hover { color: var(--haze); }
+.tab:hover::after { transform: scaleX(1); }
+.tab.active { color: var(--white); }
+.tab.active::after { transform: scaleX(1); box-shadow: 0 0 8px rgba(0, 149, 255, 0.8); }
+
+.corner {
+  position: fixed; bottom: 24px;
+  display: flex; align-items: center; gap: 10px;
+  color: var(--mist);
+  z-index: 10;
+}
+.corner.left { left: 40px; }
+.corner.right { right: 40px; }
+
+.hint {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  color: var(--mist); z-index: 10;
+  display: flex; align-items: center; gap: 10px;
+  transition: opacity 0.6s var(--ease);
+}
+.hint i {
+  display: block; width: 1px; height: 18px;
+  background: linear-gradient(var(--cyan), transparent);
+  animation: hintDrop 2.1s var(--ease-io) infinite;
+}
+@keyframes hintDrop {
+  0% { transform: translateY(-8px) scaleY(0.4); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: translateY(8px) scaleY(1); opacity: 0; }
+}
+
+/* Progress bar across the whole sequence, as in the reference. */
+.progress {
+  position: fixed; left: 0; right: 0; bottom: 0; height: 1px;
+  background: rgba(138, 138, 165, 0.14);
+  z-index: 10;
+}
+.progress i {
+  display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, var(--electric), var(--cyan));
+  box-shadow: 0 0 10px rgba(0, 149, 255, 0.7);
+  transition: width 0.9s var(--ease);
+}
+
+@media (max-width: 860px) {
+  .rail { left: 18px; }
+  .rail-code { display: none; }
+  .tabs { display: none; }
+  .topbar, .corner.left, .corner.right { padding-inline: 18px; }
+  .corner.left { left: 18px; } .corner.right { right: 18px; }
+  .stage { width: 86vw; bottom: 18%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001s !important;
+    transition-duration: 0.12s !important;
+  }
+}

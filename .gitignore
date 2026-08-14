@@ -126,3 +126,6 @@ documents/
 # not where those live, even scrypted, even for a demo team.
 results/documents/
 *.users.json
+
+# Atmosphere screenshot output (tuning artefacts, not source)
+apps/atmosphere/shots/
