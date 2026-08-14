@@ -1,5 +1,19 @@
 # ARBITER - the LLM ablation (metric 2a)
 
+> **READ WITH THE 2026-08-09 AUDIT. Its baseline changed role four days later.**
+>
+> This designs an ablation measuring an LLM against the engine, with the engine as
+> the reference the LLM has to beat. On 2026-08-09 the engine stopped being the
+> decider - `2026-08-09-arbiter-ai-redesign-design.md` §2 keeps `packages/engine`
+> but demotes it to "the instrument that measures the decider" - so the comparison
+> this document frames is no longer a contest between a candidate and an incumbent.
+>
+> **Any figure produced under this design was also graded under the retired
+> binarisation.** The target that counted aspirin, amoxicillin and amlodipine as
+> positive was invalidated the same day; see HANDOVER §13 and
+> `results/rescore-v2.json`, under which no pipeline tested clears 0.601. Do not
+> quote a number from this work without naming the target it was graded under.
+
 **Date:** 5 August 2026 · **Submission due:** 16 August 2026 · **Data freeze:** 2 August 2026 (passed)
 
 Companion to `2026-07-26-arbiter-design.md` (the master spec, §12 baseline 4) and

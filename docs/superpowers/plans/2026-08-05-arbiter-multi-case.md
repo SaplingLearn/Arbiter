@@ -1,5 +1,16 @@
 # ARBITER multiple hero cases - Implementation Plan
 
+> **EXECUTED AND SUPERSEDED. DO NOT IMPLEMENT THIS PLAN.**
+>
+> This plan widened `apps/web` from one hero case to several. It ran to completion
+> and merged.
+>
+> **Cases now live in the product, not in the bundle.** `apps/deliberation` reads
+> them from `services/api` - they are created, joined and deliberated by real
+> accounts rather than shipped as fixtures inside a static app. See
+> `docs/superpowers/specs/2026-08-09-arbiter-ai-redesign-design.md` §3.5 and §6.
+> Add cases there. Re-running the steps below would rebuild the superseded design.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Carry three demonstrated compounds instead of one, so the demo shows the engine abstaining, committing, and (when the data exists) advancing - without touching the pre-registered ruleset or moving a reported number.

@@ -1,5 +1,16 @@
 # ARBITER - multiple hero cases
 
+> **SUPERSEDED, 2026-08-09. Cases moved out of the bundle and into the service.**
+>
+> This designs several hero cases shipped as fixtures inside `apps/web`. In the
+> redesign, cases are created, joined and deliberated by real accounts through
+> `services/api` and read by `apps/deliberation` - see
+> `2026-08-09-arbiter-ai-redesign-design.md` §6, "how multiple scientists work a
+> case".
+>
+> The case-selection reasoning here still holds; the delivery mechanism does not.
+> Add cases through the service, not to a static bundle.
+
 **Date:** 5 August 2026 · **Submission due:** 16 August 2026 · **Data freeze: 2 August 2026, already passed.**
 
 Companion to `2026-07-26-arbiter-design.md` (the master spec), `2026-07-27-arbiter-phase2-web-app-design.md`

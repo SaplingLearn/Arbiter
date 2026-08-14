@@ -35,7 +35,8 @@ Not Dempster–Shafer fusion in toxicology (precedented - Park, Ogunseitan & Lej
 
 ## How it works
 
-Two pieces in one repo.
+Three pieces in one repo, and it matters which one is current. The engine is kept; the
+deliberation app is the product; the seven-tab web app is its predecessor.
 
 ### 1. A pure reasoning engine (`packages/engine`)
 
@@ -54,9 +55,31 @@ Each rule works twice: as a **defeat rule** in the argumentation graph, and as a
 
 The ruleset lives in `rules/ruleset-v1.0.json` and is hashed to `ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136`. **The harness refuses to run if the computed hash differs.** That is the whole methodological claim: no rule was tuned after seeing a result.
 
-### 2. A seven-tab web app (`apps/web`)
+### 2. The product: a four-stage deliberation app (`apps/deliberation`)
+
+**This is where the work happens, and where new work goes.** Four case stages, in a
+fixed order, because the order is the point:
+
+| Stage | What it is for |
+|---|---|
+| **Evidence** | The compound in front of you: findings, documents, what is absent |
+| **Your position** | Your call, written **before** you can see anyone else's |
+| **Reveal & verdict** | Unreachable until everyone has answered. Then the split, the disagreement analysis, and the AI adjudication |
+| **Record** | Sign-off and the hash-chained audit log |
+
+Blind submission is enforced server-side by not returning the data, not by asking the
+client to hide it - reading someone else's call before writing your own is the exact
+failure the sequence exists to prevent. The decider is an AI adjudicator behind
+`services/api`, disclosing a position on every rule; the engine measures it rather
+than being it. See `docs/superpowers/specs/2026-08-09-arbiter-ai-redesign-design.md`.
+
+### 3. The predecessor: a seven-tab web app (`apps/web`)
 
 Runs that same engine **in the browser** and ships as one self-contained `index.html` that works over `file://`.
+
+**Kept, and still submitted for judging - but closed to new surface.** It was built
+before the 2026-08-09 audit retired the engine-as-decider architecture. It must keep
+working; it does not grow.
 
 | Tab | What it is for |
 |---|---|
@@ -70,7 +93,7 @@ Runs that same engine **in the browser** and ships as one self-contained `index.
 
 An **eight-beat guided demo** (`→`/`←` to step) walks two hero cases: **TAK-994**, where the engine abstains and says exactly what evidence would change that, and **Cyclosporine**, where it commits to *do not advance* with non-zero Dempster–Shafer conflict mass, driven by a `transporter:toxic` claim - cyclosporine's real hepatotoxicity is BSEP-mediated, so the engine is right for the right reason.
 
-Plus `apps/harness` (benchmark runner, Node only), `services/api` (rung-1 AI surface handlers), and `data/prep` (Python ingestion of DILIrank, splits, QSAR/Tox21 streams).
+Plus `apps/harness` (benchmark runner, Node only), **`services/api`** (the backend: accounts, cases, blind submission, document screening, and the AI adjudicator - not the "rung-1 AI surface handlers" it began as), `apps/landing` (the marketing page, which links into `apps/deliberation`), and `data/prep` (Python ingestion of DILIrank, splits, QSAR/Tox21 streams).
 
 ---
 
@@ -228,7 +251,19 @@ apps/harness/             Benchmark runner. Node only.
   src/metrics.ts          The five metrics, with their honesty caveats in comments
   src/coverage-report.ts  The working behind the coverage finding
 
-apps/web/                 Six-tab app. Engine runs in the BROWSER.
+apps/deliberation/        THE PRODUCT. Four stages, real backend, AI decider.
+  src/Layout.tsx          Steps() - the four stages. The order IS the product.
+  src/router.ts           Route union; reveal is gated on the server, not here.
+  vite.config.ts          Port 5174 + /api proxy. Deliberately NOT apps/web's.
+
+services/api/             The backend. Accounts, cases, adjudication.
+  server.ts               Routes. /api/auth/* is the only unauthenticated surface.
+  adjudicate.ts           ADJUDICATOR_PROMPT_PATH - the in-force prompt version
+  deliberation.ts         Blind submission + unanimity. Read the contracts.
+
+apps/landing/             Marketing page. APP_URL links into apps/deliberation.
+
+apps/web/                 PREDECESSOR. Seven tabs. Engine runs in the BROWSER.
   src/data/heroCases.ts   TAK-994 and Cyclosporine, keyed by compoundId
   src/tour/beats.ts       The eight demo beats
   vite.config.ts          inlineEverything - read HANDOVER §6.1 before touching
@@ -238,7 +273,10 @@ apps/web/                 Six-tab app. Engine runs in the BROWSER.
 data/prep/*.py            DILIrank ingestion, splits, QSAR/Tox21 streams
 rules/ruleset-v1.0.json   PRE-REGISTERED AND HASHED. Do not edit.
 results/                  metrics.json, golden/, verdict-manifest.json (golden-filed)
-docs/superpowers/         Specs and task-by-task plans
+docs/superpowers/         Specs and task-by-task plans. The 2026-08-09 AI redesign
+                          spec is IN FORCE; every earlier doc carries a banner
+                          saying what superseded it. The plans are all
+                          already executed - history, not a queue.
 ```
 
 ---
@@ -268,8 +306,9 @@ Note that `.superpowers/` is gitignored, so the SDD ledger and per-task review r
 | | |
 |---|---|
 | Endpoint | Hepatotoxicity (DILI) only |
-| Engine | Complete; deterministic; ruleset hash `ed073a8a…` unchanged |
-| Web app | Seven tabs, eight demo beats, two hero cases; ships as one self-contained `index.html` |
+| Engine | Complete; deterministic; ruleset hash `ed073a8a…` unchanged. **Kept as the instrument, no longer the decider** (redesign §2) |
+| Deliberation app | **The product.** Four stages, real accounts, blind submission, AI adjudication behind `services/api` |
+| Web app (`apps/web`) | Predecessor. Seven tabs, eight demo beats, two hero cases; ships as one self-contained `index.html`. Kept working, closed to new surface |
 | Phases | 1 complete · 2 complete · 3 built except Surface 2 (specified, deliberately not built) · multi-case complete |
 | Intake | Custom compounds - validation, advisor, and form built; CSV upload and AI extraction not (HANDOVER §12) |
 | Ablation | Aggregation, prompt and resume built and tested; no live run - needs a key and a provider decision |

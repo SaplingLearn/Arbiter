@@ -1,5 +1,22 @@
 # ARBITER - Round 1 Design Specification
 
+> **PARTLY SUPERSEDED, 2026-08-09. Still the master spec; no longer the decision
+> architecture.**
+>
+> `2026-08-09-arbiter-ai-redesign-design.md` states its own relationship to this
+> document exactly: it "supersedes the decision architecture of the 2026-07-26
+> master spec" and "does not supersede its language discipline, its record model,
+> or its problem statement."
+>
+> So this file is still authoritative for **what the problem is**, **how sentences
+> must be written**, and **what a signed record contains**. It is no longer
+> authoritative for **who decides**: the engine's Dempster-Shafer verdict path was
+> retired after it committed on 7 of 267 compounds with 5 of those 7 over-calls,
+> and an AI adjudicator behind `services/api` decides now.
+>
+> The app this spec designed (`apps/web`, five tabs here, seven as shipped) is the
+> predecessor of **`apps/deliberation`**. Build product surface there.
+
 **Team BU 1** - Jack He, Andres Lopez, Jose Cruz-Lopez
 **Pfizer Digital & Technology Hackathon 2026** - Problem Statement 3, Computational Pre-Clinical Drug Development
 **Date:** 26 July 2026 · **Submission due:** 16 August 2026, 11:59 PM ET · **Presentations:** 17–19 August

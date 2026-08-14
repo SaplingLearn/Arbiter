@@ -1,5 +1,21 @@
 # ARBITER Phase 2 - web app Implementation Plan
 
+> **EXECUTED AND SUPERSEDED. DO NOT IMPLEMENT THIS PLAN.**
+>
+> This plan built `apps/web`, the seven-tab browser app. It ran to completion and
+> merged; every checkbox below is a record of something already done, not a queue.
+>
+> **The web application it builds is no longer the product.** The 2026-08-09 audit
+> retired the architecture underneath it - see
+> `docs/superpowers/specs/2026-08-09-arbiter-ai-redesign-design.md`, whose §3.5 is
+> titled "a new app, not a conversion". That new app is **`apps/deliberation`**:
+> four case stages (Evidence, Your position, Reveal & verdict, Record) against
+> `services/api`. Build product surface there.
+>
+> `apps/web` is kept and must keep working - it is the self-contained artifact
+> submitted for judging - but it does not grow. Re-running the steps below would
+> rebuild the superseded design.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the five-tab ARBITER web application, with the reasoning engine running in the browser so every control recomputes live, plus the golden-file and CI guards that stop reported numbers drifting.

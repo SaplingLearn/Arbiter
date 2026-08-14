@@ -1,5 +1,22 @@
 # ARBITER Phase 1 - Engine and Numbers Implementation Plan
 
+> **EXECUTED. The code it built is KEPT - its role is not.**
+>
+> This plan built `packages/engine` and the benchmark harness. It ran to completion
+> and merged, so the checkboxes below are a record, not a queue.
+>
+> Unlike the Phase 2 and Phase 3 plans, what this built survives the 2026-08-09
+> redesign: §2 of
+> `docs/superpowers/specs/2026-08-09-arbiter-ai-redesign-design.md` keeps
+> `packages/engine` explicitly, calling it "pure, deterministic, well tested".
+>
+> **What changed is what it decides.** The engine stops being the decider and
+> becomes the instrument that measures the decider - the AI adjudicator in
+> `services/api` now produces the verdict. Dempster-Shafer fusion is retained as a
+> diagnostic, not as the gate. The numbers this plan produced were also graded
+> under the binarisation the same audit invalidated: read §13 of HANDOVER and
+> `results/rescore-v2.json` before quoting any of them.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Go from an empty repo to `results/results.json` + `results/metrics.json` - real validated numbers produced by a pure TypeScript reasoning engine over real public hepatotoxicity data, with four baselines and the full metric suite.

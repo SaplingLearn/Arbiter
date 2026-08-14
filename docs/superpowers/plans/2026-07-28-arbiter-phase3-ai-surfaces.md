@@ -1,5 +1,21 @@
 # ARBITER Phase 3 - the three AI surfaces Implementation Plan
 
+> **EXECUTED AND SUPERSEDED. DO NOT IMPLEMENT THIS PLAN.**
+>
+> This plan added AI surfaces to `apps/web`, calling a model from the browser
+> through a fallback ladder. It ran to completion and merged.
+>
+> **Both halves of that are superseded.** The AI is no longer an assistant bolted
+> onto a browser app - it is the decider, behind a real backend
+> (`services/api/adjudicate.ts`), in a new app: **`apps/deliberation`**. See
+> `docs/superpowers/specs/2026-08-09-arbiter-ai-redesign-design.md` §3.3, "the
+> backend - the first real one in this project", and §3.5.
+>
+> The five-rung fallback ladder this plan introduced is also against current
+> policy: the redesign's §9 and HANDOVER's own no-fallbacks discipline mean a
+> missing credential is a stated 503, not a quiet descent to a worse answer.
+> Re-running the steps below would rebuild the superseded design.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add the challenge interpreter and navigator to the ARBITER web app, complete and testable with no network, with a live model call as one optional rung on top.
