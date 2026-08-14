@@ -20,6 +20,13 @@
  */
 export const APP_URL: string = import.meta.env["VITE_APP_URL"] ?? "/app/";
 
+/**
+ * The deliberation client. Same arrangement as APP_URL's default: the unified
+ * server (`npm run dev`) and any deployment that serves the surfaces side by
+ * side both mount it at this path, so no override is needed.
+ */
+export const DELIBERATION_URL = "/deliberation/";
+
 const REPO = "https://github.com/SaplingLearn/Arbiter";
 
 export const REPO_URL = REPO;
