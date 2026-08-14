@@ -107,6 +107,18 @@ Measured on the test split only - train fitted the QSAR model, calibration set t
 
 `single:transporter` matches it on every column. **Say so** - an earlier draft omitted this and it was corrected as a flattering omission.
 
+> **The tie is a v1.0 statement, and the correction changes its shape rather than
+> only its numbers.** Re-graded under `rules/ruleset-v2.0.json`
+> (`results/rescore-v2.txt`, conflict subset n=61): ARBITER 0.500,
+> `single:transporter` 0.500, `single:cytotox` 0.500, `single:qsar` 0.500,
+> `weightedAverage` **0.519**, `majorityVote` 0.250. So it ties **three** baselines
+> and is **beaten by one**. Do not say "ties one, exactly" when presenting the
+> corrected figures.
+>
+> The framing that survives both targets: under an honest target nothing tested
+> clears 0.601, which measures that this task is unsolved from public evidence
+> streams rather than that one system underperforms.
+
 **And then say why, because the reason is measurable and better than the bare fact: both pipelines are scoring the same four compounds.** There are only 4 transporter claims in the entire scored split, and ARBITER's four commitments are exactly those four compounds - identical sets, not an approximate overlap. An exact tie between two pipelines evaluated on the same four compounds is close to expected, not a coincidence.
 
 ### Coverage is the finding
