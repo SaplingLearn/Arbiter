@@ -334,6 +334,17 @@ input[type="range"] { accent-color: var(--pfizer-blue); cursor: pointer; }
    so the fill is the second channel and never the only one. */
 .chip-warn { background: var(--toxic); border-color: var(--toxic); color: #fff; }
 
+/* Applicability-domain chip. Deliberately quieter than .chip-warn, which sits
+   beside it on the same row: MODIFIED warns that a reader changed the input,
+   while this reports a property of the REGISTERED evidence. An out-of-domain
+   prediction is legitimate evidence weighed at reduced weight under R4, not a
+   defect, and colouring it like tampering would say otherwise. Dashed border
+   because the claim is admitted rather than excluded. */
+.chip-domain {
+  background: transparent; color: var(--ink-2);
+  border: 1px dashed var(--ink-3, var(--hairline));
+}
+
 /* ---------- library table ---------- */
 
 /* The compound name opens its case. It is a button rather than a link because it

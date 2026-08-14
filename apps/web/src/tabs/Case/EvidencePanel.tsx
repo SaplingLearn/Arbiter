@@ -61,6 +61,22 @@ export function EvidencePanel({ collapsed, onExpand }: { collapsed: boolean; onE
                     MODIFIED - not the registered claim
                   </strong>
                 )}
+                {/* Strictly === false. The field is boolean | null, and null means
+                    the concept does not apply to this kind of claim: a measured
+                    assay has no applicability domain. A truthiness check would
+                    badge every measured row as an out-of-domain prediction, which
+                    is the opposite of what the flag says.
+
+                    Deliberately NOT .chip-warn. That treatment belongs to the
+                    MODIFIED badge beside it, which warns that a reader changed the
+                    input. This is a property of the REGISTERED evidence and a
+                    legitimate kind of claim weighed appropriately, so it reads as a
+                    qualifier rather than as tampering. */}
+                {c.inApplicabilityDomain === false && (
+                  <span data-testid="out-of-domain" className="chip chip-domain">
+                    outside applicability domain
+                  </span>
+                )}
               </div>
               <div data-testid="provenance" className="small muted">
                 {c.provenance.kind.toUpperCase()} · {c.provenance.source}
@@ -70,6 +86,17 @@ export function EvidencePanel({ collapsed, onExpand }: { collapsed: boolean; onE
           );
         })}
       </ul>
+      {/* Said once beneath the list rather than per row, and only when a row
+          carries the badge: an explanation for a badge nobody can see leaves a
+          reader hunting for it. */}
+      {claims.some((c) => c.inApplicabilityDomain === false) && (
+        <p data-testid="domain-note" className="small muted">
+          A claim marked outside applicability domain is a prediction about a compound
+          unlike the model&apos;s training set. Rule R4 admits it at reduced weight rather
+          than excluding it, following the OECD principles for QSAR validation, where the
+          applicability domain is a required element of a valid prediction.
+        </p>
+      )}
     </div>
   );
 }
