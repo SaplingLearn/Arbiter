@@ -6,26 +6,22 @@
  * catches it because a 404 on a marketing page is not a test failure anywhere.
  */
 /**
- * The product itself.
+ * The product itself: apps/deliberation.
  *
- * apps/web is a SEPARATE Vite app - it has to be, because it is the artifact a
- * judge opens from the filesystem and it cannot share a bundle with a page that
- * loads webfonts. So the landing page cannot route into it; it can only link, and
- * where that link points depends on how the two are deployed next to each other.
+ * A SEPARATE Vite app rather than a route in this one, because it is a client for
+ * a service and carries its own design system, its own auth state and its own API
+ * proxy. So this page cannot route into it; it can only link.
  *
- * `/app/` is the default because it is the arrangement that needs no
- * configuration: serve apps/web/dist under /app/ beside this page and it works.
- * `.env.development` overrides it to the Vite dev server so `npm run landing:dev`
- * reaches a running product rather than a 404.
+ * `/deliberation/` is a same-origin path, not a port, and that is the point.
+ * `npm run dev` (tools/dev-all.mjs) fronts every surface with this app's dev
+ * server, and any deployment that serves the two side by side mounts it at the
+ * same path, so dev and production agree and no override is needed. There used to
+ * be a `.env.development` here whose entire job was to paper over a port split
+ * that no longer exists.
+ *
+ * VITE_APP_URL still overrides it, for a deployment that puts the app elsewhere.
  */
-export const APP_URL: string = import.meta.env["VITE_APP_URL"] ?? "/app/";
-
-/**
- * The deliberation client. Same arrangement as APP_URL's default: the unified
- * server (`npm run dev`) and any deployment that serves the surfaces side by
- * side both mount it at this path, so no override is needed.
- */
-export const DELIBERATION_URL = "/deliberation/";
+export const APP_URL: string = import.meta.env["VITE_APP_URL"] ?? "/deliberation/";
 
 const REPO = "https://github.com/SaplingLearn/Arbiter";
 
@@ -36,5 +32,5 @@ export const SPECS_URL = `${REPO}/tree/main/docs/superpowers`;
 export const RESULTS_URL = `${REPO}/tree/main/results`;
 export const RULESET_URL = `${REPO}/blob/main/rules/ruleset-v1.0.json`;
 export const ENGINE_URL = `${REPO}/tree/main/packages/engine`;
-export const WEB_URL = `${REPO}/tree/main/apps/web`;
+export const DELIBERATION_URL = `${REPO}/tree/main/apps/deliberation`;
 export const HARNESS_URL = `${REPO}/tree/main/apps/harness`;

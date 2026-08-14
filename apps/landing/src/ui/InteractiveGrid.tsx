@@ -72,7 +72,26 @@ export function InteractiveGrid({
     // alpha:true so the paper behind shows through. The original painted a radial
     // gradient onto its own container; BLUEPRINT has no gradients, so the section's
     // flat ground is left to do that job.
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
+    //
+    // GUARDED, and this is load-bearing rather than defensive. THREE.WebGLRenderer
+    // THROWS when no WebGL context can be created - a blocked or absent GPU, a
+    // hardened browser, a VM, a headless run. This effect used to let that throw
+    // escape, and because apps/landing had no error boundary anywhere, React
+    // unmounted the whole tree: the entire marketing page rendered as a blank white
+    // screen with a correct <title>. Measured in Chrome with WebGL disabled, not
+    // assumed. Suspense does not catch this - Hero.tsx lazy-loads this module, and
+    // Suspense handles pending promises, never errors.
+    //
+    // Bailing is already this effect's idiom for "cannot draw" (no container, zero
+    // size, both above), and the grid is decoration over a flat ground that is
+    // painted by the section regardless. So the fallback is the page without its
+    // decoration, which is what a reader who cannot run WebGL should get.
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
+    } catch {
+      return;
+    }
     renderer.setSize(w, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);

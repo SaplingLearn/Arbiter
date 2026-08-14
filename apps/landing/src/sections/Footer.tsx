@@ -2,12 +2,12 @@ import { Tick, TopTicks } from "../ui/primitives.js";
 import {
   ENGINE_URL,
   HANDOVER_URL,
+  DELIBERATION_URL,
   HARNESS_URL,
   README_URL,
   RESULTS_URL,
   RULESET_URL,
   SPECS_URL,
-  WEB_URL,
 } from "../links.js";
 
 /**
@@ -21,7 +21,7 @@ import {
  */
 const REPO_LINKS = [
   { href: ENGINE_URL, label: "packages/engine" },
-  { href: WEB_URL, label: "apps/web" },
+  { href: DELIBERATION_URL, label: "apps/deliberation" },
   { href: HARNESS_URL, label: "apps/harness" },
   { href: RULESET_URL, label: "rules/ruleset-v1.0" },
 ] as const;

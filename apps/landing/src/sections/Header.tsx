@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Cta, Mark } from "../ui/primitives.js";
-import { APP_URL, DELIBERATION_URL } from "../links.js";
+import { APP_URL } from "../links.js";
 
 /**
  * Fragment nav, not route nav. This page is one document; every destination is a
@@ -25,7 +25,7 @@ const NAV_LINKS = [
   // The one exception to "every destination is a section": the deliberation
   // client is its own surface on this origin, and this rail is the only place a
   // reader can discover it exists.
-  { href: DELIBERATION_URL, label: "Deliberation" },
+  { href: APP_URL, label: "Deliberation" },
 ] as const;
 
 export function Header() {

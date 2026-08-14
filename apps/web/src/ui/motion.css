@@ -1,9 +1,0 @@
-/* Level 2 motion with a kill switch. Nothing animates unless it carries meaning,
-   nothing exceeds 1.5s, and both the M toggle and prefers-reduced-motion drop the
-   whole app to opacity-only instantly. */
-[data-motion="off"] *,
-[data-motion="off"] *::before,
-[data-motion="off"] *::after {
-  animation-duration: 0.01ms !important;
-  transition-duration: 0.01ms !important;
-}

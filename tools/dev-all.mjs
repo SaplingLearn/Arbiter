@@ -1,37 +1,38 @@
 /**
  * One command, one origin: `npm run dev`.
  *
- * ARBITER is four surfaces (landing, product app, deliberation client, API) that
- * used to be four separate localhost ports, which in practice meant nobody could
- * say which port was "Arbiter". This script starts all four and fronts them with
- * the landing app's dev server on ONE public address:
+ * ARBITER's frontend used to be separate dev servers on separate ports, which in
+ * practice meant nobody could say which port was "Arbiter". This script starts
+ * every surface and fronts them with the landing app's dev server on ONE public
+ * address:
  *
  *   http://localhost:5173/               landing page
- *   http://localhost:5173/app/           product app   (apps/web, hash-routed)
- *   http://localhost:5173/deliberation/  deliberation  (apps/deliberation)
+ *   http://localhost:5173/deliberation/  the product   (apps/deliberation)
  *   http://localhost:5173/api/...        API           (services/api)
  *
  * The routing itself lives in apps/landing/vite.config.ts (server.proxy); this
  * file only assigns the internal ports those proxy entries name. Everything binds
  * 127.0.0.1 explicitly because a bare "localhost" bind on this machine has
- * already produced an IPv6-only server the browser could not reach.
+ * already produced an IPv6-only server the browser could not reach while curl
+ * could.
  *
  * --strictPort everywhere: if a port is taken the process dies loudly instead of
- * sliding to the next port and silently detaching from the proxy table.
+ * sliding to the next port and silently detaching from the proxy table. That
+ * failure is not hypothetical - an unrelated project's stale dev server was
+ * holding the port this app wanted, and the sliding default meant opening the
+ * expected URL showed a different product entirely.
+ *
+ * ARBITER_PORT overrides the public port for exactly that case, when the
+ * squatter is something you would rather not kill.
  */
 import { spawn } from "node:child_process";
 
-const ENTRY_PORT = 5173;
+const ENTRY_PORT = process.env["ARBITER_PORT"] ?? "5173";
 
 const SERVERS = [
   {
     name: "api",
     args: ["run", "api"],
-  },
-  {
-    name: "web",
-    args: ["run", "dev", "-w", "@arbiter/web", "--",
-      "--host", "127.0.0.1", "--port", "5273", "--strictPort", "--base", "/app/"],
   },
   {
     name: "delib",
@@ -84,8 +85,7 @@ process.on("SIGTERM", () => shutdown(0));
 setTimeout(() => {
   console.log("");
   console.log(`ARBITER  http://localhost:${ENTRY_PORT}/`);
-  console.log(`         http://localhost:${ENTRY_PORT}/app/           product app`);
-  console.log(`         http://localhost:${ENTRY_PORT}/deliberation/  deliberation`);
+  console.log(`         http://localhost:${ENTRY_PORT}/deliberation/  the product`);
   console.log(`         http://localhost:${ENTRY_PORT}/api            API`);
   console.log("");
 }, 2500);
