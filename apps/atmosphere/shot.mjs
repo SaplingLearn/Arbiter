@@ -12,7 +12,7 @@ import { mkdirSync } from "node:fs";
 
 const OUT = process.argv[2] ?? "shots";
 const URL = "http://127.0.0.1:5180/";
-const STATES = ["dashboard", "new", "library", "ask", "method"];
+const STATES = ["landing", "dashboard", "new", "library", "ask", "method"];
 
 mkdirSync(OUT, { recursive: true });
 

@@ -2,6 +2,7 @@ import { createArchive } from "./archive.js";
 import { createCulture } from "./culture.js";
 import { createGenesis } from "./genesis.js";
 import { createHelix } from "./helix.js";
+import { createMonolith } from "./monolith.js";
 import { createSynapse } from "./synapse.js";
 import type { SceneFactory } from "../core/types.js";
 
@@ -28,6 +29,16 @@ export interface StateDef {
  * fields back to back is what makes a sequence feel repetitive.
  */
 export const STATES: StateDef[] = [
+  {
+    // First, because it is the only state a stranger sees before being told what any
+    // of this is. The other five are product tabs and assume a reader already inside.
+    id: "landing",
+    label: "Landing",
+    codename: "Monolith",
+    headline: ["REASONING", "IN THE DARK"],
+    lede: "One object, lit from inside, in a landscape that is not.",
+    factory: createMonolith,
+  },
   {
     id: "dashboard",
     label: "Dashboard",
