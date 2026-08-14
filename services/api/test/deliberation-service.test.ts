@@ -136,6 +136,25 @@ describe("DeliberationService - the whole path with no model in it", () => {
     expect(joined).toContain("Exposure margin");
   });
 
+  it("returns nothing while the case is open, because a running tally drags the room", () => {
+    const svc = service();
+    opened(svc, ["ann", "bea", "cal", "dee"]);
+    svc.submit("c1", pos("ann", { call: "do_not_advance" }));
+    // The leak this replaced: one submitted position made the room "unanimous",
+    // and the call was served to everyone who asked for it directly. Blindness is
+    // enforced by not returning the data, never by the client not rendering it.
+    expect(svc.unanimity("c1")).toBeNull();
+  });
+
+  it("returns the report once the case is revealed", () => {
+    const svc = service();
+    opened(svc, ["ann", "bea"]);
+    svc.submit("c1", pos("ann"));
+    svc.submit("c1", pos("bea"));
+    svc.reveal("c1", "owner", "t", "all_in");
+    expect(svc.unanimity("c1")!.unanimous).toBe(true);
+  });
+
   it("records non-responders when the owner closes early", () => {
     const svc = service();
     opened(svc, ["ann", "bea", "cal"]);

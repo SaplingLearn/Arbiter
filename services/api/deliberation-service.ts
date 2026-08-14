@@ -352,7 +352,15 @@ export class DeliberationService {
   unanimity(caseId: string): UnanimityReport | null {
     const c = this.store.getCase(caseId);
     const inv = this.inventory(caseId);
-    return c === null || inv === null ? null : unanimityCheck(c, inv);
+    if (c === null || inv === null) return null;
+    // NOT VISIBLE BEFORE THE REVEAL. unanimityCheck reports agreement among the
+    // positions SUBMITTED SO FAR, so on an open case it is a running tally - the
+    // one thing §6.2 exists to prevent, and worth more than the positions
+    // themselves to anyone deciding what to write. Gated here rather than in the
+    // client, because a rendering convention is one forgotten conditional away
+    // from being nothing at all.
+    if (c.status === "open") return null;
+    return unanimityCheck(c, inv);
   }
 
   /**
