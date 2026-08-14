@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-  adjudicationSchema, handleAdjudicate, userPrompt, verifyAdjudication,
+  ADJUDICATOR_PROMPT_PATH, adjudicationSchema, handleAdjudicate, userPrompt, verifyAdjudication,
   type AdjudicateRequest, type Adjudication,
 } from "../adjudicate.js";
 
-const PROMPT = JSON.parse(readFileSync("prompts/adjudicator-v1.0.json", "utf8")) as {
+const PROMPT = JSON.parse(readFileSync(ADJUDICATOR_PROMPT_PATH, "utf8")) as {
   system: string[]; userTemplate: string[];
 };
 
@@ -26,6 +26,9 @@ const REQUEST: AdjudicateRequest = {
 const VALID: Adjudication = {
   mechanism: { present: true, pathway: "hepatocyte death", citedFindingIds: ["f2"] },
   consequence: { verdict: "cannot_conclude", reasoning: "No margin for the clean study.", citedFindingIds: ["f1", "f2"] },
+  // Empty and legal: this REQ carries no `present`, and the verdict is `cannot_conclude`,
+  // which is the one verdict that needs no consequence-half evidence behind it.
+  consequenceBasis: [],
   ruleDisclosure: [
     { ruleId: "R1", position: "applies", reasoning: "Human cell data present.", citedFindingIds: ["f2"] },
     { ruleId: "R3", position: "applies", reasoning: "f1's margin is unestablished.", citedFindingIds: ["f1"] },
@@ -42,6 +45,18 @@ describe("adjudicationSchema", () => {
     expect(s.properties.mechanism.properties.citedFindingIds.items.enum).toEqual(["f1", "f2"]);
     expect(s.properties.consequence.properties.citedFindingIds.items.enum).toEqual(["f1", "f2"]);
     expect(s.properties.ruleDisclosure.items.properties.ruleId.enum).toEqual(["R1", "R3"]);
+  });
+
+  it("constrains missing entries to recorded absences and does NOT bound the count", () => {
+    // Both halves matter. The enum is the structural guarantee - no invented gap.
+    // The absent cardinality bound is a PROVIDER LIMIT, not an oversight: Vertex
+    // rejects an array carrying both a bound and an item enum once the enum grows,
+    // and an absence field is a sentence where a rule id is three characters.
+    // Completeness is carried by the prompt and by absence_not_addressed instead.
+    const s = adjudicationSchema(REQUEST) as any;
+    expect(s.properties.missing.items.properties.field.enum).toEqual(["clinical Cmax"]);
+    expect(s.properties.missing.minItems).toBeUndefined();
+    expect(s.properties.missing.maxItems).toBeUndefined();
   });
 
   it("requires exactly one disclosure per registered rule", () => {
@@ -101,6 +116,56 @@ describe("verifyAdjudication", () => {
     expect(failures).toHaveLength(1);
     expect(failures[0]!.kind).toBe("unknown_finding_id");
     expect(failures[0]!.detail).toContain("R3");
+  });
+
+  // §0: five over-calls on approved drugs came from a severity verdict resting on
+  // mechanism evidence alone. These four cases are that defect, made unrepresentable.
+  const WITH_INVENTORY: AdjudicateRequest = {
+    ...REQUEST,
+    present: [
+      { field: "Human-cell hepatotoxicity result", half: "mechanism" },
+      { field: "Reversibility on withdrawal", half: "consequence" },
+    ],
+  };
+
+  it("lets a decisive verdict stand when it names present consequence-half evidence", () => {
+    const ok = {
+      ...VALID,
+      consequence: { ...VALID.consequence, verdict: "do_not_advance" as const },
+      consequenceBasis: ["Reversibility on withdrawal"],
+    };
+    expect(verifyAdjudication(ok, WITH_INVENTORY)).toEqual([]);
+  });
+
+  it("catches a severity verdict resting on nothing measured", () => {
+    // The live failure this check was built for: the model justified `do_not_advance`
+    // with "severe, irreversible" while reversibility was recorded ABSENT.
+    const bad = {
+      ...VALID,
+      consequence: { ...VALID.consequence, verdict: "do_not_advance" as const },
+      consequenceBasis: [],
+    };
+    const kinds = verifyAdjudication(bad, WITH_INVENTORY).map((f) => f.kind);
+    expect(kinds).toContain("consequence_without_basis");
+  });
+
+  it("refuses a basis the inventory does not record as present", () => {
+    const bad = { ...VALID, consequenceBasis: ["Expected frequency and the population"] };
+    const kinds = verifyAdjudication(bad, WITH_INVENTORY).map((f) => f.kind);
+    expect(kinds).toContain("unknown_basis");
+  });
+
+  it("exempts cannot_conclude, which is the answer an unmeasured consequence half has", () => {
+    // Without this exemption a package with nothing on the consequence side would have
+    // no legal verdict at all, and the check would be a deadlock rather than a floor.
+    const ok = { ...VALID, consequence: { ...VALID.consequence, verdict: "cannot_conclude" as const }, consequenceBasis: [] };
+    expect(verifyAdjudication(ok, WITH_INVENTORY)).toEqual([]);
+  });
+
+  it("stays inert when the request carries no inventory, rather than failing every run", () => {
+    // REQUEST has no `present`. The probe case is built from a fixture and never will.
+    const decisive = { ...VALID, consequence: { ...VALID.consequence, verdict: "do_not_advance" as const } };
+    expect(verifyAdjudication(decisive, REQUEST)).toEqual([]);
   });
 });
 

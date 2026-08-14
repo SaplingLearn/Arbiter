@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import {
-  api, ApiError,
+  api, ApiError, uploadDocument,
   type Adjudication, type AuditResult, type BlindView, type CaseListing,
-  type CaseSummary, type Finding, type Inventory, type Person, type Refusal,
+  type CaseSummary, type Finding, type Inventory, type LibrarySource, type Person, type Refusal,
   type Roster, type StoredDocument, type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
-import { AuthPage, Dashboard, LibraryPage, MethodPage, NewCasePage } from "./pages.js";
+import { AskPage, AuthPage, Dashboard, LibraryPage, MethodPage, NewCasePage } from "./pages.js";
 import {
   Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
   Refused, Reveal, RosterPanel, Verdict, Waiting,
@@ -33,6 +33,7 @@ export function App(): ReactElement {
   const [me, setMe] = useState<Person | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [catalogue, setCatalogue] = useState<CaseSummary[]>([]);
+  const [library, setLibrary] = useState<LibrarySource[]>([]);
   const [mine, setMine] = useState<CaseListing[]>([]);
 
   const [inventory, setInventory] = useState<Inventory | null>(null);
@@ -101,9 +102,14 @@ export function App(): ReactElement {
     if (token === null) return;
     void (async () => {
       try {
-        const [p, c] = await Promise.all([api.people(token), api.catalogue(token)]);
+        // Loaded with the catalogue rather than inside AskPage, and for the same
+        // reason: both describe what this deployment holds, neither changes while
+        // somebody is signed in, and a fetch inside the page would re-run it on every
+        // visit to Ask.
+        const [p, c, l] = await Promise.all([api.people(token), api.catalogue(token), api.library(token)]);
         setPeople(p);
         setCatalogue(c);
+        setLibrary(l);
         await loadMine(token);
       } catch (e) {
         setFatal(e instanceof Error ? e.message : String(e));
@@ -183,13 +189,7 @@ export function App(): ReactElement {
     setUploadError(null);
     void (async () => {
       try {
-        const res = await fetch(`/api/cases/${caseId}/documents`, {
-          method: "POST",
-          headers: { "content-type": "application/pdf", "x-filename": file.name, authorization: `Bearer ${token}` },
-          body: await file.arrayBuffer(),
-        });
-        const body = await res.json() as { detail?: string; error?: string };
-        if (!res.ok) setUploadError(body.detail ?? `Upload failed: ${body.error ?? res.status}`);
+        await uploadDocument(token, caseId, file);
         setDocs(await api.documents(token, caseId));
       } catch (e) {
         setUploadError(e instanceof Error ? e.message : String(e));
@@ -226,6 +226,9 @@ export function App(): ReactElement {
         <NewCasePage token={token} people={people.filter((p) => p.id !== me.id)}
           onCreated={(id) => { void loadMine(token); navigate({ name: "case", caseId: id }); }} />,
       );
+
+    case "ask":
+      return shell(<AskPage token={token} library={library} />);
 
     case "cases":
       return shell(<LibraryPage catalogue={catalogue} onOpen={openPrepared} busy={opening} />);
@@ -319,12 +322,27 @@ export function App(): ReactElement {
 
   if (route.name === "reveal") {
     if (!revealed) {
+      // THE OWNER GETS THE CONTROLS HERE, and before this they could not reach them at
+      // all. `Waiting` holds the only "Close without them" button, and the position
+      // route renders it solely when `view.own !== null` - when the VIEWER has sealed.
+      // A convener never seals (access.ts: they "convene and sign but do not hold an
+      // opinion on the record"), so the one control only an owner may use lived behind
+      // a condition no owner can satisfy. The API, the service and the button all
+      // worked; nothing rendered them together.
+      //
+      // The reveal route is where an owner goes to close a case, so this is where they
+      // belong. Everyone else keeps the dead end, because for a participant it is not a
+      // dead end - it is the correct answer, and it points back at the thing they can
+      // actually do.
       return caseShell(
-        <div className="empty">
-          <h3>Not everyone has answered</h3>
-          <p className="muted">Positions stay sealed until the case is closed. That is the whole point of collecting them separately.</p>
-          <a href={href({ name: "position", caseId })}><button className="ghost">Back to your position</button></a>
-        </div>,
+        isOwner
+          ? <Waiting view={view} isOwner={isOwner} nameOf={nameOf}
+              onReveal={(mode) => act(() => api.reveal(token, caseId, mode, new Date().toISOString()))} />
+          : <div className="empty">
+              <h3>Not everyone has answered</h3>
+              <p className="muted">Positions stay sealed until the case is closed. That is the whole point of collecting them separately.</p>
+              <a href={href({ name: "position", caseId })}><button className="ghost">Back to your position</button></a>
+            </div>,
       );
     }
     return caseShell(

@@ -25,6 +25,10 @@ export function Layout({ route, me, onSignOut, children }: {
     { label: "Dashboard", to: { name: "dashboard" } },
     { label: "New case", to: { name: "new" } },
     { label: "Library", to: { name: "cases" } },
+    // Top-level, not a case tab. The tab strip is a SEQUENCE - 3.5: "the workflow is
+    // the information architecture" - and asking what a document says is not a step in
+    // it. The same question is often asked across cases.
+    { label: "Ask", to: { name: "ask" } },
     { label: "Method", to: { name: "method" } },
   ];
 

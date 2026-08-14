@@ -23,6 +23,7 @@ export type Route =
   | { name: "position"; caseId: string }
   | { name: "reveal"; caseId: string }
   | { name: "record"; caseId: string }
+  | { name: "ask" }
   | { name: "method" };
 
 export const DEFAULT_ROUTE: Route = { name: "dashboard" };
@@ -32,6 +33,7 @@ export function parseHash(hash: string): Route {
   if (parts.length === 0) return DEFAULT_ROUTE;
 
   if (parts[0] === "method") return { name: "method" };
+  if (parts[0] === "ask") return { name: "ask" };
   if (parts[0] === "new") return { name: "new" };
   if (parts[0] === "library") return { name: "cases" };
   if (parts[0] === "dashboard") return { name: "dashboard" };
@@ -64,6 +66,7 @@ export function href(route: Route): string {
     case "position": return `#/case/${encodeURIComponent(route.caseId)}/position`;
     case "reveal": return `#/case/${encodeURIComponent(route.caseId)}/reveal`;
     case "record": return `#/case/${encodeURIComponent(route.caseId)}/record`;
+    case "ask": return "#/ask";
   }
 }
 

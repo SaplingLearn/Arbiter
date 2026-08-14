@@ -1,7 +1,7 @@
-import { useState, type FormEvent, type ReactElement } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
 import { PageHead, Section } from "./Layout.js";
 import { href } from "./router.js";
-import { api, ApiError, type CaseListing, type CaseSummary, type Person } from "./api.js";
+import { api, ApiError, uploadDocument, type AskAnswer, type CaseListing, type CaseSummary, type LibrarySource, type Person } from "./api.js";
 
 /**
  * The composition pages: authentication, the dashboard, case creation, and the
@@ -268,6 +268,11 @@ export function NewCasePage({ token, people, onCreated }: {
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [rejected, setRejected] = useState<{ name: string; why: string }[]>([]);
+  // Held so the "continue anyway" button after a refusal knows where to go.
+  const [createdId, setCreatedId] = useState("");
 
   const toggle = (email: string): void =>
     setSelected((s) => (s.includes(email) ? s.filter((x) => x !== email) : [...s, email]));
@@ -280,6 +285,37 @@ export function NewCasePage({ token, people, onCreated }: {
       const r = await api.createCase(token, {
         compoundLabel, context, modality, participantEmails: selected,
       });
+
+      // UPLOADED AFTER THE CASE EXISTS, because a document belongs to a case and there
+      // is nowhere to put one before. The case is already open at this point, so a
+      // refused PDF is not a lost case - it is a case with one fewer document, and the
+      // reader is told which and why rather than being bounced back to an empty form.
+      //
+      // SEQUENTIAL, not Promise.all. Each upload is up to 80 MB and every one runs
+      // measure_pdf.py server-side; firing five at once buys nothing and makes the
+      // failure ambiguous when one of them is the scanned document.
+      setCreatedId(r.case.caseId);
+      const refusals: { name: string; why: string }[] = [];
+      for (const f of files) {
+        setUploading(f.name);
+        try {
+          await uploadDocument(token, r.case.caseId, f);
+        } catch (err) {
+          refusals.push({ name: f.name, why: err instanceof ApiError ? err.message : String(err) });
+        }
+      }
+      setUploading(null);
+
+      // A refusal HOLDS THE SCREEN rather than navigating past it. Two of the first
+      // five documents collected for this project were unusable and neither failure
+      // was visible without measuring - a message that flashes past on the way to the
+      // case tab is a measurement nobody reads.
+      if (refusals.length > 0) {
+        setRejected(refusals);
+        setBusy(false);
+        return;
+      }
+
       onCreated(r.case.caseId);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
@@ -292,7 +328,7 @@ export function NewCasePage({ token, people, onCreated }: {
       <PageHead
         crumb={<><a href={href({ name: "dashboard" })}>Dashboard</a><span>›</span><span>New case</span></>}
         title="Open a case"
-        lede="Name the compound and the people who will answer. You will add the evidence next."
+        lede="Name the compound, the people who will answer, and the study documents. You can add more evidence afterwards."
       />
 
       <form onSubmit={(e) => { void submit(e); }} style={{ maxWidth: 720 }}>
@@ -352,6 +388,34 @@ export function NewCasePage({ token, people, onCreated }: {
             ))}
         </div>
 
+        {/* Documents, uploaded once the case exists - see `submit`. Optional here
+            because a case can be opened before the package arrives, and forcing a PDF
+            at this step would push people to open the case elsewhere and never come
+            back. */}
+        <div className="panel" style={{ marginTop: 24 }}>
+          <div className="field">
+            <label htmlFor="new-docs">Study documents (PDF)</label>
+            <input id="new-docs" type="file" accept="application/pdf,.pdf" multiple disabled={busy}
+              onChange={(e) => setFiles([...(e.target.files ?? [])])} />
+            <span className="hint">
+              Every document is measured before it is accepted. A scanned file with no
+              extractable text is refused rather than stored as though it were readable.
+              You can add more later.
+            </span>
+          </div>
+          {files.length > 0 && (
+            <div className="inv">
+              {files.map((f) => (
+                <div className="inv-row" key={f.name}>
+                  <div className="state present">{Math.round(f.size / 1024 / 1024 * 10) / 10} MB</div>
+                  <div className="tiny mono">{f.name}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {uploading !== null && <div className="note">Uploading and measuring {uploading}…</div>}
+        </div>
+
         <div className="btn-row">
           <button className="primary" type="submit" disabled={busy || compoundLabel.trim() === "" || selected.length === 0}>
             {busy ? "Opening…" : "Open case"}
@@ -360,6 +424,27 @@ export function NewCasePage({ token, people, onCreated }: {
         </div>
         {selected.length === 0 && <div className="hint">Pick at least one person. One person deciding alone does not need this.</div>}
         {error !== null && <div className="err">{error}</div>}
+
+        {/* A refused document HOLDS THE SCREEN. The case is already open at this point,
+            so this is not a lost case - it is a case with one fewer document, and the
+            measurement is the only thing that tells an uploader why while they still
+            have the file. Two of the first five documents collected for this project
+            were unusable and neither failure was visible without measuring. */}
+        {rejected.length > 0 && (
+          <div className="panel" style={{ marginTop: 16 }}>
+            <p><strong>The case is open. These documents were refused:</strong></p>
+            {rejected.map((r) => (
+              <p className="small" key={r.name}>
+                <span className="mono">{r.name}</span> - {r.why}
+              </p>
+            ))}
+            <div className="btn-row">
+              <button className="primary" type="button" onClick={() => onCreated(createdId)}>
+                Continue to the case
+              </button>
+            </div>
+          </div>
+        )}
       </form>
     </>
   );
@@ -469,6 +554,314 @@ export function MethodPage(): ReactElement {
           </div>
         </Section>
       </div>
+    </>
+  );
+}
+
+
+/** ------------------------------------------------------------------- ask */
+/**
+ * Ask the documents. A search over one case's PDFs and a conversation about what
+ * they say.
+ *
+ * WHY THIS IS NOT INSIDE A CASE. The case tab strip is a sequence - inventory, your
+ * position, reveal, sign - and section 3.5 makes that order the information
+ * architecture, because reading somebody else's call before writing your own is the
+ * failure blind submission prevents. Asking what a document SAYS is not a step in that
+ * sequence. It is a fact about the folder, which section 3.1 puts before positions
+ * rather than after, and the same question is often asked across cases.
+ *
+ * FOLLOW-UPS ARE REAL, WITH A LIMIT. Prior turns are sent so "what about the second
+ * one" resolves to something, but they are sent as CONTEXT FOR THE QUESTION, never as
+ * evidence: passages are retrieved fresh for every turn and every claim must still
+ * cite one. An answer may not rest on an earlier answer, because an earlier answer is
+ * not a document.
+ *
+ * WHY IT READS AS A THREAD AND NOT AS BUBBLES. The whole transcript is sent and the
+ * server says how much of it it read, so the conversation is real and the page shows
+ * where the model's memory starts - a thread that silently forgot its own opening
+ * would be worse than one that never remembered. What it does not borrow from a chat
+ * client is the styling: BLUEPRINT has no pills, no tinted clouds and no avatars, so a
+ * turn is a block of type with a rule down its side, and the citations under an answer
+ * stay the full-width evidence rows they are everywhere else in this app. They are the
+ * reason the surface exists; they do not get shrunk to fit a chat aesthetic.
+ */
+/** What a summary turn is called on screen. The server owns the actual instruction. */
+const SUMMARY_LABEL = "Summarise this document";
+
+const SUGGESTED = [
+  "What exposure margin does the report give, and on what basis?",
+  "What NOAEL was set, and in which study?",
+  "What liver findings are reported, and at what doses?",
+  "Which studies included a recovery or reversibility phase?",
+  "What histopathology is described in the repeat-dose studies?",
+  "What does the report say was not investigated?",
+];
+
+/** An exchange. A null answer is one in flight, which the thread shows as pending. */
+interface AskTurn {
+  question: string;
+  answer: AskAnswer | null;
+}
+
+export function AskPage({ token, library }: {
+  token: string;
+  library: LibrarySource[];
+}): ReactElement {
+  // THE LIBRARY ONLY, and case folders are deliberately not offered here. A case is a
+  // deliberation - an inventory, positions, a reveal, a signed record - and its
+  // documents are read inside it, next to the findings transcribed from them. This
+  // surface is for reading the library's regulatory reviews, which need no case and no
+  // upload. `POST /api/cases/{id}/ask` still exists and still works; nothing on this
+  // page points at it.
+  //
+  // The first document that can be searched, so the page opens on something usable
+  // rather than on whichever entry happens to be first.
+  const [source, setSource] = useState(
+    () => (library.find((s) => s.askable) ?? library[0])?.name ?? "",
+  );
+  const [question, setQuestion] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [turns, setTurns] = useState<AskTurn[]>([]);
+  const foot = useRef<HTMLDivElement>(null);
+
+  // Follows the conversation down as it grows. Depends on the turn COUNT rather than
+  // on `turns`, so an answer landing in a turn already on screen does not yank the
+  // page while somebody is reading the citations above it.
+  useEffect(() => {
+    if (turns.length > 0) foot.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [turns.length]);
+
+  // Turns belong to the document they were asked of. Carrying them across a change of
+  // source would put one compound's answers under another's name on screen, and would
+  // feed them back as context for a question about a different document.
+  const pick = (id: string): void => { setSource(id); setTurns([]); setError(null); };
+
+  const send = async (q: string): Promise<void> => {
+    const text = q.trim();
+    if (text === "" || busy || source === "") return;
+    setBusy(true); setError(null);
+    // The whole thread, oldest first. The server windows it and reports what it read;
+    // trimming here as well would mean two truncations that can disagree.
+    const history = turns.flatMap((t) =>
+      t.answer === null ? [] : [{ question: t.question, answer: t.answer.answer }]);
+    setTurns((t) => [...t, { question: text, answer: null }]);
+    setQuestion("");
+    try {
+      const answer = await api.askLibrary(token, source, text, history);
+      setTurns((t) => t.map((turn, i) => (i === t.length - 1 ? { ...turn, answer } : turn)));
+    } catch (e) {
+      // The pending turn goes with the failure. Leaving a question on screen with no
+      // answer and an error underneath reads as an answer that has not arrived yet.
+      setTurns((t) => t.slice(0, -1));
+      setQuestion(text);
+      setError(e instanceof ApiError ? e.message : "That question could not be answered just now.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * A summary is a different REQUEST, not a cleverly worded question.
+   *
+   * Retrieval picks eight pages by word overlap, and "give a summary of this document"
+   * overlaps with nothing in particular, so the model was handed eight arbitrary pages
+   * and correctly refused to call that a summary. This route sends the whole document
+   * instead. It carries no history: a summary is of the document, not of the
+   * conversation, and an earlier answer must never become an input to one.
+   */
+  const summarise = async (): Promise<void> => {
+    if (busy || source === "") return;
+    setBusy(true); setError(null);
+    setTurns((t) => [...t, { question: SUMMARY_LABEL, answer: null }]);
+    try {
+      const answer = await api.summarise(token, source);
+      setTurns((t) => t.map((turn, i) => (i === t.length - 1 ? { ...turn, answer } : turn)));
+    } catch (e) {
+      setTurns((t) => t.slice(0, -1));
+      setError(e instanceof ApiError ? e.message : "That document could not be summarised just now.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Where the model's memory begins. The newest answered turn states how many turns
+  // preceded it in the window; everything before that point was on screen but not in
+  // front of the model. Computed from the server's count alone.
+  const answered = turns.map((t, i) => ({ t, i })).filter((x) => x.t.answer !== null);
+  const newest = answered.at(-1);
+  const remembersFrom = newest === undefined ? 0 : newest.i - newest.t.answer!.historyTurnsUsed;
+
+  // WHY THE SELECTION CAN REFUSE. The reason was decided when the document was
+  // ingested and it is the splitter's own sentence - "this is a scanned document" is a
+  // fact about the file, not about the compound, and an empty search over it would say
+  // the opposite. It must stop the question: asking anyway spends a model call to
+  // produce "the documents do not contain that", which on screen is indistinguishable
+  // from a real document that happens not to cover it.
+  const selected = library.find((s) => s.name === source);
+  const refusal = selected !== undefined && !selected.askable ? selected.reason ?? "" : null;
+
+  if (library.length === 0) {
+    return (
+      <>
+        <PageHead crumb={<span>Ask</span>} title="Ask the documents"
+          lede="Answers come only from a document, and name the page they rest on." />
+        <div className="empty">
+          <h3>Nothing to ask yet</h3>
+          <p className="muted">
+            The library holds no readable document in this checkout. The approval-package
+            PDFs are not committed to the repository - each is retrievable from
+            accessdata.fda.gov or ema.europa.eu by the URL the spec records.
+          </p>
+          <a href={href({ name: "cases" })}><button className="primary">See the library</button></a>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHead crumb={<span>Ask</span>} title="Ask the documents"
+        lede="Every answer comes from one of the library's regulatory reviews and names the page it rests on."
+        actions={
+          <div className="field">
+            <label htmlFor="ask-source">Which document</label>
+            <select id="ask-source" value={source} onChange={(e) => pick(e.target.value)} disabled={busy}>
+              {/* A refused document stays SELECTABLE, exactly as it does on the case
+                  library: choosing it shows the splitter's reason. Disabling it would
+                  leave somebody who came looking for tolcapone with a greyed-out name
+                  and no explanation. */}
+              {library.map((s) => (
+                <option key={s.name} value={s.name}>
+                  {s.label}{s.askable ? "" : " - cannot be searched"}
+                </option>
+              ))}
+            </select>
+          </div>
+        } />
+
+      {refusal !== null && (
+        <div className="empty">
+          <h3>This document cannot be searched</h3>
+          {/* The refusal verbatim. `split_review.py` refuses rather than trimming by
+              hand, and a paraphrase here would soften the one measurement that made
+              the original replay plan impossible. */}
+          <p className="muted">{refusal}</p>
+          <p className="tiny muted">{selected?.document}</p>
+        </div>
+      )}
+
+      {refusal === null && <>
+      <div className="note">
+        This reports what the documents say. It does not judge the compound and will not
+        tell you whether to advance - that is the panel's to state and the adjudication's
+        to weigh. Nothing asked here is written to the case record.
+      </div>
+
+      <div className="thread">
+        {turns.map((t, i) => (
+          <div key={`${i}-${t.question}`}>
+            {/* Drawn ABOVE the first remembered turn, so what is above the line is
+                visibly out of the model's reach rather than quietly ignored. */}
+            {i === remembersFrom && remembersFrom > 0 && (
+              <div className="memory-line"><span>remembers from here</span></div>
+            )}
+            <div className="turn asked">
+              <p>{t.question}</p>
+            </div>
+            {t.answer === null
+              ? (
+                <div className="turn said pending">
+                  {/* A summary reads every page of a 178-page review and takes tens of
+                      seconds. "Reading the documents..." under that wait looks stuck. */}
+                  <p className="muted">
+                    {t.question === SUMMARY_LABEL
+                      ? "Reading the whole document - this takes a while..."
+                      : "Reading the documents..."}
+                  </p>
+                </div>
+              )
+              : (
+                <div className="turn said">
+                  {t.answer.answerable
+                    ? <>
+                        <p>{t.answer.answer}</p>
+                        <div className="inv">
+                          {t.answer.citations.map((c) => (
+                            <div className="inv-row" key={`${c.documentId}-${c.page}`}>
+                              <div className="state present">p.{c.page}</div>
+                              <div className="tiny mono">{c.filename}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    : <>
+                        <p><strong>The documents do not answer this.</strong></p>
+                        <p className="muted">{t.answer.answer}</p>
+                      </>}
+                </div>
+              )}
+          </div>
+        ))}
+        <div ref={foot} />
+      </div>
+
+      <div className="composer">
+        {error !== null && <div className="err">{error}</div>}
+        {/* The summary stays available at every point in the thread, unlike the
+            suggestions: it is an action on the DOCUMENT, and wanting it after three
+            questions is at least as likely as wanting it before any. */}
+        <div className="chips">
+          <button className="primary" disabled={busy} onClick={() => void summarise()}>{SUMMARY_LABEL}</button>
+          {/* A cold start aid. Once a thread exists the reader has better questions
+              than these, and six of them under every follow-up is furniture. */}
+          {turns.length === 0 && SUGGESTED.map((q) => (
+            <button key={q} className="ghost" disabled={busy} onClick={() => void send(q)}>{q}</button>
+          ))}
+        </div>
+        <div className="composer-row">
+          <label className="sr-only" htmlFor="ask-q">Your question</label>
+          {/* NOT disabled while busy, and that is the whole point of this row. Typing
+              and SENDING are different acts: the thread is one conversation, so a
+              second question may not go out while the first is unanswered - but the
+              moment a reader has thought of the next thing to ask is exactly while
+              they are waiting, and a summary keeps them waiting eighty seconds. A
+              disabled box also survives its cause: a request that never settles used
+              to leave the composer dead until the page was reloaded. */}
+          <textarea id="ask-q" rows={2} value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            // Enter sends, Shift+Enter is a newline. Ctrl+Enter keeps working because
+            // it was the documented key here before this page became a thread.
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              if (e.shiftKey) return;
+              e.preventDefault();
+              // Said, not swallowed. A keystroke that does nothing and explains
+              // nothing is indistinguishable from a broken input.
+              if (busy) { setError("Still reading the last question - this will send when that answer arrives."); return; }
+              void send(question);
+            }}
+            placeholder={turns.length === 0
+              ? "What exposure margin does the report give, and on what basis?"
+              : "Ask a follow-up..."} />
+          <button className="primary" disabled={busy || question.trim() === ""} onClick={() => void send(question)}>
+            {busy ? "Reading..." : "Ask"}
+          </button>
+        </div>
+        <div className="composer-foot">
+          <span className="hint">
+            The search is over the words on the page, so naming the study, finding or
+            number you want helps. Enter sends, Shift+Enter for a new line.
+          </span>
+          {turns.length > 0 && (
+            <button className="link" disabled={busy} onClick={() => { setTurns([]); setError(null); }}>
+              Clear thread
+            </button>
+          )}
+        </div>
+      </div>
+      </>}
     </>
   );
 }

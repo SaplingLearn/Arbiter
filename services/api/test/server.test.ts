@@ -9,14 +9,15 @@ import { DeliberationService } from "../deliberation-service.js";
 import { MemoryStore } from "../store.js";
 import { AuthStore } from "../auth.js";
 import { DocumentStore } from "../documents.js";
+import { LibraryStore } from "../library.js";
 import { InviteStore } from "../invites.js";
 import { LoginThrottle } from "../throttle.js";
 import { seedDemoTeam, DEMO_PASSWORD } from "../seed-demo.js";
 import type { EvidenceChecklist, CoveringFinding } from "../inventory.js";
-import type { AdjudicateRequest } from "../adjudicate.js";
+import { ADJUDICATOR_PROMPT_PATH, type AdjudicateRequest } from "../adjudicate.js";
 
 const CHECKLIST = JSON.parse(readFileSync("rules/evidence-checklist-v1.0.json", "utf8")) as EvidenceChecklist;
-const PROMPT = JSON.parse(readFileSync("prompts/adjudicator-v1.0.json", "utf8")) as { system: string[]; userTemplate: string[] };
+const PROMPT = JSON.parse(readFileSync(ADJUDICATOR_PROMPT_PATH, "utf8")) as { system: string[]; userTemplate: string[] };
 const RULES: AdjudicateRequest["rules"] = [
   { id: "R1", name: "Human relevance", statement: "Human-cell evidence defeats animal in vivo.", enabled: true, strength: 0.9 },
 ];
@@ -28,6 +29,9 @@ const FINDINGS: CoveringFinding[] = [
 
 let server: Server;
 let base: string;
+/** Module-scoped so a test can stand a second handler on the same auth and service
+ *  with one dependency swapped, rather than rebuilding the whole fixture. */
+let deps: ServerDeps;
 /** Bearer tokens and user ids, one per persona, keyed by a short handle. */
 const tok: Record<string, string> = {};
 const uid: Record<string, string> = {};
@@ -53,10 +57,11 @@ beforeAll(async () => {
     uid[handle] = r.value.user.id;
   }
 
-  const deps: ServerDeps = {
+  deps = {
     service: new DeliberationService(new MemoryStore(), CHECKLIST),
     auth,
     documents: new DocumentStore(mkdtempSync(join(tmpdir(), "arb-docs-"))),
+    library: new LibraryStore({ cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib-")) }),
     invites: new InviteStore(null),
     throttle: new LoginThrottle(),
     rules: RULES,
@@ -124,6 +129,37 @@ describe("authentication", () => {
   });
 });
 
+describe("the askable library", () => {
+  it("is readable by anyone signed in, and by nobody who is not", async () => {
+    // These are public regulatory reviews that ship with the product, not case
+    // material - the access boundary that guards a case would be borrowed authority
+    // here. A session is still required: the list describes what this deployment holds.
+    expect((await call("GET", "/api/library", null)).status).toBe(401);
+    const r = await call("GET", "/api/library", "outsider");
+    expect(r.status).toBe(200);
+    expect(r.body.map((s: any) => s.name)).toContain("turalio");
+  });
+
+  it("answers nothing for a document that is not a library document", async () => {
+    const r = await call("POST", "/api/library/enalapril/ask", "ann", { question: "Anything?" });
+    expect(r.status).toBe(404);
+  });
+
+  it("refuses a refused document with the splitter's reason, before any model runs", async () => {
+    // 422 and not 200-with-no-answer: the document was rejected at ingestion and the
+    // reader is owed that fact, not an empty search over a file nobody could read.
+    const r = await call("POST", "/api/library/tolcapone/ask", "ann", { question: "What liver findings are reported?" });
+    expect(r.status).toBe(422);
+    expect(r.body.detail).toContain("scanned document");
+  });
+
+  it("refuses a case that has no source document, and says which fact that is", async () => {
+    const r = await call("POST", "/api/library/tak994/ask", "ann", { question: "What NOAEL was set?" });
+    expect(r.status).toBe(422);
+    expect(r.body.detail).toMatch(/no source document/i);
+  });
+});
+
 describe("cases, with access control", () => {
   it("opens a case owned by the caller", async () => {
     const r = await call("POST", "/api/cases", "owner", {
@@ -147,6 +183,35 @@ describe("cases, with access control", () => {
   it("lists only the cases an account is named on", async () => {
     expect((await call("GET", "/api/cases", "ann")).body.map((c: any) => c.caseId)).toEqual(["c1"]);
     expect((await call("GET", "/api/cases", "outsider")).body).toEqual([]);
+  });
+
+  it("reports how many documents each case holds", async () => {
+    // The Ask page picks a case from this list and can ask nothing of a case with an
+    // empty folder. Without the count it cannot tell the two apart, so it opens on
+    // whichever case happens to be first and answers "the documents do not say" to
+    // everything - which reads as the model failing rather than as nothing uploaded.
+    const list = (await call("GET", "/api/cases", "ann")).body[0];
+    expect(list.documents).toBe(0);
+  });
+
+  it("counts the documents of the case they belong to, not of every case", async () => {
+    // A second handler over the same auth and service, with only the document store
+    // swapped: a real upload would put PyMuPDF behind an assertion about arithmetic.
+    const stub = {
+      forCase: (caseId: string) => (caseId === "c1" ? [{ id: "doc_1" }, { id: "doc_2" }] : []),
+    } as unknown as ServerDeps["documents"];
+    const handler = makeHandler({ ...deps, documents: stub });
+    const alt = createServer((req, res) => { void handler(req, res); });
+    await new Promise<void>((r) => alt.listen(0, "127.0.0.1", r));
+    try {
+      const res = await fetch(`http://127.0.0.1:${(alt.address() as AddressInfo).port}/api/cases`, {
+        headers: { authorization: `Bearer ${tok["ann"]}` },
+      });
+      const body = await res.json() as { caseId: string; documents: number }[];
+      expect(body.map((c) => [c.caseId, c.documents])).toEqual([["c1", 2]]);
+    } finally {
+      await new Promise<void>((r) => alt.close(() => r()));
+    }
   });
 
   it("reports who has answered but never what they said", async () => {

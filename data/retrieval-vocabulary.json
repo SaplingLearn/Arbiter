@@ -1,0 +1,169 @@
+{
+  "version": "1.0",
+  "note": "The domain vocabulary the retriever normalises with, as data. It is DOMAIN KNOWLEDGE rather than logic - a toxicologist should be able to add a synonym without touching TypeScript, and every entry here trades precision for recall, so `npm run retrieval:eval` is what says whether an addition paid. Keep it small: an aggressive list silently removes terms that discriminate in this field, and BM25's idf already suppresses common words on its own.",
+  "phrases": [
+    {
+      "pattern": "no[\\s-]*observed[\\s-]*adverse[\\s-]*effect[\\s-]*level",
+      "expandsTo": "noael"
+    },
+    {
+      "pattern": "no[\\s-]*observed[\\s-]*effect[\\s-]*level",
+      "expandsTo": "noel"
+    },
+    {
+      "pattern": "lowest[\\s-]*observed[\\s-]*adverse[\\s-]*effect[\\s-]*level",
+      "expandsTo": "loael"
+    },
+    {
+      "pattern": "alanine[\\s-]*amino[\\s-]*transferase",
+      "expandsTo": "alt"
+    },
+    {
+      "pattern": "aspartate[\\s-]*amino[\\s-]*transferase",
+      "expandsTo": "ast"
+    },
+    {
+      "pattern": "gamma[\\s-]*glutamyl[\\s-]*transferase",
+      "expandsTo": "ggt"
+    },
+    {
+      "pattern": "alkaline[\\s-]*phosphatase",
+      "expandsTo": "alp"
+    },
+    {
+      "pattern": "area[\\s-]*under[\\s-]*the[\\s-]*curve",
+      "expandsTo": "auc"
+    },
+    {
+      "pattern": "drug[\\s-]*induced[\\s-]*liver[\\s-]*injury",
+      "expandsTo": "dili"
+    },
+    {
+      "pattern": "exposure[\\s-]*margin|safety[\\s-]*margin|margin[\\s-]*of[\\s-]*exposure|safety[\\s-]*multiple",
+      "expandsTo": "margin"
+    },
+    {
+      "pattern": "repeat[\\s-]*dose|repeated[\\s-]*dose",
+      "expandsTo": "repeatdose"
+    },
+    {
+      "pattern": "animal[\\s-]*stud(?:y|ies)|nonclinical[\\s-]*stud(?:y|ies)|non-clinical[\\s-]*stud(?:y|ies)",
+      "expandsTo": "nonclinical"
+    }
+  ],
+  "concepts": {
+    "c_liver": [
+      "liver",
+      "hepatic",
+      "hepatotoxicity",
+      "hepatotoxic",
+      "hepatocellular",
+      "hepatocyte",
+      "hepatobiliary",
+      "hepatitis",
+      "biliary",
+      "cholestasis",
+      "cholestatic",
+      "dili",
+      "transaminase",
+      "aminotransferase",
+      "alt",
+      "ast",
+      "ggt",
+      "alp",
+      "bilirubin"
+    ],
+    "c_noael": [
+      "noael",
+      "noel",
+      "loael"
+    ],
+    "c_exposure": [
+      "auc",
+      "cmax",
+      "exposure",
+      "margin",
+      "multiple"
+    ],
+    "c_recovery": [
+      "recovery",
+      "reversibility",
+      "reversible",
+      "resolved",
+      "resolution"
+    ],
+    "c_nonclinical": [
+      "nonclinical",
+      "preclinical",
+      "animal",
+      "toxicology",
+      "toxicity"
+    ],
+    "c_histopathology": [
+      "histopathology",
+      "histopathological",
+      "histology",
+      "histological",
+      "microscopic",
+      "necrosis",
+      "necrotizing"
+    ]
+  },
+  "stopwords": [
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "of",
+    "to",
+    "in",
+    "for",
+    "on",
+    "at",
+    "by",
+    "with",
+    "is",
+    "was",
+    "were",
+    "are",
+    "be",
+    "been",
+    "that",
+    "this",
+    "these",
+    "those",
+    "it",
+    "as",
+    "from",
+    "has",
+    "have",
+    "had",
+    "not",
+    "no",
+    "any",
+    "all",
+    "which",
+    "than",
+    "there",
+    "their",
+    "they",
+    "we",
+    "its",
+    "if",
+    "but",
+    "can",
+    "may",
+    "will",
+    "would",
+    "what",
+    "does",
+    "do",
+    "did",
+    "how",
+    "when",
+    "where",
+    "who",
+    "why"
+  ]
+}

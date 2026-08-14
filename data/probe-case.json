@@ -52,37 +52,37 @@
       "id": "TAK-994:invivo_rodent",
       "label": "invivo_rodent (rodent)",
       "assertion": "safe",
-      "detail": "stream invivo_rodent; system rodent; measures no key event; exposure relevance unstated; Klimisch 1; stated confidence 0.85; source: Rat repeat-dose: no hepatotoxicity. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
+      "detail": "stream invivo_rodent; system rodent; measures no key event; exposure relevance unstated; within the model's stated applicability domain; Klimisch 1; stated confidence 0.85; source: Rat repeat-dose: no hepatotoxicity. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
     },
     {
       "id": "TAK-994:invivo_nonrodent",
       "label": "invivo_nonrodent (nonrodent)",
       "assertion": "safe",
-      "detail": "stream invivo_nonrodent; system nonrodent; measures no key event; exposure relevance unstated; Klimisch 1; stated confidence 0.85; source: Non-human primate repeat-dose: no hepatotoxicity. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
+      "detail": "stream invivo_nonrodent; system nonrodent; measures no key event; exposure relevance unstated; within the model's stated applicability domain; Klimisch 1; stated confidence 0.85; source: Non-human primate repeat-dose: no hepatotoxicity. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
     },
     {
       "id": "TAK-994:cytotox",
       "label": "cytotox (human)",
       "assertion": "safe",
-      "detail": "stream cytotox; system human; measures key event KE:HEPATOCYTE-DEATH; exposure relevance unstated; Klimisch 1; stated confidence 0.8; source: In-vitro DILI panel, margins >100x (cytotoxicity, mitochondrial, BSEP). Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
+      "detail": "stream cytotox; system human; measures key event KE:HEPATOCYTE-DEATH; exposure relevance unstated; within the model's stated applicability domain; Klimisch 1; stated confidence 0.8; source: In-vitro DILI panel, margins >100x (cytotoxicity, mitochondrial, BSEP). Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
     },
     {
       "id": "TAK-994:transporter",
       "label": "transporter (human)",
       "assertion": "safe",
-      "detail": "stream transporter; system human; measures key event KE:BSEP-INHIBITION; exposure relevance unstated; Klimisch 1; stated confidence 0.75; source: BSEP inhibition: wide margin. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
+      "detail": "stream transporter; system human; measures key event KE:BSEP-INHIBITION; exposure relevance unstated; within the model's stated applicability domain; Klimisch 1; stated confidence 0.75; source: BSEP inhibition: wide margin. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
     },
     {
       "id": "TAK-994:qsar",
       "label": "qsar (in_silico)",
       "assertion": "ambiguous",
-      "detail": "stream qsar; system in_silico; measures no key event; exposure relevance unstated; Klimisch 3; stated confidence 0.0; source: First-in-class orexin receptor 2 agonist; no informative structural precedent."
+      "detail": "stream qsar; system in_silico; measures no key event; exposure relevance unstated; within the model's stated applicability domain; Klimisch 3; stated confidence 0.0; source: First-in-class orexin receptor 2 agonist; no informative structural precedent."
     },
     {
       "id": "TAK-994:toxicogenomics-murine",
       "label": "toxicogenomics (rodent)",
       "assertion": "toxic",
-      "detail": "stream toxicogenomics; system rodent; measures key event KE:CYP-INDUCTION; tested at clinically relevant exposure; Klimisch 1; stated confidence 0.9; source: Murine hepatic single-cell necrosis after CYP450 induction at clinically relevant doses. Study initiated DURING the Phase 2 trial. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
+      "detail": "stream toxicogenomics; system rodent; measures key event KE:CYP-INDUCTION; tested at clinically relevant exposure; within the model's stated applicability domain; Klimisch 1; stated confidence 0.9; source: Murine hepatic single-cell necrosis after CYP450 induction at clinically relevant doses. Study initiated DURING the Phase 2 trial. Toxicological Sciences 2025;204(2):143 (UNVERIFIED - confirm before citing)"
     }
   ],
   "absent": [

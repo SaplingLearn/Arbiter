@@ -473,10 +473,16 @@ anticipated this (`refusalRate`, `refused`, `nCompoundsFullyRefused`); the runne
 must **not** use the `fallbacks` parameter - answering on a substitute model and reporting it under
 the first model's name would be a fabrication. Ablation spec §8.
 
-`ANTHROPIC_API_KEY` is necessary but nowhere near sufficient. Cost recomputed at current pricing:
-about **$53 at list, ~$27 batched** on `claude-opus-5` - the old $20–40 estimate predates
-thinking-on-by-default. **Steps 1 and 2 of the spec's build order need neither a key nor a dollar**
-and are most of the work.
+**Amended 2026-08-10:** the provider moved to Gemini on Vertex AI - see
+`docs/superpowers/specs/2026-08-10-model-provider-decision.md`, the explicit recorded
+decision §9 of the redesign requires. So it is `ARBITER_GCP_PROJECT` plus Application
+Default Credentials, not `ANTHROPIC_API_KEY`, and there is no key to hold. Cost recomputed on
+`gemini-3.5-flash` ($1.50/$9.00 per MTok): about **$18 at list, ~$9 batched** - and unlike the
+Anthropic figure it is **payable from the Google Cloud credit**, because Claude on Vertex is a
+partner model the credit excludes. The old $20–40 estimate now overstates it.
+
+Credentials are necessary but nowhere near sufficient. **Steps 1 and 2 of the spec's build order
+need neither a credential nor a dollar** and are most of the work.
 
 Note the honest framing this metric is for: **"why not just ask a model"** - showing a
 raw LLM giving inconsistent answers to identical evidence where ARBITER gives one. Until

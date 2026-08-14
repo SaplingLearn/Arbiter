@@ -6,13 +6,17 @@ import { DeliberationService } from "./deliberation-service.js";
 import { FileStore } from "./store.js";
 import type { Position } from "./deliberation.js";
 import type { CoveringFinding, EvidenceChecklist, Modality } from "./inventory.js";
-import { handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
-import { completeFromEnv } from "./interpret.js";
+import { ADJUDICATOR_PROMPT_PATH, handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
+import { handleAsk } from "./ask.js";
+import { handleSummarise } from "./summarise.js";
+import { buildIndex, search } from "./retrieval.js";
+import { completeFromEnv, providerFor, resolveModel } from "./interpret.js";
 import { stubComplete } from "./probe.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
 import { AuthStore, normaliseEmail, type PublicUser } from "./auth.js";
 import { DEMO_TEAM } from "./seed-demo.js";
 import { DocumentStore, MAX_BYTES } from "./documents.js";
+import { LibraryStore } from "./library.js";
 import { can, denial, type CaseAction } from "./access.js";
 import { InviteStore } from "./invites.js";
 import { LoginThrottle } from "./throttle.js";
@@ -42,6 +46,7 @@ export interface ServerDeps {
   service: DeliberationService;
   auth: AuthStore;
   documents: DocumentStore;
+  library: LibraryStore;
   invites: InviteStore;
   throttle: LoginThrottle;
   rules: AdjudicateRequest["rules"];
@@ -150,6 +155,53 @@ export function makeHandler(deps: ServerDeps) {
 
       if (parts[1] === "demo" && method === "POST") return handleDemo(deps, res, body, user, now());
 
+      // ---- the library, which is documents rather than cases --------------------
+      //
+      // NO CASE BOUNDARY HERE, deliberately. These are the public regulatory reviews
+      // the prepared cases were transcribed from - an FDA multi-disciplinary review is
+      // not somebody's unpublished safety data, and putting it behind a case would
+      // mean opening a deliberation before you may read a document that is on
+      // accessdata.fda.gov. A session is still required, because the LIST describes
+      // what this deployment holds.
+      if (parts[1] === "library" && parts.length === 2 && method === "GET") {
+        return json(res, 200, deps.library.list());
+      }
+
+      if (parts[1] === "library" && (parts[3] === "ask" || parts[3] === "summary") && method === "POST") {
+        const source = deps.library.list().find((s) => s.name === parts[2]);
+        if (source === undefined) return json(res, 404, { error: "no_document" });
+        // 422 before any model call. The reason a document cannot be searched was
+        // decided at ingestion and is worth more than an empty search over it: "this
+        // is a scanned document" and "the document does not cover that" are different
+        // answers, and only one of them is about the compound.
+        if (!source.askable) {
+          return json(res, 422, { error: "not_askable", detail: source.reason });
+        }
+
+        // A summary reads the WHOLE document, so it does not go through retrieval at
+        // all - see summarise.ts for why a document-level question cannot be served by
+        // a passage-level one.
+        if (parts[3] === "summary") {
+          const out = await handleSummarise(
+            deps.library.textFor(source.name),
+            deps.library.filenameFor(source.name),
+            completeFromEnv(process.env, "summary"),
+          );
+          return json(res, out.status, out.body);
+        }
+
+        const passages = search(
+          buildIndex([{
+            documentId: source.name,
+            filename: deps.library.filenameFor(source.name),
+            pages: deps.library.textFor(source.name),
+          }]),
+          String((body as { question?: unknown }).question ?? ""),
+        );
+        const out = await handleAsk(body, passages, completeFromEnv(process.env, "ask"));
+        return json(res, out.status, out.body);
+      }
+
       if (parts[1] !== "cases") return json(res, 404, { error: "not_found" });
 
       // POST /api/cases
@@ -200,8 +252,16 @@ export function makeHandler(deps: ServerDeps) {
       }
 
       // GET /api/cases - only the ones this account is named on.
+      //
+      // The document count is merged in HERE rather than inside casesFor, because the
+      // deliberation service owns positions and the hash chain and knows nothing about
+      // uploaded files - handing it the document store to answer one number would tie
+      // the record to the folder. A count only: naming the files would put one case's
+      // filenames in a list another surface renders without opening the case.
       if (parts.length === 2 && method === "GET") {
-        return json(res, 200, deps.service.casesFor(user.id));
+        return json(res, 200, deps.service.casesFor(user.id).map((c) => ({
+          ...c, documents: deps.documents.forCase(c.caseId).length,
+        })));
       }
 
       const caseId = parts[2];
@@ -334,6 +394,22 @@ export function makeHandler(deps: ServerDeps) {
             const r = deps.service.submit(caseId, { ...(body as Position), participantId: user.id });
             return r.ok ? json(res, 201, { sealed: true }) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
           }
+          case "ask": {
+            // A READ, despite being a POST - the body carries a question, and nothing
+            // here writes. No position, no adjudication, no log entry, nothing into the
+            // hash chain. The action switch above already falls through to "read" for
+            // an unrecognised POST tail, so any participant or the owner may ask and
+            // nobody gains a way to alter the record by asking.
+            const docs = deps.documents.forCase(caseId);
+            const corpus = docs.map((d) => ({
+              documentId: d.id,
+              filename: d.filename,
+              pages: deps.documents.textFor(d.id),
+            }));
+            const passages = search(buildIndex(corpus), String((body as { question?: unknown }).question ?? ""));
+            const out = await handleAsk(body, passages, completeFromEnv(process.env, "ask"));
+            return json(res, out.status, out.body);
+          }
           case "reveal": {
             const b = body as { at: string; mode: "all_in" | "close_early" };
             const r = deps.service.reveal(caseId, user.id, b.at, b.mode);
@@ -342,7 +418,11 @@ export function makeHandler(deps: ServerDeps) {
           case "adjudicate": {
             const request = deps.service.adjudicationRequest(caseId, deps.rules);
             if (request === null) return json(res, 404, { error: "no_case" });
-            const live = completeFromEnv();
+            // "adjudication", not the default "short". This route was the original
+            // site of the shape bug: it handed interpret's 1024-token, thinking-off
+            // closure to handleAdjudicate, which produces prose, citations and one
+            // disclosure per registered rule.
+            const live = completeFromEnv(process.env, "adjudication");
             const out = await handleAdjudicate(request, live ?? stubComplete(request), deps.prompt);
             if (out.status !== 200) return json(res, out.status, out.body);
             const r = deps.service.adjudicate(caseId, out.body, (body as { at: string }).at, live === null ? "stub" : "model");
@@ -524,12 +604,13 @@ function handleDemo(deps: ServerDeps, res: ServerResponse, body: unknown, user: 
 
 export function buildDeps(logPath: string): ServerDeps {
   const checklist = JSON.parse(readFileSync("rules/evidence-checklist-v1.0.json", "utf8")) as EvidenceChecklist;
-  const prompt = JSON.parse(readFileSync("prompts/adjudicator-v1.0.json", "utf8")) as { system: string[]; userTemplate: string[] };
+  const prompt = JSON.parse(readFileSync(ADJUDICATOR_PROMPT_PATH, "utf8")) as { system: string[]; userTemplate: string[] };
   const probe = JSON.parse(readFileSync("data/probe-case.json", "utf8")) as { rules: AdjudicateRequest["rules"] };
   return {
     service: new DeliberationService(new FileStore(logPath), checklist),
     auth: new AuthStore(`${logPath}.users.json`),
     documents: new DocumentStore("results/documents"),
+    library: new LibraryStore(),
     invites: new InviteStore(`${logPath}.invites.json`),
     throttle: new LoginThrottle(),
     rules: probe.rules,
@@ -554,7 +635,18 @@ if (invokedDirectly) {
   const deps = buildDeps("results/deliberation-log.jsonl");
   createServer((req, res) => { void makeHandler(deps)(req, res); }).listen(port, HOST, () => {
     console.log(`ARBITER deliberation API on http://${HOST}:${port}`);
-    console.log(`Adjudication: ${completeFromEnv() === null ? "STUB (no ANTHROPIC_API_KEY) - responses are labelled source:stub" : "LIVE"}`);
+    const adjudicationModel = resolveModel("adjudication");
+    // The PROVIDER is printed beside every model, because that is the fact a
+    // misconfiguration hides: "gemini-3.5-flash" and "claude-opus-5" look equally
+    // plausible in a banner, and only one of them is the deployment this project
+    // measured. A model name alone made the reader infer it.
+    const named = (kind: Parameters<typeof resolveModel>[0]): string => {
+      const model = resolveModel(kind);
+      return `${model} (${providerFor(model) === "vertex" ? "Vertex AI" : "Anthropic"})`;
+    };
+    console.log(`Adjudication: ${completeFromEnv(process.env, "adjudication") === null ? `STUB (no credentials for ${adjudicationModel}) - responses are labelled source:stub` : `LIVE ${named("adjudication")}`}`);
+    console.log(`Ask & summary: ${named("ask")}`);
+    console.log(`Short calls:  ${named("short")}`);
     console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token; there is no TLS here, which is why this binds to loopback only.`);
     if (deps.auth.list().length === 0) console.log("No accounts yet. Run `npm run seed:demo` to create the demonstration team.");
   });

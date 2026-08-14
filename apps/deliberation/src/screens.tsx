@@ -22,6 +22,24 @@ const CALL_LABEL: Record<string, string> = {
   cannot_conclude: "Cannot conclude",
 };
 
+/**
+ * Three positions, three labels.
+ *
+ * This screen rendered `d.position === "applies" ? "applies" : "does not apply"` until
+ * 2026-08-10 - a binary ternary, so the moment a third position existed it would have
+ * displayed "cannot be determined" AS "does not apply". That is §10 rule 7 on the
+ * screen: a rule nobody could answer would have read as a rule that was answered in the
+ * negative, which is the one confusion this project exists to prevent.
+ *
+ * Falls through to the raw value rather than a default label, for the same reason
+ * CALL_LABEL does: an unrecognised position should look wrong, not look plausible.
+ */
+const POSITION_LABEL: Record<string, string> = {
+  applies: "applies",
+  does_not_apply: "does not apply",
+  cannot_determine: "cannot be determined from this package",
+};
+
 /** ------------------------------------------------------------------ inventory */
 /** -------------------------------------------------------------- the roster */
 /**
@@ -490,13 +508,20 @@ export function Waiting({ view, isOwner, nameOf, onReveal }: {
   onReveal: (mode: "all_in" | "close_early") => void;
 }): ReactElement {
   const outstanding = view.others.filter((o) => !o.submitted);
+  // Whether the VIEWER has sealed anything, which is not the same question as whether
+  // this screen has something to show. A convener never seals - access.ts: "an owner
+  // who is not also a participant convenes and signs but does not hold an opinion on
+  // the record" - so "Sealed." was a false statement to exactly the person who has the
+  // only control on this screen.
+  const sealed = view.own !== null;
   return (
     <section>
-      <h2>Sealed. Waiting for the others.</h2>
+      <h2>{sealed ? "Sealed. Waiting for the others." : "Waiting for the panel."}</h2>
       <p className="muted">
         This screen shows one bit per person, and that is all the server will send: not
         their call, not their reasoning, not a running tally. A tally drags a room exactly
         as hard as the positions would.
+        {!sealed && " You convene this case and do not answer it, so there is nothing of yours here."}
       </p>
       <div className="inv">
         {view.others.map((o) => (
@@ -589,7 +614,7 @@ export function Verdict({ adjudication, source, onSign }: {
       <h3>Every rule, answered</h3>
       {adjudication.ruleDisclosure.map((d) => (
         <p key={d.ruleId} className="small">
-          <span className="mono">{d.ruleId}</span> - {d.position === "applies" ? "applies" : "does not apply"}. {d.reasoning}
+          <span className="mono">{d.ruleId}</span> - {POSITION_LABEL[d.position] ?? d.position}. {d.reasoning}
         </p>
       ))}
 
