@@ -6,17 +6,26 @@
  * catches it because a 404 on a marketing page is not a test failure anywhere.
  */
 /**
- * The product itself.
+ * The product itself - apps/deliberation, and NOT apps/web.
  *
- * apps/web is a SEPARATE Vite app - it has to be, because it is the artifact a
- * judge opens from the filesystem and it cannot share a bundle with a page that
- * loads webfonts. So the landing page cannot route into it; it can only link, and
- * where that link points depends on how the two are deployed next to each other.
+ * This pointed at apps/web, which is the wrong app to send a reader to. apps/web
+ * is the seven-tab static artifact: no backend, no AI, no deliberation, built as
+ * one inlined index.html because it is submitted as a file a judge opens from
+ * disk. apps/deliberation is the redesign this project pivoted to on 2026-08-09
+ * (spec 3.5, "a new app, not a conversion") - the four-stage case workflow
+ * Evidence, Your position, Reveal & verdict, Record, against a real API with a
+ * real adjudicator. Linking the page at the older one meant the landing copy
+ * described the redesign and the button opened its predecessor.
  *
- * `/app/` is the default because it is the arrangement that needs no
- * configuration: serve apps/web/dist under /app/ beside this page and it works.
- * `.env.development` overrides it to the Vite dev server so `npm run landing:dev`
- * reaches a running product rather than a 404.
+ * Both still exist and both are worth keeping. Only one of them is the product.
+ *
+ * `/app/` is the default because it is the arrangement spec 10 already assumes:
+ * the client and the API on one origin, so /api resolves for the page served at
+ * /app/. THAT ORIGIN IS NOT THIS STATIC HOST - apps/deliberation is a client for
+ * a service and shows nothing without it, so a landing page deployed alone must
+ * override this with VITE_APP_URL rather than rely on the default.
+ * `.env.development` does exactly that, pointing at the dev server on 5174 whose
+ * Vite proxy supplies /api.
  */
 export const APP_URL: string = import.meta.env["VITE_APP_URL"] ?? "/app/";
 

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StrictMode } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { Landing } from "../src/Landing.js";
+import { APP_URL } from "../src/links.js";
 import { formatCount } from "../src/motion/useReveals.js";
 
 /**
@@ -85,6 +86,28 @@ describe("hero", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Arbiter");
     expect(screen.getByRole("link", { name: "Read The Method" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open The Record" })).toBeInTheDocument();
+  });
+
+  it("offers the product itself, not only documents about it", () => {
+    // The regression this exists for, and it is the same shape as the dead
+    // `#product` fragment above: the page linked out eleven times, ten of those
+    // went to the repository, and the ONE link into the running app was a compact
+    // button in the header. Both of the page's prominent action pairs - the hero's
+    // and the closing section's - offered HANDOVER.md and the repo, so a reader
+    // going top to bottom was handed reading twice and the artifact never.
+    //
+    // Asserted on the rendered hrefs rather than on the constant, because APP_URL
+    // resolving correctly and a CTA actually pointing at it are two different
+    // facts and only the second one is what a visitor clicks.
+    renderLanding();
+    const intoApp = screen
+      .getAllByRole("link", { name: "Open The App" })
+      .map((a) => a.getAttribute("href"));
+
+    // Header, hero, close. Fewer than three means one of the three surfaces went
+    // back to offering only documents.
+    expect(intoApp).toHaveLength(3);
+    for (const href of intoApp) expect(href).toBe(APP_URL);
   });
 
   it("draws two eyes whose sclerae do not intersect", () => {

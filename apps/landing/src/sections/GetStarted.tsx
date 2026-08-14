@@ -1,5 +1,5 @@
 import { Counter, Cta, TopTicks } from "../ui/primitives.js";
-import { HANDOVER_URL, REPO_URL } from "../links.js";
+import { APP_URL, HANDOVER_URL, REPO_URL } from "../links.js";
 
 /**
  * The close, and the anchor the nav calls "Record".
@@ -24,8 +24,16 @@ export function GetStarted() {
           A pre-registered ruleset, a deterministic engine, and a hash-chained record whose tamper-evidence was
           tested rather than asserted.
         </p>
+        {/* The close now ends on the product. "There is nothing to sign up for"
+            is still true and is still why neither of the other two is a signup -
+            but it argued for pointing at the repository INSTEAD of the app, which
+            left the page's last word as more reading. Opening the app is the one
+            action here that is not reading. */}
         <div data-reveal className="cta-row" style={{ marginBottom: 64 }}>
-          <Cta href={HANDOVER_URL} variant="primary">
+          <Cta href={APP_URL} variant="primary">
+            Open The App
+          </Cta>
+          <Cta href={HANDOVER_URL} variant="secondary">
             Read The Handover
           </Cta>
           <Cta href={REPO_URL} variant="secondary">

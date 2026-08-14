@@ -15,6 +15,17 @@ import react from "@vitejs/plugin-react";
  */
 export default defineConfig({
   plugins: [react()],
+  /**
+   * Relative, so the bundle works wherever it is mounted - at the root, or under
+   * the /app/ subpath apps/landing links to. The default "/" would emit absolute
+   * /assets/... references that collide with the landing page's own /assets/ when
+   * the two are served from one host, which is the arrangement spec 10 describes.
+   *
+   * Safe with this app's hash routing: every route is a fragment, so the document
+   * is always index.html and a relative asset path never resolves against a
+   * deeper directory. apps/web sets the same thing for its own reason.
+   */
+  base: "./",
   server: {
     port: 5174,
     proxy: { "/api": { target: `http://127.0.0.1:${process.env["API_PORT"] ?? 8787}`, changeOrigin: false } },
