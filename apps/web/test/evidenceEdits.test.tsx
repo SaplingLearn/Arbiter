@@ -93,6 +93,14 @@ describe("the verdict and the evidence beside it (§9)", () => {
       </StoreProvider>,
     );
 
+    // TAK-994's 0.910 gap trips the commit-before-reveal gate (playbook §08 P2-C),
+    // so the verdict and the figures are not in the DOM until a call is recorded.
+    // The gate is per-compound and write-once, so this one click covers the
+    // reclassification below too - which is the point: what this test pins is that
+    // the header and the panel MOVE TOGETHER, and they must keep doing that once
+    // the verdict is visible at all.
+    fireEvent.click(screen.getByTestId("commit-abstain"));
+
     expect(screen.getByTestId("verdict").textContent).toMatch(/Abstain/);
     expect(screen.getByTestId("belief-range").textContent).toContain("0.090");
 
@@ -146,6 +154,10 @@ describe("the verdict and the evidence beside it (§9)", () => {
         <Fire id="reset-evidence" action={{ type: "resetEvidence" }} />
       </StoreProvider>,
     );
+    // Same gate as above: the header withholds the verdict on TAK-994 until a call
+    // is recorded, and resetEvidence does not clear the record - a reader who has
+    // already seen the verdict is not asked to un-see it.
+    fireEvent.click(screen.getByTestId("commit-abstain"));
     fireEvent.click(screen.getByTestId("to-human"));
     expect(screen.getByTestId("verdict").textContent).toMatch(/Do not advance/);
     fireEvent.click(screen.getByTestId("reset-evidence"));

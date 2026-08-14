@@ -68,6 +68,26 @@
    come from .kv dd, so the digits do not jitter as the slider moves. */
 .case-figures { display: flex; gap: var(--s5); flex-wrap: wrap; margin-top: var(--s4); }
 
+/* ---------- commit before reveal ---------- */
+
+/* The gate is a pause, not an alarm. Bordered and calm - a red panel would read
+   as an error and get dismissed rather than answered, and the whole point is that
+   it is answered. It sits where the belief figures will appear, so answering it
+   replaces it in place rather than moving the page under the reader.
+
+   No --pfizer-blue anywhere here: the blue is reserved for the fired-rule chip,
+   the primary action and the belief fill, and none of the three calls is the
+   "right" one to press. */
+.commit-gate {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: var(--s4);
+  background: var(--surface);
+  margin-top: var(--s4);
+}
+.commit-gate .caveat { margin-top: 0; }
+.commit-gate-actions { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }
+
 .case-asof { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s4); }
 /* .label carries a bottom margin for section headings; inline in a control row
    it must not. */

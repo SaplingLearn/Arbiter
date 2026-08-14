@@ -1,11 +1,28 @@
+import { useAppState } from "../../state/store.js";
 import { useCaseReasoning } from "../../engine/useCaseReasoning.js";
 import { BeliefTrack } from "./BeliefTrack.js";
 import { traceStep } from "../../ai/anchors.js";
+import { gateHolds } from "./CommitGate.js";
 
 export function TracePanel({ collapsed, onExpand }: { collapsed: boolean; onExpand: () => void }) {
+  const state = useAppState();
   const r = useCaseReasoning();
   const claimSteps = r.trace.filter((s) => s.kind !== "verdict");
   const verdictStep = r.trace.find((s) => s.kind === "verdict");
+  /**
+   * §08 P2-C, the second half of the gate. The masthead is not the only place the
+   * verdict reaches the screen: this panel calls `useCaseReasoning()` itself, and
+   * `verdict-reason` is the engine's own sentence about the conclusion while the
+   * counterfactual prints `newVerdict`, which states the current verdict by
+   * naming its complement. The belief track and the two mass lines give it away
+   * quantitatively. Gating the header alone would have left all five readable.
+   *
+   * The trace STEPS below are deliberately NOT gated. The reader is being asked
+   * to form a view on the evidence, which they cannot do with the argument
+   * hidden; withholding the reasoning would turn a forcing function into a
+   * blindfold. Only the conclusion is held back.
+   */
+  const held = gateHolds(state, r, state.selectedCompoundId);
 
   if (collapsed) {
     return (
@@ -18,30 +35,40 @@ export function TracePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
   return (
     <div>
       <h3 className="label">Argument</h3>
-      <BeliefTrack belief={r.belief} plausibility={r.plausibility} />
 
-      <p className="small muted case-mass" data-anchor="trace.mass">
-        mass toxic <span className="num">{r.mass.toxic.toFixed(3)}</span> ·
-        safe <span className="num">{r.mass.safe.toFixed(3)}</span> ·
-        uncommitted <span className="num">{r.mass.uncommitted.toFixed(3)}</span>
-        {r.contested && " · contested"}
-      </p>
+      {held ? (
+        <p className="small muted case-mass" data-testid="trace-gate-note">
+          The belief band and the conclusion are held back until you record your own
+          call in the header. The argument itself is below, unchanged.
+        </p>
+      ) : (
+        <>
+          <BeliefTrack belief={r.belief} plausibility={r.plausibility} />
 
-      {/*
-        The conflict measure, shown rather than averaged away. Dempster's rule
-        normalises conflict out of the combined mass; this engine keeps the
-        quantity and reports it, which is the whole answer to the standard
-        high-conflict objection. A boolean cannot carry that - 0.122 and 0.999 are
-        different situations - so the magnitude is on screen.
-      */}
-      <p
-        className="small muted case-mass"
-        data-testid="conflict-mass"
-        data-conflict={r.conflictMass.toFixed(3)}
-      >
-        conflict mass <span className="num">{r.conflictMass.toFixed(3)}</span>
-        {" - the belief removed in combination, reported rather than normalised away."}
-      </p>
+          <p className="small muted case-mass" data-anchor="trace.mass">
+            mass toxic <span className="num">{r.mass.toxic.toFixed(3)}</span> ·
+            safe <span className="num">{r.mass.safe.toFixed(3)}</span> ·
+            uncommitted <span className="num">{r.mass.uncommitted.toFixed(3)}</span>
+            {r.contested && " · contested"}
+          </p>
+
+          {/*
+            The conflict measure, shown rather than averaged away. Dempster's rule
+            normalises conflict out of the combined mass; this engine keeps the
+            quantity and reports it, which is the whole answer to the standard
+            high-conflict objection. A boolean cannot carry that - 0.122 and 0.999 are
+            different situations - so the magnitude is on screen.
+          */}
+          <p
+            className="small muted case-mass"
+            data-testid="conflict-mass"
+            data-conflict={r.conflictMass.toFixed(3)}
+          >
+            conflict mass <span className="num">{r.conflictMass.toFixed(3)}</span>
+            {" - the belief removed in combination, reported rather than normalised away."}
+          </p>
+        </>
+      )}
 
       <ol className="trace-list small">
         {claimSteps.map((s) => (
@@ -55,11 +82,11 @@ export function TracePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
         ))}
       </ol>
 
-      {verdictStep && (
+      {!held && verdictStep && (
         <p data-testid="verdict-reason" data-anchor="trace.verdictReason" className="case-reason">{verdictStep.rationale}</p>
       )}
 
-      {r.counterfactual && (
+      {!held && r.counterfactual && (
         <section data-testid="counterfactual" data-anchor="trace.counterfactual" className="case-aside">
           <h4 className="label">What would change it</h4>
           <p className="small">

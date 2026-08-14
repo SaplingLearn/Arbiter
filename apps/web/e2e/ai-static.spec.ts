@@ -43,6 +43,11 @@ test("opening the pre-flight panel runs both ladders and attempts NO request", a
   });
 
   await page.goto(`${artifact}#/case`);
+  // Through the commit-before-reveal gate (playbook §08 P2-C) first: TAK-994's
+  // 0.910 belief-plausibility gap trips it, so the verdict is not in the DOM on
+  // mount. The click is also the readiness barrier for the "?" keypress below -
+  // Playwright auto-waits on a click, and a bare keypress has nothing to wait on.
+  await page.getByTestId("commit-abstain").click();
   await expect(page.getByTestId("verdict")).toContainText(/abstain/i);
 
   // The panel runs interpret() and navigate() when it opens, so this is the whole
@@ -83,6 +88,13 @@ test("the evidence digest resolves over file://, so check-evidence-edits is a re
   // event: static-file.spec.ts's equivalent test clicks a button first, which
   // Playwright auto-waits on; a bare keypress with nothing to wait on can be sent
   // before React has attached the "?" listener and is silently lost.
+  //
+  // The barrier is now the commit gate (playbook §08 P2-C) rather than the
+  // verdict, and it is a BETTER one for exactly the reason stated above: waiting
+  // for the gate and then clicking it is an interaction Playwright auto-waits on,
+  // where the old assertion was only a read.
+  await expect(page.getByTestId("commit-gate")).toBeVisible();
+  await page.getByTestId("commit-abstain").click();
   await expect(page.getByTestId("verdict")).toContainText(/abstain/i);
   await page.keyboard.press("?");
   await expect(page.getByTestId("check-evidence-edits")).toHaveAttribute("data-ok", "true");

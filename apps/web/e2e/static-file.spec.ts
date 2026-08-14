@@ -24,6 +24,13 @@ test("the built artifact works opened from the filesystem, with no server", asyn
 
   // The engine ran in the browser and produced a verdict. If the bundle were
   // blocked, #root would still be empty and this would time out.
+  //
+  // The gate comes first now (playbook §08 P2-C), and it is itself engine output:
+  // it only appears because reason() computed a 0.910 belief-plausibility gap
+  // against the registered 0.5 threshold. So this still fails on a blocked bundle,
+  // and it now also fails on a bundle whose engine ran and returned nothing.
+  await expect(page.getByTestId("commit-gate")).toBeVisible();
+  await page.getByTestId("commit-abstain").click();
   await expect(page.getByTestId("verdict")).toContainText(/abstain/i);
   await expect(page.locator("body")).toContainText("TAK-994");
 
@@ -59,6 +66,12 @@ test("all eight beats walk on the keyboard alone, from the filesystem", async ({
       // this would still be rendering TAK-994's verdict (abstain) instead of
       // switching to Cyclosporine, which commits. This is the assertion that
       // catches that - the walk above only checks tabs, not verdicts.
+      //
+      // Cyclosporine trips the commit gate too, by the OTHER clause: its gap is
+      // 0.098, well under the threshold, but its streams are contested with
+      // conflict mass 0.122. The gate is per-compound, so arriving here on a new
+      // compound raises it again - which is the behaviour, not an obstacle.
+      await page.getByTestId("commit-abstain").click();
       await expect(page.getByTestId("verdict")).toContainText(/do not advance/i);
     }
     if (beat < 8) await page.keyboard.press("ArrowRight");
@@ -160,6 +173,12 @@ test("the artifact requests nothing over the network", async ({ page }) => {
   // drives the only code in the app that owns a fetch call at all, so the gate it
   // claims to guard is never exercised.
   await page.goto(`${artifact}#/case`);
+  // READINESS BARRIER, and the reason it is the gate rather than the verdict: the
+  // "?" below is a bare keypress with nothing to auto-wait on, so it can be sent
+  // before React has attached its window listener and silently lost. Clicking
+  // through the commit gate (playbook §08 P2-C) is a real interaction Playwright
+  // auto-waits on, which is a stronger barrier than the assertion it replaces.
+  await page.getByTestId("commit-abstain").click();
   await expect(page.getByTestId("verdict")).toContainText(/abstain/i);
   await page.keyboard.press("?");
   await expect(page.getByTestId("check-surface-1")).not.toHaveAttribute("data-source", "pending");

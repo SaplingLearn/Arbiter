@@ -1,7 +1,26 @@
 import { expect, test } from "@playwright/test";
 
+/**
+ * Answer the commit-before-reveal gate (playbook §08 P2-C) and return.
+ *
+ * TAK-994 has a 0.910 belief-plausibility gap against a registered threshold of
+ * 0.5, so the gate holds the moment the Case tab mounts and the verdict, the
+ * figures and the belief band are not in the DOM until a call is recorded. Every
+ * spec below that reads one of them commits first, deliberately: the gate is the
+ * feature, and a spec that routed around it would be asserting a build nobody
+ * ships.
+ *
+ * `commit-gate` is also the better READINESS BARRIER these specs used `verdict`
+ * as. Playwright auto-waits on the click, so a bare keypress that follows cannot
+ * be sent before React has attached its window listeners.
+ */
+async function commit(page: import("@playwright/test").Page) {
+  await page.getByTestId("commit-abstain").click();
+}
+
 test("the demo walks end to end on the keyboard alone", async ({ page }) => {
   await page.goto("/#/case");
+  await commit(page);
   await expect(page.getByTestId("verdict")).toContainText(/abstain/i);
 
   // Drive the whole tour with the arrow key a presenter actually uses.
@@ -16,6 +35,9 @@ test("the demo walks end to end on the keyboard alone", async ({ page }) => {
 
 test("the M key actually stops the motion, not just flips an attribute", async ({ page }) => {
   await page.goto("/#/case");
+  // The belief band is part of the conclusion the gate withholds, so it has to be
+  // revealed before its transition can be read off it.
+  await commit(page);
   const fill = page.getByTestId("belief-fill");
   const duration = () => fill.evaluate((el) => getComputedStyle(el).transitionDuration);
 

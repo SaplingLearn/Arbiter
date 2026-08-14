@@ -120,14 +120,27 @@ describe("every declared anchor resolves in the DOM", () => {
     });
   }
 
-  it("mounts the four conditional anchors that TAK-994 does satisfy", () => {
+  it("mounts every conditional anchor that TAK-994 does satisfy", () => {
     // Conditional does not mean untested. On the registered ruleset with the whole
     // fixture visible the counterfactual, the planner's next experiment and the
     // citation status all render, so a rename of any of them fails here.
     renderTab("case");
-    expect(at("trace.counterfactual").length).toBe(1);
     expect(at("trace.nextExperiment").length).toBe(1);
     expect(at("evidence.citationStatus").length).toBe(1);
+
+    // The six the commit-before-reveal gate withholds (playbook §08 P2-C). TAK-994
+    // has a 0.910 belief-plausibility gap, so the gate holds on mount and all six
+    // are legitimately absent - then present, exactly once each, on the single
+    // click that answers it. Asserting only the absence would pass on a deleted
+    // element, which is the same trap ruleset.modifiedBadge is tested around below.
+    const gated = [
+      "case.verdict", "case.beliefRange", "trace.beliefTrack",
+      "trace.mass", "trace.verdictReason", "trace.counterfactual",
+    ];
+    for (const id of gated) expect(at(id).length, id).toBe(0);
+    fireEvent.click(screen.getByTestId("commit-abstain"));
+    for (const id of gated) expect(at(id).length, id).toBe(1);
+
     renderTab("validation");
     expect(at("validation.singleClassWarning").length).toBe(1);
   });
@@ -164,6 +177,11 @@ describe("data-anchor is a new attribute, not a reshaped testid", () => {
     // Frozen by apps/web/e2e/demo.spec.ts and static-file.spec.ts. Renaming any of
     // them breaks a spec this phase is forbidden to touch.
     renderTab("case");
+    // `verdict` and `belief-fill` sit behind the commit-before-reveal gate on
+    // TAK-994 (playbook §08 P2-C). The testids are unchanged - which is what this
+    // case is about - but reaching them now costs one click, exactly as it does
+    // for the Playwright specs that freeze them.
+    fireEvent.click(screen.getByTestId("commit-abstain"));
     for (const id of ["verdict", "belief-fill", "citation-status"]) {
       expect(screen.getAllByTestId(id).length, id).toBeGreaterThan(0);
     }

@@ -2,6 +2,7 @@ import { createContext, useContext, useReducer, type Dispatch, type ReactNode } 
 import {
   EvidenceClaimSchema,
   type AssayOperator, type EvidenceClaim, type Rule, type RuleId, type Ruleset,
+  type Verdict,
 } from "@arbiter/engine";
 import type { LoadedData } from "../data/load.js";
 import { BOOT_CASE } from "../data/heroCases.js";
@@ -120,6 +121,22 @@ export interface AppState {
    * exists to catch from a different source.
    */
   customCompounds: Record<string, EvidenceClaim[]>;
+  /**
+   * The reader's own call on a compound, recorded BEFORE the verdict was shown.
+   *
+   * SESSION-LOCAL, like customCompounds, and for a sharper reason: this is a
+   * cognitive forcing function (Buçinca, Malaya & Gajos 2021, CSCW), and its
+   * value comes entirely from being answered before the answer is visible.
+   * Persisting it across reloads would let a reader see the verdict, reload, and
+   * "commit" to it.
+   *
+   * IN THE STORE RATHER THAN IN THE PANEL. A collapsed Case region UNMOUNTS its
+   * content (`ai/anchors.ts:20-22`), so `useState` inside CaseHeader or
+   * TracePanel would be destroyed by the spotlight and by every tour beat that
+   * moves the focus - re-raising the gate over a verdict the reader has already
+   * seen, which is the one state this feature must never reach.
+   */
+  provisionalCalls: Record<string, Verdict>;
 }
 
 export type Action =
@@ -135,7 +152,8 @@ export type Action =
   | { type: "addPosition"; position: ReviewerPosition }
   | { type: "toggleMotion" }
   | { type: "setPendingAnchor"; anchorId: string | null }
-  | { type: "addCustomCompound"; compoundId: string; claims: EvidenceClaim[] };
+  | { type: "addCustomCompound"; compoundId: string; claims: EvidenceClaim[] }
+  | { type: "recordProvisionalCall"; compoundId: string; call: Verdict };
 
 export function initialState(
   data: LoadedData,
@@ -152,6 +170,7 @@ export function initialState(
     motion: true,
     pendingAnchor: null,
     customCompounds: {},
+    provisionalCalls: {},
   };
 }
 
@@ -364,6 +383,16 @@ export function reducer(s: AppState, a: Action): AppState {
       // tab would hash a position against evidence carrying a different id.
       if (a.claims.some((c) => c.compoundId !== id)) return s;
       return { ...s, customCompounds: { ...s.customCompounds, [id]: a.claims } };
+    }
+
+    case "recordProvisionalCall": {
+      // WRITE-ONCE, and the reducer is where that is enforced rather than in the
+      // gate's markup. Recording a call reveals the verdict, so a second write is
+      // by definition a call made with the answer already on screen - and a
+      // record of a judgement made after seeing the answer is worse than no
+      // record, because it looks like one made before.
+      if (s.provisionalCalls[a.compoundId] !== undefined) return s;
+      return { ...s, provisionalCalls: { ...s.provisionalCalls, [a.compoundId]: a.call } };
     }
   }
 }

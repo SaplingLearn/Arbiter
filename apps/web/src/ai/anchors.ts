@@ -45,6 +45,20 @@ export const CONDITIONAL_ANCHORS = [
   "validation.singleClassWarning",
   "evidence.citationStatus",
   "ruleset.modifiedBadge",
+  // The six the commit-before-reveal gate withholds (playbook §08 P2-C). Each is
+  // absent until the reader has recorded their own call on a high-gap or contested
+  // case, so each is "legitimately absent" in exactly the sense this list means -
+  // and the navigator's answer for them, "un-collapse and re-check", is now also
+  // "or answer the gate", which the Case tab makes unmissable on screen.
+  //
+  // They are conditional rather than removed: the anchors still resolve, and the
+  // DOM sweep in anchors.test.tsx still asserts each one mounts once the gate is
+  // answered, so a rename of any of them is still caught.
+  "case.verdict",
+  "case.beliefRange",
+  "trace.beliefTrack",
+  "trace.mass",
+  "trace.verdictReason",
 ] as const;
 
 /**

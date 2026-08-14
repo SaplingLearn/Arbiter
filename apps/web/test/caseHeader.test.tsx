@@ -8,16 +8,27 @@ import { CYCLOSPORINE } from "../src/data/heroCases.js";
 const data = loadData();
 const renderHeader = () => render(<StoreProvider data={data}><CaseHeader /></StoreProvider>);
 
+/**
+ * TAK-994 has a 0.910 belief-plausibility gap against a registered threshold of
+ * 0.5, so the commit-before-reveal gate (playbook §08 P2-C) holds on mount and the
+ * verdict and the figures are not in the DOM until a call is recorded. Committing
+ * is therefore part of reaching them, not a workaround for them: these two cases
+ * are about what the header SAYS, and this is now how a reader gets it to say it.
+ */
+const commit = () => fireEvent.click(screen.getByTestId("commit-abstain"));
+
 describe("CaseHeader", () => {
   it("names the compound and states the verdict", () => {
     renderHeader();
     expect(screen.getByText(/TAK-994/)).toBeTruthy();
+    commit();
     expect(screen.getByTestId("verdict").textContent).toMatch(/abstain/i);
   });
 
   it("reports belief and plausibility as a range, not a single number", () => {
     // The gap IS the product. A header showing only belief would hide it.
     renderHeader();
+    commit();
     const range = screen.getByTestId("belief-range").textContent ?? "";
     expect(range).toMatch(/0\.\d+/);
     expect(range).toMatch(/–|-|to/);
