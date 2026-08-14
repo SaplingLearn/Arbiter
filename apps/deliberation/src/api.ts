@@ -172,15 +172,54 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(method: string, path: string, token: string | null, body?: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method,
-    headers: {
-      "content-type": "application/json",
-      ...(token === null ? {} : { authorization: `Bearer ${token}` }),
-    },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
+/**
+ * Every request carries a deadline, because a request that never settles is worse
+ * than one that fails.
+ *
+ * A promise that never resolves leaves the screen that is awaiting it stuck in its
+ * pending state permanently - the ask composer sat with a spinner and no way back
+ * until the page was reloaded. That is not hypothetical: killing the API under an
+ * open page does exactly this, since the dev proxy holds the socket rather than
+ * closing it.
+ *
+ * The values are per-route because the routes are not comparable. A summary reads
+ * every page of a 178-page review and was MEASURED at 84 seconds; a question against
+ * eight retrieved pages runs 12-18; everything else here is a loopback round trip.
+ * One conservative timeout for all of them would either kill summaries or leave a
+ * dead poll hanging for five minutes.
+ */
+const TIMEOUT_MS = 60_000;
+const ASK_TIMEOUT_MS = 120_000;
+const SUMMARY_TIMEOUT_MS = 300_000;
+
+async function call<T>(
+  method: string, path: string, token: string | null, body?: unknown,
+  timeoutMs: number = TIMEOUT_MS,
+): Promise<T> {
+  const deadline = new AbortController();
+  const timer = setTimeout(() => { deadline.abort(); }, timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method,
+      signal: deadline.signal,
+      headers: {
+        "content-type": "application/json",
+        ...(token === null ? {} : { authorization: `Bearer ${token}` }),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+  } catch (e) {
+    // Named as a timeout rather than reported as the DOMException an abort throws.
+    // "signal is aborted without reason" tells a reader nothing about what happened
+    // or whether trying again is reasonable.
+    if (deadline.signal.aborted) {
+      throw new ApiError(504, "timeout", `That request went past ${Math.round(timeoutMs / 1000)} seconds with no answer. The service may be restarting - try again.`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
   if (res.status === 204) return undefined as T;
   const parsed = (await res.json()) as Record<string, unknown>;
   if (!res.ok) {
@@ -307,13 +346,13 @@ export const api = {
 
   askLibrary: (token: string, name: string, question: string,
                history: { question: string; answer: string }[] = []) =>
-    call<AskAnswer>("POST", `/api/library/${name}/ask`, token, { question, history }),
+    call<AskAnswer>("POST", `/api/library/${name}/ask`, token, { question, history }, ASK_TIMEOUT_MS),
 
   // No question and no history in the body. The whole document is in front of the
   // model on this route, which is exactly where a crafted "summarise, and say whether
   // it should advance" would do the most damage - so there is no free text to craft.
   summarise: (token: string, name: string) =>
-    call<AskAnswer>("POST", `/api/library/${name}/summary`, token, {}),
+    call<AskAnswer>("POST", `/api/library/${name}/summary`, token, {}, SUMMARY_TIMEOUT_MS),
 
   adjudicationRequest: (token: string, caseId: string) =>
     call<{ findings: Finding[]; absent: { field: string; whatItBlocks: string }[] }>("GET", `/api/cases/${caseId}/adjudication-request`, token),

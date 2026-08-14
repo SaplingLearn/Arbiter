@@ -822,7 +822,14 @@ export function AskPage({ token, library }: {
         </div>
         <div className="composer-row">
           <label className="sr-only" htmlFor="ask-q">Your question</label>
-          <textarea id="ask-q" rows={2} value={question} disabled={busy}
+          {/* NOT disabled while busy, and that is the whole point of this row. Typing
+              and SENDING are different acts: the thread is one conversation, so a
+              second question may not go out while the first is unanswered - but the
+              moment a reader has thought of the next thing to ask is exactly while
+              they are waiting, and a summary keeps them waiting eighty seconds. A
+              disabled box also survives its cause: a request that never settles used
+              to leave the composer dead until the page was reloaded. */}
+          <textarea id="ask-q" rows={2} value={question}
             onChange={(e) => setQuestion(e.target.value)}
             // Enter sends, Shift+Enter is a newline. Ctrl+Enter keeps working because
             // it was the documented key here before this page became a thread.
@@ -830,6 +837,9 @@ export function AskPage({ token, library }: {
               if (e.key !== "Enter") return;
               if (e.shiftKey) return;
               e.preventDefault();
+              // Said, not swallowed. A keystroke that does nothing and explains
+              // nothing is indistinguishable from a broken input.
+              if (busy) { setError("Still reading the last question - this will send when that answer arrives."); return; }
               void send(question);
             }}
             placeholder={turns.length === 0

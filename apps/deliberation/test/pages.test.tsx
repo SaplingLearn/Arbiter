@@ -1,8 +1,8 @@
 import "@testing-library/jest-dom/vitest";
-import { describe, expect, it } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AskPage } from "../src/pages.js";
-import type { LibrarySource } from "../src/api.js";
+import { api, type LibrarySource } from "../src/api.js";
 
 const source = (over: Partial<LibrarySource> = {}): LibrarySource => ({
   name: "turalio", label: "Turalio - FDA NDA 211810 review",
@@ -59,5 +59,60 @@ describe("AskPage document picker", () => {
   it("says there is nothing to ask when the library holds no readable document", () => {
     render(<AskPage token="t" library={[]} />);
     expect(screen.getByText(/Nothing to ask yet/)).toBeInTheDocument();
+  });
+});
+
+describe("AskPage composer while an answer is in flight", () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  /** A request that never settles - a summary mid-flight, or a server killed under it. */
+  const hangs = (method: "askLibrary" | "summarise"): void => {
+    vi.spyOn(api, method).mockReturnValue(new Promise(() => {}) as never);
+  };
+
+  it("lets you keep typing while an answer is on its way", async () => {
+    // The textarea used to be disabled for the whole request. A question takes 12-18
+    // seconds and a summary 84, so the input a reader reaches for is dead exactly when
+    // they have thought of the next thing to ask - and a request that never settles
+    // left it dead until the page was reloaded.
+    hangs("askLibrary");
+    render(<AskPage token="t" library={[source()]} />);
+    const box = screen.getByLabelText("Your question");
+    fireEvent.change(box, { target: { value: "what NOAEL was set" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Reading..." })).toBeDisabled());
+    expect(box).toBeEnabled();
+    fireEvent.change(box, { target: { value: "and the recovery phase?" } });
+    expect(box).toHaveValue("and the recovery phase?");
+  });
+
+  it("lets you keep typing through a summary, which is the longest wait here", async () => {
+    hangs("summarise");
+    render(<AskPage token="t" library={[source()]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Summarise this document" }));
+
+    await waitFor(() => expect(screen.getByText(/Reading the whole document/)).toBeInTheDocument());
+    const box = screen.getByLabelText("Your question");
+    expect(box).toBeEnabled();
+    fireEvent.change(box, { target: { value: "what liver findings are reported" } });
+    expect(box).toHaveValue("what liver findings are reported");
+  });
+
+  it("says why Enter did nothing, rather than swallowing the keystroke in silence", async () => {
+    // Typing is allowed while busy; SENDING a second question is not, because the
+    // thread is one conversation. That distinction has to be on screen or the reader
+    // presses Enter, sees nothing, and concludes the box is broken.
+    hangs("askLibrary");
+    render(<AskPage token="t" library={[source()]} />);
+    fireEvent.change(screen.getByLabelText("Your question"), { target: { value: "first" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Reading..." })).toBeDisabled());
+
+    const box = screen.getByLabelText("Your question");
+    fireEvent.change(box, { target: { value: "second" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(screen.getByText(/still reading/i)).toBeInTheDocument();
+    expect(box).toHaveValue("second");
   });
 });
