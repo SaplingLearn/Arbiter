@@ -62,6 +62,9 @@ export interface CaseListing {
   isOwner: boolean;
   submitted: number;
   of: number;
+  /** How many PDFs the case holds. Ask can answer nothing against a case with none,
+   *  and the picker has to say so before a question is typed into a void. */
+  documents: number;
 }
 
 export interface Roster {

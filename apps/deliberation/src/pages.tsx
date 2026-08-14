@@ -605,7 +605,14 @@ export function AskPage({ token, cases }: {
   token: string;
   cases: CaseListing[];
 }): ReactElement {
-  const [caseId, setCaseId] = useState(cases[0]?.caseId ?? "");
+  // The first case with a folder, not simply the first case. A case is opened before
+  // anything is uploaded to it, so `cases[0]` is routinely empty - and opening there
+  // answers every question with "the documents do not say", which reads as the model
+  // refusing rather than as nothing having been uploaded. Falls back to the first
+  // case when none has documents, so the picker still shows a selection.
+  const [caseId, setCaseId] = useState(
+    (cases.find((c) => c.documents > 0) ?? cases[0])?.caseId ?? "",
+  );
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -655,6 +662,13 @@ export function AskPage({ token, cases }: {
   const newest = answered.at(-1);
   const remembersFrom = newest === undefined ? 0 : newest.i - newest.t.answer!.historyTurnsUsed;
 
+  // A case with an empty folder is not a case that answers badly, it is a case that
+  // cannot be asked. Taking the question anyway spends a model call to say "the
+  // documents do not contain that", which is indistinguishable on screen from a real
+  // document that happens not to cover it.
+  const selected = cases.find((c) => c.caseId === caseId);
+  const emptyFolder = selected !== undefined && selected.documents === 0;
+
   if (cases.length === 0) {
     return (
       <>
@@ -677,13 +691,32 @@ export function AskPage({ token, cases }: {
           <div className="field">
             <label htmlFor="ask-case">Which case</label>
             <select id="ask-case" value={caseId} onChange={(e) => pick(e.target.value)} disabled={busy}>
+              {/* The count is part of the label rather than a badge beside it: a
+                  <select> renders only text, and an empty case has to be legible
+                  while the list is closed. */}
               {cases.map((c) => (
-                <option key={c.caseId} value={c.caseId}>{c.compoundLabel}</option>
+                <option key={c.caseId} value={c.caseId}>
+                  {c.compoundLabel} - {c.documents === 0 ? "no documents"
+                    : `${c.documents} document${c.documents === 1 ? "" : "s"}`}
+                </option>
               ))}
             </select>
           </div>
         } />
 
+      {emptyFolder && (
+        <div className="empty">
+          <h3>No documents in this case yet</h3>
+          <p className="muted">
+            Every answer here rests on a page of an uploaded PDF, and {selected.compoundLabel} has
+            none. Upload its study reports and the questions become answerable - the picker above
+            says which of your cases already hold documents.
+          </p>
+          <a href={href({ name: "case", caseId })}><button className="primary">Upload documents</button></a>
+        </div>
+      )}
+
+      {!emptyFolder && <>
       <div className="note">
         This reports what the documents say. It does not judge the compound and will not
         tell you whether to advance - that is the panel's to state and the adjudication's
@@ -770,6 +803,7 @@ export function AskPage({ token, cases }: {
           )}
         </div>
       </div>
+      </>}
     </>
   );
 }

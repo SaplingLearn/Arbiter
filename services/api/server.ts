@@ -202,8 +202,16 @@ export function makeHandler(deps: ServerDeps) {
       }
 
       // GET /api/cases - only the ones this account is named on.
+      //
+      // The document count is merged in HERE rather than inside casesFor, because the
+      // deliberation service owns positions and the hash chain and knows nothing about
+      // uploaded files - handing it the document store to answer one number would tie
+      // the record to the folder. A count only: naming the files would put one case's
+      // filenames in a list another surface renders without opening the case.
       if (parts.length === 2 && method === "GET") {
-        return json(res, 200, deps.service.casesFor(user.id));
+        return json(res, 200, deps.service.casesFor(user.id).map((c) => ({
+          ...c, documents: deps.documents.forCase(c.caseId).length,
+        })));
       }
 
       const caseId = parts[2];
