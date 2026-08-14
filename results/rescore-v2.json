@@ -1,0 +1,549 @@
+{
+  "generatedBy": "tools/rescore_v2.py",
+  "driftGuard": "pass",
+  "qsarCaveat": "The QSAR model was fitted under the v1.0 target, so its v2.0 figures are a lower bound.",
+  "targets": [
+    {
+      "version": "1.0",
+      "label": "v1.0 (as shipped)",
+      "superseded": true,
+      "positive": [
+        "vMost-DILI-Concern",
+        "vLess-DILI-Concern"
+      ],
+      "negative": [
+        "vNo-DILI-Concern"
+      ],
+      "populations": [
+        {
+          "population": "conflictSubset",
+          "n": 61,
+          "positiveRate": 0.9016393442622951,
+          "pipelines": [
+            {
+              "pipeline": "ARBITER",
+              "balancedAccuracy": 0.75,
+              "balancedAccuracyCi": null,
+              "rawAccuracyCi": {
+                "lo": 0.5100999795960008,
+                "hi": 1.0
+              },
+              "coverage": 0.06557377049180328,
+              "nCommitted": 4,
+              "confusion": {
+                "tp": 4,
+                "fp": 0,
+                "tn": 0,
+                "fn": 0
+              },
+              "singleClass": true
+            },
+            {
+              "pipeline": "majorityVote",
+              "balancedAccuracy": 0.75,
+              "balancedAccuracyCi": null,
+              "rawAccuracyCi": {
+                "lo": 0.43849391955098227,
+                "hi": 1.0
+              },
+              "coverage": 0.04918032786885246,
+              "nCommitted": 3,
+              "confusion": {
+                "tp": 3,
+                "fp": 0,
+                "tn": 0,
+                "fn": 0
+              },
+              "singleClass": true
+            },
+            {
+              "pipeline": "single:cytotox",
+              "balancedAccuracy": 0.5,
+              "balancedAccuracyCi": {
+                "lo": 0.3048284831734677,
+                "hi": 0.5326435718947139
+              },
+              "rawAccuracyCi": {
+                "lo": 0.045863951367309724,
+                "hi": 0.1984483419752358
+              },
+              "coverage": 1.0,
+              "nCommitted": 61,
+              "confusion": {
+                "tp": 0,
+                "fp": 0,
+                "tn": 6,
+                "fn": 55
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "single:qsar",
+              "balancedAccuracy": 0.5,
+              "balancedAccuracyCi": {
+                "lo": 0.46679206660949907,
+                "hi": 0.6951715168265322
+              },
+              "rawAccuracyCi": {
+                "lo": 0.7985030550748896,
+                "hi": 0.9533578005427642
+              },
+              "coverage": 0.9836065573770492,
+              "nCommitted": 60,
+              "confusion": {
+                "tp": 54,
+                "fp": 6,
+                "tn": 0,
+                "fn": 0
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "single:transporter",
+              "balancedAccuracy": 0.75,
+              "balancedAccuracyCi": null,
+              "rawAccuracyCi": {
+                "lo": 0.5100999795960008,
+                "hi": 1.0
+              },
+              "coverage": 0.06557377049180328,
+              "nCommitted": 4,
+              "confusion": {
+                "tp": 4,
+                "fp": 0,
+                "tn": 0,
+                "fn": 0
+              },
+              "singleClass": true
+            },
+            {
+              "pipeline": "weightedAverage",
+              "balancedAccuracy": 0.546969696969697,
+              "balancedAccuracyCi": {
+                "lo": 0.42872540247768115,
+                "hi": 0.7674329200299788
+              },
+              "rawAccuracyCi": {
+                "lo": 0.7427653049810489,
+                "hi": 0.920389213106105
+              },
+              "coverage": 1.0,
+              "nCommitted": 61,
+              "confusion": {
+                "tp": 51,
+                "fp": 5,
+                "tn": 1,
+                "fn": 4
+              },
+              "singleClass": false
+            }
+          ]
+        },
+        {
+          "population": "fullSplit",
+          "n": 267,
+          "positiveRate": 0.602996254681648,
+          "pipelines": [
+            {
+              "pipeline": "ARBITER",
+              "balancedAccuracy": 0.75,
+              "balancedAccuracyCi": null,
+              "rawAccuracyCi": {
+                "lo": 0.6456611570247934,
+                "hi": 1.0
+              },
+              "coverage": 0.026217228464419477,
+              "nCommitted": 7,
+              "confusion": {
+                "tp": 7,
+                "fp": 0,
+                "tn": 0,
+                "fn": 0
+              },
+              "singleClass": true
+            },
+            {
+              "pipeline": "majorityVote",
+              "balancedAccuracy": 0.5854735152487962,
+              "balancedAccuracyCi": {
+                "lo": 0.4756277073451888,
+                "hi": 0.6867248947173128
+              },
+              "rawAccuracyCi": {
+                "lo": 0.5008974219855844,
+                "hi": 0.6526260020043544
+              },
+              "coverage": 0.5955056179775281,
+              "nCommitted": 159,
+              "confusion": {
+                "tp": 47,
+                "fp": 25,
+                "tn": 45,
+                "fn": 42
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "single:cytotox",
+              "balancedAccuracy": 0.5255376344086021,
+              "balancedAccuracyCi": {
+                "lo": 0.44044276984948055,
+                "hi": 0.575091802011539
+              },
+              "rawAccuracyCi": {
+                "lo": 0.22642346171260533,
+                "hi": 0.383792249498508
+              },
+              "coverage": 0.4756554307116105,
+              "nCommitted": 127,
+              "confusion": {
+                "tp": 8,
+                "fp": 1,
+                "tn": 30,
+                "fn": 88
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "single:qsar",
+              "balancedAccuracy": 0.7138278388278388,
+              "balancedAccuracyCi": {
+                "lo": 0.6173455166380679,
+                "hi": 0.7945556949086447
+              },
+              "rawAccuracyCi": {
+                "lo": 0.6903551432453461,
+                "hi": 0.8188885070131389
+              },
+              "coverage": 0.6254681647940075,
+              "nCommitted": 167,
+              "confusion": {
+                "tp": 94,
+                "fp": 30,
+                "tn": 33,
+                "fn": 10
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "single:transporter",
+              "balancedAccuracy": 0.75,
+              "balancedAccuracyCi": null,
+              "rawAccuracyCi": {
+                "lo": 0.5100999795960008,
+                "hi": 1.0
+              },
+              "coverage": 0.0149812734082397,
+              "nCommitted": 4,
+              "confusion": {
+                "tp": 4,
+                "fp": 0,
+                "tn": 0,
+                "fn": 0
+              },
+              "singleClass": true
+            },
+            {
+              "pipeline": "weightedAverage",
+              "balancedAccuracy": 0.6395110115714819,
+              "balancedAccuracyCi": {
+                "lo": 0.5427591937192189,
+                "hi": 0.7265894984600698
+              },
+              "rawAccuracyCi": {
+                "lo": 0.5841927714953341,
+                "hi": 0.7101358332602916
+              },
+              "coverage": 0.8127340823970037,
+              "nCommitted": 217,
+              "confusion": {
+                "tp": 95,
+                "fp": 30,
+                "tn": 46,
+                "fn": 46
+              },
+              "singleClass": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.0",
+      "label": "v2.0 (corrected)",
+      "superseded": false,
+      "positive": [
+        "vMost-DILI-Concern"
+      ],
+      "negative": [
+        "vNo-DILI-Concern",
+        "vLess-DILI-Concern"
+      ],
+      "populations": [
+        {
+          "population": "conflictSubset",
+          "n": 61,
+          "positiveRate": 0.29508196721311475,
+          "pipelines": [
+            {
+              "pipeline": "ARBITER",
+              "balancedAccuracy": 0.5,
+              "balancedAccuracyCi": {
+                "lo": 0.10327164573694647,
+                "hi": 0.7807530402245089
+              },
+              "rawAccuracyCi": {
+                "lo": 0.045586062644636216,
+                "hi": 0.6993639475573634
+              },
+              "coverage": 0.06557377049180328,
+              "nCommitted": 4,
+              "confusion": {
+                "tp": 1,
+                "fp": 3,
+                "tn": 0,
+                "fn": 0
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "majorityVote",
+              "balancedAccuracy": 0.25,
+              "balancedAccuracyCi": null,
+              "rawAccuracyCi": {
+                "lo": 0.0,
+                "hi": 0.5615060804490177
+              },
+              "coverage": 0.04918032786885246,
+              "nCommitted": 3,
+              "confusion": {
+                "tp": 0,
+                "fp": 3,
+                "tn": 0,
+                "fn": 0
+              },
+              "singleClass": true
+            },
+            {
+              "pipeline": "single:cytotox",
+              "balancedAccuracy": 0.5,
+              "balancedAccuracyCi": {
+                "lo": 0.4589937149883864,
+                "hi": 0.5879422752911875
+              },
+              "rawAccuracyCi": {
+                "lo": 0.5811036064161055,
+                "hi": 0.8044513459601468
+              },
+              "coverage": 1.0,
+              "nCommitted": 61,
+              "confusion": {
+                "tp": 0,
+                "fp": 0,
+                "tn": 43,
+                "fn": 18
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "single:qsar",
+              "balancedAccuracy": 0.5,
+              "balancedAccuracyCi": {
+                "lo": 0.4078381698142177,
+                "hi": 0.5410062850116136
+              },
+              "rawAccuracyCi": {
+                "lo": 0.1850667860430859,
+                "hi": 0.40767525049735165
+              },
+              "coverage": 0.9836065573770492,
+              "nCommitted": 60,
+              "confusion": {
+                "tp": 17,
+                "fp": 43,
+                "tn": 0,
+                "fn": 0
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "single:transporter",
+              "balancedAccuracy": 0.5,
+              "balancedAccuracyCi": {
+                "lo": 0.10327164573694647,
+                "hi": 0.7807530402245089
+              },
+              "rawAccuracyCi": {
+                "lo": 0.045586062644636216,
+                "hi": 0.6993639475573634
+              },
+              "coverage": 0.06557377049180328,
+              "nCommitted": 4,
+              "confusion": {
+                "tp": 1,
+                "fp": 3,
+                "tn": 0,
+                "fn": 0
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "weightedAverage",
+              "balancedAccuracy": 0.5187338501291989,
+              "balancedAccuracyCi": {
+                "lo": 0.3895965235416356,
+                "hi": 0.6030774740772012
+              },
+              "rawAccuracyCi": {
+                "lo": 0.23747339039863208,
+                "hi": 0.4695048457954161
+              },
+              "coverage": 1.0,
+              "nCommitted": 61,
+              "confusion": {
+                "tp": 17,
+                "fp": 39,
+                "tn": 4,
+                "fn": 1
+              },
+              "singleClass": false
+            }
+          ]
+        },
+        {
+          "population": "fullSplit",
+          "n": 267,
+          "positiveRate": 0.21722846441947566,
+          "pipelines": [
+            {
+              "pipeline": "ARBITER",
+              "balancedAccuracy": 0.5,
+              "balancedAccuracyCi": {
+                "lo": 0.17118597644480962,
+                "hi": 0.7172457473760405
+              },
+              "rawAccuracyCi": {
+                "lo": 0.0822171657090155,
+                "hi": 0.6410709098517873
+              },
+              "coverage": 0.026217228464419477,
+              "nCommitted": 7,
+              "confusion": {
+                "tp": 2,
+                "fp": 5,
+                "tn": 0,
+                "fn": 0
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "majorityVote",
+              "balancedAccuracy": 0.4708415354330709,
+              "balancedAccuracyCi": {
+                "lo": 0.3520605071322994,
+                "hi": 0.5986306037680538
+              },
+              "rawAccuracyCi": {
+                "lo": 0.4324279059434021,
+                "hi": 0.5859949049353909
+              },
+              "coverage": 0.5955056179775281,
+              "nCommitted": 159,
+              "confusion": {
+                "tp": 13,
+                "fp": 59,
+                "tn": 68,
+                "fn": 19
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "single:cytotox",
+              "balancedAccuracy": 0.5072072072072072,
+              "balancedAccuracyCi": {
+                "lo": 0.445028723490627,
+                "hi": 0.591050209217313
+              },
+              "rawAccuracyCi": {
+                "lo": 0.5998293468067151,
+                "hi": 0.7593836252144159
+              },
+              "coverage": 0.4756554307116105,
+              "nCommitted": 127,
+              "confusion": {
+                "tp": 3,
+                "fp": 6,
+                "tn": 84,
+                "fn": 34
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "single:qsar",
+              "balancedAccuracy": 0.6012731481481481,
+              "balancedAccuracyCi": {
+                "lo": 0.4917920483021843,
+                "hi": 0.672847535704471
+              },
+              "rawAccuracyCi": {
+                "lo": 0.34126217489578037,
+                "hi": 0.48898994168472454
+              },
+              "coverage": 0.6254681647940075,
+              "nCommitted": 167,
+              "confusion": {
+                "tp": 29,
+                "fp": 95,
+                "tn": 40,
+                "fn": 3
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "single:transporter",
+              "balancedAccuracy": 0.5,
+              "balancedAccuracyCi": {
+                "lo": 0.10327164573694647,
+                "hi": 0.7807530402245089
+              },
+              "rawAccuracyCi": {
+                "lo": 0.045586062644636216,
+                "hi": 0.6993639475573634
+              },
+              "coverage": 0.0149812734082397,
+              "nCommitted": 4,
+              "confusion": {
+                "tp": 1,
+                "fp": 3,
+                "tn": 0,
+                "fn": 0
+              },
+              "singleClass": false
+            },
+            {
+              "pipeline": "weightedAverage",
+              "balancedAccuracy": 0.5155688622754491,
+              "balancedAccuracyCi": {
+                "lo": 0.41010960806262653,
+                "hi": 0.6154415726811763
+              },
+              "rawAccuracyCi": {
+                "lo": 0.404737950306445,
+                "hi": 0.5363963287424299
+              },
+              "coverage": 0.8127340823970037,
+              "nCommitted": 217,
+              "confusion": {
+                "tp": 30,
+                "fp": 95,
+                "tn": 72,
+                "fn": 20
+              },
+              "singleClass": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

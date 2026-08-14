@@ -131,7 +131,7 @@ def fmt(v) -> str:
     return str(v)
 
 
-def report(title: str, scored: dict, n: int, positive_rate: float) -> None:
+def report(title: str, scored: dict, n: int, positive_rate: float) -> dict:
     c = scored["confusion"]
     print(f"  {title}")
     print(f"    subset n={n}   positives in subset: {positive_rate:.1%}")
@@ -142,6 +142,7 @@ def report(title: str, scored: dict, n: int, positive_rate: float) -> None:
           f"   single-class: {fmt(scored['singleClass'])}")
     print(f"    raw accuracy CI    {fmt(scored['rawAccuracyCi'])}")
     print()
+    return {"pipeline": title.replace("baseline ", ""), **scored}
 
 
 def main() -> None:
@@ -157,7 +158,10 @@ def main() -> None:
     if missing:
         raise SystemExit(f"{len(missing)} scored compounds have no DILIrank label; cannot re-grade.")
 
-    for policy_name, policy in (("v1.0 (as shipped)", v1), ("v2.0 (corrected)", v2)):
+    doc_targets = []
+    for policy_name, policy, version in (
+        ("v1.0 (as shipped)", v1, "1.0"), ("v2.0 (corrected)", v2, "2.0")
+    ):
         print("=" * 74)
         print(f"TARGET: {policy_name}")
         print(f"  positive = {policy['positive']}")
@@ -171,15 +175,18 @@ def main() -> None:
                 continue  # excluded by policy; none expected, the corpus is pre-filtered
             graded.append((r, y))
 
-        for subset_name, subset in (
-            ("CONFLICT SUBSET (the headline)", [(r, y) for r, y in graded if r["conflicting"]]),
-            ("FULL SCORED SPLIT", graded),
+        populations = []
+        for subset_name, population_key, subset in (
+            ("CONFLICT SUBSET (the headline)", "conflictSubset",
+             [(r, y) for r, y in graded if r["conflicting"]]),
+            ("FULL SCORED SPLIT", "fullSplit", graded),
         ):
             n = len(subset)
             pos_rate = sum(y for _, y in subset) / n if n else 0.0
             print(f"-- {subset_name} --")
+            pipelines = []
             arb = score([(y, to_binary(r["arbiter"]["verdict"])) for r, y in subset])
-            report("ARBITER", arb, n, pos_rate)
+            pipelines.append(report("ARBITER", arb, n, pos_rate))
 
             names = sorted({k for r, _ in subset for k in r["baselines"]})
             for name in names:
@@ -189,7 +196,18 @@ def main() -> None:
                 ])
                 if b["nCommitted"] == 0:
                     continue
-                report(f"baseline {name}", b, n, pos_rate)
+                pipelines.append(report(f"baseline {name}", b, n, pos_rate))
+
+            populations.append({
+                "population": population_key, "n": n,
+                "positiveRate": pos_rate, "pipelines": pipelines,
+            })
+
+        doc_targets.append({
+            "version": version, "label": policy_name, "superseded": version == "1.0",
+            "positive": policy["positive"], "negative": policy["negative"],
+            "populations": populations,
+        })
 
     # --- the drift guard ----------------------------------------------------
     shipped = json.loads((ROOT / "results" / "metrics.json").read_text())
@@ -210,6 +228,20 @@ def main() -> None:
     print(f"  {'PASS - this script matches the harness' if ok else 'FAIL - DO NOT TRUST THE v2.0 NUMBERS ABOVE'}")
     if not ok:
         raise SystemExit(1)
+
+    # Written only after the guard passes: a failed guard must leave no artifact
+    # for the UI to read.
+    (ROOT / "results" / "rescore-v2.json").write_text(json.dumps({
+        "generatedBy": "tools/rescore_v2.py",
+        "driftGuard": "pass",
+        "qsarCaveat": (
+            "The QSAR model was fitted under the v1.0 target, so its v2.0 figures "
+            "are a lower bound."
+        ),
+        "targets": doc_targets,
+    }, indent=2) + "\n", encoding="utf-8")
+    print()
+    print("wrote results/rescore-v2.json")
 
 
 if __name__ == "__main__":

@@ -61,6 +61,9 @@ results/*
 # artifact behind the claim that the 0.750 headline was an artifact, and a
 # reviewer has to be able to read it without re-running anything.
 !results/rescore-v2.txt
+# The same re-grade as data. Tracked for a second reason on top of that one: the
+# web build IMPORTS it, so the app cannot render its own correction without it.
+!results/rescore-v2.json
 
 # The consistency probe's raw runs. A reported flip rate whose underlying answers
 # were discarded is an assertion rather than a measurement, so a LIVE run belongs
