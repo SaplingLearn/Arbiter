@@ -159,5 +159,67 @@ describe("DeliberationService - the whole path with no model in it", () => {
     expect(svc.inventory("nope")).toBeNull();
     expect(svc.adjudicationRequest("nope", RULES)).toBeNull();
     expect(svc.unanimity("nope")).toBeNull();
+    expect(svc.disagreement("nope")).toBeNull();
+  });
+
+  it("reports the split for a divided room, and which findings each camp rests on", () => {
+    // The case this product is named for. disagreementReport has been implemented
+    // and unit tested since the deliberation was built and reachable from nothing:
+    // no service method, no route, no client call, no component. A split room saw
+    // raw positions side by side and no analysis of them at all.
+    const svc = service();
+    opened(svc, ["ann", "bea", "cai"]);
+    svc.submit("c1", pos("ann", { call: "do_not_advance", citedFindingIds: ["f-hep"] }));
+    svc.submit("c1", pos("bea", { call: "advance", citedFindingIds: ["f-rodent"] }));
+    svc.submit("c1", pos("cai", { call: "advance", citedFindingIds: ["f-hep"] }));
+    svc.reveal("c1", "owner", "2026-08-09T12:00:00Z", "all_in");
+
+    const r = svc.disagreement("c1");
+    expect(r?.split.map((s) => s.call).sort()).toEqual(["advance", "do_not_advance"]);
+    // f-hep is cited by ann (do_not_advance) and cai (advance): the same finding
+    // carrying opposite conclusions, which is a dispute about meaning rather than
+    // about measurement.
+    expect(r?.contested).toEqual(["f-hep"]);
+    // f-rodent is cited only from the advance camp, so it is evidence the other
+    // side never answered.
+    expect(r?.oneSided.map((o) => o.findingId)).toEqual(["f-rodent"]);
+  });
+
+  it("refuses BOTH post-reveal reports while the case is still open", () => {
+    // A LEAK, found by driving the real HTTP routes on 2026-08-14, and it predates
+    // the disagreement report: with one position submitted, GET unanimity answered
+    // {"unanimous":true,"call":"do_not_advance"} on an OPEN case. That is the call
+    // of the only person who has answered, which is precisely what the blind phase
+    // exists to withhold.
+    //
+    // Nobody noticed because App.tsx only requests these once status leaves "open".
+    // But blindness in this product is enforced by the server not returning the
+    // data, never by the client declining to ask for it - `visibleTo` is written
+    // that way on purpose - and these two read c.positions directly, going around
+    // it. A disciplined client is not a guarantee; it is a habit.
+    const svc = service();
+    opened(svc);
+    svc.submit("c1", pos("ann", { call: "do_not_advance", citedFindingIds: ["f-hep"] }));
+
+    expect(svc.unanimity("c1")).toBeNull();
+    expect(svc.disagreement("c1")).toBeNull();
+
+    svc.submit("c1", pos("bea", { call: "advance", citedFindingIds: ["f-rodent"] }));
+    svc.reveal("c1", "owner", "2026-08-09T12:00:00Z", "all_in");
+
+    expect(svc.unanimity("c1")).not.toBeNull();
+    expect(svc.disagreement("c1")).not.toBeNull();
+  });
+
+  it("returns null when the room agreed, which is an answer and not an error", () => {
+    // The route must serve this as 200 with a null body. A 404 would say "no such
+    // case", which is a different fact, and the client would treat agreement as a
+    // failure on every unanimous case.
+    const svc = service();
+    opened(svc);
+    svc.submit("c1", pos("ann"));
+    svc.submit("c1", pos("bea"));
+    svc.reveal("c1", "owner", "2026-08-09T12:00:00Z", "all_in");
+    expect(svc.disagreement("c1")).toBeNull();
   });
 });

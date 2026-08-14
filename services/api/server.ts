@@ -316,6 +316,12 @@ export function makeHandler(deps: ServerDeps) {
             const u = deps.service.unanimity(caseId);
             return u === null ? json(res, 404, { error: "no_case" }) : json(res, 200, u);
           }
+          case "disagreement":
+            // 200 with a null body when the room did not split, unlike the routes
+            // above. Null here means "they agreed", which is an answer; the access
+            // check has already established that this case exists and that this
+            // account may read it, so a 404 would be saying something false.
+            return json(res, 200, deps.service.disagreement(caseId));
           case "audit":
             return json(res, 200, deps.service.audit(caseId));
           case "documents":

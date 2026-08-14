@@ -229,7 +229,7 @@ describe("Reveal", () => {
   };
 
   it("labels each position with what it rests on", () => {
-    render(<Reveal nameOf={(id) => id} view={view} unanimity={null} />);
+    render(<Reveal nameOf={(id) => id} view={view} unanimity={null} disagreement={null} />);
     expect(screen.getByText("cited")).toBeInTheDocument();
     expect(screen.getByText("external")).toBeInTheDocument();
     expect(screen.getByText("unsupported")).toBeInTheDocument();
@@ -238,18 +238,77 @@ describe("Reveal", () => {
   it("shows an unsupported position rather than hiding it", () => {
     // Dissent is preserved permanently - that is the record's purpose. What changes
     // is that its basis is visible.
-    render(<Reveal nameOf={(id) => id} view={view} unanimity={null} />);
+    render(<Reveal nameOf={(id) => id} view={view} unanimity={null} disagreement={null} />);
     expect(screen.getByText("cal")).toBeInTheDocument();
   });
 
   it("renders the unanimity concerns and says no model produced them", () => {
-    render(<Reveal nameOf={(id) => id} view={view} unanimity={{ unanimous: true, call: "advance", concerns: ["nobody tested the exposure margin"] }} />);
+    render(<Reveal nameOf={(id) => id} view={view} unanimity={{ unanimous: true, call: "advance", concerns: ["nobody tested the exposure margin"] }} disagreement={null} />);
     expect(screen.getByText(/nobody tested the exposure margin/)).toBeInTheDocument();
     expect(screen.getByText(/Nothing below came from a model/)).toBeInTheDocument();
   });
 
+  it("shows where the room split, and which findings each camp rests on", () => {
+    // Until now this half did not exist. Agreement got a block and its concerns;
+    // a SPLIT got nothing at all, so the reader saw the positions side by side and
+    // no account of where they diverged - on the case this product is named for.
+    render(
+      <Reveal
+        nameOf={(id) => id}
+        view={view}
+        unanimity={{ unanimous: false, call: null, concerns: [] }}
+        disagreement={{
+          split: [
+            { call: "advance", participantIds: ["bea", "cal"] },
+            { call: "do_not_advance", participantIds: ["ann"] },
+          ],
+          contested: ["f1"],
+          oneSided: [{ findingId: "f2", call: "advance" }],
+        }}
+      />,
+    );
+    expect(screen.getByText(/Where the room split/i)).toBeInTheDocument();
+    // Scoped to the sentences rather than to the bare id, because a finding id also
+    // appears in each position's own "cites:" line. A bare /f1/ matches both and
+    // would pass against a panel that rendered no analysis at all.
+    // closest("p") because the label is a <strong> inside the sentence, so the
+    // matched node holds only the label and never the ids that follow it.
+    expect(screen.getByText(/Read differently by both sides:/).closest("p")?.textContent).toContain("f1");
+    expect(screen.getByText(/Cited by one side and unanswered by the other:/).closest("p")?.textContent).toContain("f2");
+  });
+
+  it("describes the camps without ever ranking them by size", () => {
+    // Spec section 6.4: counts are never an input, and a headcount on screen is
+    // read as a result. This is the assertion a future redesign is most likely to
+    // break, so it is checked on the rendered text rather than trusted to review.
+    const { container } = render(
+      <Reveal
+        nameOf={(id) => id}
+        view={view}
+        unanimity={{ unanimous: false, call: null, concerns: [] }}
+        disagreement={{
+          split: [
+            { call: "advance", participantIds: ["bea", "cal"] },
+            { call: "do_not_advance", participantIds: ["ann"] },
+          ],
+          contested: [],
+          oneSided: [],
+        }}
+      />,
+    );
+    const text = (container.textContent ?? "").toLowerCase();
+    for (const banned of ["majority", "minority", "outvoted", "outnumber", "2 of 3", "won"]) {
+      expect(text).not.toContain(banned);
+    }
+  });
+
+  it("says nothing about a split when the room did not split", () => {
+    render(<Reveal nameOf={(id) => id} view={view} unanimity={{ unanimous: true, call: "advance", concerns: [] }} disagreement={null} />);
+    expect(screen.queryByText(/Where the room split/i)).toBeNull();
+  });
+
   it("says nothing about unanimity when the room disagreed", () => {
-    const { container } = render(<Reveal nameOf={(id) => id} view={view} unanimity={{ unanimous: false, call: null, concerns: [] }} />);
+    const { container } = render(<Reveal nameOf={(id) => id} view={view} unanimity={{ unanimous: false, call: null, concerns: [] }} disagreement={null} />);
     expect(container.textContent).not.toContain("Everyone agreed");
   });
 });

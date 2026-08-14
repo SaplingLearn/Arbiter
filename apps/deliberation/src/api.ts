@@ -131,6 +131,22 @@ export interface UnanimityReport {
   concerns: string[];
 }
 
+/**
+ * The counterpart to UnanimityReport, mirrored from services/api/deliberation.ts.
+ *
+ * Null from the route means the room did not split, which is why the client type
+ * is `DisagreementReport | null` rather than the route 404ing. Describes camps and
+ * never ranks them: nothing here carries a size, because spec section 6.4 forbids
+ * counts from deciding anything and a headcount on screen is read as a result.
+ */
+export interface DisagreementReport {
+  split: { call: Call; participantIds: string[] }[];
+  /** Cited by more than one camp: the same evidence, read differently. */
+  contested: string[];
+  /** Cited by exactly one camp: evidence the others did not answer. */
+  oneSided: { findingId: string; call: Call }[];
+}
+
 export interface AskAnswer {
   answerable: boolean;
   answer: string;
@@ -334,6 +350,9 @@ export const api = {
 
   unanimity: (token: string, caseId: string) =>
     call<UnanimityReport>("GET", `/api/cases/${caseId}/unanimity`, token),
+
+  disagreement: (token: string, caseId: string) =>
+    call<DisagreementReport | null>("GET", `/api/cases/${caseId}/disagreement`, token),
 
   adjudicate: (token: string, caseId: string, at: string) =>
     call<{ adjudication: Adjudication; source: "stub" | "live" }>("POST", `/api/cases/${caseId}/adjudicate`, token, { at }),

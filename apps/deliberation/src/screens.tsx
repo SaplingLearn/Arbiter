@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
+import { api, ApiError, type Adjudication, type BlindView, type DisagreementReport, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
 
 /**
  * The screens of the deliberation, in the order §3.5 fixes them:
@@ -550,8 +550,9 @@ export function Waiting({ view, isOwner, nameOf, onReveal }: {
 }
 
 /** -------------------------------------------------------------------- reveal */
-export function Reveal({ view, unanimity, nameOf }: {
-  view: BlindView; unanimity: UnanimityReport | null; nameOf: (id: string) => string;
+export function Reveal({ view, unanimity, disagreement, nameOf }: {
+  view: BlindView; unanimity: UnanimityReport | null;
+  disagreement: DisagreementReport | null; nameOf: (id: string) => string;
 }): ReactElement {
   return (
     <section>
@@ -580,6 +581,51 @@ export function Reveal({ view, unanimity, nameOf }: {
           </p>
           {unanimity.concerns.map((c, i) => <div className="concern" key={i}>{c}</div>)}
           {unanimity.concerns.length === 0 && <p className="ok">No gaps and every position rests on cited evidence.</p>}
+        </>
+      )}
+
+      {/* The other half, and the one that was missing. Agreement had a block and
+          its concerns; a SPLIT had nothing, so on the case this product is named
+          for the reader saw the positions listed and no account of where they
+          diverged.
+
+          Describes camps and never ranks them. No count, no percentage, and the
+          camps are rendered in the order the report gives rather than by size,
+          because spec section 6.4 forbids counts from deciding anything and a
+          headcount on screen is read as a verdict however it is captioned. */}
+      {disagreement !== null && (
+        <>
+          <h2 style={{ marginTop: 32 }}>Where the room split</h2>
+          <p className="muted small">
+            Nothing below came from a model. This is which findings each position rests on,
+            and it is checkable arithmetic. It records the shape of the disagreement and
+            stops there: deciding which reading is right is the signer&apos;s job.
+          </p>
+
+          {disagreement.split.map((camp) => (
+            <div className="concern" key={camp.call}>
+              <strong>{CALL_LABEL[camp.call]}</strong>
+              {": "}
+              {camp.participantIds.map(nameOf).join(", ")}
+            </div>
+          ))}
+
+          {disagreement.contested.length > 0 && (
+            <p className="small">
+              <strong>Read differently by both sides:</strong>{" "}
+              {disagreement.contested.join(", ")}. The same finding is carrying opposite
+              conclusions, so the disagreement is about what it means rather than about
+              what was measured.
+            </p>
+          )}
+
+          {disagreement.oneSided.length > 0 && (
+            <p className="small">
+              <strong>Cited by one side and unanswered by the other:</strong>{" "}
+              {disagreement.oneSided.map((o) => o.findingId).join(", ")}. Evidence one
+              position rests on that the others did not address.
+            </p>
+          )}
         </>
       )}
     </section>

@@ -1,8 +1,10 @@
 import {
-  addParticipant, attachAdjudication, closeEarly, describeCase, externalClaimsAsGaps,
+  addParticipant, attachAdjudication, closeEarly, describeCase, disagreementReport,
+  externalClaimsAsGaps,
   lock, openCase, removeParticipant, sign,
   submitPosition, unanimityCheck, visibleTo,
-  type BlindView, type DeliberationCase, type Position, type Result, type Signature,
+  type BlindView, type DeliberationCase, type DisagreementReport, type Position,
+  type Result, type Signature,
   type UnanimityReport,
 } from "./deliberation.js";
 import { absentForAdjudication, buildInventory, presentForAdjudication, type CoveringFinding, type EvidenceChecklist, type Inventory, type Modality } from "./inventory.js";
@@ -349,10 +351,52 @@ export class DeliberationService {
     return next;
   }
 
-  unanimity(caseId: string): UnanimityReport | null {
+  /**
+   * Both of the post-reveal reports are withheld while a case is open, and the
+   * reason is a leak rather than tidiness.
+   *
+   * `unanimityCheck` and `disagreementReport` read `c.positions` directly, which
+   * goes around `visibleTo` - the one function that implements the blind phase. On
+   * an OPEN case with a single submitted position, unanimity answered
+   * {"unanimous": true, "call": "do_not_advance"}: the call of the only person who
+   * had answered, handed to anybody allowed to read the case. Measured against the
+   * running server on 2026-08-14.
+   *
+   * It was invisible because App.tsx requests these only once status leaves "open".
+   * That is a disciplined client, and a disciplined client is not the guarantee.
+   * Blindness here is enforced by the server declining to return the data, which is
+   * why `visibleTo` sends one bit per participant instead of trusting a screen not
+   * to render the rest.
+   */
+  private revealed(caseId: string): DeliberationCase | null {
     const c = this.store.getCase(caseId);
+    return c === null || c.status === "open" ? null : c;
+  }
+
+  unanimity(caseId: string): UnanimityReport | null {
+    const c = this.revealed(caseId);
     const inv = this.inventory(caseId);
     return c === null || inv === null ? null : unanimityCheck(c, inv);
+  }
+
+  /**
+   * The shape of a split, for a reader arriving after the fact.
+   *
+   * The counterpart to `unanimity`, and the half that was missing. When a room
+   * agrees, the interface says so and lists the questions nobody answered. When a
+   * room SPLITS, which is the case this product exists for, there was nothing:
+   * `disagreementReport` was written and tested and reachable from no route, no
+   * client method and no component, so a reader saw the positions side by side and
+   * no account of where they diverged.
+   *
+   * Null means the room did not split. That is an ANSWER and not an error, so the
+   * route serves it as 200 with a null body; a 404 there would say "no such case",
+   * which is a different fact and would make the client treat agreement as a
+   * failure on every unanimous case.
+   */
+  disagreement(caseId: string): DisagreementReport | null {
+    const c = this.revealed(caseId);
+    return c === null ? null : disagreementReport(c);
   }
 
   /**

@@ -3,7 +3,7 @@ import {
   api, ApiError, uploadDocument,
   type Adjudication, type AuditResult, type BlindView, type CaseListing,
   type CaseSummary, type Finding, type Inventory, type LibrarySource, type Person, type Refusal,
-  type Roster, type StoredDocument, type UnanimityReport,
+  type DisagreementReport, type Roster, type StoredDocument, type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
 import { AskPage, AuthPage, Dashboard, LibraryPage, MethodPage, NewCasePage } from "./pages.js";
@@ -40,6 +40,7 @@ export function App(): ReactElement {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [view, setView] = useState<BlindView | null>(null);
   const [unanimity, setUnanimity] = useState<UnanimityReport | null>(null);
+  const [disagreement, setDisagreement] = useState<DisagreementReport | null>(null);
   const [adjudication, setAdjudication] = useState<{ adjudication: Adjudication; source: "stub" | "live" } | null>(null);
   const [audit, setAudit] = useState<AuditResult | null>(null);
   const [docs, setDocs] = useState<StoredDocument[]>([]);
@@ -79,10 +80,15 @@ export function App(): ReactElement {
       setDocs(d);
       setRoster(r);
       if (v.status === "open") {
+        // Both stay null while the case is open. The server does not return
+        // positions before the reveal, so neither report exists yet, and asking
+        // for them here would be the client trying to see around the blind.
         setUnanimity(null);
+        setDisagreement(null);
         setAudit(null);
       } else {
         setUnanimity(await api.unanimity(t, id));
+        setDisagreement(await api.disagreement(t, id));
         setAudit(await api.audit(t, id));
       }
     } catch (e) {
@@ -347,7 +353,7 @@ export function App(): ReactElement {
     }
     return caseShell(
       <div className="stack-l">
-        <Reveal view={view} unanimity={unanimity} nameOf={nameOf} />
+        <Reveal view={view} unanimity={unanimity} disagreement={disagreement} nameOf={nameOf} />
         {adjudication === null && view.status !== "signed" && isOwner && (
           <button className="primary" style={{ alignSelf: "flex-start" }}
             onClick={() => act(async () => { setAdjudication(await api.adjudicate(token, caseId, new Date().toISOString())); })}>
