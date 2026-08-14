@@ -49,6 +49,8 @@ export interface EvalItem {
   kind: "answerable" | "unanswerable";
   question: string;
   goldPages: GoldPage[];
+  /** Regular expressions the ANSWER must match. Scored by ask-eval.ts, not here. */
+  mustContain?: string[];
   why?: string;
 }
 

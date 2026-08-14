@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "note": "Retrieval fixture for the ask surface. Every gold page carries the VERBATIM sentence that makes it gold, and the scorer refuses to run if a quote is no longer on its page - a fixture nobody can audit is an assertion, and one that rots silently is worse. Quotes were located by regular expression over the extracted text of the library documents and read before being written down. `group` marks questions a reviewer would call the same question: retrieval that changes its answer when the words change is the failure this set exists to measure. `kind: unanswerable` items have no gold pages by construction - the document genuinely does not contain the answer, and they are scored on refusal rather than on recall.",
+  "note": "Retrieval fixture for the ask surface. Every gold page carries the VERBATIM sentence that makes it gold, and the scorer refuses to run if a quote is no longer on its page - a fixture nobody can audit is an assertion, and one that rots silently is worse. Quotes were located by regular expression over the extracted text of the library documents and read before being written down. `group` marks questions a reviewer would call the same question: retrieval that changes its answer when the words change is the failure this set exists to measure. `kind: unanswerable` items have no gold pages by construction - the document genuinely does not contain the answer, and they are scored on refusal rather than on recall. `mustContain` is a regular expression the ANSWER text must match, taken from the same verified quote that makes the page gold - an objective check on whether the answer states the fact, which is weaker than 'the answer is correct' and is named that way for a reason.",
   "items": [
     {
       "id": "nipo-noael-a",
@@ -9,8 +9,17 @@
       "kind": "answerable",
       "question": "What NOAEL was set, and in which study?",
       "goldPages": [
-        { "page": 36, "quote": "NOAEL) was set at 306 mg/kg based on the absence of findings" },
-        { "page": 37, "quote": "NOAEL in the 26-week study was set by the applicant at the highest dose used in that study of 300 mg/kg/week" }
+        {
+          "page": 36,
+          "quote": "NOAEL) was set at 306 mg/kg based on the absence of findings"
+        },
+        {
+          "page": 37,
+          "quote": "NOAEL in the 26-week study was set by the applicant at the highest dose used in that study of 300 mg/kg/week"
+        }
+      ],
+      "mustContain": [
+        "30[06]\\s*mg/kg"
       ]
     },
     {
@@ -20,8 +29,17 @@
       "kind": "answerable",
       "question": "no observed adverse effect level",
       "goldPages": [
-        { "page": 36, "quote": "NOAEL) was set at 306 mg/kg based on the absence of findings" },
-        { "page": 37, "quote": "NOAEL in the 26-week study was set by the applicant at the highest dose used in that study of 300 mg/kg/week" }
+        {
+          "page": 36,
+          "quote": "NOAEL) was set at 306 mg/kg based on the absence of findings"
+        },
+        {
+          "page": 37,
+          "quote": "NOAEL in the 26-week study was set by the applicant at the highest dose used in that study of 300 mg/kg/week"
+        }
+      ],
+      "mustContain": [
+        "30[06]\\s*mg/kg"
       ]
     },
     {
@@ -31,8 +49,17 @@
       "kind": "answerable",
       "question": "what was the highest dose that produced no adverse effects",
       "goldPages": [
-        { "page": 36, "quote": "NOAEL) was set at 306 mg/kg based on the absence of findings" },
-        { "page": 37, "quote": "NOAEL in the 26-week study was set by the applicant at the highest dose used in that study of 300 mg/kg/week" }
+        {
+          "page": 36,
+          "quote": "NOAEL) was set at 306 mg/kg based on the absence of findings"
+        },
+        {
+          "page": 37,
+          "quote": "NOAEL in the 26-week study was set by the applicant at the highest dose used in that study of 300 mg/kg/week"
+        }
+      ],
+      "mustContain": [
+        "30[06]\\s*mg/kg"
       ]
     },
     {
@@ -42,8 +69,17 @@
       "kind": "answerable",
       "question": "Were the toxicology findings reversible?",
       "goldPages": [
-        { "page": 36, "quote": "reversibility was evaluated for 9 and 8 weeks, respectively" },
-        { "page": 37, "quote": "recovery period, thus showing reversibility" }
+        {
+          "page": 36,
+          "quote": "reversibility was evaluated for 9 and 8 weeks, respectively"
+        },
+        {
+          "page": 37,
+          "quote": "recovery period, thus showing reversibility"
+        }
+      ],
+      "mustContain": [
+        "reversib|recover"
       ]
     },
     {
@@ -53,8 +89,17 @@
       "kind": "answerable",
       "question": "was there a recovery phase in the repeat-dose studies",
       "goldPages": [
-        { "page": 36, "quote": "reversibility was evaluated for 9 and 8 weeks, respectively" },
-        { "page": 37, "quote": "recovery period, thus showing reversibility" }
+        {
+          "page": 36,
+          "quote": "reversibility was evaluated for 9 and 8 weeks, respectively"
+        },
+        {
+          "page": 37,
+          "quote": "recovery period, thus showing reversibility"
+        }
+      ],
+      "mustContain": [
+        "reversib|recover"
       ]
     },
     {
@@ -64,8 +109,17 @@
       "kind": "answerable",
       "question": "did the changes resolve after dosing stopped",
       "goldPages": [
-        { "page": 36, "quote": "reversibility was evaluated for 9 and 8 weeks, respectively" },
-        { "page": 37, "quote": "recovery period, thus showing reversibility" }
+        {
+          "page": 36,
+          "quote": "reversibility was evaluated for 9 and 8 weeks, respectively"
+        },
+        {
+          "page": 37,
+          "quote": "recovery period, thus showing reversibility"
+        }
+      ],
+      "mustContain": [
+        "reversib|recover"
       ]
     },
     {
@@ -75,8 +129,17 @@
       "kind": "answerable",
       "question": "What safety margins were reported?",
       "goldPages": [
-        { "page": 37, "quote": "safety margins, an AUC comparison of a two-week interval period was used" },
-        { "page": 42, "quote": "Safety margins were considered adequate as exposure values in cynomolgus monkeys" }
+        {
+          "page": 37,
+          "quote": "safety margins, an AUC comparison of a two-week interval period was used"
+        },
+        {
+          "page": 42,
+          "quote": "Safety margins were considered adequate as exposure values in cynomolgus monkeys"
+        }
+      ],
+      "mustContain": [
+        "margin"
       ]
     },
     {
@@ -86,8 +149,17 @@
       "kind": "answerable",
       "question": "how does the monkey exposure compare with the clinical dose",
       "goldPages": [
-        { "page": 37, "quote": "safety margins, an AUC comparison of a two-week interval period was used" },
-        { "page": 42, "quote": "Safety margins were considered adequate as exposure values in cynomolgus monkeys" }
+        {
+          "page": 37,
+          "quote": "safety margins, an AUC comparison of a two-week interval period was used"
+        },
+        {
+          "page": 42,
+          "quote": "Safety margins were considered adequate as exposure values in cynomolgus monkeys"
+        }
+      ],
+      "mustContain": [
+        "margin"
       ]
     },
     {
@@ -97,8 +169,18 @@
       "kind": "answerable",
       "question": "What liver findings are reported, and at what doses?",
       "goldPages": [
-        { "page": 40, "quote": "hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase" },
-        { "page": 50, "quote": "ALT and AST at doses ≥20 mg/kg" }
+        {
+          "page": 40,
+          "quote": "hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase"
+        },
+        {
+          "page": 50,
+          "quote": "ALT and AST at doses ≥20 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "20\\s*mg/kg",
+        "alt|ast|aminotransferase|transaminase|necro"
       ]
     },
     {
@@ -108,8 +190,17 @@
       "kind": "answerable",
       "question": "does this drug damage the liver?",
       "goldPages": [
-        { "page": 40, "quote": "hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase" },
-        { "page": 50, "quote": "ALT and AST at doses ≥20 mg/kg" }
+        {
+          "page": 40,
+          "quote": "hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase"
+        },
+        {
+          "page": 50,
+          "quote": "ALT and AST at doses ≥20 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|necro|hemosiderin|biliary|bilirubin|ggt"
       ]
     },
     {
@@ -119,8 +210,17 @@
       "kind": "answerable",
       "question": "hepatotoxicity in the animal studies",
       "goldPages": [
-        { "page": 40, "quote": "hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase" },
-        { "page": 50, "quote": "ALT and AST at doses ≥20 mg/kg" }
+        {
+          "page": 40,
+          "quote": "hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase"
+        },
+        {
+          "page": 50,
+          "quote": "ALT and AST at doses ≥20 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|necro|hemosiderin|biliary|bilirubin|ggt"
       ]
     },
     {
@@ -130,8 +230,17 @@
       "kind": "answerable",
       "question": "were transaminases elevated in the toxicology studies",
       "goldPages": [
-        { "page": 40, "quote": "hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase" },
-        { "page": 50, "quote": "ALT and AST at doses ≥20 mg/kg" }
+        {
+          "page": 40,
+          "quote": "hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase"
+        },
+        {
+          "page": 50,
+          "quote": "ALT and AST at doses ≥20 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase"
       ]
     },
     {
@@ -140,7 +249,15 @@
       "group": "turalio:noael",
       "kind": "answerable",
       "question": "What NOAEL was set?",
-      "goldPages": [{ "page": 67, "quote": "NOAEL of 10 mg/kg/day was approximately 0" }]
+      "goldPages": [
+        {
+          "page": 67,
+          "quote": "NOAEL of 10 mg/kg/day was approximately 0"
+        }
+      ],
+      "mustContain": [
+        "10\\s*mg/kg"
+      ]
     },
     {
       "id": "tur-noael-b",
@@ -148,7 +265,15 @@
       "group": "turalio:noael",
       "kind": "answerable",
       "question": "no observed adverse effect level",
-      "goldPages": [{ "page": 67, "quote": "NOAEL of 10 mg/kg/day was approximately 0" }]
+      "goldPages": [
+        {
+          "page": 67,
+          "quote": "NOAEL of 10 mg/kg/day was approximately 0"
+        }
+      ],
+      "mustContain": [
+        "10\\s*mg/kg"
+      ]
     },
     {
       "id": "tur-reversible-a",
@@ -157,8 +282,17 @@
       "kind": "answerable",
       "question": "Was the liver injury in patients reversible?",
       "goldPages": [
-        { "page": 21, "quote": "reversible liver injury among the 768 patients in the overall development program of pexidartinib" },
-        { "page": 23, "quote": "reversible liver injury, and biopsies in a few patients indicating ductopenia" }
+        {
+          "page": 21,
+          "quote": "reversible liver injury among the 768 patients in the overall development program of pexidartinib"
+        },
+        {
+          "page": 23,
+          "quote": "reversible liver injury, and biopsies in a few patients indicating ductopenia"
+        }
+      ],
+      "mustContain": [
+        "reversib|recover"
       ]
     },
     {
@@ -168,8 +302,17 @@
       "kind": "answerable",
       "question": "did the patients recover from the hepatotoxicity",
       "goldPages": [
-        { "page": 21, "quote": "reversible liver injury among the 768 patients in the overall development program of pexidartinib" },
-        { "page": 23, "quote": "reversible liver injury, and biopsies in a few patients indicating ductopenia" }
+        {
+          "page": 21,
+          "quote": "reversible liver injury among the 768 patients in the overall development program of pexidartinib"
+        },
+        {
+          "page": 23,
+          "quote": "reversible liver injury, and biopsies in a few patients indicating ductopenia"
+        }
+      ],
+      "mustContain": [
+        "reversib|recover"
       ]
     },
     {
@@ -179,8 +322,17 @@
       "kind": "answerable",
       "question": "What nonclinical studies were submitted with this application?",
       "goldPages": [
-        { "page": 124, "quote": "no further nonclinical studies were necessary to support an NDA filing" },
-        { "page": 130, "quote": "nonclinical safety for" }
+        {
+          "page": 124,
+          "quote": "no further nonclinical studies were necessary to support an NDA filing"
+        },
+        {
+          "page": 130,
+          "quote": "nonclinical safety for"
+        }
+      ],
+      "mustContain": [
+        "no\\s+(new\\s+|further\\s+)?nonclinical|none|no\\s+animal"
       ]
     },
     {
@@ -190,8 +342,17 @@
       "kind": "answerable",
       "question": "were any new animal studies conducted",
       "goldPages": [
-        { "page": 124, "quote": "no further nonclinical studies were necessary to support an NDA filing" },
-        { "page": 130, "quote": "nonclinical safety for" }
+        {
+          "page": 124,
+          "quote": "no further nonclinical studies were necessary to support an NDA filing"
+        },
+        {
+          "page": 130,
+          "quote": "nonclinical safety for"
+        }
+      ],
+      "mustContain": [
+        "no\\s+(new\\s+|further\\s+)?nonclinical|none|no\\s+animal"
       ]
     },
     {
