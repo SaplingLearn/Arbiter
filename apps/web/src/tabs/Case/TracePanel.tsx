@@ -27,6 +27,22 @@ export function TracePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
         {r.contested && " · contested"}
       </p>
 
+      {/*
+        The conflict measure, shown rather than averaged away. Dempster's rule
+        normalises conflict out of the combined mass; this engine keeps the
+        quantity and reports it, which is the whole answer to the standard
+        high-conflict objection. A boolean cannot carry that - 0.122 and 0.999 are
+        different situations - so the magnitude is on screen.
+      */}
+      <p
+        className="small muted case-mass"
+        data-testid="conflict-mass"
+        data-conflict={r.conflictMass.toFixed(3)}
+      >
+        conflict mass <span className="num">{r.conflictMass.toFixed(3)}</span>
+        {" - the belief removed in combination, reported rather than normalised away."}
+      </p>
+
       <ol className="trace-list small">
         {claimSteps.map((s) => (
           <li key={s.claimId} data-testid="trace-step" data-anchor={traceStep(s.claimId)} className="trace-step">
