@@ -9,6 +9,7 @@ import {
 } from "../../state/store.js";
 import type { LoadedData } from "../../data/load.js";
 import { useCaseReasoning } from "../../engine/useCaseReasoning.js";
+import { gateHolds } from "./CommitGate.js";
 import { interpret, type InterpretInput, type Proposal } from "../../ai/interpret.js";
 import type { Resolution } from "../../ai/resolve.js";
 
@@ -435,9 +436,25 @@ export function TablePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
             <p data-testid="delta-gap" className="small">
               Gap {(baseline.plausibility - baseline.belief).toFixed(3)} → {(result.plausibility - result.belief).toFixed(3)}
             </p>
-            <p data-testid="delta-verdict" className="small">
-              Verdict {baseline.verdict} → {result.verdict}
-            </p>
+            {/*
+              Held back while the commit gate is up. Without this the panel was a
+              way around it: the gate withholds the verdict on the header and the
+              trace, and then this line printed `baseline.verdict` as soon as a
+              proposal was applied, so a reader could reach the conclusion by
+              running an experiment rather than by answering. The experiment itself
+              is untouched - the belief, plausibility and gap deltas above still
+              move, which this section already treats as the informative columns.
+            */}
+            {gateHolds(state, after, selectedCompoundId) ? (
+              <p data-testid="delta-verdict-held" className="small muted">
+                Verdict withheld. Record your own call on this compound first - the
+                numbers above are the sensitivity result and do not depend on it.
+              </p>
+            ) : (
+              <p data-testid="delta-verdict" className="small">
+                Verdict {baseline.verdict} → {result.verdict}
+              </p>
+            )}
             {!didMove && (
               <p data-testid="delta-why" className="small muted">
                 {noMoveReason(result, ruleset, claims, applied)}

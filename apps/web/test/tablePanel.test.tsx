@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { StoreProvider, useAppState, useDispatch, workingClaims, type Action } from "../src/state/store.js";
+import { StoreProvider, initialState, useAppState, useDispatch, workingClaims, type Action } from "../src/state/store.js";
 import { TablePanel, claimLabel, loadedKeyEvents } from "../src/tabs/Case/TablePanel.js";
 import { interpret, type Proposal } from "../src/ai/interpret.js";
 import type { Resolution } from "../src/ai/resolve.js";
@@ -52,14 +52,33 @@ function Fire({ id, action }: { id: string; action: Action }) {
   return <button type="button" data-testid={id} onClick={() => dispatch(action)}>{id}</button>;
 }
 
+/**
+ * Seeded past the commit-before-reveal gate, because these tests are about the
+ * sensitivity analysis and not about the gate. TAK-994's 0.910 gap trips it, and
+ * an ungated render would withhold the verdict line every one of these asserts
+ * on. The gate itself is tested in commitGate.test.tsx, and the one case that
+ * matters here - that the delta cannot be used to READ the verdict without
+ * committing - is the last test in this file.
+ */
 const renderPanel = () =>
   render(
-    <StoreProvider data={data}>
+    <StoreProvider
+      data={data}
+      initialState={{ ...initialState(data), provisionalCalls: { "TAK-994": "abstain" } }}
+    >
       <TablePanel collapsed={false} onExpand={() => {}} />
       <Probe />
       <Fire id="drag-r1" action={{ type: "setRuleStrength", id: "R1", strength: 0.45 }} />
       <Fire id="pre-fih" action={{ type: "setAsOf", asOf: "2021-06-01" }} />
       <Fire id="reveal-murine" action={{ type: "setAsOf", asOf: "2023-01-01" }} />
+    </StoreProvider>,
+  );
+
+/** The same panel with no provisional call recorded, i.e. the gate still holding. */
+const renderGated = () =>
+  render(
+    <StoreProvider data={data}>
+      <TablePanel collapsed={false} onExpand={() => {}} />
     </StoreProvider>,
   );
 
@@ -329,6 +348,22 @@ describe("TablePanel - Apply and the delta", () => {
     expect(screen.getByTestId("delta-plausibility").textContent).toBe("Plausibility 1.000 → 1.000");
     expect(screen.getByTestId("delta-gap").textContent).toBe("Gap 0.910 → 0.505");
     expect(screen.getByTestId("delta-verdict").textContent).toBe("Verdict abstain → abstain");
+  });
+
+  it("will not hand over the verdict to a reader who has not committed to a call", async () => {
+    // THE BYPASS THIS CLOSES. The commit gate withholds the verdict on the Case
+    // header and the trace, but this panel printed `baseline.verdict` the moment a
+    // proposal was applied - so a reader could reach the conclusion by running an
+    // experiment instead of by answering. The experiment still runs and the
+    // numbers still move; only the label is held back, which is consistent with
+    // this section's own rule that the label is the least informative column.
+    renderGated();
+    await challenge(R1_LOWER);
+    fireEvent.click(screen.getByTestId("proposal-apply"));
+
+    expect(screen.getByTestId("delta-belief").textContent).toBe("Belief 0.090 → 0.495");
+    expect(screen.queryByTestId("delta-verdict")).toBeNull();
+    expect(screen.getByTestId("delta-verdict-held")).toHaveTextContent(/record your own call/i);
   });
 
   it("treats 'applied - the position did not move' as a first-class state, with a computed reason", async () => {
