@@ -1,0 +1,668 @@
+P F I Z E R D I G I TA L & T E C H N O L O G Y H A C K AT H O N 2 0 2 6 · R O U N D 1
+
+
+
+
+  E V I D E N C E - I N T E G R AT E D P L AY B O O K · S U P E R S E D E S P R I O R S P E C S
+
+
+
+ARBITER: What Is True
+The code inventory, the corrected numbers, the published research that backs
+the thesis, and the pitch those three things actually support.
+
+This document reconciles three inputs: a factual audit of the repository, external research on
+expert disagreement and collaborative safety assessment, and the team's own benchmark
+correction. It replaces the aspirational specs. Where the earlier documents described a
+system to build, this one describes the system that exists, states plainly what it does and
+does not do, and builds the Round 1 pitch on the parts that survive scrutiny.
+
+
+
+
+Submission                        Presentation                   Built                        Team
+August 16, 11:59 PM ET            15 min + 5 min Q&A             2 apps, ~938 tests           Jack He, Andres Lopez, Jose Cruz-Lopez
+
+
+
+
+ARBITER · Evidence-Integrated Round 1 Playbook · Team BU 1                                                                Page 1 of 13
+   PART 0 The Number That Decides the Pitch
+
+01     Read This First
+The repository audit and the internal correction in HANDOVER §13 together establish one fact that governs
+every strategic decision from here: on an honest target, ARBITER does not beat the baselines. Everything
+else in this document follows from taking that seriously rather than working around it.
+
+What the correction found
+
+ Scoring                        Confusion                      Balanced accuracy
+
+ v1.0 as shipped                tp 4 / fp 0 / tn 0 /           0.750 — single-class, CI null
+                                fn 0
+
+ v2.0 corrected                 tp 2 / fp 5 / tn 0 /           0.500
+                                fn 0
+
+
+Three findings drove it, all reproducible via tools/rescore_v2.py . The v1.0 binarisation counted Less-DILI-
+Concern as positive, placing 330 of 536 positives (62%) in a class containing aspirin, amoxicillin, atenolol,
+amlodipine and apixaban, so a system correctly declining to flag amlodipine scored as wrong. The engine has
+never identified a safe compound: zero true negatives, ever, and the 0.750 was sensitivity 1.0 averaged with a
+0.5 convention for a specificity that was never measured, on n=4. And under the corrected target no pipeline
+clears 0.601.
+
+ Pipeline, v2.0 target                  Balanced accuracy
+
+ majorityVote                           0.471
+
+ ARBITER                                0.500
+
+ cytotox (single stream)                0.507
+
+ weightedAverage                        0.516
+
+ qsar (single stream)                   0.601
+
+
+The QSAR stream was fitted against v1.0, so its v2.0 figure is disclosed as a lower bound. That caveat protects the comparison; it
+does not rescue ARBITER's position in it.
+
+
+   Submission-blocking check: which numbers is the shipped app displaying?
+   The About tab reads every figure from results/metrics.json and states "It does not beat the best
+   baseline. It ties one, exactly," comparing against single:transporter . The §13.2 re-grade was produced
+   by rescore_v2.py against ruleset-v2.0.json .
+
+   Verify before submitting whether results/metrics.json was regenerated under v2.0. If the app is
+   rendering v1.0 figures that §13.1 declares invalid, the live demo contradicts the team's own correction in
+   front of judges. Either regenerate the metrics under v2.0 and let the copy follow the data, or state the
+   scoring version explicitly on screen. This is the single highest-priority pre-submission task.
+
+
+The two other structural findings
+
+
+
+
+ARBITER · Evidence-Integrated Round 1 Playbook · Team BU 1                                                               Page 2 of 13
+The system almost always abstains. Across the 267-compound test split: 260 abstain, 7 do_not_advance, 0
+advance. It has never returned advance on corpus data.
+
+It detects mechanism and reports severity. Of the 7 commitments, 2 are Most-DILI-Concern and 5 are Less-
+DILI-Concern — and every one of those 5 (prochlorperazine, thioridazine, glyburide, mifepristone, irbesartan) is
+a genuine BSEP inhibitor. The engine found something true and then said do not advance about approved,
+widely prescribed drugs. The ruleset has no vocabulary for severity, so this is structural: no threshold change
+fixes it.
+
+   T H E R E F R A M E T H AT M A K E S A L L O F T H I S P R E S E N TA B L E
+
+   Under an honest target, nothing works — not ARBITER, and not any baseline. The best pipeline in the
+   comparison reaches 0.601. That is not a story about one system underperforming; it is a measurement
+   showing that DILI prediction from public evidence streams is unsolved by every method tested, which is
+   precisely why a system that refuses to commit without adequate evidence is the correct design and not a
+   broken one.
+
+
+02     What the Evidence Actually Supports Claiming
+Four claims survive the audit. Build the entire pitch on these and nothing else.
+
+   CLAIM 1 · DETERMINISM, MEASURED                                      CLAIM 2 · CALIBRATED REFUSAL
+   1000 runs, one hash.                                                 260 of 267 abstain, with a structurally-forced subset that
+     engine/test/determinism.test.ts Plus an in-                        could not have committed at any evidence values. The
+   browser cross-check recomputing every test-split verdict             system reports what it cannot know rather than
+   against a committed manifest, and a canonical-JSON                   guessing, and it can prove which declines were
+   ruleset digest verified against a pre-registered constant.           unavoidable.
+   Reproducibility is demonstrated, not asserted.
+
+
+   CLAIM 3 · MECHANISM DETECTION IS REAL                                CLAIM 4 · TRACEABLE, ADJUDICATED DECISIONS
+   All five Less-concern commitments are genuine BSEP                   Every verdict carries a rule-cited trace and a
+   inhibitors. The reasoning found true pharmacology. The               counterfactual. Every human sign-off is hash-chained.
+   gap is a missing severity axis, which is a specific,                 Overrides require a stated reason, enforced client and
+   nameable, fixable design finding.                                    server side.
+
+
+
+   Claims to retire immediately
+   Any phrasing implying superior accuracy, any use of the 0.750 figure, any claim that ARBITER beats naive
+   aggregation, and any assertion that the mechanical nonclinical/clinical cut guarantees blindness — §13.4c
+   measured that false, since the Turalio nonclinical chapter contains a clinical cross-reference and cutting at
+   the chapter boundary moves the pages, not the knowledge.
+
+
+
+   PART 1 What Exists
+
+03     Two Applications, One Story
+The repository contains substantially more than a prototype, and critically, it already contains the
+collaborative layer the external research identifies as the strongest differentiator. That was built without
+
+
+ARBITER · Evidence-Integrated Round 1 Playbook · Team BU 1                                                                Page 3 of 13
+knowing the research said to build it.
+
+ App                    What it is                    Contents
+
+ apps/web               The reasoning product         Seven tabs: About, Compounds, Case, Ruleset, Validation, Record,
+                                                      Intake. Real @arbiter/engine dependency, reasoning recomputed
+                                                      per render in the browser. Belief/plausibility with an explicit gap, three-
+                                                      way mass split, rule-cited trace, counterfactual, next-experiment
+                                                      planner, editable rule strengths and enable flags, live validation tables,
+                                                      hash-chained sign-off, and session-local custom compound intake.
+
+ apps/deliberation      The multi-party               Auth, dashboard, case creation, document upload with readability
+                        workflow                      measurement, evidence findings editor, roster management, blind
+                                                      position submission, reveal, model-assisted adjudication, and an
+                                                      integrity-checked audit trail. Backed by a real HTTP server in
+                                                       services/api .
+
+
+Test infrastructure, which is itself a credibility asset
+77 Vitest files and roughly 938 test cases, plus 3 Playwright specs. The server-side deliberation logic alone
+carries 47 tests; the engine rule set carries 39. A hand-rolled golden system diffs reported metrics against a
+committed baseline, deliberately projecting away prose and timestamps so the file does not churn on wording.
+Judges rarely see this level of test discipline in a hackathon.
+
+  The coverage imbalance to know about before someone asks
+  The entire deliberation client is exercised by one test file importing only from screens.tsx . Its App.tsx
+  (355 lines of routing and data loading), pages.tsx (474), Layout.tsx and api.ts have no unit tests,
+  though the server side of that workflow is heavily covered. Playwright covers apps/web only. Know this; do
+  not volunteer it, but answer honestly if asked.
+
+
+
+04     The Deliberation App Is the Research Recommendation, Already
+       Built
+External research identifies structured multi-reviewer adjudication as the highest-value differentiator in this
+space. The audit shows it is implemented, and in several respects implemented better than the research
+prescribes.
+
+ Research-backed pattern             How it is implemented
+
+ Independent blind                   Enforced server-side by visibleTo , not by the client declining to render. While a case
+ assessment before exposure          is open you receive your own position and, for every other participant, exactly one bit:
+ to others                           submitted true or false. Not the call, not the reasoning, and deliberately not a running
+                                     tally, because a tally drags a room as hard as the positions would.
+
+ Separation of the convener          The owner cannot submit a position unless separately a participant, and the roster panel
+ from the voters                     states the reason on screen: nobody both sets the question and votes on it. The owner
+                                     is also not privileged in what they can see early.
+
+ Evidence frozen once                Both the findings and the roster freeze at the first submitted answer, with an explanatory
+ assessment begins                   note.
+
+ Positions grounded in               A position cites a selection against approved findings, never free text, and the interface
+ approved evidence                   shows a live basis readout of cited, external, or unsupported. Reasoning prose is
+
+
+
+ARBITER · Evidence-Integrated Round 1 Playbook · Team BU 1                                                               Page 4 of 13
+ Research-backed pattern           How it is implemented
+
+                                   required; submission is blocked while it is empty.
+
+ Override requires a stated        Enforced twice. The client disables the sign button, and the server returns
+ reason                             override_needs_reason with the message that this is the moment the record exists
+                                   for.
+
+ Agreement is not treated as       When positions are unanimous the interface prints "Everyone agreed. That is not the
+ correctness                       same as being right," then lists concerns. The check is deliberately asymmetric: gaps
+                                   are raised against agreement to advance, never against agreement to stop.
+
+ Tamper-evident record             Hash-chained audit with a pass/fail integrity line and an explicit statement of what it does
+                                   not prove.
+
+
+  Two design choices worth pointing at explicitly in the pitch
+  Refusing the tally. Most collaborative tools show a running count of how the room is leaning. Suppressing
+  it is a deliberate anti-anchoring decision and it is exactly what the automation-bias and group-judgment
+  literature would recommend.
+
+  The asymmetric unanimity check. Raising evidence gaps against a decision to advance but never
+  against a decision to stop encodes a safety asymmetry directly into the workflow. That is a genuinely
+  sophisticated piece of design and no judge will expect it.
+
+
+
+  PART 2 The Published Evidence Behind the Thesis
+
+05    Experts Demonstrably Disagree
+The strongest justification for the product is not that AI is better than experts. It is that expert judgment on
+exactly this task is measurably inconsistent, which is a problem consistency and traceability address directly.
+These figures should open the presentation.
+
+ Finding                                   Source
+
+ Rodent carcinogenicity classification     Gottmann et al. 2001, Environmental Health Perspectives 109(5):509–514
+ is roughly 57% concordant between
+ replicate expert-classified datasets;
+ replicate mouse studies 49%, rat
+ 62%
+
+ Expert DILI causality assessment          Hayashi et al. 2015, Liver International (DILIN)
+ among hepatologists reaches
+ weighted κ = 0.60 (95% CI 0.50–0.71),
+ with 14% of cases crossing the DILI /
+ not-DILI threshold on re-adjudication
+
+ Only 27% initial complete agreement       Rockey et al. 2010, Hepatology
+ among three independent reviewers
+ using structured expert opinion
+ across 187 cases; 19% using
+ RUCAM
+
+
+
+
+ARBITER · Evidence-Integrated Round 1 Playbook · Team BU 1                                                           Page 5 of 13
+ Finding                                    Source
+
+ Across roughly 27 variability studies      Karmaus et al. 2026, Frontiers in Toxicology 8:1778353
+ it is "rare to observe replicability
+ above 75%"; genotoxicity
+ classification 23–78%
+
+ Animal-to-human true positive              Olson et al. 2000, Regulatory Toxicology and Pharmacology 32(1):56–67
+ concordance 71% across rodent and
+ non-rodent; rodents alone predictive
+ for 43% of human toxicity events;
+ 150 compounds, 221 events, 12
+ companies
+
+ Human Liver-Chip across 870 chips          Ewart et al. 2022, Communications Medicine
+ and 27 blinded drugs: 87%
+ sensitivity, 100% specificity;
+ economic model projects roughly
+ $3B annually industry-wide from
+ improved R&D productivity
+
+
+  Cite these precisely, because the distinction matters
+  The Gottmann and Karmaus figures measure study replicability between replicate experiments, which
+  overlaps with but is not the same as two toxicologists reading identical data. The Hayashi and Rockey
+  figures are true inter-expert reliability on the same cases. Present each as what it is. A Pfizer judge will
+  know the difference, and getting it right is worth more than the extra decimal place.
+
+
+   THE OPENING LINE THIS EVIDENCE LICENSES
+
+   Three hepatologists reading the same liver injury case agree completely about a quarter of the time.
+   Replicate carcinogenicity studies concur on roughly 57% of classifications. This is not a criticism of
+   toxicologists; it is what happens when skilled people integrate conflicting evidence without a shared,
+   recorded method. That is the problem we took on.
+
+
+06    Design Evidence and the Counter-Evidence
+Explanations can make over-reliance worse
+Multiple studies show that adding explanations can increase uncritical acceptance, because a plausible-
+sounding rationale invites agreement rather than scrutiny, and human-plus-AI teams frequently underperform the
+AI alone. Cognitive forcing functions, interventions that compel analytical engagement, measurably reduced
+over-reliance on incorrect AI recommendations relative to explanation-only designs, at a cost in user effort
+(Buçinca, Malaya & Gajos 2021, Proc. ACM Hum.-Comput. Interact. 5, CSCW1, Article 188).
+
+Where the build already answers this: the deliberation app's blind-position step is a cognitive forcing function
+in the strongest available form. The assessor must commit a reasoned call before seeing anyone else's. Where
+it does not: in apps/web the verdict renders unconditionally the moment the Case tab mounts, with no
+provisional-judgment gate.
+
+Multi-agent debate helps, but conformity propagates
+Multiple model instances critiquing each other improves factual accuracy (Du et al., ICML 2024), but later work
+shows persuasion can override truth and sycophancy can propagate confident errors. If the adjudicator ever
+
+
+
+ARBITER · Evidence-Integrated Round 1 Playbook · Team BU 1                                                     Page 6 of 13
+moves from stub to live, keep the human sign-off as the terminating authority — which the current design
+already does.
+
+Standards that make the output legible to a regulator
+   OECD (Q)SAR Assessment Framework (Series on Testing and Assessment No. 386, 2023; second edition
+   2024 adds a result-reporting format for combining multiple predictions) — the current regulatory standard for
+   assessing QSAR predictions, organised around defined endpoint, applicability domain, prediction reliability,
+   and fitness for purpose.
+   ASME V&V40 and the FDA's November 2023 guidance on assessing the credibility of computational
+   modeling, structured on model influence times decision consequence.
+   CDISC SEND, required for FDA nonclinical submissions and already the donation format used by cross-
+   company safety data sharing.
+   W3C PROV-O for machine-readable provenance, a natural emission format for the existing hash-chained
+   record.
+
+Precedent that cross-company collaboration works
+MELLODDY trained federated models across 10 pharmaceutical companies on more than 2.6 billion confidential
+activity data points covering over 21 million molecules and 40,000 assays, reporting collaborative models
+roughly 4% better at categorising activity with about a 10% increase in applicability domain, and all ten partners
+improving (Heyndrickx et al. 2023, J. Chem. Inf. Model. 63(45)). eTOX and eTRANSAFE pooled roughly 9 million
+preclinical data points from 8,196 studies across 13 companies. VICT3R, launched September 2024 with 33
+partner organisations, is building shared virtual control groups to replace concurrent controls, which typically
+account for around 25% of animals in a toxicity study.
+
+The unclaimed position: those consortia share data, models, or controls. None shares an auditable reasoning
+layer. A versioned rule base and argumentation standard exchanged between companies without exchanging
+compounds is genuinely unprecedented. Present it as a closing vision slide anchored to those three precedents,
+never as something built.
+
+
+07    Competitive Position
+Lhasa Limited is the comparison that matters, and the differentiation is real but narrower than earlier
+documents assumed.
+
+ Dimension                  Lhasa (Derek Nexus, Kaptis)           ARBITER
+
+ Core method                Expert knowledge base,                Formal defeasible argumentation with explicit attack and
+                            structural alerts; Kaptis organises   defeat semantics, plus evidence fusion producing belief
+                            AOP knowledge and associates          and plausibility.
+                            assays to key events, supporting
+                            weight-of-evidence work
+                            including ICH S1B(R1) waivers.
+                            Combined network of 63 AOPs
+                            and 250+ key events.
+
+ Uncertainty                Reasoning levels and alert            Belief-plausibility interval with an explicit gap, three-way
+                            confidence                            mass split, and a conflict measure computed rather than
+                                                                  normalised away.
+
+ Sensitivity analysis       Not offered as a product feature      Counterfactual: which claim flips the verdict, rendered on
+                                                                  the trace panel.
+
+
+
+
+ARBITER · Evidence-Integrated Round 1 Playbook · Team BU 1                                                              Page 7 of 13
+ Dimension                    Lhasa (Derek Nexus, Kaptis)             ARBITER
+
+ Multi-party                  Single-assessor knowledge               Blind independent positions, enforced server-side, with
+ assessment                   exploration                             reveal, adjudication, and reasoned override.
+
+ Governance                   Knowledge base versioning               Hash-chained decision record, pre-registered ruleset
+                                                                      digest, integrity verification.
+
+ Predictive accuracy          Established commercial                  Not competitive. Do not contest this axis.
+                              validation
+
+
+   H O W T O H A N D L E T H E C O M PA R I S O N I F A J U D G E R A I S E S L H A S A
+
+   Derek and Kaptis are mature and better at prediction than anything we built. We are not competing on
+   prediction. What no tool in that family does is run a formal argumentation over conflicting claims,
+   quantify the conflict rather than average it away, show which single piece of evidence would flip the call,
+   and route the whole thing through a blind multi-reviewer record. That combination is the contribution.
+
+
+
+  PART 3 What to Build Before August 16
+
+08    The Gap List, Ranked by Value per Hour
+Research recommendations minus what already exists leaves a short, cheap list. Three of these are
+surfacing computations that already run.
+
+Priority 1 — do these first
+
+  P1-A Regenerate or version-label metrics.json                                                                      BLOCKING
+
+  Confirm whether the About and Validation tabs are rendering v1.0 or v2.0 figures. If v1.0, regenerate under the
+  corrected target so the live demo agrees with the team's own published correction. If regeneration is not feasible in
+  time, render the scoring version and its provenance on screen. Nothing else matters if a judge sees an invalidated
+  number.
+
+
+  P1-B Render conflictMass on the Case tab                                                                               HOURS
+  The engine computes it and the type comment says it is surfaced and never normalised away, but no component in
+   apps/web reads it; only the derived boolean reaches the screen. Cyclosporine carries the only non-zero value in the
+  corpus at 0.122. Displaying it turns a documented design principle into a visible feature and directly answers the known
+  Dempster high-conflict objection.
+
+
+  P1-C Expose disagreementReport in the deliberation UI                                                                  HOURS
+
+  It exists server-side, computing the camp split, findings contested across camps, and one-sided findings, but it has no
+  HTTP route and its only caller is the terminal demo. Consequence today: when the room splits, the unanimity block is
+  suppressed entirely and the reader gets raw positions side by side and nothing else. Add the route and a panel. This is
+  the single most valuable feature already written and not shipped.
+
+
+Priority 2 — strong additions if time allows
+
+
+
+
+ARBITER · Evidence-Integrated Round 1 Playbook · Team BU 1                                                              Page 8 of 13
+  P2-A Applicability-domain badge on evidence rows                                                                     HOURS
+
+  The flag exists as an intake input and one line of About prose, but there is no per-claim badge in the evidence panel,
+  so an R4 downweight is visible only if the trace rationale happens to mention it. Maps directly to the OECD QAF
+  reliability principle.
+
+
+  P2-B Agreement statistic in deliberation                                                                        HALF A DAY
+  Currently the only quantities are counts and a unanimity boolean. Percent agreement across positions is trivial and
+  honest; a full kappa on three to five reviewers is statistically thin, so if you compute one, report n alongside it and do
+  not over-interpret.
+
+
+  P2-C Commit-before-reveal in apps/web                                                                           HALF A DAY
+
+  A provisional-call gate before the verdict renders. The evidence for cognitive forcing functions supports it, and it makes
+  the single-user app philosophically consistent with the deliberation app. Consider triggering it only on high-gap or
+  contested cases so it does not become friction on every view.
+
+
+
+  Do not attempt these before submission
+  Sharing the engine between the two apps (deliberation depends only on React and has no engine
+  dependency), live adjudication against a real model, PDF extraction, or Surface 2's live consistency run,
+  whose button the handover says must remain disabled. Each is a multi-day change to a working system
+  three weeks before a deadline.
+
+
+
+09    The Measurement Worth Running
+§13.4e names Gate 0, the adjudicator consistency probe, as the one measurement to run if only one thing
+gets done: about an hour, roughly a dollar, no answer key required, and the only test that can show the
+architecture is wrong before more is built on it.
+
+The repository has never had an API key, which is why the pass marks could be committed honestly before any
+model was called, and why the path from a real browser through a real HTTP server to a real model has never
+executed. Running the probe converts the strongest untested assumption into a number.
+
+If you run it, honour the rule already written down: a failing flip rate is a design defect, and the response is
+not to rewrite the prompt. The prompt is a model parameter, and tuning it against the test set is leakage. Also
+worth remembering in the pitch: a correct verdict reached by incorrect reasoning is a failure, and chance alone
+reaches roughly 70% on fifteen cases.
+
+  The determinism contrast is the number to lead with instead of accuracy
+  One thousand runs producing a single hash, verified by test, alongside an in-browser recomputation of
+  every test-split verdict checked against a committed manifest. If the consistency probe shows the
+  language-model adjudicator varying across identical inputs, the comparison writes itself, and it is a claim
+  about the architecture rather than about accuracy — which is the only kind of claim the current numbers
+  support.
+
+
+
+  PART 4 The Pitch
+
+      The Narrative the Evidence Supports
+
+ARBITER · Evidence-Integrated Round 1 Playbook · Team BU 1                                                            Page 9 of 13
+10
+
+One structural decision governs the whole presentation: lead with the correction. A team that finds its own
+headline wrong, publishes it, and re-grades to a worse number is doing exactly what a safety tool is
+supposed to make people do. Told first, it frames everything after it as trustworthy. Discovered by a judge in
+Q&A, it is a wound.
+0:00 to 1:30                  Open on the disagreement statistics, then TAK-994: rat and primate clean, three Hy's Law cases
+Problem                       in Phase 2, the murine mechanism found during the trial. Every required study was done. The
+                              rules do not say what to do when evidence disagrees.
+
+1:30 to 3:00                  What ARBITER is: a reasoning layer that reconciles conflicting claims, quantifies what it cannot
+Solution                      resolve, and records who decided. Name the user. State that the human decides.
+
+3:00 to 4:30                  The three Hy's Law participants. Fewer patients exposed, borderline candidates rescued rather
+Patient impact                than killed by caution, resources redirected, fewer animals used.
+
+4:30 to 6:00                  Deterministic reasoning core with models only at the edges. Argumentation, fusion with a
+Approach                      preserved conflict measure, AOP grounding, planner. One level of depth, no deeper.
+
+6:00 to 9:30                  apps/web on TAK-994. Evidence panel with the conflict visible, trace with rule-cited defeats,
+Demo, part one                belief-plausibility gap and conflict mass, counterfactual, next experiment. Then the as-of control,
+                              replaying what was knowable at an earlier date.
+
+9:30 to 11:00                 apps/deliberation. Four people, blind positions, one bit visible about each other. Reveal.
+Demo, part two                Unanimity concerns or the disagreement panel. Reasoned override. Audit chain. This is the part
+                              no competitor has.
+
+11:00 to 12:15                The honest numbers. What was wrong, how it was found, what it re-graded to, and what that says
+Validation and the            about the target rather than about us. Then determinism and refusal as the measured
+correction                    contributions.
+
+12:15 to 13:45                Consistency and defensibility against the disagreement evidence, the regulatory direction,
+Value to Pfizer               workflow fit, adoption path, and the cross-company vision anchored to MELLODDY and
+                              eTRANSAFE.
+
+13:45 to 15:00                The severity finding, the blindness contamination finding, the coverage gaps. Then close:
+Limits and close              ARBITER helps toxicologists reason through conflicting safety signals, transparently, with the
+                              human experts still making the decision.
+
+     T H E VA L I D AT I O N S L I D E , S A I D O U T L O U D
+
+     Our first headline was 0.750. We checked it and it was wrong: the positive class had swallowed 62% of its
+     members from the Less-concern grade, so a system correctly declining to flag amlodipine was being
+     scored as mistaken, and we had never once identified a safe compound. We re-graded against an honest
+     target and got 0.500. Under that target nothing we tested clears 0.601, including every baseline. The
+     finding is not that our system underperforms. It is that this task is unsolved from public evidence, which
+     is why a system that abstains 260 times out of 267 is behaving correctly.
+
+
+11      Q&A: the Hard Ones
+Five minutes with live judges. The first four questions below are the ones that could go badly. Rehearse
+
+
+
+
+ARBITER · Evidence-Integrated Round 1 Playbook · Team BU 1                                                             Page 10 of 13
+these until they are calm and short.
+
+  Your balanced accuracy is 0.500. That is chance. Why are we looking at this?
+  Because on the same honest target the best pipeline we tested reaches 0.601 and naive aggregation reaches 0.471.
+  Nothing solves this from public evidence streams. What we can demonstrate is that the system is deterministic across
+  a thousand runs, that it declines when the evidence cannot support a commitment, that it can prove which of those
+  declines were structurally unavoidable, and that every commitment it did make identified a genuine BSEP inhibitor.
+  Those are the claims we are making.
+
+
+  It abstains 260 times out of 267. Is it useful?
+  On this corpus, that is the correct answer 260 times. The evidence streams available publicly do not support a
+  commitment for those compounds, and a subset could not have committed at any evidence values, which the system
+  reports. The value is not the volume of verdicts; it is that the seven commitments are traceable and the 260 declines
+  are explained. Inside a company with real assay data, the ratio changes.
+
+
+  Five of your seven commitments are approved, widely prescribed drugs. You would have blocked
+  amlodipine's peers.
+  Yes, and that is our most useful finding. All five are genuine BSEP inhibitors, so the mechanism detection is right.
+  What the ruleset lacks is any vocabulary for severity, so it cannot distinguish a real mechanism from a clinically
+  manageable one. That is structural. No threshold moves it. The next version needs a severity axis, and we would
+  rather name that than hide it behind a tuned cutoff.
+
+
+  How do you know your evaluation is not contaminated by hindsight?
+  For part of it, we know it is. We assumed a mechanical cut between the nonclinical and clinical sections of a review
+  guaranteed blindness, and we measured that false: the Turalio nonclinical chapter contains a clinical cross-reference,
+  because it was written by reviewers who already knew the outcome. Cutting at the chapter boundary moves the
+  pages, not the knowledge. That compound is now a deliberation case and never a prediction case, and any future
+  prediction scoring has to grep the nonclinical extract for clinical cross-references first. That check does not exist yet.
+
+
+  Is the adjudicator real?
+  The wiring is real; the words are a stub. There is no API key in the repository, which is why our pass marks could be
+  committed before any model was called. The interface says so on screen rather than letting anyone mistake stub
+  output for a judgment.
+
+
+  How is this different from Lhasa's Derek or Kaptis?
+  They are more mature and better at prediction, and we are not competing there. No tool in that family runs a formal
+  argumentation over conflicting claims, preserves and displays the conflict measure rather than averaging it away,
+  shows which single claim would flip the verdict, and routes the decision through blind multi-reviewer positions with a
+  hash-chained override record.
+
+
+  Why should we trust a symbolic system over a language model here?
+  Determinism, and we measured it: a thousand runs, one hash. Identical evidence produces an identical verdict and an
+  identical trace. Whether the language-model adjudicator does the same is exactly the consistency probe we have
+  specified and not yet run, and we would not claim the comparison before running it.
+
+
+
+
+ARBITER · Evidence-Integrated Round 1 Playbook · Team BU 1                                                          Page 11 of 13
+  What is your biggest weakness?
+  The rule base has never been reviewed by a practicing toxicologist. It is drawn from published frameworks, but the
+  preference ordering encodes scientific judgment and no toxicologist has signed off on it. That is the next thing we
+  need, and it is a conversation rather than an engineering task.
+
+
+
+12      Pre-Submission Checklist
+ Order       Item                                Detail
+
+ 1           Metrics version reconciliation      Confirm the shipped app renders v2.0-consistent figures, or label the scoring
+                                                 version on screen. Blocking.
+
+ 2           Ship conflictMass and               Both already computed. Highest value per hour in the repository.
+             disagreementReport
+
+ 3           Run the consistency probe           Gate 0. One hour, about a dollar, and it either supports or retires the
+                                                 determinism comparison.
+
+ 4           Verify every external figure        The disagreement statistics, TAK-994 details, MELLODDY and VICT3R
+                                                 numbers, and anything asserted about Pfizer. Cite precisely; distinguish study
+                                                 replicability from inter-expert reliability.
+
+ 5           Retire invalidated claims           Search all slides and copy for 0.750, for any claim of beating baselines, and
+                                                 for any assertion that the mechanical cut guarantees blindness.
+
+ 6           Rehearse the two-app demo           Switching applications mid-demo is the likeliest live failure. Time it, script the
+             handoff                             transition, and have the recorded walkthrough ready.
+
+ 7           Rehearse the four hard              Section 11. Short, calm, no defensiveness.
+             questions
+
+ 8           Submit early                        August 16, 11:59 PM ET, to the ambassador, with deck, demo link, and
+                                                 recorded walkthrough.
+
+
+     Closing
+     Round 1 asks whether this can realistically create value and be implemented. The strongest evidence for
+     that is not the accuracy figure, which does not support it. It is that this team built two working applications
+     and roughly 938 tests, then audited its own headline result, found it invalid, published the correction, and
+     re-graded to a worse number rather than a better one. A tool whose purpose is making evidence conflicts
+     legible and decisions defensible has already been applied, by its authors, to itself. Say that, and mean it.
+
+
+13      Sources
+1. Gottmann et al. (2001). Environmental Health Perspectives 109(5):509–514. Carcinogenicity classification concordance.
+2. Hayashi et al. (2015). Liver International. DILIN expert causality agreement, weighted κ 0.60.
+3. Rockey et al. (2010). Hepatology. DILIN structured expert opinion vs RUCAM, 187 cases.
+4. Karmaus et al. (2026). Frontiers in Toxicology 8:1778353. Aggregated in vivo replicability review.
+5. Olson et al. (2000). Regulatory Toxicology and Pharmacology 32(1):56–67. Animal-human concordance. Dataset enriched
+     for compounds with known human toxicity; cite as directional.
+6. Ewart et al. (2022). Communications Medicine. Liver-Chip performance and economic analysis.
+
+
+
+ARBITER · Evidence-Integrated Round 1 Playbook · Team BU 1                                                                 Page 12 of 13
+ 7. Buçinca, Malaya & Gajos (2021). Proc. ACM Hum.-Comput. Interact. 5, CSCW1, Art. 188. Cognitive forcing functions.
+ 8. Du et al. (ICML 2024). Multi-agent debate and factuality.
+ 9. Heyndrickx et al. (2023). J. Chem. Inf. Model. 63(45). MELLODDY federated learning.
+10. Steger-Hartmann et al. (2025). Toxicologic Pathology. IHI VICT3R virtual control groups.
+11. OECD Series on Testing and Assessment No. 386 (2023; 2nd ed. 2024). (Q)SAR Assessment Framework.
+12. FDA (Nov 2023). Assessing the Credibility of Computational Modeling and Simulation. ASME V&V40 basis.
+13. FDA (Mar 2026). General Considerations for the Use of NAMs in Drug Development, draft guidance.
+14. TAK-994 mechanistic investigation, Toxicological Sciences (2025) 204(2):143; Phase 2 results, NEJM (2023).
+15. Internal: HANDOVER.md §10–§13; tools/rescore_v2.py ; rules/ruleset-v2.0.json .
+
+
+
+
+ARBITER · Evidence-Integrated Round 1 Playbook · Team BU 1                                                       Page 13 of 13
+
