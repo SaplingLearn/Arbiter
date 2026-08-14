@@ -66,9 +66,13 @@ const ROW_TWO: readonly Quote[] = [
     what: "Ruleset v1.0",
   },
   {
-    text: "Ties single:transporter exactly, because both pipelines score the same four compounds. We say so.",
+    // `what` labels the 0.750, which is a conflict-subset figure. The 0.500 carries
+    // its own population inside the sentence rather than borrowing this caption: it
+    // is the FULL scored split (n=267), and letting a caption reading "n=61" stand
+    // over both would be the two-populations-one-fraction error again.
+    text: "Ties single:transporter exactly under target v1.0, because both pipelines score the same four compounds. Under the corrected target, 0.500 on the full scored split of 267. We say so.",
     badge: "=",
-    who: "Balanced acc. 0.750",
+    who: "Balanced acc. 0.750 (v1.0, superseded)",
     what: "Conflict subset n=61",
   },
 ];

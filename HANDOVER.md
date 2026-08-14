@@ -1612,6 +1612,13 @@ chapter and predicts the clinical one **with the answer key in the same file** -
 hindsight contamination, because the cut is mechanical. `data/prep/split_review.py`
 performs and enforces it, and **refuses rather than trimming by hand.**
 
+> **CORRECTED by §13.4c.** The mechanical cut does not guarantee blindness for FDA
+> multi-discipline reviews: the Turalio nonclinical chapter cross-references the
+> clinical outcome in its own words, because one document was written by reviewers
+> who already knew it. The cut moves the pages, not the knowledge. `split_review.py`
+> now screens for this (Guard 3), and a document that trips it is a deliberation
+> case and never a prediction case.
+
 ### 13.4 What is built, and what is not
 
 | built and tested | |

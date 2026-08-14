@@ -34,7 +34,11 @@ const RIGHT = [
   },
   {
     q: 'What does "abstain" mean?',
-    a: "The evidence mass sits below the commitment threshold. Abstention is a result: for 254 of 267 compounds, full confidence on every live claim still cannot reach it.",
+    // 254 is nStructurallyForced, and its denominator is nDeclined = 260 - not the
+    // 267 that were scored. The page prints "abstains on 260 of 267" three sections
+    // above, so the old wording put two denominators for the same quantity on one
+    // page and let a reader derive a different abstention rate from each.
+    a: "The evidence mass sits below the commitment threshold. Abstention is a result: for 254 of the 260 compounds it declined, full confidence on every live claim still cannot reach it.",
   },
   {
     q: "How is the record tamper-evident?",

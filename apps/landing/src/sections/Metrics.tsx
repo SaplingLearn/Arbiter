@@ -24,11 +24,17 @@ const METRICS: readonly {
     note: "260 of 267 declined; 254 could not commit at any evidence values.",
   },
   {
+    // The tile keeps 0.75 because results/metrics.json says 0.75 and the test at
+    // landing.test.tsx reads that file off disk. What changes is that the label now
+    // carries the target: the v1.0 binarisation counted Less-DILI-Concern as
+    // positive, so this figure partly rewarded scoring a correct decline as wrong.
+    // Naming the population in the note as well, because 0.750 is the conflict
+    // subset and the 0.500 beside it is the whole split.
     to: 0.75,
     decimals: 3,
     suffix: "",
-    label: "Balanced Accuracy",
-    note: "On the conflict subset (n=61). It ties a single stream, exactly.",
+    label: "Balanced Accuracy (target v1.0, superseded)",
+    note: "Conflict subset, n=61. Re-graded against the corrected target it is 0.500, and nothing tested clears 0.601.",
   },
   {
     // SEVEN, not four. The page said 4/267, which took the numerator from the

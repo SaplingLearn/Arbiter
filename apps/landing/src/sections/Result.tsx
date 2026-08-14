@@ -7,6 +7,12 @@ import { Counter, TopTicks } from "../ui/primitives.js";
  * that would be making exactly the claim the product is built to refuse. The
  * comparison table is printed in full, including the row where a weighted average
  * covers 100% of the split and ARBITER covers 6.6%.
+ *
+ * The table's figures are v1.0 figures, and the note under it says so. They are kept
+ * rather than replaced: they are what the pre-registered run actually produced, and
+ * deleting a measurement because a later audit invalidated its target would be the
+ * same editing-to-fit the hashed ruleset exists to prevent. The correction is stated
+ * beside them instead.
  */
 const BASELINES: readonly {
   pipeline: string;
@@ -50,7 +56,7 @@ export function Result() {
         <h2 data-reveal className="h2 h2--centred" style={{ maxWidth: 1000 }}>
           It Does Not Beat The Baseline.
           <br />
-          It Ties One Stream, Exactly.
+          And Under The Corrected Target, Nothing Does.
         </h2>
         <p data-reveal className="lede lede--centred" style={{ maxWidth: 660, marginBottom: 56 }}>
           Measured on the test split only, 267 compounds scored, 61 in the pre-registered conflict subset. Read
@@ -77,6 +83,38 @@ export function Result() {
             ))}
           </tbody>
         </table>
+
+        {/*
+          The target every figure in that table was graded under, said on the page
+          rather than in the repository.
+
+          NOT A FOOTNOTE, AND NOT THE SMALLEST TEXT HERE. The v1.0 binarisation
+          counted Less-DILI-Concern as positive, which put 330 of 536 positives in a
+          class containing aspirin, amoxicillin and amlodipine - so 0.750 partly
+          scored a system correctly declining to flag amlodipine as WRONG. A page
+          that prints the number and not the target is making the claim the product
+          exists to refuse. `.metric-note` rather than `.figcaption` for exactly the
+          reason this stylesheet's own header names: a caveat set in the page's
+          smallest type is a caveat nobody reads.
+
+          POPULATIONS ARE NAMED because they differ. 0.750 is the conflict subset
+          (n=61); the corrected 0.500 is the FULL scored split (n=267). Pairing them
+          without saying so would be the same two-populations-one-fraction error the
+          committed-positions tile was already fixed for.
+        */}
+        <p
+          data-reveal
+          className="metric-note result-note"
+          style={{ maxWidth: 1000, margin: "-40px auto 64px" }}
+        >
+          Every figure in that table was graded under target v1.0, which this project&apos;s own
+          audit invalidated: it counted Less-DILI-Concern as positive, placing 330 of 536
+          positives in a class containing aspirin, amoxicillin and amlodipine. Re-graded
+          against the corrected target, ARBITER scores 0.500 on the full scored split, and no
+          pipeline tested clears 0.601 - including every baseline. The QSAR figure was fitted
+          under v1.0, so its corrected number is a lower bound. The finding is about the
+          target, not about this system.
+        </p>
 
         <div className="cells cells--3 findings">
           {FINDINGS.map((f) => (

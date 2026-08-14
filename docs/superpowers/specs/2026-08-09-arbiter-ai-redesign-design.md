@@ -437,6 +437,13 @@ because the cut is mechanical rather than a promise to ignore what one knows; **
 and it works in **both directions**, since drugs with liver findings and drugs without
 both have full reviews.
 
+> **CORRECTED by `HANDOVER.md` §13.4c.** The mechanical cut does not guarantee
+> blindness for FDA multi-discipline reviews: the Turalio nonclinical chapter
+> cross-references the clinical outcome in its own words, because one document was
+> written by reviewers who already knew it. The cut moves the pages, not the
+> knowledge. `split_review.py` now screens for this (Guard 3), and a document that
+> trips it is a deliberation case and never a prediction case.
+
 Candidate selection therefore stops being "drugs that failed" and becomes **"drugs where
 the liver answer is known"** - recent approvals carrying liver warnings for §4.5's
 positive direction, recent approvals with clean liver profiles for the negative.

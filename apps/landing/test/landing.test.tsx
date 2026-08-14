@@ -204,7 +204,7 @@ describe("honesty", () => {
     // loses first, so they are asserted here rather than trusted to survive a
     // redesign.
     renderLanding();
-    expect(screen.getByText(/It Ties One Stream, Exactly\./)).toBeInTheDocument();
+    expect(screen.getByText(/And Under The Corrected Target, Nothing Does\./)).toBeInTheDocument();
     expect(screen.getByText(/ARBITER abstains on 260 of 267/)).toBeInTheDocument();
     expect(screen.getByText(/We Will Not Quote/)).toBeInTheDocument();
   });
@@ -312,7 +312,7 @@ describe("opening scene", () => {
     // reader should be walking the page, not held at a counter for three seconds.
     const { container } = renderWithScene();
     expect(container.querySelector(".opening")).toHaveAttribute("aria-hidden", "true");
-    expect(screen.getByText(/It Ties One Stream, Exactly\./)).toBeInTheDocument();
+    expect(screen.getByText(/And Under The Corrected Target, Nothing Does\./)).toBeInTheDocument();
   });
 
   it("starts the counter at 000 so it never reflows as it passes 9 and 99", () => {
@@ -384,6 +384,33 @@ describe("opening scene", () => {
     expect(container.querySelector('.opening[data-exiting="false"]')).not.toBeNull();
     fireEvent.keyDown(window, { key: "a" });
     expect(container.querySelector('.opening[data-exiting="true"]')).not.toBeNull();
+  });
+});
+
+describe("the superseded scoring target", () => {
+  it("does not print a bare 0.750 without saying which target produced it", () => {
+    renderLanding();
+    // The figure may appear - it is what was measured - but never alone. The v1.0
+    // binarisation counted Less-DILI-Concern as positive, so this number scored a
+    // system correctly declining to flag amlodipine as wrong.
+    const body = document.body.textContent ?? "";
+    if (body.includes("0.750")) {
+      expect(body).toMatch(/target v1\.0|superseded|re-graded/i);
+    }
+  });
+
+  it("states the corrected figure somewhere on the page", () => {
+    renderLanding();
+    const body = document.body.textContent ?? "";
+    expect(body).toMatch(/0\.500/);
+    expect(body).toMatch(/0\.601/);
+  });
+
+  it("uses one denominator for the structurally-forced declines", () => {
+    renderLanding();
+    const body = document.body.textContent ?? "";
+    // 254 is nStructurallyForced out of nDeclined = 260, never out of scored = 267.
+    expect(body).not.toMatch(/254 of 267/);
   });
 });
 
