@@ -66,10 +66,10 @@ const ROW_TWO: readonly Quote[] = [
     what: "Ruleset v1.0",
   },
   {
-    text: "Ties single:transporter exactly, because both pipelines score the same four compounds. We say so.",
+    text: "Our first headline was 0.750. We checked it, found the target definition wrong, and re-graded ourselves to a worse number.",
     badge: "=",
-    who: "Balanced acc. 0.750",
-    what: "Conflict subset n=61",
+    who: "Balanced acc. 0.500",
+    what: "Conflict subset n=61, ruleset v2.0",
   },
 ];
 

@@ -54,6 +54,30 @@ export function ValidationTab() {
           {m.provenance.scoredSplit} split
         </p>
 
+        {/* The target definition, stated before any number on this page.
+            Provenance above says which ruleset HASH produced these figures; this
+            says whether that ruleset's TARGET is still the one we stand behind,
+            and it is not. Those are different facts and the second is the one a
+            reader needs to avoid quoting a retired number.
+
+            Not derived from a metrics field, because none exists: MetricsProvenance
+            has no supersededBy, and adding one means changing types.ts, both halves
+            of schema.ts and satisfying the bidirectional drift guard. The version
+            IS read from the file, so if metrics.json is ever regenerated under v2.0
+            this sentence names the new version and the surrounding prose becomes
+            wrong in a way a reader can see, rather than staying quietly stale. */}
+        <p className="caveat caveat-warn" data-testid="scoring-target" data-anchor="validation.scoringTarget">
+          <strong>Scored against ruleset v{m.provenance.rulesetVersion}, which this project has
+          since superseded.</strong>{" "}
+          The v1.0 binarisation counted vLess-DILI-Concern as positive, placing 330 of 536 positives
+          in a class containing aspirin, amoxicillin, atenolol, amlodipine and apixaban. Under that
+          target a system correctly declining to flag amlodipine is scored as wrong.{" "}
+          <span className="mono">rules/ruleset-v2.0.json</span> re-registered the target on
+          2026-08-09. Every figure below is reported under v1.0 and is not comparable to a v2.0
+          figure; the re-graded numbers are in <span className="mono">results/rescore-v2.txt</span>,
+          where ARBITER scores 0.500 on this subset and no pipeline tested clears 0.601.
+        </p>
+
         {/* The interval attached here must describe the number it sits beside.
             This previously read "balanced accuracy 0.75 (95% CI 0.51-1.00)", where
             the interval was really wilson(4,4) on RAW accuracy 4/4 = 1.0 - an

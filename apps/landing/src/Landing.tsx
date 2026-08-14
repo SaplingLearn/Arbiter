@@ -45,8 +45,8 @@ export type LandingProps = {
  * Twelve numbered sections separated by hatched bands, between two rails. The order is
  * an argument and not a menu: the numbers first, then how they were produced, then the
  * result stated against its baselines, then who it is for - so that by the time the
- * page asks for anything it has already admitted that it ties a single stream and
- * abstains on 97.4% of the split.
+ * page asks for anything it has already admitted that it beats no baseline under an
+ * honest target and abstains on 97.4% of the split.
  */
 export function Landing({
   accent = DEFAULT_ACCENT,

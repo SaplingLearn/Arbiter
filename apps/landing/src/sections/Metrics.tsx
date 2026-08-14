@@ -24,11 +24,16 @@ const METRICS: readonly {
     note: "260 of 267 declined; 254 could not commit at any evidence values.",
   },
   {
-    to: 0.75,
+    // 0.750 until 2026-08-14, which was the figure under ruleset v1.0's
+    // binarisation. HANDOVER section 13.1 declares that target invalid, so the
+    // number here is the v2.0 re-grade from results/rescore-v2.txt. The note
+    // carries the class balance because a balanced accuracy without it is the
+    // exact omission that let 0.750 stand for two weeks.
+    to: 0.5,
     decimals: 3,
     suffix: "",
     label: "Balanced Accuracy",
-    note: "On the conflict subset (n=61). It ties a single stream, exactly.",
+    note: "Conflict subset (n=61, 90.2% positive), re-graded under ruleset v2.0. No pipeline we tested clears 0.601.",
   },
   {
     // SEVEN, not four. The page said 4/267, which took the numerator from the

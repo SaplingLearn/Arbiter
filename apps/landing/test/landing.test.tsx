@@ -53,7 +53,11 @@ describe("fragment nav", () => {
     const hrefs = [...document.querySelectorAll<HTMLAnchorElement>(".menu-panel a")].map((a) =>
       a.getAttribute("href"),
     );
-    expect(hrefs).toEqual(["#method", "#product", "#ruleset", "#result", "#record"]);
+    // Five fragments into this page, then one link OUT of it. The deliberation
+    // client is its own surface on this origin and the rail is the only place a
+    // reader can discover it exists, so it is the one entry here that is not a
+    // section of this document.
+    expect(hrefs).toEqual(["#method", "#product", "#ruleset", "#result", "#record", "/deliberation/"]);
     // The panel is a second copy of the rail, not a different route table.
     expect(hrefs).toEqual([...(rail?.querySelectorAll("a") ?? [])].map((a) => a.getAttribute("href")));
     expect(panel).toBeInTheDocument();
@@ -179,13 +183,30 @@ describe("stat count-ups", () => {
     const declineRate: number = metrics.metric4_abstentionQuality.declineRate;
     const committed: number = metrics.metric4_abstentionQuality.nCommitted;
     const robustness: number = metrics.metric5_plannerSensitivity.meanUnchangedFraction;
-    const balanced: number = metrics.metric1_conflictSubsetAccuracy.arbiter.balancedAccuracy;
 
     renderLanding();
     expect(screen.getByText(`${(declineRate * 100).toFixed(1)}%`)).toBeInTheDocument();
     expect(screen.getByText(`${committed}/${scored}`)).toBeInTheDocument();
     expect(screen.getAllByText(robustness.toFixed(3)).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(balanced.toFixed(3)).length).toBeGreaterThan(0);
+
+    // BALANCED ACCURACY IS NO LONGER READ FROM metrics.json, and the reason is the
+    // point of this whole test rather than an exception to it.
+    //
+    // results/metrics.json was produced under ruleset v1.0, whose binarisation
+    // HANDOVER section 13.1 declares invalid: it counted vLess-DILI-Concern as
+    // positive, so a system correctly declining to flag amlodipine was scored wrong.
+    // The page now shows the v2.0 re-grade from results/rescore-v2.txt, so asserting
+    // it against metrics.json would demand the page display a figure the project has
+    // published a correction retiring.
+    //
+    // The other three above are still read from the file because none of them moves
+    // under v2.0: v2.0 changes the target definition only, and declineRate, nCommitted
+    // and the planner figure do not read the label.
+    //
+    // This becomes a plain file read again the moment metrics.json is regenerated
+    // under v2.0, which is the remaining half of P1-A.
+    const V2_CONFLICT_SUBSET_BALANCED_ACCURACY = "0.500";
+    expect(screen.getAllByText(V2_CONFLICT_SUBSET_BALANCED_ACCURACY).length).toBeGreaterThan(0);
   });
 
   it("fixes decimals and groups only integers", () => {
@@ -199,12 +220,17 @@ describe("stat count-ups", () => {
 });
 
 describe("honesty", () => {
-  it("states the tie and the abstention rate on the page, not only in the table", () => {
+  it("states the honest result and the abstention rate on the page, not only in the table", () => {
     // Master spec section 9a: the caveats are the part a compressed screen-share
     // loses first, so they are asserted here rather than trusted to survive a
     // redesign.
+    //
+    // This asserted "It Ties One Stream, Exactly." until 2026-08-14. That claim was
+    // true under ruleset v1.0 and is false under the v2.0 re-grade, where ARBITER
+    // ties THREE baselines and is beaten by weightedAverage at 0.519. The heading a
+    // reader sees must survive the correction, so the assertion moved with it.
     renderLanding();
-    expect(screen.getByText(/It Ties One Stream, Exactly\./)).toBeInTheDocument();
+    expect(screen.getByText(/Under An Honest Target, Nothing Does\./)).toBeInTheDocument();
     expect(screen.getByText(/ARBITER abstains on 260 of 267/)).toBeInTheDocument();
     expect(screen.getByText(/We Will Not Quote/)).toBeInTheDocument();
   });
@@ -312,7 +338,7 @@ describe("opening scene", () => {
     // reader should be walking the page, not held at a counter for three seconds.
     const { container } = renderWithScene();
     expect(container.querySelector(".opening")).toHaveAttribute("aria-hidden", "true");
-    expect(screen.getByText(/It Ties One Stream, Exactly\./)).toBeInTheDocument();
+    expect(screen.getByText(/Under An Honest Target, Nothing Does\./)).toBeInTheDocument();
   });
 
   it("starts the counter at 000 so it never reflows as it passes 9 and 99", () => {

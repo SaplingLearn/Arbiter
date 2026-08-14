@@ -151,12 +151,29 @@ export function AboutTab() {
       <section className="stack">
         <p className="label">The result, stated plainly</p>
         <div className="prose stack">
-          <h2 className="title">It does not beat the best baseline. It ties one, exactly.</h2>
+          <h2 className="title">Under an honest target, nothing here works.</h2>
           <p className="caveat" data-testid="about-tie">
-            On the pre-registered conflict subset, ARBITER and <span className="mono">{TIED}</span>{" "}
+            On the pre-registered conflict subset, scored under ruleset{" "}
+            v{m.provenance.rulesetVersion}, ARBITER and <span className="mono">{TIED}</span>{" "}
             return the same figure in every column: {arbiter.balancedAccuracy.toFixed(3)} balanced
             accuracy, {pct(arbiter.coverage)} coverage, {arbiter.nCommitted} compounds committed, and
-            the identical confusion matrix. Not close to - the same.
+            the identical confusion matrix. It does not beat the best baseline.
+          </p>
+          {/* The comparison above was drawn under a target this project has since
+              retired, and the retirement changes its SHAPE rather than only its
+              numbers. Re-graded under rules/ruleset-v2.0.json (results/rescore-v2.txt)
+              ARBITER scores 0.500 on this subset, where it ties single:transporter,
+              single:cytotox AND single:qsar, and is beaten by weightedAverage at
+              0.519. So "it ties one, exactly", which this heading said for weeks, is
+              false under the corrected target: it ties three and loses to one.
+              Saying which target produced a comparison is not a footnote here. */}
+          <p>
+            That comparison was made under a target this project has since retired. Re-graded
+            against <span className="mono">rules/ruleset-v2.0.json</span>, ARBITER scores 0.500 on
+            the same subset, and the best pipeline tested reaches 0.601. The finding is not that one
+            system underperforms. It is that predicting this endpoint from public evidence streams is
+            unsolved by every method measured, which is why a system that refuses to commit without
+            adequate evidence is the correct design rather than a broken one.
           </p>
           <p>
             Fusing five streams under six rules bought no accuracy over reading the transporter

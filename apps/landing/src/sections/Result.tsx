@@ -8,6 +8,16 @@ import { Counter, TopTicks } from "../ui/primitives.js";
  * comparison table is printed in full, including the row where a weighted average
  * covers 100% of the split and ARBITER covers 6.6%.
  */
+// RE-GRADED UNDER ruleset-v2.0, from results/rescore-v2.txt. These were the v1.0
+// figures (ARBITER, single:transporter and majorityVote all 0.750, weightedAverage
+// 0.547) until 2026-08-14. HANDOVER section 13.1 declares the v1.0 binarisation
+// invalid: it counted vLess-DILI-Concern as positive, so 330 of 536 positives sat in
+// a class holding aspirin, amoxicillin, atenolol, amlodipine and apixaban, and a
+// system correctly declining to flag amlodipine scored as wrong.
+//
+// The re-grade changes the SHAPE of the comparison and not only the numbers. Under
+// v1.0 ARBITER tied exactly one baseline. Under v2.0 it ties three and is beaten by
+// weightedAverage, which is why the heading no longer claims a single tie.
 const BASELINES: readonly {
   pipeline: string;
   accuracy: string;
@@ -16,17 +26,18 @@ const BASELINES: readonly {
   ours?: boolean;
   muted?: boolean;
 }[] = [
-  { pipeline: "ARBITER", accuracy: "0.750", coverage: "6.6%", committed: "4", ours: true },
-  { pipeline: "single:transporter", accuracy: "0.750", coverage: "6.6%", committed: "4" },
-  { pipeline: "majorityVote", accuracy: "0.750", coverage: "4.9%", committed: "3" },
-  { pipeline: "weightedAverage", accuracy: "0.547", coverage: "100%", committed: "61", muted: true },
+  { pipeline: "ARBITER", accuracy: "0.500", coverage: "6.6%", committed: "4", ours: true },
+  { pipeline: "single:transporter", accuracy: "0.500", coverage: "6.6%", committed: "4" },
+  { pipeline: "single:qsar", accuracy: "0.500", coverage: "98.4%", committed: "60" },
+  { pipeline: "weightedAverage", accuracy: "0.519", coverage: "100%", committed: "61", muted: true },
+  { pipeline: "majorityVote", accuracy: "0.250", coverage: "4.9%", committed: "3", muted: true },
 ];
 
 const FINDINGS: readonly { kicker: string; title: string; body: string; fill?: boolean }[] = [
   {
-    kicker: "The tie",
-    title: "Ties A Single Stream, Exactly",
-    body: "single:transporter matches on every column, because both pipelines score the same four compounds. There are only four transporter claims in the split. We say so.",
+    kicker: "The correction",
+    title: "We Re-Graded Ourselves Downward",
+    body: "Our first headline was 0.750. We checked it and it was wrong: the positive class had swallowed 62% of its members from the Less-concern grade, so correctly declining to flag amlodipine scored as a mistake. Re-graded honestly we get 0.500, and under that target nothing we tested clears 0.601.",
   },
   {
     kicker: "The finding",
@@ -50,11 +61,12 @@ export function Result() {
         <h2 data-reveal className="h2 h2--centred" style={{ maxWidth: 1000 }}>
           It Does Not Beat The Baseline.
           <br />
-          It Ties One Stream, Exactly.
+          Under An Honest Target, Nothing Does.
         </h2>
         <p data-reveal className="lede lede--centred" style={{ maxWidth: 660, marginBottom: 56 }}>
-          Measured on the test split only, 267 compounds scored, 61 in the pre-registered conflict subset. Read
-          the reason, not the headline.
+          Measured on the test split only, 267 compounds scored, 61 in the pre-registered conflict subset,
+          90.2% of them positive. Re-graded under ruleset v2.0 after we found our own target definition
+          invalid. Read the reason, not the headline.
         </p>
 
         <table data-reveal className="baselines">

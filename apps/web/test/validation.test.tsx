@@ -75,6 +75,24 @@ describe("ValidationTab", () => {
     expect(screen.getByTestId("provenance").textContent).toMatch(/20260726/);
   });
 
+  it("names the scoring target, so no figure on this page is quotable alone", () => {
+    // Every number here was scored under ruleset v1.0, whose binarisation
+    // HANDOVER section 13.1 declares invalid: it counted vLess-DILI-Concern as
+    // positive, so a system correctly declining to flag amlodipine was scored
+    // wrong. rules/ruleset-v2.0.json re-registered the target on 2026-08-09 and
+    // this file has not been regenerated under it.
+    //
+    // Asserting all three parts because each fails differently: the version says
+    // WHICH target, "superseded" says the reader must not quote it as current,
+    // and the filename says where the corrected numbers live. A label carrying
+    // only the version reads as provenance rather than as a warning.
+    renderTab();
+    const scoring = screen.getByTestId("scoring-target").textContent ?? "";
+    expect(scoring).toMatch(/v1\.0/);
+    expect(scoring).toMatch(/supersed/i);
+    expect(scoring).toMatch(/ruleset-v2\.0\.json/);
+  });
+
   it("reports the planner stability number, which IS reportable", () => {
     renderTab();
     expect(screen.getByTestId("planner-stability").textContent).toMatch(/0\.99/);
