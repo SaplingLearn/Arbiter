@@ -22,7 +22,11 @@ jobs:
       - run: npm run metrics
       - run: npm test -- apps/harness/test/golden.test.ts
       - run: git diff --exit-code results/verdict-manifest.json
-      - run: npm run web:build
+      # Both frontends have to build. `npm run e2e` below only exercises their dev
+      # servers, so without these a production build could break and the job would
+      # still be green.
+      - run: npm run landing:build
+      - run: npm run deliberate:build
       # Cached because it is the slowest step in the job by an order of magnitude:
       # --with-deps apt-installs system libraries on a cold runner, which took
       # 12m24s against the ~2m the rest of the job needs. The key is pinned to the

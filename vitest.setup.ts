@@ -9,10 +9,12 @@ import { afterEach } from "vitest";
 // one element.
 afterEach(cleanup);
 
-// jsdom implements neither of these. useAnchorScroll reads matchMedia for
-// prefers-reduced-motion and calls scrollIntoView, and every test that renders
-// <App /> now mounts that hook. Defaults that do nothing, so a test which cares
-// about either one overrides it explicitly rather than inheriting an opinion.
+// jsdom implements neither of these, and both are still reached by the surviving
+// apps: apps/landing reads matchMedia for prefers-reduced-motion
+// (`motion/reducedMotion.ts`, `sections/OpeningScene.tsx`) and apps/deliberation
+// calls scrollIntoView to pin the ask transcript to its foot
+// (`pages.tsx:633`). Defaults that do nothing, so a test which cares about
+// either one overrides it explicitly rather than inheriting an opinion.
 if (typeof window !== "undefined") {
   if (!window.matchMedia) {
     window.matchMedia = ((query: string) => ({
