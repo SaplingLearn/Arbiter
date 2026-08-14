@@ -9,6 +9,7 @@ import { DeliberationService } from "../deliberation-service.js";
 import { MemoryStore } from "../store.js";
 import { AuthStore } from "../auth.js";
 import { DocumentStore } from "../documents.js";
+import { LibraryStore } from "../library.js";
 import { InviteStore } from "../invites.js";
 import { LoginThrottle } from "../throttle.js";
 import { seedDemoTeam, DEMO_PASSWORD } from "../seed-demo.js";
@@ -60,6 +61,7 @@ beforeAll(async () => {
     service: new DeliberationService(new MemoryStore(), CHECKLIST),
     auth,
     documents: new DocumentStore(mkdtempSync(join(tmpdir(), "arb-docs-"))),
+    library: new LibraryStore({ cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib-")) }),
     invites: new InviteStore(null),
     throttle: new LoginThrottle(),
     rules: RULES,
@@ -124,6 +126,37 @@ describe("authentication", () => {
     expect(good.status).toBe(204);
     const res = await fetch(`${base}/api/auth/logout`, { method: "POST", headers: { authorization: "Bearer nonsense" } });
     expect(res.status).toBe(204);
+  });
+});
+
+describe("the askable library", () => {
+  it("is readable by anyone signed in, and by nobody who is not", async () => {
+    // These are public regulatory reviews that ship with the product, not case
+    // material - the access boundary that guards a case would be borrowed authority
+    // here. A session is still required: the list describes what this deployment holds.
+    expect((await call("GET", "/api/library", null)).status).toBe(401);
+    const r = await call("GET", "/api/library", "outsider");
+    expect(r.status).toBe(200);
+    expect(r.body.map((s: any) => s.name)).toContain("turalio");
+  });
+
+  it("answers nothing for a document that is not a library document", async () => {
+    const r = await call("POST", "/api/library/enalapril/ask", "ann", { question: "Anything?" });
+    expect(r.status).toBe(404);
+  });
+
+  it("refuses a refused document with the splitter's reason, before any model runs", async () => {
+    // 422 and not 200-with-no-answer: the document was rejected at ingestion and the
+    // reader is owed that fact, not an empty search over a file nobody could read.
+    const r = await call("POST", "/api/library/tolcapone/ask", "ann", { question: "What liver findings are reported?" });
+    expect(r.status).toBe(422);
+    expect(r.body.detail).toContain("scanned document");
+  });
+
+  it("refuses a case that has no source document, and says which fact that is", async () => {
+    const r = await call("POST", "/api/library/tak994/ask", "ann", { question: "What NOAEL was set?" });
+    expect(r.status).toBe(422);
+    expect(r.body.detail).toMatch(/no source document/i);
   });
 });
 

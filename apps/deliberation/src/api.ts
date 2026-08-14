@@ -67,6 +67,21 @@ export interface CaseListing {
   documents: number;
 }
 
+/**
+ * A document in the library, or a stated reason why it cannot be searched.
+ *
+ * The reasons are three and the reader must be able to tell them apart: the splitter
+ * refused the file, the case was never built from a document, or the file is not in
+ * this checkout. The server writes the sentence; nothing here paraphrases it.
+ */
+export interface LibrarySource {
+  name: string;
+  label: string;
+  document: string;
+  askable: boolean;
+  reason?: string;
+}
+
 export interface Roster {
   ownerId: string;
   members: Person[];
@@ -287,6 +302,12 @@ export const api = {
   ask: (token: string, caseId: string, question: string,
         history: { question: string; answer: string }[] = []) =>
     call<AskAnswer>("POST", `/api/cases/${caseId}/ask`, token, { question, history }),
+
+  library: (token: string) => call<LibrarySource[]>("GET", "/api/library", token),
+
+  askLibrary: (token: string, name: string, question: string,
+               history: { question: string; answer: string }[] = []) =>
+    call<AskAnswer>("POST", `/api/library/${name}/ask`, token, { question, history }),
 
   adjudicationRequest: (token: string, caseId: string) =>
     call<{ findings: Finding[]; absent: { field: string; whatItBlocks: string }[] }>("GET", `/api/cases/${caseId}/adjudication-request`, token),

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type ReactElement } from "react";
 import {
   api, ApiError, uploadDocument,
   type Adjudication, type AuditResult, type BlindView, type CaseListing,
-  type CaseSummary, type Finding, type Inventory, type Person, type Refusal,
+  type CaseSummary, type Finding, type Inventory, type LibrarySource, type Person, type Refusal,
   type Roster, type StoredDocument, type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
@@ -33,6 +33,7 @@ export function App(): ReactElement {
   const [me, setMe] = useState<Person | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [catalogue, setCatalogue] = useState<CaseSummary[]>([]);
+  const [library, setLibrary] = useState<LibrarySource[]>([]);
   const [mine, setMine] = useState<CaseListing[]>([]);
 
   const [inventory, setInventory] = useState<Inventory | null>(null);
@@ -101,9 +102,14 @@ export function App(): ReactElement {
     if (token === null) return;
     void (async () => {
       try {
-        const [p, c] = await Promise.all([api.people(token), api.catalogue(token)]);
+        // Loaded with the catalogue rather than inside AskPage, and for the same
+        // reason: both describe what this deployment holds, neither changes while
+        // somebody is signed in, and a fetch inside the page would re-run it on every
+        // visit to Ask.
+        const [p, c, l] = await Promise.all([api.people(token), api.catalogue(token), api.library(token)]);
         setPeople(p);
         setCatalogue(c);
+        setLibrary(l);
         await loadMine(token);
       } catch (e) {
         setFatal(e instanceof Error ? e.message : String(e));
@@ -222,7 +228,7 @@ export function App(): ReactElement {
       );
 
     case "ask":
-      return shell(<AskPage token={token} cases={mine} />);
+      return shell(<AskPage token={token} cases={mine} library={library} />);
 
     case "cases":
       return shell(<LibraryPage catalogue={catalogue} onOpen={openPrepared} busy={opening} />);

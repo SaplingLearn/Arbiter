@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
 import { PageHead, Section } from "./Layout.js";
 import { href } from "./router.js";
-import { api, ApiError, uploadDocument, type AskAnswer, type CaseListing, type CaseSummary, type Person } from "./api.js";
+import { api, ApiError, uploadDocument, type AskAnswer, type CaseListing, type CaseSummary, type LibrarySource, type Person } from "./api.js";
 
 /**
  * The composition pages: authentication, the dashboard, case creation, and the
@@ -601,18 +601,29 @@ interface AskTurn {
   answer: AskAnswer | null;
 }
 
-export function AskPage({ token, cases }: {
+/** A source id, as the picker carries it: a library document or a case folder. */
+const LIB = (name: string): string => `lib:${name}`;
+const CASE = (caseId: string): string => `case:${caseId}`;
+
+export function AskPage({ token, cases, library }: {
   token: string;
   cases: CaseListing[];
+  library: LibrarySource[];
 }): ReactElement {
-  // The first case with a folder, not simply the first case. A case is opened before
-  // anything is uploaded to it, so `cases[0]` is routinely empty - and opening there
-  // answers every question with "the documents do not say", which reads as the model
-  // refusing rather than as nothing having been uploaded. Falls back to the first
-  // case when none has documents, so the picker still shows a selection.
-  const [caseId, setCaseId] = useState(
-    (cases.find((c) => c.documents > 0) ?? cases[0])?.caseId ?? "",
-  );
+  // WHAT OPENS FIRST, and why it is not cases[0]. A case is opened before anything is
+  // uploaded to it, so the first case is routinely empty - and asking an empty folder
+  // returns "the documents do not say" to everything, which reads as the model
+  // refusing rather than as nothing having been uploaded. A library document is
+  // searchable the moment somebody signs in, so the first one that can be searched is
+  // the only selection that is useful without any setup at all.
+  const [source, setSource] = useState(() => {
+    const lib = library.find((s) => s.askable);
+    if (lib !== undefined) return LIB(lib.name);
+    const withDocs = cases.find((c) => c.documents > 0);
+    if (withDocs !== undefined) return CASE(withDocs.caseId);
+    if (library[0] !== undefined) return LIB(library[0].name);
+    return cases[0] === undefined ? "" : CASE(cases[0].caseId);
+  });
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -626,14 +637,14 @@ export function AskPage({ token, cases }: {
     if (turns.length > 0) foot.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [turns.length]);
 
-  // Turns belong to the case they were asked of. Carrying them across a case change
-  // would put one compound's answers under another's name on screen, and would feed
-  // them back as context for a question about a different folder.
-  const pick = (id: string): void => { setCaseId(id); setTurns([]); setError(null); };
+  // Turns belong to the document they were asked of. Carrying them across a change of
+  // source would put one compound's answers under another's name on screen, and would
+  // feed them back as context for a question about a different document.
+  const pick = (id: string): void => { setSource(id); setTurns([]); setError(null); };
 
   const send = async (q: string): Promise<void> => {
     const text = q.trim();
-    if (text === "" || busy || caseId === "") return;
+    if (text === "" || busy || source === "") return;
     setBusy(true); setError(null);
     // The whole thread, oldest first. The server windows it and reports what it read;
     // trimming here as well would mean two truncations that can disagree.
@@ -642,7 +653,13 @@ export function AskPage({ token, cases }: {
     setTurns((t) => [...t, { question: text, answer: null }]);
     setQuestion("");
     try {
-      const answer = await api.ask(token, caseId, text, history);
+      // Two routes, not one polymorphic one: a library document is public and a case
+      // folder is behind that case's access boundary, and a single endpoint that
+      // decided which it was from the shape of an id is how the wrong rule gets
+      // applied to the wrong object.
+      const answer = source.startsWith("lib:")
+        ? await api.askLibrary(token, source.slice(4), text, history)
+        : await api.ask(token, source.slice(5), text, history);
       setTurns((t) => t.map((turn, i) => (i === t.length - 1 ? { ...turn, answer } : turn)));
     } catch (e) {
       // The pending turn goes with the failure. Leaving a question on screen with no
@@ -662,21 +679,34 @@ export function AskPage({ token, cases }: {
   const newest = answered.at(-1);
   const remembersFrom = newest === undefined ? 0 : newest.i - newest.t.answer!.historyTurnsUsed;
 
-  // A case with an empty folder is not a case that answers badly, it is a case that
-  // cannot be asked. Taking the question anyway spends a model call to say "the
-  // documents do not contain that", which is indistinguishable on screen from a real
-  // document that happens not to cover it.
-  const selected = cases.find((c) => c.caseId === caseId);
-  const emptyFolder = selected !== undefined && selected.documents === 0;
+  // WHY THE SELECTION CAN REFUSE, in two different voices. A refused library document
+  // has a reason decided when it was ingested, and it is the splitter's own sentence -
+  // "this is a scanned document" is a fact about the file, not about the compound, and
+  // an empty search over it would say the opposite. An empty case folder has no reason
+  // to state, only an action to offer. Both must stop the question: taking it anyway
+  // spends a model call to produce "the documents do not contain that", which on
+  // screen is indistinguishable from a real document that happens not to cover it.
+  const libSelected = source.startsWith("lib:")
+    ? library.find((s) => LIB(s.name) === source)
+    : undefined;
+  const caseSelected = source.startsWith("case:")
+    ? cases.find((c) => CASE(c.caseId) === source)
+    : undefined;
+  const refusal = libSelected !== undefined && !libSelected.askable ? libSelected.reason ?? "" : null;
+  const emptyFolder = caseSelected !== undefined && caseSelected.documents === 0;
+  const blocked = refusal !== null || emptyFolder;
 
-  if (cases.length === 0) {
+  if (cases.length === 0 && library.length === 0) {
     return (
       <>
         <PageHead crumb={<span>Ask</span>} title="Ask the documents"
-          lede="Answers come only from the PDFs uploaded to a case." />
+          lede="Answers come only from a document, and name the page they rest on." />
         <div className="empty">
-          <h3>No cases yet</h3>
-          <p className="muted">Open a case and upload its study documents, and you can ask about them here.</p>
+          <h3>Nothing to ask yet</h3>
+          <p className="muted">
+            No library document is readable in this checkout and no case holds an upload.
+            Open a case and upload its study documents, and you can ask about them here.
+          </p>
           <a href={href({ name: "new" })}><button className="primary">Open a case</button></a>
         </div>
       </>
@@ -689,34 +719,68 @@ export function AskPage({ token, cases }: {
         lede="Every answer comes from the uploaded PDFs and names the page it rests on."
         actions={
           <div className="field">
-            <label htmlFor="ask-case">Which case</label>
-            <select id="ask-case" value={caseId} onChange={(e) => pick(e.target.value)} disabled={busy}>
-              {/* The count is part of the label rather than a badge beside it: a
-                  <select> renders only text, and an empty case has to be legible
-                  while the list is closed. */}
-              {cases.map((c) => (
-                <option key={c.caseId} value={c.caseId}>
-                  {c.compoundLabel} - {c.documents === 0 ? "no documents"
-                    : `${c.documents} document${c.documents === 1 ? "" : "s"}`}
-                </option>
-              ))}
+            <label htmlFor="ask-source">Which document</label>
+            {/* Two groups, because they are two kinds of thing: the library ships with
+                the product and is the same for everyone, and a case folder is what
+                this account uploaded. A flat list would imply a reader could delete
+                one of the regulatory reviews. */}
+            <select id="ask-source" value={source} onChange={(e) => pick(e.target.value)} disabled={busy}>
+              {library.length > 0 && (
+                <optgroup label="Library">
+                  {/* A refused document stays SELECTABLE, exactly as it does on the
+                      case library: choosing it shows the splitter's reason. Disabling
+                      it would leave somebody who came looking for tolcapone with a
+                      greyed-out name and no explanation. */}
+                  {library.map((s) => (
+                    <option key={s.name} value={LIB(s.name)}>
+                      {s.label}{s.askable ? "" : " - cannot be searched"}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {cases.length > 0 && (
+                <optgroup label="Your cases">
+                  {/* The count is part of the label rather than a badge beside it: a
+                      <select> renders only text, and an empty case has to be legible
+                      while the list is closed. */}
+                  {cases.map((c) => (
+                    <option key={c.caseId} value={CASE(c.caseId)}>
+                      {c.compoundLabel} - {c.documents === 0 ? "no documents"
+                        : `${c.documents} document${c.documents === 1 ? "" : "s"}`}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
         } />
 
-      {emptyFolder && (
+      {refusal !== null && (
         <div className="empty">
-          <h3>No documents in this case yet</h3>
-          <p className="muted">
-            Every answer here rests on a page of an uploaded PDF, and {selected.compoundLabel} has
-            none. Upload its study reports and the questions become answerable - the picker above
-            says which of your cases already hold documents.
-          </p>
-          <a href={href({ name: "case", caseId })}><button className="primary">Upload documents</button></a>
+          <h3>This document cannot be searched</h3>
+          {/* The refusal verbatim. `split_review.py` refuses rather than trimming by
+              hand, and a paraphrase here would soften the one measurement that made
+              the original replay plan impossible. */}
+          <p className="muted">{refusal}</p>
+          <p className="tiny muted">{libSelected?.document}</p>
         </div>
       )}
 
-      {!emptyFolder && <>
+      {emptyFolder && caseSelected !== undefined && (
+        <div className="empty">
+          <h3>No documents in this case yet</h3>
+          <p className="muted">
+            Every answer here rests on a page of a real document, and {caseSelected.compoundLabel} has
+            none uploaded. Upload its study reports and the questions become answerable - or pick a
+            library document above, which needs no upload at all.
+          </p>
+          <a href={href({ name: "case", caseId: caseSelected.caseId })}>
+            <button className="primary">Upload documents</button>
+          </a>
+        </div>
+      )}
+
+      {!blocked && <>
       <div className="note">
         This reports what the documents say. It does not judge the compound and will not
         tell you whether to advance - that is the panel's to state and the adjudication's

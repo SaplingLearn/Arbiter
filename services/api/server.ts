@@ -15,6 +15,7 @@ import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
 import { AuthStore, normaliseEmail, type PublicUser } from "./auth.js";
 import { DEMO_TEAM } from "./seed-demo.js";
 import { DocumentStore, MAX_BYTES } from "./documents.js";
+import { LibraryStore } from "./library.js";
 import { can, denial, type CaseAction } from "./access.js";
 import { InviteStore } from "./invites.js";
 import { LoginThrottle } from "./throttle.js";
@@ -44,6 +45,7 @@ export interface ServerDeps {
   service: DeliberationService;
   auth: AuthStore;
   documents: DocumentStore;
+  library: LibraryStore;
   invites: InviteStore;
   throttle: LoginThrottle;
   rules: AdjudicateRequest["rules"];
@@ -151,6 +153,41 @@ export function makeHandler(deps: ServerDeps) {
       if (parts[1] === "people" && method === "GET") return json(res, 200, deps.auth.list());
 
       if (parts[1] === "demo" && method === "POST") return handleDemo(deps, res, body, user, now());
+
+      // ---- the library, which is documents rather than cases --------------------
+      //
+      // NO CASE BOUNDARY HERE, deliberately. These are the public regulatory reviews
+      // the prepared cases were transcribed from - an FDA multi-disciplinary review is
+      // not somebody's unpublished safety data, and putting it behind a case would
+      // mean opening a deliberation before you may read a document that is on
+      // accessdata.fda.gov. A session is still required, because the LIST describes
+      // what this deployment holds.
+      if (parts[1] === "library" && parts.length === 2 && method === "GET") {
+        return json(res, 200, deps.library.list());
+      }
+
+      if (parts[1] === "library" && parts[3] === "ask" && method === "POST") {
+        const source = deps.library.list().find((s) => s.name === parts[2]);
+        if (source === undefined) return json(res, 404, { error: "no_document" });
+        // 422 before any model call. The reason a document cannot be searched was
+        // decided at ingestion and is worth more than an empty search over it: "this
+        // is a scanned document" and "the document does not cover that" are different
+        // answers, and only one of them is about the compound.
+        if (!source.askable) {
+          return json(res, 422, { error: "not_askable", detail: source.reason });
+        }
+        const passages = search(
+          buildIndex([{
+            documentId: source.name,
+            filename: deps.library.filenameFor(source.name),
+            pages: deps.library.textFor(source.name),
+          }]),
+          String((body as { question?: unknown }).question ?? ""),
+          8,
+        );
+        const out = await handleAsk(body, passages, completeFromEnv(process.env, "ask"));
+        return json(res, out.status, out.body);
+      }
 
       if (parts[1] !== "cases") return json(res, 404, { error: "not_found" });
 
@@ -560,6 +597,7 @@ export function buildDeps(logPath: string): ServerDeps {
     service: new DeliberationService(new FileStore(logPath), checklist),
     auth: new AuthStore(`${logPath}.users.json`),
     documents: new DocumentStore("results/documents"),
+    library: new LibraryStore(),
     invites: new InviteStore(`${logPath}.invites.json`),
     throttle: new LoginThrottle(),
     rules: probe.rules,
