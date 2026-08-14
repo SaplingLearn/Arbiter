@@ -2,6 +2,35 @@ import { useCaseReasoning } from "../../engine/useCaseReasoning.js";
 import { BeliefTrack } from "./BeliefTrack.js";
 import { traceStep } from "../../ai/anchors.js";
 
+/**
+ * Below this, treat the conflict as none.
+ *
+ * Not a comparison against exactly 0: fusing many claims can leave a residue like
+ * 1e-17 on a case where nothing actually opposed anything, and printing "the
+ * sources contradict each other" for 1e-17 would be false. Cyclosporine, the only
+ * rendered case with real conflict, sits at 0.1215, so the floor is nowhere near
+ * anything it has to distinguish.
+ */
+const CONFLICT_FLOOR = 0.05;
+
+/**
+ * The plain-language half of the conflict measure, and the reason the number is
+ * worth rendering at all.
+ *
+ * The same belief-to-plausibility width means two different things, and they have
+ * different next steps. Wide with near-zero conflict is ABSENT evidence: nobody
+ * measured the question, and the planner's experiment is the answer. Wide with
+ * high conflict is a DISPUTE: the sources contradict each other and somebody has
+ * to decide which to believe. A reader given only the width cannot tell which
+ * problem they have.
+ */
+function conflictReading(conflictMass: number): string {
+  if (conflictMass < CONFLICT_FLOOR) {
+    return "The sources barely contradict each other, so a wide interval here is missing evidence rather than disputed evidence. The experiment below is what would narrow it.";
+  }
+  return "The sources contradict each other, and this is how much of their combined mass was contradiction. Dempster's rule divides that out to renormalise; it is reported here rather than absorbed, because an interval derived from only the surviving fraction reads as more confidence than the evidence supports.";
+}
+
 export function TracePanel({ collapsed, onExpand }: { collapsed: boolean; onExpand: () => void }) {
   const r = useCaseReasoning();
   const claimSteps = r.trace.filter((s) => s.kind !== "verdict");
@@ -25,6 +54,13 @@ export function TracePanel({ collapsed, onExpand }: { collapsed: boolean; onExpa
         safe <span className="num">{r.mass.safe.toFixed(3)}</span> ·
         uncommitted <span className="num">{r.mass.uncommitted.toFixed(3)}</span>
         {r.contested && " · contested"}
+      </p>
+
+      <p className="small muted case-conflict" data-testid="conflict-measure" data-anchor="trace.conflict">
+        conflict <span className="num">{r.conflictMass.toFixed(3)}</span>
+      </p>
+      <p className="small muted case-conflict-reading" data-testid="conflict-reading">
+        {conflictReading(r.conflictMass)}
       </p>
 
       <ol className="trace-list small">
