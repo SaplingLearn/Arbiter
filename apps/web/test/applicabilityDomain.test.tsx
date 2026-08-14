@@ -56,7 +56,7 @@ describe("the applicability-domain badge", () => {
       inApplicabilityDomain: null,
       klimisch: 2,
       availableFrom: "2020-01-01",
-      provenance: { kind: "model", source: "test fixture" },
+      provenance: { kind: "database", source: "test fixture", retrieved: "2020-01-01" },
     };
     render(
       <StoreProvider
