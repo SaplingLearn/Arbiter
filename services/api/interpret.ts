@@ -321,6 +321,23 @@ export function resolveModel(kind: CallKind, env: NodeJS.ProcessEnv = process.en
 }
 
 /**
+ * Which service a model name routes to. Named rather than left implicit in a
+ * `startsWith` inside `buildComplete`, because "which provider is this deployment
+ * actually calling" is a question the startup banner, the evaluation results and the
+ * report all have to answer, and three copies of that test would eventually disagree.
+ *
+ * EVERY DEFAULT IN THIS FILE IS GEMINI ON VERTEX, and a test holds that for all four
+ * call kinds. Anthropic is reachable only by naming a non-Gemini model in
+ * ARBITER_MODEL, ARBITER_ASK_MODEL or ARBITER_ADJUDICATION_MODEL - so a provider
+ * change is always something a person typed, never something that drifted.
+ */
+export type Provider = "vertex" | "anthropic";
+
+export function providerFor(model: string): Provider {
+  return model.startsWith("gemini-") ? "vertex" : "anthropic";
+}
+
+/**
  * Provider is INFERRED FROM THE MODEL NAME rather than selected by a second switch,
  * so `ARBITER_MODEL=claude-opus-5` and `ARBITER_MODEL=gemini-2.5-pro` both simply
  * work and no combination of two env vars can name a model one provider cannot serve.
@@ -334,7 +351,7 @@ export function buildComplete(
   shape: CallShape,
   env: NodeJS.ProcessEnv = process.env,
 ): Complete | null {
-  if (model.startsWith("gemini-")) {
+  if (providerFor(model) === "vertex") {
     return geminiCredentialsPresent(env) ? geminiComplete(model, shape, env) : null;
   }
 

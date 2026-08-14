@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { DEFAULT_K, buildIndex, search } from "./retrieval.js";
 import { handleAsk } from "./ask.js";
-import { completeFromEnv } from "./interpret.js";
+import { completeFromEnv, providerFor, type Provider } from "./interpret.js";
 import { loadFixture, pagesFor, verifyFixture, type EvalItem } from "./retrieval-eval.js";
 
 /**
@@ -57,6 +57,8 @@ export interface AskItemResult {
 
 export interface AskReport {
   model: string;
+  /** Which service answered. A model name alone leaves the reader to infer it. */
+  provider: Provider;
   answerable: number;
   unanswerable: number;
   statedFactRate: number;
@@ -135,6 +137,7 @@ export function summarise(items: AskItemResult[], model: string): AskReport {
 
   return {
     model,
+    provider: providerFor(model),
     answerable: answerable.length,
     unanswerable: unanswerable.length,
     statedFactRate: answerable.length === 0 ? 0 : stated / answerable.length,
@@ -163,7 +166,7 @@ export function byDocument(items: AskItemResult[]): { document: string; n: numbe
 export function formatAskReport(r: AskReport): string[] {
   const pct = (x: number): string => `${(x * 100).toFixed(1)}%`;
   return [
-    `ask - ${r.model}, ${r.answerable} answerable + ${r.unanswerable} unanswerable`,
+    `ask - ${r.model} on ${r.provider === "vertex" ? "Vertex AI" : "Anthropic"}, ${r.answerable} answerable + ${r.unanswerable} unanswerable`,
     `  states the fact      ${pct(r.statedFactRate)}   (95% CI ${pct(r.statedFactInterval[0])}-${pct(r.statedFactInterval[1])})`,
     `  answered at all      ${pct(r.answeredRate)}   (the rest said the documents do not say)`,
     `  citation recall      ${pct(r.meanCitationRecall)}   (nominated pages that were cited)`,

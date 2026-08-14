@@ -32,10 +32,10 @@
 
 <p class="sub">ARBITER &middot; evaluation report</p>
 <h1>How accurately does the ask surface read a regulatory review?</h1>
-<p class="sub">Measured over 14 documents and 55 questions. Generated 2026-08-14 05:51 UTC from commit 6b626cf.</p>
+<p class="sub">Measured over 14 documents and 55 questions. Generated 2026-08-14 05:57 UTC from commit f7b8ec9.</p>
 
 <div class="meta">
-model (answering) . . gemini-3.5-flash<br>
+model (answering) . . gemini-3.5-flash on Vertex AI<br>
 retriever . . . . . . BM25 over pages, Porter stemming, phrase expansion, concept map (services/api/terms.ts)<br>
 temperature . . . . . 0, and the retriever is deterministic, so variation across runs is the model alone<br>
 inputs. . . . . . . . data/retrieval-eval.json (fixture) &middot; results/retrieval-eval.json &middot; results/ask-eval.json<br>
@@ -182,7 +182,7 @@ reproduce . . . . . . npm run retrieval:eval &nbsp;|&nbsp; npm run ask:eval -- -
 
 <h2>6. Reproducing this</h2>
 <div class="meta">
-git checkout 6b626cf<br>
+git checkout f7b8ec9<br>
 npm ci<br>
 npm run retrieval:eval &nbsp;&nbsp;&nbsp;# writes results/retrieval-eval.json<br>
 npm run ask:eval -- --repeats=3 &nbsp;&nbsp;&nbsp;# writes results/ask-eval.json, needs model credentials<br>

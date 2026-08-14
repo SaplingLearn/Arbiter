@@ -12,7 +12,7 @@ const retrieval: EvalReport = {
 };
 
 const ask: AskReport = {
-  model: "gemini-3.5-flash", answerable: 53, unanswerable: 2,
+  model: "gemini-3.5-flash", provider: "vertex", answerable: 53, unanswerable: 2,
   statedFactRate: 0.9, statedFactInterval: [0.79, 0.96], answeredRate: 1,
   meanCitationPrecision: 0.4, meanCitationRecall: 0.7, refusalRate: 1, errors: 0,
   items: [{

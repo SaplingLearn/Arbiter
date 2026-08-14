@@ -218,7 +218,7 @@ export function renderHtml(input: {
 <p class="sub">Measured over ${input.fixtureDocuments} documents and ${input.fixtureItems} questions. Generated ${esc(generatedAt)} from commit ${esc(commit)}.</p>
 
 <div class="meta">
-model (answering) . . ${esc(ask.model)}<br>
+model (answering) . . ${esc(ask.model)} on ${ask.provider === "vertex" ? "Vertex AI" : "Anthropic"}<br>
 retriever . . . . . . BM25 over pages, Porter stemming, phrase expansion, concept map (services/api/terms.ts)<br>
 temperature . . . . . 0, and the retriever is deterministic, so variation across runs is the model alone<br>
 inputs. . . . . . . . data/retrieval-eval.json (fixture) &middot; results/retrieval-eval.json &middot; results/ask-eval.json<br>

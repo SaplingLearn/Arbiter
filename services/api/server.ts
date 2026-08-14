@@ -10,7 +10,7 @@ import { ADJUDICATOR_PROMPT_PATH, handleAdjudicate, type AdjudicateRequest } fro
 import { handleAsk } from "./ask.js";
 import { handleSummarise } from "./summarise.js";
 import { buildIndex, search } from "./retrieval.js";
-import { completeFromEnv, resolveModel } from "./interpret.js";
+import { completeFromEnv, providerFor, resolveModel } from "./interpret.js";
 import { stubComplete } from "./probe.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
 import { AuthStore, normaliseEmail, type PublicUser } from "./auth.js";
@@ -636,8 +636,17 @@ if (invokedDirectly) {
   createServer((req, res) => { void makeHandler(deps)(req, res); }).listen(port, HOST, () => {
     console.log(`ARBITER deliberation API on http://${HOST}:${port}`);
     const adjudicationModel = resolveModel("adjudication");
-    console.log(`Adjudication: ${completeFromEnv(process.env, "adjudication") === null ? `STUB (no credentials for ${adjudicationModel}) - responses are labelled source:stub` : `LIVE (${adjudicationModel})`}`);
-    console.log(`Short calls:  ${resolveModel("short")}`);
+    // The PROVIDER is printed beside every model, because that is the fact a
+    // misconfiguration hides: "gemini-3.5-flash" and "claude-opus-5" look equally
+    // plausible in a banner, and only one of them is the deployment this project
+    // measured. A model name alone made the reader infer it.
+    const named = (kind: Parameters<typeof resolveModel>[0]): string => {
+      const model = resolveModel(kind);
+      return `${model} (${providerFor(model) === "vertex" ? "Vertex AI" : "Anthropic"})`;
+    };
+    console.log(`Adjudication: ${completeFromEnv(process.env, "adjudication") === null ? `STUB (no credentials for ${adjudicationModel}) - responses are labelled source:stub` : `LIVE ${named("adjudication")}`}`);
+    console.log(`Ask & summary: ${named("ask")}`);
+    console.log(`Short calls:  ${named("short")}`);
     console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token; there is no TLS here, which is why this binds to loopback only.`);
     if (deps.auth.list().length === 0) console.log("No accounts yet. Run `npm run seed:demo` to create the demonstration team.");
   });
