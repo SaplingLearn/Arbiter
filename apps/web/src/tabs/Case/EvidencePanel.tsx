@@ -61,6 +61,19 @@ export function EvidencePanel({ collapsed, onExpand }: { collapsed: boolean; onE
                     MODIFIED - not the registered claim
                   </strong>
                 )}
+                {/*
+                  R4 fired on this claim. The trace already says so in a sentence,
+                  but a sentence in the rationale is not a property of the ROW - a
+                  downweighted claim otherwise looks exactly like an admitted one,
+                  and the reduced weight is the whole point of the rule. Rendered
+                  on `=== false` and not on `null`, matching R4 itself: not
+                  assessable is benign, and badging it would make the badge noise.
+                */}
+                {c.inApplicabilityDomain === false && (
+                  <strong data-testid="domain-badge" className="chip chip-domain">
+                    OUT OF DOMAIN - R4
+                  </strong>
+                )}
               </div>
               <div data-testid="provenance" className="small muted">
                 {c.provenance.kind.toUpperCase()} · {c.provenance.source}
