@@ -74,3 +74,36 @@ describe("the report", () => {
     expect(report.hitRate).toBe(1);
   });
 });
+
+describe("the answer patterns", () => {
+  const pages = { d: [{ page: 1, text: "the NOAEL was 100 mg/kg in rats" }] };
+  const pagesFor = (doc: string): { page: number; text: string }[] => pages[doc as keyof typeof pages] ?? [];
+
+  it("rejects a pattern that cannot match its own evidence", () => {
+    // "(100)s*mg/kg" demands a literal s between the dose and the unit. Fourteen
+    // items shipped like this from a generator that ate a backslash, and every one
+    // would have been reported as the model getting the answer wrong.
+    const failures = verifyFixture([item({
+      goldPages: [{ page: 1, quote: "the NOAEL was 100 mg/kg" }],
+      mustContain: ["(100)s*mg/kg"],
+    })], pagesFor);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toContain("matches none of its own gold quotes");
+  });
+
+  it("rejects a pattern that is not a regular expression at all", () => {
+    const failures = verifyFixture([item({
+      goldPages: [{ page: 1, quote: "the NOAEL was 100 mg/kg" }],
+      mustContain: ["(unclosed"],
+    })], pagesFor);
+    expect(failures[0]).toContain("not a regular expression");
+  });
+
+  it("accepts a pattern that matches the quote it was drawn from", () => {
+    const failures = verifyFixture([item({
+      goldPages: [{ page: 1, quote: "the NOAEL was 100 mg/kg" }],
+      mustContain: ["(100)\\s*mg/kg"],
+    })], pagesFor);
+    expect(failures).toEqual([]);
+  });
+});

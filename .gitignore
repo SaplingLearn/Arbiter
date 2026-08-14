@@ -69,6 +69,16 @@ results/*
 # a result. Check `"source": "live"` before adding it.
 !results/probe-runs.json
 
+# The ask-surface evaluation and the report built from it. Same reasoning as
+# results.json: the artifact a reviewer re-derives the reported numbers from, and a
+# PDF whose inputs exist on one machine is a claim rather than a measurement. The
+# extraction and vector caches under results/library/ stay ignored - those are derived
+# from PDFs that are not committed either.
+!results/retrieval-eval.json
+!results/ask-eval.json
+!results/report/
+!results/report/arbiter-evaluation.pdf
+
 # Playwright output. The e2e run's traces and screenshots are diagnostics for a
 # single run, not artifacts anyone re-derives a number from.
 test-results/

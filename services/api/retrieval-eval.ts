@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { buildIndex, search } from "./retrieval.js";
 import { LibraryStore } from "./library.js";
-import { isCaseName } from "./cases.js";
 
 /**
  * Measuring the retriever, because "the ask surface works" is not a claim until
@@ -103,6 +102,29 @@ export function verifyFixture(
         failures.push(`${item.id}: the quote for ${item.document} p${gold.page} is no longer on that page`);
       }
     }
+
+    /**
+     * Every answer pattern must match the evidence it was drawn from.
+     *
+     * A pattern that cannot match its own gold quote is unsatisfiable, and it fails
+     * silently in the worst possible direction: as a model that got the answer wrong.
+     * Fourteen items shipped with `(100)s*mg/kg` - a generator's template literal had
+     * eaten the backslash, so the pattern demanded a literal "s" between the dose and
+     * the unit and could never match anything. It was caught by reading, one run
+     * before the numbers would have been reported.
+     */
+    for (const pattern of item.mustContain ?? []) {
+      let rx: RegExp;
+      try {
+        rx = new RegExp(pattern, "i");
+      } catch (e) {
+        failures.push(`${item.id}: mustContain ${JSON.stringify(pattern)} is not a regular expression - ${e instanceof Error ? e.message : String(e)}`);
+        continue;
+      }
+      if (item.goldPages.length > 0 && !item.goldPages.some((g) => rx.test(g.quote))) {
+        failures.push(`${item.id}: mustContain ${JSON.stringify(pattern)} matches none of its own gold quotes, so no answer can satisfy it`);
+      }
+    }
   }
   return failures;
 }
@@ -190,7 +212,11 @@ export function loadFixture(path = FIXTURE_PATH): EvalItem[] {
 const library = new LibraryStore();
 
 export function pagesFor(document: string): { page: number; text: string }[] {
-  return isCaseName(document) ? library.textFor(document) : [];
+  // No CaseName check any more: the library outgrew the case catalogue when the
+  // benchmark documents arrived, and gating on it silently reported every one of them
+  // as having no extracted text. The store already returns nothing for a name it does
+  // not hold, which is the same answer without the false negative.
+  return library.textFor(document);
 }
 
 export function runFixture(items: EvalItem[], k = 8): EvalReport {

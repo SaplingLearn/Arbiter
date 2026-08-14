@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { consistencyOf, summarise, wilson, type AskItemResult } from "../ask-eval.js";
 
 const result = (over: Partial<AskItemResult> = {}): AskItemResult => ({
-  id: "i", kind: "answerable", question: "q", answerable: true, answer: "300 mg/kg",
+  id: "i", document: "d", kind: "answerable", question: "q", answerable: true, answer: "300 mg/kg",
   citedPages: [36], goldPages: [36, 37], statedFact: true,
   citationPrecision: 1, citationRecall: 0.5, refused: null, ...over,
 });

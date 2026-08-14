@@ -1,0 +1,1138 @@
+{
+  "k": 8,
+  "answerable": 53,
+  "unanswerable": 2,
+  "hitRate": 0.8867924528301887,
+  "meanRecall": 0.7924528301886793,
+  "mrr": 0.5223719676549864,
+  "meanStability": 0.3852628852628852,
+  "stabilityByGroup": [
+    {
+      "group": "inrebic:liver",
+      "overlap": 0.23076923076923078
+    },
+    {
+      "group": "inrebic:noael",
+      "overlap": 0.3333333333333333
+    },
+    {
+      "group": "krazati:liver",
+      "overlap": 0.45454545454545453
+    },
+    {
+      "group": "krazati:noael",
+      "overlap": 0.6
+    },
+    {
+      "group": "lumakras:liver",
+      "overlap": 0.14285714285714285
+    },
+    {
+      "group": "nipocalimab:margins",
+      "overlap": 0.3333333333333333
+    },
+    {
+      "group": "nipocalimab:noael",
+      "overlap": 0.5555555555555555
+    },
+    {
+      "group": "nipocalimab:reversibility",
+      "overlap": 0.5622895622895623
+    },
+    {
+      "group": "orgovyx:liver",
+      "overlap": 0.45454545454545453
+    },
+    {
+      "group": "orgovyx:noael",
+      "overlap": 0.45454545454545453
+    },
+    {
+      "group": "qinlock:liver",
+      "overlap": 0.3333333333333333
+    },
+    {
+      "group": "qinlock:noael",
+      "overlap": 0.6
+    },
+    {
+      "group": "retevmo:noael",
+      "overlap": 0.14285714285714285
+    },
+    {
+      "group": "slynd:nonclinical",
+      "overlap": 0.45454545454545453
+    },
+    {
+      "group": "tazverik:liver",
+      "overlap": 0.6
+    },
+    {
+      "group": "trikafta:noael",
+      "overlap": 0.7777777777777778
+    },
+    {
+      "group": "turalio:clinical-reversibility",
+      "overlap": 0.23076923076923078
+    },
+    {
+      "group": "turalio:liver-findings",
+      "overlap": 0.14676434676434677
+    },
+    {
+      "group": "turalio:noael",
+      "overlap": 0.23076923076923078
+    },
+    {
+      "group": "xpovio:noael",
+      "overlap": 0.06666666666666667
+    }
+  ],
+  "items": [
+    {
+      "id": "nipo-noael-a",
+      "group": "nipocalimab:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "retrieved": [
+        5,
+        36,
+        40,
+        48,
+        37,
+        50,
+        42,
+        46
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.5
+    },
+    {
+      "id": "nipo-noael-b",
+      "group": "nipocalimab:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "retrieved": [
+        5,
+        40,
+        36,
+        42,
+        46,
+        48,
+        50,
+        37
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.3333333333333333
+    },
+    {
+      "id": "nipo-noael-c",
+      "group": "nipocalimab:noael",
+      "kind": "answerable",
+      "question": "what was the highest dose that produced no adverse effects",
+      "retrieved": [
+        37,
+        46,
+        36,
+        50,
+        44,
+        39,
+        123,
+        172
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "nipo-reversible-a",
+      "group": "nipocalimab:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "retrieved": [
+        37,
+        45,
+        36,
+        43,
+        49,
+        44,
+        50,
+        47
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "nipo-reversible-b",
+      "group": "nipocalimab:reversibility",
+      "kind": "answerable",
+      "question": "was there a recovery phase in the repeat-dose studies",
+      "retrieved": [
+        37,
+        45,
+        36,
+        49,
+        50,
+        38,
+        44,
+        43
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "nipo-reversible-c",
+      "group": "nipocalimab:reversibility",
+      "kind": "answerable",
+      "question": "did the changes resolve after dosing stopped",
+      "retrieved": [
+        37,
+        50,
+        150,
+        45,
+        36,
+        163,
+        48,
+        49
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "nipo-margin-a",
+      "group": "nipocalimab:margins",
+      "kind": "answerable",
+      "question": "What safety margins were reported?",
+      "retrieved": [
+        48,
+        37,
+        42,
+        32,
+        36,
+        165,
+        73,
+        150
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.5
+    },
+    {
+      "id": "nipo-margin-b",
+      "group": "nipocalimab:margins",
+      "kind": "answerable",
+      "question": "how does the monkey exposure compare with the clinical dose",
+      "retrieved": [
+        40,
+        42,
+        35,
+        36,
+        48,
+        51,
+        46,
+        37
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.5
+    },
+    {
+      "id": "tur-liver-a",
+      "group": "turalio:liver-findings",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "retrieved": [
+        51,
+        189,
+        40,
+        48,
+        182,
+        180,
+        210,
+        50
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.3333333333333333
+    },
+    {
+      "id": "tur-liver-b",
+      "group": "turalio:liver-findings",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "retrieved": [
+        190,
+        182,
+        217,
+        218,
+        219,
+        147,
+        204,
+        210
+      ],
+      "hit": false,
+      "recall": 0,
+      "reciprocalRank": 0
+    },
+    {
+      "id": "tur-liver-c",
+      "group": "turalio:liver-findings",
+      "kind": "answerable",
+      "question": "hepatotoxicity in the animal studies",
+      "retrieved": [
+        228,
+        39,
+        50,
+        48,
+        66,
+        40,
+        218,
+        64
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.3333333333333333
+    },
+    {
+      "id": "tur-liver-d",
+      "group": "turalio:liver-findings",
+      "kind": "answerable",
+      "question": "were transaminases elevated in the toxicology studies",
+      "retrieved": [
+        185,
+        48,
+        92,
+        21,
+        40,
+        182,
+        186,
+        3
+      ],
+      "hit": true,
+      "recall": 0.5,
+      "reciprocalRank": 0.2
+    },
+    {
+      "id": "tur-noael-a",
+      "group": "turalio:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set?",
+      "retrieved": [
+        67,
+        202,
+        22,
+        204,
+        97,
+        158,
+        125,
+        210
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "tur-noael-b",
+      "group": "turalio:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "retrieved": [
+        67,
+        180,
+        245,
+        40,
+        204,
+        46,
+        6,
+        22
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "tur-reversible-a",
+      "group": "turalio:clinical-reversibility",
+      "kind": "answerable",
+      "question": "Was the liver injury in patients reversible?",
+      "retrieved": [
+        204,
+        207,
+        22,
+        24,
+        190,
+        25,
+        182,
+        180
+      ],
+      "hit": false,
+      "recall": 0,
+      "reciprocalRank": 0
+    },
+    {
+      "id": "tur-reversible-b",
+      "group": "turalio:clinical-reversibility",
+      "kind": "answerable",
+      "question": "did the patients recover from the hepatotoxicity",
+      "retrieved": [
+        186,
+        160,
+        175,
+        167,
+        25,
+        204,
+        22,
+        35
+      ],
+      "hit": false,
+      "recall": 0,
+      "reciprocalRank": 0
+    },
+    {
+      "id": "slynd-nonclinical-a",
+      "group": "slynd:nonclinical",
+      "kind": "answerable",
+      "question": "What nonclinical studies were submitted with this application?",
+      "retrieved": [
+        124,
+        120,
+        106,
+        130,
+        125,
+        28,
+        116,
+        29
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "slynd-nonclinical-b",
+      "group": "slynd:nonclinical",
+      "kind": "answerable",
+      "question": "were any new animal studies conducted",
+      "retrieved": [
+        126,
+        29,
+        91,
+        28,
+        128,
+        120,
+        125,
+        130
+      ],
+      "hit": true,
+      "recall": 0.5,
+      "reciprocalRank": 0.125
+    },
+    {
+      "id": "slynd-noael-unanswerable",
+      "group": "slynd:unanswerable",
+      "kind": "unanswerable",
+      "question": "What NOAEL was set in the repeat-dose toxicity study?",
+      "retrieved": [
+        128,
+        59,
+        29,
+        77,
+        130,
+        51,
+        65,
+        66
+      ],
+      "hit": false,
+      "recall": 0,
+      "reciprocalRank": 0
+    },
+    {
+      "id": "tur-price-unanswerable",
+      "group": "turalio:unanswerable",
+      "kind": "unanswerable",
+      "question": "What is the annual cost of treatment?",
+      "retrieved": [
+        128,
+        101,
+        112,
+        140,
+        9,
+        165,
+        141,
+        97
+      ],
+      "hit": false,
+      "recall": 0,
+      "reciprocalRank": 0
+    },
+    {
+      "id": "lumakras-liver-a",
+      "group": "lumakras:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "retrieved": [
+        198,
+        75,
+        187,
+        42,
+        200,
+        213,
+        72,
+        74
+      ],
+      "hit": true,
+      "recall": 0.5,
+      "reciprocalRank": 0.14285714285714285
+    },
+    {
+      "id": "lumakras-liver-b",
+      "group": "lumakras:liver",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "retrieved": [
+        199,
+        187,
+        206,
+        212,
+        186,
+        198,
+        205,
+        195
+      ],
+      "hit": false,
+      "recall": 0,
+      "reciprocalRank": 0
+    },
+    {
+      "id": "lumakras-reversible-a",
+      "group": "lumakras:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "retrieved": [
+        65,
+        44,
+        84,
+        78,
+        76,
+        66,
+        43,
+        206
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "retevmo-noael-a",
+      "group": "retevmo:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "retrieved": [
+        17,
+        105,
+        171,
+        181,
+        183,
+        9,
+        53,
+        328
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.5
+    },
+    {
+      "id": "retevmo-noael-b",
+      "group": "retevmo:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "retrieved": [
+        17,
+        105,
+        89,
+        10,
+        360,
+        299,
+        368,
+        251
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.5
+    },
+    {
+      "id": "retevmo-reversible-a",
+      "group": "retevmo:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "retrieved": [
+        80,
+        89,
+        64,
+        240,
+        77,
+        86,
+        88,
+        239
+      ],
+      "hit": true,
+      "recall": 0.5,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "trikafta-noael-a",
+      "group": "trikafta:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "retrieved": [
+        44,
+        50,
+        51,
+        45,
+        52,
+        18,
+        47,
+        46
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "trikafta-noael-b",
+      "group": "trikafta:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "retrieved": [
+        50,
+        44,
+        18,
+        45,
+        52,
+        51,
+        47,
+        180
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.5
+    },
+    {
+      "id": "trikafta-reversible-a",
+      "group": "trikafta:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "retrieved": [
+        42,
+        48,
+        47,
+        43,
+        45,
+        34,
+        3,
+        52
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.25
+    },
+    {
+      "id": "krazati-noael-a",
+      "group": "krazati:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "retrieved": [
+        77,
+        61,
+        16,
+        76,
+        74,
+        65,
+        64,
+        83
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "krazati-noael-b",
+      "group": "krazati:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "retrieved": [
+        77,
+        61,
+        76,
+        16,
+        64,
+        65,
+        75,
+        66
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "krazati-liver-a",
+      "group": "krazati:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "retrieved": [
+        182,
+        183,
+        75,
+        70,
+        271,
+        64,
+        244,
+        68
+      ],
+      "hit": true,
+      "recall": 0.5,
+      "reciprocalRank": 0.16666666666666666
+    },
+    {
+      "id": "krazati-liver-b",
+      "group": "krazati:liver",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "retrieved": [
+        183,
+        182,
+        271,
+        244,
+        181,
+        75,
+        177,
+        242
+      ],
+      "hit": false,
+      "recall": 0,
+      "reciprocalRank": 0
+    },
+    {
+      "id": "inrebic-noael-a",
+      "group": "inrebic:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "retrieved": [
+        84,
+        83,
+        79,
+        179,
+        82,
+        31,
+        100,
+        3
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.5
+    },
+    {
+      "id": "inrebic-noael-b",
+      "group": "inrebic:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "retrieved": [
+        83,
+        79,
+        84,
+        82,
+        159,
+        86,
+        221,
+        60
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "inrebic-liver-a",
+      "group": "inrebic:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "retrieved": [
+        71,
+        68,
+        59,
+        158,
+        74,
+        9,
+        85,
+        21
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.3333333333333333
+    },
+    {
+      "id": "inrebic-liver-b",
+      "group": "inrebic:liver",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "retrieved": [
+        59,
+        116,
+        71,
+        8,
+        113,
+        146,
+        138,
+        74
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "inrebic-reversible-a",
+      "group": "inrebic:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "retrieved": [
+        76,
+        59,
+        85,
+        60,
+        68,
+        70,
+        30,
+        219
+      ],
+      "hit": true,
+      "recall": 0.5,
+      "reciprocalRank": 0.25
+    },
+    {
+      "id": "orgovyx-noael-a",
+      "group": "orgovyx:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "retrieved": [
+        11,
+        54,
+        63,
+        55,
+        198,
+        122,
+        5,
+        39
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.5
+    },
+    {
+      "id": "orgovyx-noael-b",
+      "group": "orgovyx:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "retrieved": [
+        11,
+        54,
+        63,
+        55,
+        39,
+        199,
+        64,
+        90
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.5
+    },
+    {
+      "id": "orgovyx-liver-a",
+      "group": "orgovyx:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "retrieved": [
+        33,
+        55,
+        54,
+        47,
+        174,
+        48,
+        52,
+        61
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "orgovyx-liver-b",
+      "group": "orgovyx:liver",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "retrieved": [
+        174,
+        55,
+        54,
+        47,
+        176,
+        164,
+        33,
+        101
+      ],
+      "hit": true,
+      "recall": 0.5,
+      "reciprocalRank": 0.14285714285714285
+    },
+    {
+      "id": "orgovyx-reversible-a",
+      "group": "orgovyx:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "retrieved": [
+        55,
+        33,
+        64,
+        35,
+        56,
+        32,
+        46,
+        48
+      ],
+      "hit": true,
+      "recall": 0.5,
+      "reciprocalRank": 0.5
+    },
+    {
+      "id": "qinlock-noael-a",
+      "group": "qinlock:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "retrieved": [
+        51,
+        14,
+        50,
+        57,
+        53,
+        59,
+        135,
+        125
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.3333333333333333
+    },
+    {
+      "id": "qinlock-noael-b",
+      "group": "qinlock:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "retrieved": [
+        14,
+        51,
+        57,
+        50,
+        59,
+        53,
+        156,
+        142
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.25
+    },
+    {
+      "id": "qinlock-liver-a",
+      "group": "qinlock:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "retrieved": [
+        175,
+        49,
+        55,
+        51,
+        56,
+        185,
+        84,
+        151
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.3333333333333333
+    },
+    {
+      "id": "qinlock-liver-b",
+      "group": "qinlock:liver",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "retrieved": [
+        63,
+        175,
+        145,
+        49,
+        210,
+        185,
+        84,
+        137
+      ],
+      "hit": false,
+      "recall": 0,
+      "reciprocalRank": 0
+    },
+    {
+      "id": "nubeqa-reversible-a",
+      "group": "nubeqa:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "retrieved": [
+        50,
+        29,
+        44,
+        30,
+        49,
+        46,
+        42,
+        41
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.5
+    },
+    {
+      "id": "xpovio-noael-a",
+      "group": "xpovio:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "retrieved": [
+        40,
+        135,
+        95,
+        96,
+        168,
+        92,
+        90,
+        143
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "xpovio-noael-b",
+      "group": "xpovio:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "retrieved": [
+        40,
+        30,
+        99,
+        52,
+        47,
+        174,
+        117,
+        54
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 1
+    },
+    {
+      "id": "xpovio-reversible-a",
+      "group": "xpovio:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "retrieved": [
+        39,
+        30,
+        35,
+        31,
+        37,
+        36,
+        7,
+        40
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.5
+    },
+    {
+      "id": "tazverik-liver-a",
+      "group": "tazverik:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "retrieved": [
+        55,
+        53,
+        50,
+        54,
+        33,
+        66,
+        45,
+        57
+      ],
+      "hit": true,
+      "recall": 0.5,
+      "reciprocalRank": 0.2
+    },
+    {
+      "id": "tazverik-liver-b",
+      "group": "tazverik:liver",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "retrieved": [
+        55,
+        91,
+        66,
+        50,
+        54,
+        53,
+        51,
+        33
+      ],
+      "hit": true,
+      "recall": 0.5,
+      "reciprocalRank": 0.125
+    },
+    {
+      "id": "tazverik-reversible-a",
+      "group": "tazverik:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "retrieved": [
+        49,
+        75,
+        47,
+        33,
+        57,
+        63,
+        14,
+        59
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.3333333333333333
+    },
+    {
+      "id": "exkivity-reversible-a",
+      "group": "exkivity:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "retrieved": [
+        74,
+        61,
+        75,
+        60,
+        69,
+        43,
+        54,
+        219
+      ],
+      "hit": true,
+      "recall": 1,
+      "reciprocalRank": 0.5
+    }
+  ]
+}

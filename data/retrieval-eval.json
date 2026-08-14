@@ -1,6 +1,6 @@
 {
-  "version": "1.0",
-  "note": "Retrieval fixture for the ask surface. Every gold page carries the VERBATIM sentence that makes it gold, and the scorer refuses to run if a quote is no longer on its page - a fixture nobody can audit is an assertion, and one that rots silently is worse. Quotes were located by regular expression over the extracted text of the library documents and read before being written down. `group` marks questions a reviewer would call the same question: retrieval that changes its answer when the words change is the failure this set exists to measure. `kind: unanswerable` items have no gold pages by construction - the document genuinely does not contain the answer, and they are scored on refusal rather than on recall. `mustContain` is a regular expression the ANSWER text must match, taken from the same verified quote that makes the page gold - an objective check on whether the answer states the fact, which is weaker than 'the answer is correct' and is named that way for a reason.",
+  "version": "2.0",
+  "note": "Retrieval fixture for the ask surface. Every gold page carries the VERBATIM sentence that makes it gold, and the scorer refuses to run if a quote is no longer on its page - a fixture nobody can audit is an assertion, and one that rots silently is worse. Quotes were located by regular expression over the extracted text of the library documents and read before being written down. `group` marks questions a reviewer would call the same question: retrieval that changes its answer when the words change is the failure this set exists to measure. `kind: unanswerable` items have no gold pages by construction - the document genuinely does not contain the answer, and they are scored on refusal rather than on recall. `mustContain` is a regular expression the ANSWER text must match, taken from the same verified quote that makes the page gold - an objective check on whether the answer states the fact, which is weaker than 'the answer is correct' and is named that way for a reason. Version 2.0 adds eleven more FDA multi-disciplinary reviews, fetched from accessdata.fda.gov by NDA number and screened with measure_pdf.py. Their items were PROPOSED by regular expression and then reviewed by reading every quote: six proposals were rejected for matching tissue-distribution tables, KRAS pharmacology and the name of an adverse event rather than the finding asked about. The set varies on purpose - a boxed hepatotoxicity warning, several liver findings without one, approved drugs with no liver warning at all, and one 505(b)(2) with no nonclinical studies - because a set of only hepatotoxic drugs measures willingness to say danger and nothing else.",
   "items": [
     {
       "id": "nipo-noael-a",
@@ -372,6 +372,682 @@
       "question": "What is the annual cost of treatment?",
       "goldPages": [],
       "why": "A multi-disciplinary review carries no pricing. Plausible to ask of a drug, absent from this document."
+    },
+    {
+      "id": "lumakras-liver-a",
+      "document": "lumakras",
+      "group": "lumakras:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "goldPages": [
+        {
+          "page": 66,
+          "quote": "hepatocellular enzyme induction. No renal toxicity was identified in the dog. The HNSTD was 1000 mg/kg"
+        },
+        {
+          "page": 72,
+          "quote": "liver, gall bladder, and thymus GLP compliance: Yes Methods Dose and frequency of dosing: 0, 100, and 500 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|hepat|liver|bilirubin"
+      ]
+    },
+    {
+      "id": "lumakras-liver-b",
+      "document": "lumakras",
+      "group": "lumakras:liver",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "goldPages": [
+        {
+          "page": 66,
+          "quote": "hepatocellular enzyme induction. No renal toxicity was identified in the dog. The HNSTD was 1000 mg/kg"
+        },
+        {
+          "page": 72,
+          "quote": "liver, gall bladder, and thymus GLP compliance: Yes Methods Dose and frequency of dosing: 0, 100, and 500 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|hepat|liver|bilirubin"
+      ]
+    },
+    {
+      "id": "lumakras-reversible-a",
+      "document": "lumakras",
+      "group": "lumakras:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "goldPages": [
+        {
+          "page": 65,
+          "quote": "recovery phase, there was partial recovery of sotorasib-related kidney changes at all dose levels accompanied with inter"
+        },
+        {
+          "page": 66,
+          "quote": "Recovery Period / 150432 Key Study Findings x One high dose recovery cohort rat was euthanized on Day 126 due to poor cl"
+        }
+      ],
+      "mustContain": [
+        "reversib|recover|resolv"
+      ]
+    },
+    {
+      "id": "retevmo-noael-a",
+      "document": "retevmo",
+      "group": "retevmo:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "goldPages": [
+        {
+          "page": 105,
+          "quote": "NOAEL for maternal toxicity was 100 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(100)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "retevmo-noael-b",
+      "document": "retevmo",
+      "group": "retevmo:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "goldPages": [
+        {
+          "page": 105,
+          "quote": "NOAEL for maternal toxicity was 100 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(100)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "retevmo-reversible-a",
+      "document": "retevmo",
+      "group": "retevmo:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "goldPages": [
+        {
+          "page": 80,
+          "quote": "toxicities induced in rats and minipig reversed or were partially reversible; the exception was the testis. In the minip"
+        },
+        {
+          "page": 81,
+          "quote": "recovery phase, all other observations occurred during dosing phase Body Weights Male animals gained weight at the same "
+        }
+      ],
+      "mustContain": [
+        "reversib|recover|resolv"
+      ]
+    },
+    {
+      "id": "trikafta-noael-a",
+      "document": "trikafta",
+      "group": "trikafta:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "goldPages": [
+        {
+          "page": 44,
+          "quote": "NOAEL) were determined to be 50 and 30 mg/kg"
+        },
+        {
+          "page": 45,
+          "quote": "NOAEL was deemed to be 30 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(30)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "trikafta-noael-b",
+      "document": "trikafta",
+      "group": "trikafta:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "goldPages": [
+        {
+          "page": 44,
+          "quote": "NOAEL) were determined to be 50 and 30 mg/kg"
+        },
+        {
+          "page": 45,
+          "quote": "NOAEL was deemed to be 30 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(30)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "trikafta-reversible-a",
+      "document": "trikafta",
+      "group": "trikafta:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "goldPages": [
+        {
+          "page": 43,
+          "quote": "Recovery Period Doses: 0 (vehicle), 10, 25, or 50 mg/kg/day in males; and 0, 5, 15 or 30 mg/kg/day in females; 15/sex/gr"
+        },
+        {
+          "page": 45,
+          "quote": "changes were not fully reversible and were adverse. In conclusion, 6 mg/kg/day was the NOAEL"
+        }
+      ],
+      "mustContain": [
+        "reversib|recover|resolv"
+      ]
+    },
+    {
+      "id": "krazati-noael-a",
+      "document": "krazati",
+      "group": "krazati:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "goldPages": [
+        {
+          "page": 61,
+          "quote": "NOAEL) in the rat 28-day and 13-week studies was 150 mg/kg"
+        },
+        {
+          "page": 77,
+          "quote": "NOAEL in rats was 90 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(150|90)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "krazati-noael-b",
+      "document": "krazati",
+      "group": "krazati:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "goldPages": [
+        {
+          "page": 61,
+          "quote": "NOAEL) in the rat 28-day and 13-week studies was 150 mg/kg"
+        },
+        {
+          "page": 77,
+          "quote": "NOAEL in rats was 90 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(150|90)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "krazati-liver-a",
+      "document": "krazati",
+      "group": "krazati:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "goldPages": [
+        {
+          "page": 63,
+          "quote": "liver to body weight ratios at ≥ 150 mg/kg"
+        },
+        {
+          "page": 64,
+          "quote": "AST; and decreased albumin/globulin ratio. Organ Weight Increased organ weight (adrenal, kidney, liver, spleen) at 150 m"
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|hepat|liver|bilirubin"
+      ]
+    },
+    {
+      "id": "krazati-liver-b",
+      "document": "krazati",
+      "group": "krazati:liver",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "goldPages": [
+        {
+          "page": 63,
+          "quote": "liver to body weight ratios at ≥ 150 mg/kg"
+        },
+        {
+          "page": 64,
+          "quote": "AST; and decreased albumin/globulin ratio. Organ Weight Increased organ weight (adrenal, kidney, liver, spleen) at 150 m"
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|hepat|liver|bilirubin"
+      ]
+    },
+    {
+      "id": "inrebic-noael-a",
+      "document": "inrebic",
+      "group": "inrebic:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "goldPages": [
+        {
+          "page": 79,
+          "quote": "NOAEL for maternal toxicity and developmental toxicity in rats was 3 mg/kg"
+        },
+        {
+          "page": 83,
+          "quote": "NOAEL for F0 maternal toxicity is 30 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(3|30)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "inrebic-noael-b",
+      "document": "inrebic",
+      "group": "inrebic:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "goldPages": [
+        {
+          "page": 79,
+          "quote": "NOAEL for maternal toxicity and developmental toxicity in rats was 3 mg/kg"
+        },
+        {
+          "page": 83,
+          "quote": "NOAEL for F0 maternal toxicity is 30 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(3|30)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "inrebic-liver-a",
+      "document": "inrebic",
+      "group": "inrebic:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "goldPages": [
+        {
+          "page": 59,
+          "quote": "bilirubin corresponded with findings in the liver of centrilobular degeneration, congestion, and hematopoiesis; these ch"
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|hepat|liver|bilirubin"
+      ]
+    },
+    {
+      "id": "inrebic-liver-b",
+      "document": "inrebic",
+      "group": "inrebic:liver",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "goldPages": [
+        {
+          "page": 59,
+          "quote": "bilirubin corresponded with findings in the liver of centrilobular degeneration, congestion, and hematopoiesis; these ch"
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|hepat|liver|bilirubin"
+      ]
+    },
+    {
+      "id": "inrebic-reversible-a",
+      "document": "inrebic",
+      "group": "inrebic:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "goldPages": [
+        {
+          "page": 60,
+          "quote": "recovery period of 4 weeks, microscopic findings were limited to minimal submucosal edema in the non‐glandular stomach i"
+        },
+        {
+          "page": 69,
+          "quote": "recovery period in rats Route of administration: Oral gavage Formulation/Vehicle: Aqueous solution of 0.5% methylcellulo"
+        }
+      ],
+      "mustContain": [
+        "reversib|recover|resolv"
+      ]
+    },
+    {
+      "id": "orgovyx-noael-a",
+      "document": "orgovyx",
+      "group": "orgovyx:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "goldPages": [
+        {
+          "page": 54,
+          "quote": "NOAEL for liver toxicity is considered to be 15 mg/kg"
+        },
+        {
+          "page": 55,
+          "quote": "NOAEL (15 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(15)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "orgovyx-noael-b",
+      "document": "orgovyx",
+      "group": "orgovyx:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "goldPages": [
+        {
+          "page": 54,
+          "quote": "NOAEL for liver toxicity is considered to be 15 mg/kg"
+        },
+        {
+          "page": 55,
+          "quote": "NOAEL (15 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(15)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "orgovyx-liver-a",
+      "document": "orgovyx",
+      "group": "orgovyx:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "goldPages": [
+        {
+          "page": 33,
+          "quote": "liver enzymes were also reported in rats at 2000 mg/kg"
+        },
+        {
+          "page": 48,
+          "quote": "liver enzymes at 50 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|hepat|liver|bilirubin"
+      ]
+    },
+    {
+      "id": "orgovyx-liver-b",
+      "document": "orgovyx",
+      "group": "orgovyx:liver",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "goldPages": [
+        {
+          "page": 33,
+          "quote": "liver enzymes were also reported in rats at 2000 mg/kg"
+        },
+        {
+          "page": 48,
+          "quote": "liver enzymes at 50 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|hepat|liver|bilirubin"
+      ]
+    },
+    {
+      "id": "orgovyx-reversible-a",
+      "document": "orgovyx",
+      "group": "orgovyx:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "goldPages": [
+        {
+          "page": 33,
+          "quote": "recovery phase. Monkeys were the most sensitive species and possibly reflect the most toxicologically relevant species b"
+        },
+        {
+          "page": 34,
+          "quote": "toxicities in male reproductive organs but caused reversible cessation of menses in females starting on Day 13 of treatm"
+        }
+      ],
+      "mustContain": [
+        "reversib|recover|resolv"
+      ]
+    },
+    {
+      "id": "qinlock-noael-a",
+      "document": "qinlock",
+      "group": "qinlock:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "goldPages": [
+        {
+          "page": 50,
+          "quote": "NOAELs) for ripretinib in the 4 and 13 Week studies were 300 and 100 mg/kg"
+        },
+        {
+          "page": 53,
+          "quote": "NOAEL for ripretinib was 100 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(100)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "qinlock-noael-b",
+      "document": "qinlock",
+      "group": "qinlock:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "goldPages": [
+        {
+          "page": 50,
+          "quote": "NOAELs) for ripretinib in the 4 and 13 Week studies were 300 and 100 mg/kg"
+        },
+        {
+          "page": 53,
+          "quote": "NOAEL for ripretinib was 100 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(100)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "qinlock-liver-a",
+      "document": "qinlock",
+      "group": "qinlock:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "goldPages": [
+        {
+          "page": 55,
+          "quote": "aminotransferase (ALT) activity in males administered ≥ 30 mg/kg"
+        },
+        {
+          "page": 56,
+          "quote": "liver, lungs, and/or mesenteric lymph node at ≥ 100 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|hepat|liver|bilirubin"
+      ]
+    },
+    {
+      "id": "qinlock-liver-b",
+      "document": "qinlock",
+      "group": "qinlock:liver",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "goldPages": [
+        {
+          "page": 55,
+          "quote": "aminotransferase (ALT) activity in males administered ≥ 30 mg/kg"
+        },
+        {
+          "page": 56,
+          "quote": "liver, lungs, and/or mesenteric lymph node at ≥ 100 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|hepat|liver|bilirubin"
+      ]
+    },
+    {
+      "id": "nubeqa-reversible-a",
+      "document": "nubeqa",
+      "group": "nubeqa:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "goldPages": [
+        {
+          "page": 29,
+          "quote": "recovery period in rats and 8-week recovery period in dogs Darolutamide was clastogenic in an in vitro chromosome aberra"
+        },
+        {
+          "page": 30,
+          "quote": "recovery period but were reversible following an 8-week recovery period in dogs. Recommendations The nonclinical data su"
+        }
+      ],
+      "mustContain": [
+        "reversib|recover|resolv"
+      ]
+    },
+    {
+      "id": "xpovio-noael-a",
+      "document": "xpovio",
+      "group": "xpovio:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set, and in which study?",
+      "goldPages": [
+        {
+          "page": 40,
+          "quote": "NOAEL for maternal toxicity was 0.25 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(0\\.25)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "xpovio-noael-b",
+      "document": "xpovio",
+      "group": "xpovio:noael",
+      "kind": "answerable",
+      "question": "no observed adverse effect level",
+      "goldPages": [
+        {
+          "page": 40,
+          "quote": "NOAEL for maternal toxicity was 0.25 mg/kg"
+        }
+      ],
+      "mustContain": [
+        "(0\\.25)\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "xpovio-reversible-a",
+      "document": "xpovio",
+      "group": "xpovio:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "goldPages": [
+        {
+          "page": 30,
+          "quote": "effects on male reproductive tissues, the effects were somewhat reversible. In the definitive embryo-fetal developmental"
+        },
+        {
+          "page": 35,
+          "quote": "Recovery Period/ KNC-G-13-001 Key Study Findings • There were no unscheduled deaths. • Hematological changes included de"
+        }
+      ],
+      "mustContain": [
+        "reversib|recover|resolv"
+      ]
+    },
+    {
+      "id": "tazverik-liver-a",
+      "document": "tazverik",
+      "group": "tazverik:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported, and at what doses?",
+      "goldPages": [
+        {
+          "page": 33,
+          "quote": "AST, ALT, ALP, and triglycerides occurred during the study period with changes still elevated for AST, ALT, and ALP in t"
+        },
+        {
+          "page": 49,
+          "quote": "bilirubin compared to controls Findings were reversible with no notable clinical chemistry changes in recovery animals. "
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|hepat|liver|bilirubin"
+      ]
+    },
+    {
+      "id": "tazverik-liver-b",
+      "document": "tazverik",
+      "group": "tazverik:liver",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "goldPages": [
+        {
+          "page": 33,
+          "quote": "AST, ALT, ALP, and triglycerides occurred during the study period with changes still elevated for AST, ALT, and ALP in t"
+        },
+        {
+          "page": 49,
+          "quote": "bilirubin compared to controls Findings were reversible with no notable clinical chemistry changes in recovery animals. "
+        }
+      ],
+      "mustContain": [
+        "alt|ast|aminotransferase|transaminase|hepat|liver|bilirubin"
+      ]
+    },
+    {
+      "id": "tazverik-reversible-a",
+      "document": "tazverik",
+      "group": "tazverik:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "goldPages": [
+        {
+          "page": 33,
+          "quote": "recovery period and deaths occurred even at the low dose of 50 mg/kg (approximately equal to the adult human exposure at"
+        },
+        {
+          "page": 47,
+          "quote": "Recovery Period in Rats Key Study Findings • 25% (5/20) main toxicology group rats and 12.5% (1/8) toxicokinetic group r"
+        }
+      ],
+      "mustContain": [
+        "reversib|recover|resolv"
+      ]
+    },
+    {
+      "id": "exkivity-reversible-a",
+      "document": "exkivity",
+      "group": "exkivity:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible?",
+      "goldPages": [
+        {
+          "page": 60,
+          "quote": "toxicity of mobocertinib, the reversibility of effects, and exposures of mobocertinib and its 2 active"
+        },
+        {
+          "page": 61,
+          "quote": "effects were fully or partially reversible with a recovery period. The FDA’s Assessment: In general, F"
+        }
+      ],
+      "mustContain": [
+        "reversib|recover|resolv"
+      ]
     }
   ]
 }

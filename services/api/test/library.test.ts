@@ -9,10 +9,18 @@ const store = (over: Partial<ConstructorParameters<typeof LibraryStore>[0]> = {}
   new LibraryStore({ cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib-")), ...over });
 
 describe("the askable library", () => {
-  it("offers one source per catalogue entry, so the two lists cannot drift apart", () => {
-    // A document that is in the library but not in this list is a document a reader
-    // can open a case from and then cannot ask a question about, with no explanation.
-    expect(LIBRARY_SOURCES.map((s) => s.name).sort()).toEqual(CATALOGUE.map((c) => c.name).sort());
+  it("offers a source for every catalogue entry, so the two cannot drift apart", () => {
+    // A case a reader can open and then cannot ask a question about, with no
+    // explanation, is the drift this guards. The library is a SUPERSET now: the
+    // benchmark documents have no hand-transcribed case behind them and do not need
+    // one, so this is containment rather than equality.
+    const sources = new Set(LIBRARY_SOURCES.map((s) => s.name));
+    for (const c of CATALOGUE) expect(sources, c.name).toContain(c.name);
+  });
+
+  it("gives every source a distinct name, since the name is the route", () => {
+    const names = LIBRARY_SOURCES.map((s) => s.name);
+    expect(new Set(names).size).toBe(names.length);
   });
 
   it("refuses a document the splitter refused, in the splitter's own words", () => {

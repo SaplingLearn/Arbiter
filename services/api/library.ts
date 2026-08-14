@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { refusalFor, type CaseName } from "./cases.js";
+import { isCaseName, refusalFor } from "./cases.js";
 import { stripBoilerplate } from "./pages.js";
 
 /**
@@ -37,7 +37,17 @@ import { stripBoilerplate } from "./pages.js";
 
 /** A document the library can search, or a stated reason why it cannot. */
 export interface LibrarySource {
-  name: CaseName;
+  /**
+   * Stable id, and NOT a CaseName any more.
+   *
+   * The library began as the documents the six prepared cases were transcribed from,
+   * so the two lists were the same list. They are not: a document is askable whether
+   * or not anybody has hand-transcribed findings out of it, and the benchmark needs
+   * documents in quantity while cases are made one at a time by a person. Every
+   * catalogue case still has a source here - the test holds that - but the library is
+   * now the larger set.
+   */
+  name: string;
   label: string;
   /** Repo-relative path, so a reader can open the file the answer cites. */
   document: string;
@@ -48,7 +58,7 @@ export interface LibrarySource {
 
 /** What a source is before the filesystem has been consulted. */
 export interface SourceFile {
-  name: CaseName;
+  name: string;
   label: string;
   /** null where the case was never built from a document at all. */
   path: string | null;
@@ -74,6 +84,74 @@ export const LIBRARY_SOURCES: SourceFile[] = [
     name: "slynd",
     label: "Slynd (drospirenone) - FDA NDA 211367 multi-disciplinary review",
     path: "data/raw/approval-packages/modern-fda-multidiscipline-211367.pdf",
+  },
+  // The benchmark set, added 2026-08-14. Every one is an FDA multi-disciplinary
+  // review of an approved drug, fetched from accessdata.fda.gov by NDA number and
+  // screened with data/prep/measure_pdf.py before being listed here: 188-398 pages
+  // each, 362,000-899,000 extractable characters, zero sparse pages.
+  //
+  // Chosen to VARY along the axis the product cares about, because a set that only
+  // contains drugs with liver findings measures willingness to say "danger" and
+  // nothing else - which is the exact failure HANDOVER section 13 records. Turalio
+  // carries a boxed warning for hepatotoxicity; Lumakras, Retevmo, Trikafta, Krazati
+  // and Inrebic report liver findings without one; Orgovyx, Qinlock, Nubeqa, Xpovio,
+  // Tazverik and Exkivity are approved drugs whose labels carry no liver warning at
+  // all; and Slynd is a 505(b)(2) with no new nonclinical studies, where the only
+  // correct answer to most questions is that the document does not say.
+  {
+    name: "lumakras",
+    label: "Lumakras (sotorasib) - FDA NDA 214665 multi-disciplinary review",
+    path: "data/raw/approval-packages/lumakras-214665-multidiscipline.pdf",
+  },
+  {
+    name: "retevmo",
+    label: "Retevmo (selpercatinib) - FDA NDA 213246 multi-disciplinary review",
+    path: "data/raw/approval-packages/retevmo-213246-multidiscipline.pdf",
+  },
+  {
+    name: "trikafta",
+    label: "Trikafta (elexacaftor/tezacaftor/ivacaftor) - FDA NDA 212273 multi-disciplinary review",
+    path: "data/raw/approval-packages/trikafta-212273-multidiscipline.pdf",
+  },
+  {
+    name: "krazati",
+    label: "Krazati (adagrasib) - FDA NDA 216340 multi-disciplinary review",
+    path: "data/raw/approval-packages/krazati-216340-multidiscipline.pdf",
+  },
+  {
+    name: "inrebic",
+    label: "Inrebic (fedratinib) - FDA NDA 212327 multi-disciplinary review",
+    path: "data/raw/approval-packages/inrebic-212327-multidiscipline.pdf",
+  },
+  {
+    name: "orgovyx",
+    label: "Orgovyx (relugolix) - FDA NDA 214621 multi-disciplinary review",
+    path: "data/raw/approval-packages/orgovyx-214621-multidiscipline.pdf",
+  },
+  {
+    name: "qinlock",
+    label: "Qinlock (ripretinib) - FDA NDA 213973 multi-disciplinary review",
+    path: "data/raw/approval-packages/qinlock-213973-multidiscipline.pdf",
+  },
+  {
+    name: "nubeqa",
+    label: "Nubeqa (darolutamide) - FDA NDA 212099 multi-disciplinary review",
+    path: "data/raw/approval-packages/nubeqa-212099-multidiscipline.pdf",
+  },
+  {
+    name: "xpovio",
+    label: "Xpovio (selinexor) - FDA NDA 212306 multi-disciplinary review",
+    path: "data/raw/approval-packages/xpovio-212306-multidiscipline.pdf",
+  },
+  {
+    name: "tazverik",
+    label: "Tazverik (tazemetostat) - FDA NDA 211723 multi-disciplinary review",
+    path: "data/raw/approval-packages/tazverik-211723-multidiscipline.pdf",
+  },
+  {
+    name: "exkivity",
+    label: "Exkivity (mobocertinib) - FDA NDA 215310 multi-disciplinary review",
+    path: "data/raw/approval-packages/exkivity-215310-multidiscipline.pdf",
   },
   {
     name: "tak994",
@@ -113,7 +191,7 @@ export class LibraryStore {
   list(): LibrarySource[] {
     return this.sources
       .map((s): LibrarySource => {
-        const refused = refusalFor(s.name);
+        const refused = isCaseName(s.name) ? refusalFor(s.name) : null;
         if (refused !== null) {
           return { name: s.name, label: s.label, document: refused.document, askable: false, reason: refused.splitterReason };
         }
@@ -136,7 +214,7 @@ export class LibraryStore {
 
   /** The filename an answer's citation carries. The full path is what a reader needs
    *  to open the file; the basename is what fits in a citation row. */
-  filenameFor(name: CaseName): string {
+  filenameFor(name: string): string {
     const source = this.sources.find((s) => s.name === name);
     return source?.path === null || source?.path === undefined ? "-" : basename(source.path);
   }
@@ -151,7 +229,7 @@ export class LibraryStore {
    * unreadable document becomes an honest "nothing matches" instead of a 500 that
    * names no document.
    */
-  textFor(name: CaseName, python = process.env["PYTHON"] ?? "python"): { page: number; text: string }[] {
+  textFor(name: string, python = process.env["PYTHON"] ?? "python"): { page: number; text: string }[] {
     const cache = join(this.cacheRoot, `${name}.pages.json`);
     if (existsSync(cache)) {
       try {

@@ -39,6 +39,7 @@ import { loadFixture, pagesFor, verifyFixture, type EvalItem } from "./retrieval
 
 export interface AskItemResult {
   id: string;
+  document: string;
   kind: EvalItem["kind"];
   question: string;
   answerable: boolean;
@@ -107,6 +108,7 @@ export async function scoreOne(item: EvalItem, k = 8): Promise<AskItemResult> {
 
   return {
     id: item.id,
+    document: item.document,
     kind: item.kind,
     question: item.question,
     answerable,
@@ -144,6 +146,18 @@ export function summarise(items: AskItemResult[], model: string): AskReport {
     errors: items.filter((i) => i.error !== undefined).length,
     items,
   };
+}
+
+export function byDocument(items: AskItemResult[]): { document: string; n: number; stated: number; refusedOf: number; refused: number }[] {
+  const docs = new Map<string, AskItemResult[]>();
+  for (const i of items) docs.set(i.document, [...(docs.get(i.document) ?? []), i]);
+  return [...docs.entries()].map(([document, xs]) => ({
+    document,
+    n: xs.filter((x) => x.kind === "answerable").length,
+    stated: xs.filter((x) => x.statedFact === true).length,
+    refusedOf: xs.filter((x) => x.kind === "unanswerable").length,
+    refused: xs.filter((x) => x.refused === true).length,
+  })).sort((a, b) => (a.document < b.document ? -1 : 1));
 }
 
 export function formatAskReport(r: AskReport): string[] {
@@ -245,7 +259,7 @@ if (invokedDirectly) {
     } catch (e) {
       console.log(`ERROR ${e instanceof Error ? e.message : String(e)}`);
       results.push({
-        id: item.id, kind: item.kind, question: item.question, answerable: false, answer: "",
+        id: item.id, document: item.document, kind: item.kind, question: item.question, answerable: false, answer: "",
         citedPages: [], goldPages: item.goldPages.map((g) => g.page), statedFact: false,
         citationPrecision: null, citationRecall: null, refused: null,
         error: e instanceof Error ? e.message : String(e),
@@ -255,6 +269,15 @@ if (invokedDirectly) {
 
   const report = summarise(results, model);
   console.log(`\n${formatAskReport(report).join("\n")}`);
+
+  // Broken out because an average over fourteen documents can hide one that fails
+  // outright, and "does the number hold when the document changes" is the question a
+  // varied document set exists to answer.
+  console.log("\nby document");
+  for (const d of byDocument(results)) {
+    const refusal = d.refusedOf === 0 ? "" : `   refused ${d.refused}/${d.refusedOf}`;
+    console.log(`  ${d.document.padEnd(14)} ${String(d.stated).padStart(2)}/${String(d.n).padEnd(2)} stated the fact${refusal}`);
+  }
 
   let consistency: ConsistencyResult[] = [];
   if (repeats > 1) {
