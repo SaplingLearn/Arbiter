@@ -264,6 +264,7 @@ describe("Reveal", () => {
           ],
           contested: ["f1"],
           oneSided: [{ findingId: "f2", call: "advance" }],
+          agreement: { raters: 3, pairwiseAgreement: 1 / 3, dissenters: 1 },
         }}
       />,
     );
@@ -293,6 +294,7 @@ describe("Reveal", () => {
           ],
           contested: [],
           oneSided: [],
+          agreement: { raters: 3, pairwiseAgreement: 1 / 3, dissenters: 1 },
         }}
       />,
     );
@@ -300,6 +302,34 @@ describe("Reveal", () => {
     for (const banned of ["majority", "minority", "outvoted", "outnumber", "2 of 3", "won"]) {
       expect(text).not.toContain(banned);
     }
+  });
+
+  it("states the room's agreement as pairs, with what it is not, and the published scale", () => {
+    render(
+      <Reveal
+        nameOf={(id) => id}
+        view={view}
+        unanimity={{ unanimous: false, call: null, concerns: [] }}
+        disagreement={{
+          split: [
+            { call: "advance", participantIds: ["bea", "cal"] },
+            { call: "do_not_advance", participantIds: ["ann"] },
+          ],
+          contested: [],
+          oneSided: [],
+          // 3 raters, one dissenting: agreeing pairs 1 of 3, so 33%. NOT 67%,
+          // which is the headcount reading of "two of three agreed".
+          agreement: { raters: 3, pairwiseAgreement: 1 / 3, dissenters: 1 },
+        }}
+      />,
+    );
+    const line = screen.getByTestId("case-agreement").textContent ?? "";
+    expect(line).toContain("33%");
+    expect(line).not.toContain("67%");
+    // The disclaimer is part of the feature, not decoration: a bare percentage on
+    // this screen would be read as a result.
+    expect(line).toMatch(/does not weigh the positions/i);
+    expect(line).toMatch(/kappa 0\.60/);
   });
 
   it("says nothing about a split when the room did not split", () => {

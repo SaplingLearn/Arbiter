@@ -403,9 +403,30 @@ describe("disagreementReport - the crux, without a model", () => {
   });
 
   it("never says who is right - it has nowhere to put that", () => {
+    // An exact key set, not a subset check, and that is the point: the guard is
+    // against a field being ADDED that adjudicates. `agreement` was added on
+    // 2026-08-14 and is admissible under spec §6.4, which permits a count shown to
+    // a later reader as context and forbids one entering a verdict. It measures the
+    // ROOM and says nothing about the compound or about which camp is correct.
+    //
+    // Anything else arriving in this list needs the same argument made in writing.
+    // A `likelyCorrect`, a `weight`, or a `recommended` field would fail on the
+    // grounds this test exists for, and the failure is the feature.
     let c = submitAll(CASE, { ann: "advance", bea: "do_not_advance" });
     c = submitAll(c, { cal: "advance" });
-    expect(Object.keys(disagreementReport(c)!).sort()).toEqual(["contested", "oneSided", "split"]);
+    expect(Object.keys(disagreementReport(c)!).sort()).toEqual(["agreement", "contested", "oneSided", "split"]);
+  });
+
+  it("measures the room without ranking the camps", () => {
+    // ann and cal say advance, bea says do_not_advance. Agreeing pairs = 1 of 3.
+    // Not "2 of 3", which is the headcount reading and would put a majority on
+    // screen wearing a percentage sign.
+    let c = submitAll(CASE, { ann: "advance", bea: "do_not_advance" });
+    c = submitAll(c, { cal: "advance" });
+    const a = disagreementReport(c)!.agreement!;
+    expect(a.raters).toBe(3);
+    expect(a.pairwiseAgreement).toBeCloseTo(1 / 3, 10);
+    expect(a.dissenters).toBe(1);
   });
 });
 

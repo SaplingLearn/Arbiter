@@ -1,3 +1,4 @@
+import { caseAgreement, type CaseAgreement } from "./agreement.js";
 import type { Inventory } from "./inventory.js";
 
 /**
@@ -442,6 +443,10 @@ export interface DisagreementReport {
   contested: string[];
   /** Cited by exactly one camp - evidence the others did not answer. */
   oneSided: { findingId: string; call: Call }[];
+  /** How much the room agreed. Context for a later reader and nothing else: §6.4
+   *  forbids a count from entering a verdict, and this is measured after the fact
+   *  rather than consulted during one. Null below two positions. */
+  agreement: CaseAgreement | null;
 }
 
 export function disagreementReport(c: DeliberationCase): DisagreementReport | null {
@@ -469,7 +474,7 @@ export function disagreementReport(c: DeliberationCase): DisagreementReport | nu
     else oneSided.push({ findingId, call: [...camps][0]! });
   }
 
-  return { split, contested, oneSided };
+  return { split, contested, oneSided, agreement: caseAgreement(c.positions.map((p) => p.call)) };
 }
 
 /**

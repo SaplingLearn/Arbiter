@@ -139,12 +139,20 @@ export interface UnanimityReport {
  * never ranks them: nothing here carries a size, because spec section 6.4 forbids
  * counts from deciding anything and a headcount on screen is read as a result.
  */
+export interface CaseAgreement {
+  raters: number;
+  pairwiseAgreement: number;
+  dissenters: number;
+}
+
 export interface DisagreementReport {
   split: { call: Call; participantIds: string[] }[];
   /** Cited by more than one camp: the same evidence, read differently. */
   contested: string[];
   /** Cited by exactly one camp: evidence the others did not answer. */
   oneSided: { findingId: string; call: Call }[];
+  /** Context for a later reader. It weighs nothing and decides nothing. */
+  agreement: CaseAgreement | null;
 }
 
 export interface AskAnswer {

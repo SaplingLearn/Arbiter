@@ -626,6 +626,23 @@ export function Reveal({ view, unanimity, disagreement, nameOf }: {
               position rests on that the others did not address.
             </p>
           )}
+
+          {/* The number, with what it is NOT stated in the same breath, and the
+              published figures beside it so a reader has something to hold it
+              against. Pairs rather than people: three of four agreeing is 0.5
+              agreement among the four, and printing "3 of 4" would be the headcount
+              §6.4 forbids wearing a percentage sign. */}
+          {disagreement.agreement !== null && (
+            <p className="small muted" data-testid="case-agreement">
+              <strong>{Math.round(disagreement.agreement.pairwiseAgreement * 100)}%</strong>{" "}
+              pairwise agreement across {disagreement.agreement.raters} positions. Context
+              for the record: it does not weigh the positions, it does not affect the
+              adjudication, and nobody is bound by it. For scale, expert liver-injury
+              causality assessment among hepatologists reaches weighted kappa 0.60, and
+              one study found 27% initial complete agreement among three independent
+              reviewers across 187 cases.
+            </p>
+          )}
         </>
       )}
     </section>
