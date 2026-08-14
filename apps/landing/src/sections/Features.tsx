@@ -40,20 +40,43 @@ function Feature({
   );
 }
 
-/** R3 is the one at full strength; the rest fade by how little they moved the result. */
+/**
+ * The six registered rule strengths, from rules/ruleset-v2.0.json, drawn to scale.
+ *
+ * The comment here used to read "R3 is the one at full strength; the rest fade by
+ * how little they moved the result", over widths of 34/48/82/40/52/30 that
+ * corresponded to no quantity in results/ and contradicted the registered
+ * strengths on their face - R1 is 0.90, the highest of the six, and was drawn
+ * shortest but one. Decoration is fine on a marketing page; decoration with a
+ * comment claiming a source is a false claim, and this one was checkable in ten
+ * seconds against a file the same page links to.
+ *
+ * Widths are now the strengths themselves as percentages, so the bars are a chart
+ * of something real and the caption can say which file.
+ */
 const FUSION_BARS: readonly { id: string; width: string; opacity: number; on?: boolean }[] = [
-  { id: "R1", width: "34%", opacity: 0.4 },
-  { id: "R2", width: "48%", opacity: 0.55 },
-  { id: "R3", width: "82%", opacity: 1, on: true },
-  { id: "R4", width: "40%", opacity: 0.55 },
-  { id: "R5", width: "52%", opacity: 0.4 },
-  { id: "R6", width: "30%", opacity: 0.3 },
+  { id: "R1", width: "90%", opacity: 1, on: true },
+  { id: "R2", width: "85%", opacity: 0.85 },
+  { id: "R3", width: "85%", opacity: 0.85 },
+  { id: "R4", width: "50%", opacity: 0.55 },
+  { id: "R5", width: "60%", opacity: 0.6 },
+  { id: "R6", width: "40%", opacity: 0.4 },
 ];
 
+/** Ornament, and labelled as such. These heights encode nothing; the robustness
+ *  figure this section quotes in words is 0.992, from metric5 in results/metrics.json. */
 const ROBUSTNESS_BARS = ["58%", "74%", "64%", "92%", "80%", "70%"] as const;
 
-/** Q C T V R A K D P M - the stream keys. T, transporter, is the one that is live. */
-const STREAM_GLYPHS = ["Q", "C", "T", "V", "R", "A", "K", "D", "P", "M"] as const;
+/**
+ * The SIX evidence streams, from packages/engine/src/types.ts: qsar, cytotox,
+ * toxicogenomics, transporter, invivo_rodent, invivo_nonrodent.
+ *
+ * There were ten glyphs here, commented "the stream keys", which implied four
+ * streams that do not exist while the section's own copy names four that do. A
+ * decorative row is fine; a decorative row presented as a key is a claim about
+ * how much evidence the system reads.
+ */
+const STREAM_GLYPHS = ["Q", "C", "G", "T", "R", "N"] as const;
 
 const SIGNOFF_ROWS = [
   { compound: "Cyclosporine", position: "Do not adv.", conflict: "0.122", tone: "t-good", opacity: 1 },

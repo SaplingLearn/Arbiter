@@ -262,6 +262,20 @@ describe("every compound named on the page is one the run actually scored", () =
 });
 
 describe("honesty", () => {
+  it("never prints a balanced accuracy without its class balance", () => {
+    // THE OMISSION THAT LET 0.750 STAND. results/metrics.json carried
+    // singleClass: true and balancedAccuracyCi: null the whole time, and
+    // HANDOVER 13.1 records that those were the fields nobody read. A figure
+    // without its denominator and class balance is the defect this project
+    // corrected, and a marketing page is where it would reappear first.
+    renderLanding();
+    const disclosure = screen.getByTestId("class-balance").textContent ?? "";
+    expect(disclosure).toMatch(/90\.2%/);
+    expect(disclosure).toMatch(/61/);
+    expect(disclosure).toMatch(/substituted 0\.5/);
+    expect(disclosure).toMatch(/no honest interval/i);
+  });
+
   it("states the honest result and the abstention rate on the page, not only in the table", () => {
     // Master spec section 9a: the caveats are the part a compressed screen-share
     // loses first, so they are asserted here rather than trusted to survive a

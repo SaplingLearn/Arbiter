@@ -90,6 +90,22 @@ export function Result() {
           </tbody>
         </table>
 
+        {/* THE FIELDS NOBODY READ. results/metrics.json carried singleClass: true
+            and balancedAccuracyCi: null all along, and HANDOVER 13.1 records that
+            those were exactly the fields nobody read - which is how 0.750 survived
+            as a headline for two weeks. A balanced accuracy printed without its
+            class balance is the precise omission this project corrected, so
+            reintroducing it while cleaning up after it would be the worst version
+            of this page. */}
+        <p data-reveal data-testid="class-balance" className="small muted" style={{ maxWidth: 660, marginTop: 24 }}>
+          Read these with their denominators. The conflict subset is 61 compounds and
+          was 90.2% positive under the v1.0 target; ARBITER committed on four of them,
+          all carrying a single label, so half of that balanced accuracy is a
+          substituted 0.5 rather than an estimate and there is no honest interval to
+          attach to it. That is why coverage is the finding here and the accuracy
+          column is not.
+        </p>
+
         <div className="cells cells--3 findings">
           {FINDINGS.map((f) => (
             <div data-reveal key={f.kicker} className={`cell finding${f.fill ? " cell--fill" : ""}`}>
