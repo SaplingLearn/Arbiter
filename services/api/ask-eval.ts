@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-import { buildIndex, search } from "./retrieval.js";
+import { DEFAULT_K, buildIndex, search } from "./retrieval.js";
 import { handleAsk } from "./ask.js";
 import { completeFromEnv } from "./interpret.js";
 import { loadFixture, pagesFor, verifyFixture, type EvalItem } from "./retrieval-eval.js";
@@ -87,7 +87,7 @@ export function wilson(successes: number, n: number, z = 1.96): [number, number]
 const matchesAll = (answer: string, patterns: string[]): boolean =>
   patterns.every((p) => new RegExp(p, "i").test(answer));
 
-export async function scoreOne(item: EvalItem, k = 8): Promise<AskItemResult> {
+export async function scoreOne(item: EvalItem, k = DEFAULT_K): Promise<AskItemResult> {
   const pages = pagesFor(item.document);
   const passages = search(
     buildIndex([{ documentId: item.document, filename: item.document, pages }]),

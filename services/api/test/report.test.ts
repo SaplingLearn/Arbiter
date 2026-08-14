@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { renderHtml, type DocumentRow } from "../report.js";
+import { loadExperiments, renderHtml, type DocumentRow } from "../report.js";
 import type { EvalReport } from "../retrieval-eval.js";
 import type { AskReport } from "../ask-eval.js";
 
@@ -26,9 +27,12 @@ const doc = (over: Partial<DocumentRow> = {}): DocumentRow => ({
   askable: true, pages: 264, characters: 528734, megabytes: 6.1, sha256: "abc123", ...over,
 });
 
+/** The real experiment log, so the test fails if the report stops reading it. */
+const experiments = loadExperiments();
+
 const render = (over: Partial<Parameters<typeof renderHtml>[0]> = {}): string =>
   renderHtml({
-    retrieval, ask, documents: [doc()], fixtureItems: 55, fixtureDocuments: 14,
+    retrieval, ask, documents: [doc()], experiments, fixtureItems: 55, fixtureDocuments: 14,
     commit: "deadbee", generatedAt: "2026-08-14 01:00 UTC", ...over,
   });
 
@@ -87,5 +91,34 @@ describe("input validation", () => {
   it("refuses an empty results file rather than rendering an empty report", async () => {
     const { checkAskResults } = await import("../report.js");
     expect(() => checkAskResults({ ...ask, items: [] })).toThrow(/no items/);
+  });
+});
+
+describe("nothing hardcoded", () => {
+  it("carries no percentage of its own, only the ones it was given", () => {
+    // The report claimed every number came from a results file while carrying sixteen
+    // typed percentages, and the prose still said the model reads eight pages after k
+    // became sixteen. This is the guard against that returning.
+    const source = readFileSync("services/api/report.ts", "utf8");
+    const body = source.slice(source.indexOf("export function renderHtml"));
+    const literals = body.match(/(?<![.\w-])\d{1,3}\.\d%/g) ?? [];
+    expect(literals).toEqual([]);
+  });
+
+  it("reads the page count from the run rather than naming a number", () => {
+    const html = render({ retrieval: { ...retrieval, k: 99 } });
+    expect(html).toContain("retrieves 99 pages");
+  });
+
+  it("renders every experiment group from the log", () => {
+    const html = render();
+    for (const g of experiments) expect(html, g.id).toContain(g.title);
+  });
+
+  it("shows the conditions each experiment was measured under", () => {
+    // A row measured on three documents and one measured on fourteen are not
+    // comparable, and a table that hides that invites the comparison anyway.
+    const html = render();
+    expect(html).toMatch(/<th class="n">k<\/th><th class="n">docs<\/th><th class="n">n<\/th>/);
   });
 });

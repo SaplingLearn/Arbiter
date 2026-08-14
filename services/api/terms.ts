@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 /**
  * Turning what a reader typed and what the document wrote into the same tokens.
  *
@@ -166,25 +168,30 @@ export function stem(word: string): string {
 /* ------------------------------------------------------------------- phrases */
 
 /**
- * Multi-word forms that mean a single term, expanded before tokenisation.
+ * The curated vocabulary, read from `data/retrieval-vocabulary.json`.
  *
- * Every entry is a form that appears in FDA and EMA review prose, and each was added
- * because a question in the fixture used one form while the document used the other.
+ * NOT A LIST IN THIS FILE. It is domain knowledge rather than logic: the person who
+ * knows that a review writes "hepatic" where a reader types "liver" is a toxicologist,
+ * not whoever last edited this module, and making them open a TypeScript file to say
+ * so is how a vocabulary stops being maintained. Every entry trades precision for
+ * recall, so `npm run retrieval:eval` is what decides whether an addition paid.
  */
-const PHRASES: [RegExp, string][] = [
-  [/no[\s-]*observed[\s-]*adverse[\s-]*effect[\s-]*level/g, "noael"],
-  [/no[\s-]*observed[\s-]*effect[\s-]*level/g, "noel"],
-  [/lowest[\s-]*observed[\s-]*adverse[\s-]*effect[\s-]*level/g, "loael"],
-  [/alanine[\s-]*amino[\s-]*transferase/g, "alt"],
-  [/aspartate[\s-]*amino[\s-]*transferase/g, "ast"],
-  [/gamma[\s-]*glutamyl[\s-]*transferase/g, "ggt"],
-  [/alkaline[\s-]*phosphatase/g, "alp"],
-  [/area[\s-]*under[\s-]*the[\s-]*curve/g, "auc"],
-  [/drug[\s-]*induced[\s-]*liver[\s-]*injury/g, "dili"],
-  [/exposure[\s-]*margin|safety[\s-]*margin|margin[\s-]*of[\s-]*exposure|safety[\s-]*multiple/g, "margin"],
-  [/repeat[\s-]*dose|repeated[\s-]*dose/g, "repeatdose"],
-  [/animal[\s-]*stud(?:y|ies)|nonclinical[\s-]*stud(?:y|ies)|non-clinical[\s-]*stud(?:y|ies)/g, "nonclinical"],
-];
+interface Vocabulary {
+  phrases: { pattern: string; expandsTo: string }[];
+  concepts: Record<string, string[]>;
+  stopwords: string[];
+}
+
+export const VOCABULARY_PATH = "data/retrieval-vocabulary.json";
+
+export function loadVocabulary(path = VOCABULARY_PATH): Vocabulary {
+  return JSON.parse(readFileSync(path, "utf8")) as Vocabulary;
+}
+
+const VOCABULARY = loadVocabulary();
+
+/** Compiled once. A fresh RegExp per call would recompile twelve patterns per page. */
+const PHRASES: [RegExp, string][] = VOCABULARY.phrases.map((p) => [new RegExp(p.pattern, "g"), p.expandsTo]);
 
 /**
  * The text with any recognised phrase's short form appended.
@@ -207,28 +214,7 @@ export function expandPhrases(text: string): string {
 
 /* ------------------------------------------------------------------ concepts */
 
-/**
- * Words a reviewer uses for the same thing, each mapped onto one concept token.
- *
- * SMALL ON PURPOSE. Every entry buys recall with precision, and an aggressive list
- * would quietly make the retriever worse while looking like an improvement - which is
- * exactly what the retrieval eval is for. The liver entry earns its place three times
- * over: "hepatotoxicity in the animal studies", "does this drug damage the liver" and
- * "were transaminases elevated" all missed every gold page, against a document whose
- * relevant pages say "hepatic", "hemosiderin deposition" and "ALT and AST".
- */
-const CONCEPTS: Record<string, string[]> = {
-  c_liver: [
-    "liver", "hepatic", "hepatotoxicity", "hepatotoxic", "hepatocellular", "hepatocyte",
-    "hepatobiliary", "hepatitis", "biliary", "cholestasis", "cholestatic", "dili",
-    "transaminase", "aminotransferase", "alt", "ast", "ggt", "alp", "bilirubin",
-  ],
-  c_noael: ["noael", "noel", "loael"],
-  c_exposure: ["auc", "cmax", "exposure", "margin", "multiple"],
-  c_recovery: ["recovery", "reversibility", "reversible", "resolved", "resolution"],
-  c_nonclinical: ["nonclinical", "preclinical", "animal", "toxicology", "toxicity"],
-  c_histopathology: ["histopathology", "histopathological", "histology", "histological", "microscopic", "necrosis", "necrotizing"],
-};
+const CONCEPTS: Record<string, string[]> = VOCABULARY.concepts;
 
 /** Surface form (stemmed) to the concepts it belongs to. Built once. */
 const CONCEPT_OF = new Map<string, string[]>();
@@ -245,19 +231,7 @@ export function conceptsFor(stemmed: string): string[] {
 
 /* ------------------------------------------------------------------ pipeline */
 
-/**
- * Words carried by nearly every page of a regulatory document, which therefore
- * separate nothing. Kept deliberately SHORT: an aggressive list silently removes
- * terms that are discriminating in this domain, and BM25's idf already suppresses
- * common words on its own. This is a floor for the obvious, not a substitute for it.
- */
-const STOP = new Set([
-  "the", "a", "an", "and", "or", "of", "to", "in", "for", "on", "at", "by", "with",
-  "is", "was", "were", "are", "be", "been", "that", "this", "these", "those", "it",
-  "as", "from", "has", "have", "had", "not", "no", "any", "all", "which", "than",
-  "there", "their", "they", "we", "its", "if", "but", "can", "may", "will", "would",
-  "what", "does", "do", "did", "how", "when", "where", "who", "why",
-]);
+const STOP = new Set(VOCABULARY.stopwords);
 
 /**
  * The one tokenisation, used for the query and for the page.

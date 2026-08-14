@@ -66,6 +66,56 @@ export function checkAskResults(ask: AskReport): void {
   }
 }
 
+export interface ExperimentRow {
+  label: string;
+  fixture: string;
+  documents: number;
+  questions: number;
+  k: number;
+  measured: string;
+  hit: number;
+  recall: number;
+  mrr: number;
+  stability: number;
+  verdict: "baseline" | "kept" | "rejected";
+  note?: string;
+}
+
+export interface ExperimentGroup {
+  id: string;
+  title: string;
+  blurb: string;
+  rows: ExperimentRow[];
+}
+
+export const EXPERIMENTS_PATH = "data/retrieval-experiments.json";
+
+/**
+ * The variants that were built and measured, as data rather than as a table typed
+ * into this template.
+ *
+ * They were hardcoded here first, and that was the same mistake this file's header
+ * warns about, committed by the file that warns about it: sixteen percentages living
+ * in a report that claims every number comes from a results file. Worse, they had
+ * already begun to drift - the prose still said the model reads eight pages after k
+ * became sixteen.
+ */
+export function loadExperiments(path = EXPERIMENTS_PATH): ExperimentGroup[] {
+  return (JSON.parse(readFileSync(path, "utf8")) as { groups: ExperimentGroup[] }).groups;
+}
+
+/** Rows carry the conditions they were measured under, because a row measured on three
+ *  documents and one measured on fourteen are not comparable and must not look it. */
+export function experimentTable(group: ExperimentGroup): string {
+  const cls = (r: ExperimentRow, best: boolean): string =>
+    r.verdict === "kept" && best ? "n win" : r.verdict === "rejected" && !best ? "n" : "n";
+  const bestRecall = Math.max(...group.rows.map((r) => r.recall));
+  return `<table>
+<tr><th>${esc(group.title)}</th><th class="n">hit@k</th><th class="n">recall@k</th><th class="n">MRR</th><th class="n">stability</th><th class="n">k</th><th class="n">docs</th><th class="n">n</th></tr>
+${group.rows.map((r) => `<tr><td>${esc(r.label)}${r.verdict === "rejected" ? "" : ' <span class="win">&#10003;</span>'}${r.note === undefined ? "" : `<br><span class="sub">${esc(r.note)}</span>`}</td><td class="${cls(r, false)}">${pct(r.hit)}</td><td class="${cls(r, r.recall === bestRecall)}">${pct(r.recall)}</td><td class="n">${r.mrr.toFixed(3)}</td><td class="n">${pct(r.stability)}</td><td class="n">${r.k}</td><td class="n">${r.documents}</td><td class="n">${r.questions}</td></tr>`).join("\n")}
+</table>`;
+}
+
 export interface DocumentRow {
   name: string;
   label: string;
@@ -133,12 +183,21 @@ export function renderHtml(input: {
   retrieval: EvalReport;
   ask: AskReport & { repeats?: number; consistency?: { id: string; sameAnswerable: boolean; sameFact: boolean; citationOverlap: number }[] };
   documents: DocumentRow[];
+  experiments: ExperimentGroup[];
   fixtureItems: number;
   fixtureDocuments: number;
   commit: string;
   generatedAt: string;
 }): string {
-  const { retrieval, ask, documents, commit, generatedAt } = input;
+  const { retrieval, ask, documents, experiments, commit, generatedAt } = input;
+  const group = (id: string): ExperimentGroup | undefined => experiments.find((g) => g.id === id);
+  const table = (id: string): string => {
+    const g = group(id);
+    return g === undefined ? "" : `<p>${esc(g.blurb)}</p>${experimentTable(g)}`;
+  };
+  // The number of pages an answer reads is read from the run, never written here. It
+  // was "eight" in three sentences of prose for as long as it took k to change.
+  const k = retrieval.k;
   const askable = documents.filter((d) => d.askable);
   const refused = documents.filter((d) => !d.askable);
 
@@ -167,7 +226,7 @@ reproduce . . . . . . npm run retrieval:eval &nbsp;|&nbsp; npm run ask:eval -- -
 </div>
 
 <h2>1. What this measures, and what it does not</h2>
-<p>The surface takes a question about one regulatory review, retrieves eight pages, and answers from those pages while naming the page each claim rests on. Two things can go wrong independently, so they are measured separately: the retriever can fail to surface the page holding the answer, and the model can misread a page it was given. Every number below separates them.</p>
+<p>The surface takes a question about one regulatory review, retrieves ${k} pages, and answers from those pages while naming the page each claim rests on. Two things can go wrong independently, so they are measured separately: the retriever can fail to surface the page holding the answer, and the model can misread a page it was given. Every number below separates them.</p>
 <div class="note">
 <p style="margin:0"><strong>The honest limits, stated before the results rather than after.</strong> The gold pages were located by regular expression and then read, which biases every comparison toward a lexical retriever. The answer check asks whether the answer <em>states</em> the fact its gold quote carries &mdash; it catches an answer that missed the number, not one that described it wrongly. Graded correctness needs a judge model that is not the answering model, reported with a human-agreement figure beside it; that is not in this report. And the gold set names pages that are <em>sufficient</em>, never all the pages that would do, so citation overlap outside the gold set is not error.</p>
 </div>
@@ -195,17 +254,11 @@ ${refused.map((d) => `<tr><td>${esc(d.label)}</td><td>${esc(d.reason ?? "")}</td
 <p>Measured over ${retrieval.answerable} answerable questions; ${retrieval.unanswerable} unanswerable questions are held aside, since they have no gold page by construction and counting them as misses would report a retrieval failure for a question the document cannot answer.</p>
 
 <h3>Where it started, and what moved it</h3>
-<p>The retriever was measured before it was changed, so every gain below is a difference between two runs of the same fixture rather than an assertion.</p>
-<table>
-<tr><th>retriever</th><th class="n">hit@8</th><th class="n">recall@8</th><th class="n">MRR</th><th class="n">stability</th></tr>
-<tr><td>BM25, as it was</td><td class="n">55.6%</td><td class="n">50.0%</td><td class="n">0.361</td><td class="n">12.9%</td></tr>
-<tr><td>+ stemming, phrase expansion, concept map</td><td class="n win">83.3%</td><td class="n win">75.0%</td><td class="n win">0.546</td><td class="n win">35.7%</td></tr>
-<tr><td>+ page boilerplate removed</td><td class="n">83.3%</td><td class="n win">77.8%</td><td class="n">0.546</td><td class="n">35.9%</td></tr>
-</table>
-<p class="sub">The first three rows were measured on the three documents available at the time; the headline figures above are the full ${input.fixtureDocuments}-document set.</p>
+${table("history")}
+${table("k")}
 
 <h3>Paraphrase stability by question group</h3>
-<p>Questions a reviewer would call the same question. This needs no answer key at all, which is why it is the most trustworthy number here: it started at 12.9%, meaning an acronym and its own expansion returned almost disjoint pages.</p>
+<p>Questions a reviewer would call the same question. This needs no answer key at all, which is why it is the most trustworthy number here: it began at ${(() => { const h = group("history")?.rows[0]; return h === undefined ? "its baseline" : pct(h.stability); })()}, meaning an acronym and its own expansion returned almost disjoint pages.</p>
 <table>
 <tr><th>question group</th><th class="n">page overlap between phrasings</th></tr>
 ${retrieval.stabilityByGroup.map((s) => `<tr><td class="mono">${esc(s.group)}</td><td class="n">${pct(s.overlap)}</td></tr>`).join("\n")}
@@ -244,26 +297,9 @@ ${[...byDoc.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([doc, xs]) =>
 <h2>5. What was built and rejected</h2>
 <p>Both of the obvious next upgrades were implemented, measured on this fixture, and removed. They are here because a report carrying only the improvements is an advertisement, and because the next person to have these ideas should see the numbers rather than repeat the work.</p>
 <h3>Sub-page windows</h3>
-<p>Scoring windows within a page rather than whole pages, so one relevant sentence is not diluted by two thousand characters of unrelated prose. Every setting that changed anything made recall worse.</p>
-<table>
-<tr><th>scoring unit</th><th class="n">hit@8</th><th class="n">recall@8</th><th class="n">MRR</th><th class="n">stability</th></tr>
-<tr><td>whole page</td><td class="n">83.3%</td><td class="n win">75.0%</td><td class="n">0.546</td><td class="n">35.7%</td></tr>
-<tr><td>60 / 30 tokens</td><td class="n">83.3%</td><td class="n bad">69.4%</td><td class="n">0.581</td><td class="n">30.1%</td></tr>
-<tr><td>120 / 60 tokens</td><td class="n">83.3%</td><td class="n bad">66.7%</td><td class="n">0.537</td><td class="n">31.0%</td></tr>
-<tr><td>240 / 120 tokens</td><td class="n bad">77.8%</td><td class="n bad">72.2%</td><td class="n">0.583</td><td class="n">31.8%</td></tr>
-<tr><td>400 / 200 tokens</td><td class="n">83.3%</td><td class="n">75.0%</td><td class="n">0.583</td><td class="n">38.1%</td></tr>
-</table>
-<p>The only setting that matched page-level scoring used a window larger than the median page, which is page scoring under another name.</p>
+${table("windows")}
 <h3>Dense retrieval and hybrid fusion</h3>
-<p>All pages embedded with <span class="mono">gemini-embedding-001</span>, scored alone and fused with BM25 by reciprocal rank fusion.</p>
-<table>
-<tr><th>retriever</th><th class="n">hit@8</th><th class="n">recall@8</th><th class="n">MRR</th><th class="n">stability</th></tr>
-<tr><td>BM25 + term normalisation</td><td class="n">83.3%</td><td class="n win">77.8%</td><td class="n">0.546</td><td class="n">35.9%</td></tr>
-<tr><td>dense only</td><td class="n">83.3%</td><td class="n bad">58.3%</td><td class="n bad">0.395</td><td class="n">37.3%</td></tr>
-<tr><td>hybrid RRF 1:1</td><td class="n">83.3%</td><td class="n bad">69.4%</td><td class="n win">0.628</td><td class="n">36.3%</td></tr>
-<tr><td>hybrid RRF 2:1 lexical</td><td class="n">83.3%</td><td class="n">75.0%</td><td class="n win">0.644</td><td class="n">34.2%</td></tr>
-</table>
-<p>The best hybrid ties the lexical retriever on whether the answering page reaches the model, and buys only its position among eight passages the model reads in full &mdash; against a network call per question, a vector cache larger than the documents, and the determinism that makes consistency attributable to the model rather than the retriever.</p>
+${table("dense")}
 <div class="note"><p style="margin:0"><strong>The failure was worth more than the feature.</strong> Dense retrieval scored badly because every page begins with the same running header, so each page's vector encoded the document's identity rather than its content, with cosine scores bunched between 0.70 and 0.74. BM25 had hidden that for free, since idf discounts a term appearing everywhere. Removing the header lifted lexical recall and cut roughly 8% of the tokens from every prompt the surface sends.</p></div>
 
 <h2>6. Reproducing this</h2>
@@ -294,6 +330,7 @@ if (invokedDirectly) {
     retrieval,
     ask,
     documents: documentRows(),
+    experiments: loadExperiments(),
     fixtureItems: items.length,
     fixtureDocuments: new Set(items.map((i) => i.document)).size,
     commit: gitCommit(),

@@ -1,0 +1,91 @@
+{
+  "version": "1.0",
+  "note": "The documents the library can search, as data. Adding one is an edit here and a file in data/raw/approval-packages - never a code change. `path: null` means the entry has no source document at all, which is a different fact from a document that failed to read; both end as not-askable with a stated reason, decided in services/api/library.ts. Every FDA entry is a multi-disciplinary review fetched from accessdata.fda.gov by the NDA number in its filename and screened with data/prep/measure_pdf.py before being listed. The set varies on purpose - a boxed hepatotoxicity warning, liver findings without one, approved drugs with no liver warning at all, and a 505(b)(2) with no nonclinical studies - because a set of only hepatotoxic drugs measures willingness to say danger and nothing else.",
+  "sources": [
+    {
+      "name": "turalio",
+      "label": "Turalio (pexidartinib) - FDA NDA 211810 multi-disciplinary review",
+      "path": "data/raw/approval-packages/turalio-211810-multidiscipline.pdf"
+    },
+    {
+      "name": "nipocalimab",
+      "label": "Imaavy (nipocalimab) - EMA CHMP assessment report",
+      "path": "data/raw/approval-packages/ema-epar-sample-imaavy.pdf"
+    },
+    {
+      "name": "slynd",
+      "label": "Slynd (drospirenone) - FDA NDA 211367 multi-disciplinary review",
+      "path": "data/raw/approval-packages/modern-fda-multidiscipline-211367.pdf"
+    },
+    {
+      "name": "lumakras",
+      "label": "Lumakras (sotorasib) - FDA NDA 214665 multi-disciplinary review",
+      "path": "data/raw/approval-packages/lumakras-214665-multidiscipline.pdf"
+    },
+    {
+      "name": "retevmo",
+      "label": "Retevmo (selpercatinib) - FDA NDA 213246 multi-disciplinary review",
+      "path": "data/raw/approval-packages/retevmo-213246-multidiscipline.pdf"
+    },
+    {
+      "name": "trikafta",
+      "label": "Trikafta (elexacaftor/tezacaftor/ivacaftor) - FDA NDA 212273 multi-disciplinary review",
+      "path": "data/raw/approval-packages/trikafta-212273-multidiscipline.pdf"
+    },
+    {
+      "name": "krazati",
+      "label": "Krazati (adagrasib) - FDA NDA 216340 multi-disciplinary review",
+      "path": "data/raw/approval-packages/krazati-216340-multidiscipline.pdf"
+    },
+    {
+      "name": "inrebic",
+      "label": "Inrebic (fedratinib) - FDA NDA 212327 multi-disciplinary review",
+      "path": "data/raw/approval-packages/inrebic-212327-multidiscipline.pdf"
+    },
+    {
+      "name": "orgovyx",
+      "label": "Orgovyx (relugolix) - FDA NDA 214621 multi-disciplinary review",
+      "path": "data/raw/approval-packages/orgovyx-214621-multidiscipline.pdf"
+    },
+    {
+      "name": "qinlock",
+      "label": "Qinlock (ripretinib) - FDA NDA 213973 multi-disciplinary review",
+      "path": "data/raw/approval-packages/qinlock-213973-multidiscipline.pdf"
+    },
+    {
+      "name": "nubeqa",
+      "label": "Nubeqa (darolutamide) - FDA NDA 212099 multi-disciplinary review",
+      "path": "data/raw/approval-packages/nubeqa-212099-multidiscipline.pdf"
+    },
+    {
+      "name": "xpovio",
+      "label": "Xpovio (selinexor) - FDA NDA 212306 multi-disciplinary review",
+      "path": "data/raw/approval-packages/xpovio-212306-multidiscipline.pdf"
+    },
+    {
+      "name": "tazverik",
+      "label": "Tazverik (tazemetostat) - FDA NDA 211723 multi-disciplinary review",
+      "path": "data/raw/approval-packages/tazverik-211723-multidiscipline.pdf"
+    },
+    {
+      "name": "exkivity",
+      "label": "Exkivity (mobocertinib) - FDA NDA 215310 multi-disciplinary review",
+      "path": "data/raw/approval-packages/exkivity-215310-multidiscipline.pdf"
+    },
+    {
+      "name": "tak994",
+      "label": "TAK-994 (narcolepsy) - extracted findings, no source PDF",
+      "path": null
+    },
+    {
+      "name": "tolcapone",
+      "label": "Tolcapone (Tasmar) - FDA medical review, 1998",
+      "path": "data/raw/approval-packages/tolcapone-20697-medical-review-p1.pdf"
+    },
+    {
+      "name": "troglitazone",
+      "label": "Troglitazone (Rezulin) - FDA approval package, 1997",
+      "path": "data/raw/approval-packages/troglitazone-020720-approval.pdf"
+    }
+  ]
+}

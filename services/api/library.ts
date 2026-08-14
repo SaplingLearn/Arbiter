@@ -65,110 +65,24 @@ export interface SourceFile {
 }
 
 /**
- * Declared askable-first, which `list` preserves inside each group. The labels name
- * the DOCUMENT rather than the compound - the picker is choosing what to search, and
- * "Turalio" is a case whereas "FDA NDA 211810 multi-disciplinary review" is a file.
+ * The documents, read from `data/library-sources.json`.
+ *
+ * NOT A LIST IN THIS FILE, and it was one until the benchmark needed eleven more
+ * documents and every addition meant editing TypeScript. A registry of what a
+ * deployment holds is data: adding a review is a line of JSON and a file in
+ * data/raw/approval-packages, and nobody has to recompile to change what is on offer.
+ *
+ * Order matters and is preserved: `list()` sorts only by askability, so the order
+ * declared in the file survives inside each group and the picker does not shuffle
+ * between page loads.
  */
-export const LIBRARY_SOURCES: SourceFile[] = [
-  {
-    name: "turalio",
-    label: "Turalio (pexidartinib) - FDA NDA 211810 multi-disciplinary review",
-    path: "data/raw/approval-packages/turalio-211810-multidiscipline.pdf",
-  },
-  {
-    name: "nipocalimab",
-    label: "Imaavy (nipocalimab) - EMA CHMP assessment report",
-    path: "data/raw/approval-packages/ema-epar-sample-imaavy.pdf",
-  },
-  {
-    name: "slynd",
-    label: "Slynd (drospirenone) - FDA NDA 211367 multi-disciplinary review",
-    path: "data/raw/approval-packages/modern-fda-multidiscipline-211367.pdf",
-  },
-  // The benchmark set, added 2026-08-14. Every one is an FDA multi-disciplinary
-  // review of an approved drug, fetched from accessdata.fda.gov by NDA number and
-  // screened with data/prep/measure_pdf.py before being listed here: 188-398 pages
-  // each, 362,000-899,000 extractable characters, zero sparse pages.
-  //
-  // Chosen to VARY along the axis the product cares about, because a set that only
-  // contains drugs with liver findings measures willingness to say "danger" and
-  // nothing else - which is the exact failure HANDOVER section 13 records. Turalio
-  // carries a boxed warning for hepatotoxicity; Lumakras, Retevmo, Trikafta, Krazati
-  // and Inrebic report liver findings without one; Orgovyx, Qinlock, Nubeqa, Xpovio,
-  // Tazverik and Exkivity are approved drugs whose labels carry no liver warning at
-  // all; and Slynd is a 505(b)(2) with no new nonclinical studies, where the only
-  // correct answer to most questions is that the document does not say.
-  {
-    name: "lumakras",
-    label: "Lumakras (sotorasib) - FDA NDA 214665 multi-disciplinary review",
-    path: "data/raw/approval-packages/lumakras-214665-multidiscipline.pdf",
-  },
-  {
-    name: "retevmo",
-    label: "Retevmo (selpercatinib) - FDA NDA 213246 multi-disciplinary review",
-    path: "data/raw/approval-packages/retevmo-213246-multidiscipline.pdf",
-  },
-  {
-    name: "trikafta",
-    label: "Trikafta (elexacaftor/tezacaftor/ivacaftor) - FDA NDA 212273 multi-disciplinary review",
-    path: "data/raw/approval-packages/trikafta-212273-multidiscipline.pdf",
-  },
-  {
-    name: "krazati",
-    label: "Krazati (adagrasib) - FDA NDA 216340 multi-disciplinary review",
-    path: "data/raw/approval-packages/krazati-216340-multidiscipline.pdf",
-  },
-  {
-    name: "inrebic",
-    label: "Inrebic (fedratinib) - FDA NDA 212327 multi-disciplinary review",
-    path: "data/raw/approval-packages/inrebic-212327-multidiscipline.pdf",
-  },
-  {
-    name: "orgovyx",
-    label: "Orgovyx (relugolix) - FDA NDA 214621 multi-disciplinary review",
-    path: "data/raw/approval-packages/orgovyx-214621-multidiscipline.pdf",
-  },
-  {
-    name: "qinlock",
-    label: "Qinlock (ripretinib) - FDA NDA 213973 multi-disciplinary review",
-    path: "data/raw/approval-packages/qinlock-213973-multidiscipline.pdf",
-  },
-  {
-    name: "nubeqa",
-    label: "Nubeqa (darolutamide) - FDA NDA 212099 multi-disciplinary review",
-    path: "data/raw/approval-packages/nubeqa-212099-multidiscipline.pdf",
-  },
-  {
-    name: "xpovio",
-    label: "Xpovio (selinexor) - FDA NDA 212306 multi-disciplinary review",
-    path: "data/raw/approval-packages/xpovio-212306-multidiscipline.pdf",
-  },
-  {
-    name: "tazverik",
-    label: "Tazverik (tazemetostat) - FDA NDA 211723 multi-disciplinary review",
-    path: "data/raw/approval-packages/tazverik-211723-multidiscipline.pdf",
-  },
-  {
-    name: "exkivity",
-    label: "Exkivity (mobocertinib) - FDA NDA 215310 multi-disciplinary review",
-    path: "data/raw/approval-packages/exkivity-215310-multidiscipline.pdf",
-  },
-  {
-    name: "tak994",
-    label: "TAK-994 (narcolepsy) - extracted findings, no source PDF",
-    path: null,
-  },
-  {
-    name: "tolcapone",
-    label: "Tolcapone (Tasmar) - FDA medical review, 1998",
-    path: "data/raw/approval-packages/tolcapone-20697-medical-review-p1.pdf",
-  },
-  {
-    name: "troglitazone",
-    label: "Troglitazone (Rezulin) - FDA approval package, 1997",
-    path: "data/raw/approval-packages/troglitazone-020720-approval.pdf",
-  },
-];
+export const SOURCES_PATH = "data/library-sources.json";
+
+export function loadSources(path = SOURCES_PATH): SourceFile[] {
+  return (JSON.parse(readFileSync(path, "utf8")) as { sources: SourceFile[] }).sources;
+}
+
+export const LIBRARY_SOURCES: SourceFile[] = loadSources();
 
 export class LibraryStore {
   private readonly cacheRoot: string;

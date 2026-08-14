@@ -197,7 +197,6 @@ export function makeHandler(deps: ServerDeps) {
             pages: deps.library.textFor(source.name),
           }]),
           String((body as { question?: unknown }).question ?? ""),
-          8,
         );
         const out = await handleAsk(body, passages, completeFromEnv(process.env, "ask"));
         return json(res, out.status, out.body);
@@ -407,7 +406,7 @@ export function makeHandler(deps: ServerDeps) {
               filename: d.filename,
               pages: deps.documents.textFor(d.id),
             }));
-            const passages = search(buildIndex(corpus), String((body as { question?: unknown }).question ?? ""), 8);
+            const passages = search(buildIndex(corpus), String((body as { question?: unknown }).question ?? ""));
             const out = await handleAsk(body, passages, completeFromEnv(process.env, "ask"));
             return json(res, out.status, out.body);
           }

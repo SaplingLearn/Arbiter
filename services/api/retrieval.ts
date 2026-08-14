@@ -155,13 +155,49 @@ export function buildIndex(docs: DocumentPages[]): RetrievalIndex {
   return { chunks, df, avgLength };
 }
 
+/**
+ * How many pages an answer is allowed to read. Measured, on 2026-08-14, over the
+ * 55-question fixture:
+ *
+ *   k    hit@k    recall@k   stability
+ *   8    88.7%    79.2%      38.5%
+ *   10   92.5%    87.7%      39.6%
+ *   16   96.2%    91.5%      33.7%
+ *   24   98.1%    93.4%      33.4%
+ *
+ * Eight was never chosen against evidence - it was a reasonable default written before
+ * anything measured it, and it was leaving a fifth of the answering pages outside the
+ * model's reach. The document being read is 180-400 pages, so sixteen pages is still
+ * under 5% of it, and roughly 35,000 characters against a context window of a million
+ * tokens.
+ *
+ * NOT 24, though 24 scores better. Every extra page is prose the model must not answer
+ * from, and the cost of a wrong page is a confident answer resting on the wrong study -
+ * which is the failure this surface exists to avoid. Sixteen takes hit@k past 96% and
+ * is where the curve flattens; the rest is bought at rising risk for falling return.
+ *
+ * Page-set stability FALLS as k rises, and that is mostly an artifact: with more slots
+ * the tails of two paraphrases diverge even when their top pages agree. What matters
+ * is whether the paraphrases produce the same ANSWER, which is measured in ask-eval.
+ *
+ * Overridable by `ARBITER_ASK_K`, on the same reasoning as the model environment
+ * variables in interpret.ts: this is a deployment decision backed by a measurement on
+ * one fixture, and the next person should be able to overturn it the same way it was
+ * set - by running the eval at another value - without editing source.
+ */
+export const DEFAULT_K = ((): number => {
+  const raw = process.env["ARBITER_ASK_K"];
+  const parsed = raw === undefined ? Number.NaN : Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 16;
+})();
+
 // Okapi BM25's usual constants. k1 bounds how much repeating a term can help; b is how
 // hard length is normalised. Not tuned, because tuning them against questions we chose
 // ourselves would be fitting the retriever to its own demo.
 const K1 = 1.5;
 const B = 0.75;
 
-export function search(index: RetrievalIndex, question: string, k = 8): Passage[] {
+export function search(index: RetrievalIndex, question: string, k = DEFAULT_K): Passage[] {
   const n = index.chunks.length;
   if (n === 0) return [];
 

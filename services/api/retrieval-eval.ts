@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-import { buildIndex, search } from "./retrieval.js";
+import { DEFAULT_K, buildIndex, search } from "./retrieval.js";
 import { LibraryStore } from "./library.js";
 
 /**
@@ -219,7 +219,7 @@ export function pagesFor(document: string): { page: number; text: string }[] {
   return library.textFor(document);
 }
 
-export function runFixture(items: EvalItem[], k = 8): EvalReport {
+export function runFixture(items: EvalItem[], k = DEFAULT_K): EvalReport {
   // One index per document, built once. Rebuilding per question would measure the
   // same thing and take a minute.
   const indexes = new Map<string, ReturnType<typeof buildIndex>>();

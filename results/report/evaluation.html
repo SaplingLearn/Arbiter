@@ -32,7 +32,7 @@
 
 <p class="sub">ARBITER &middot; evaluation report</p>
 <h1>How accurately does the ask surface read a regulatory review?</h1>
-<p class="sub">Measured over 14 documents and 55 questions. Generated 2026-08-14 05:20 UTC from commit 9c314f4.</p>
+<p class="sub">Measured over 14 documents and 55 questions. Generated 2026-08-14 05:51 UTC from commit 6b626cf.</p>
 
 <div class="meta">
 model (answering) . . gemini-3.5-flash<br>
@@ -43,7 +43,7 @@ reproduce . . . . . . npm run retrieval:eval &nbsp;|&nbsp; npm run ask:eval -- -
 </div>
 
 <h2>1. What this measures, and what it does not</h2>
-<p>The surface takes a question about one regulatory review, retrieves eight pages, and answers from those pages while naming the page each claim rests on. Two things can go wrong independently, so they are measured separately: the retriever can fail to surface the page holding the answer, and the model can misread a page it was given. Every number below separates them.</p>
+<p>The surface takes a question about one regulatory review, retrieves 16 pages, and answers from those pages while naming the page each claim rests on. Two things can go wrong independently, so they are measured separately: the retriever can fail to surface the page holding the answer, and the model can misread a page it was given. Every number below separates them.</p>
 <div class="note">
 <p style="margin:0"><strong>The honest limits, stated before the results rather than after.</strong> The gold pages were located by regular expression and then read, which biases every comparison toward a lexical retriever. The answer check asks whether the answer <em>states</em> the fact its gold quote carries &mdash; it catches an answer that missed the number, not one that described it wrongly. Graded correctness needs a judge model that is not the answering model, reported with a human-agreement figure beside it; that is not in this report. And the gold set names pages that are <em>sufficient</em>, never all the pages that would do, so citation overlap outside the gold set is not error.</p>
 </div>
@@ -78,46 +78,55 @@ reproduce . . . . . . npm run retrieval:eval &nbsp;|&nbsp; npm run ask:eval -- -
 
 <h2>3. Retrieval &mdash; did the answering page reach the model?</h2>
 <div class="kpis">
-  <div class="kpi"><div class="v">88.7%</div><div class="l">hit@8<br>a page holding the answer was retrieved</div></div>
-  <div class="kpi"><div class="v">79.2%</div><div class="l">recall@8<br>of the pages that hold the answer</div></div>
-  <div class="kpi"><div class="v">0.522</div><div class="l">MRR<br>where the first gold page landed</div></div>
-  <div class="kpi"><div class="v">38.5%</div><div class="l">paraphrase stability<br>same question, different words, same pages</div></div>
+  <div class="kpi"><div class="v">96.2%</div><div class="l">hit@16<br>a page holding the answer was retrieved</div></div>
+  <div class="kpi"><div class="v">91.5%</div><div class="l">recall@16<br>of the pages that hold the answer</div></div>
+  <div class="kpi"><div class="v">0.529</div><div class="l">MRR<br>where the first gold page landed</div></div>
+  <div class="kpi"><div class="v">33.7%</div><div class="l">paraphrase stability<br>same question, different words, same pages</div></div>
 </div>
 <p>Measured over 53 answerable questions; 2 unanswerable questions are held aside, since they have no gold page by construction and counting them as misses would report a retrieval failure for a question the document cannot answer.</p>
 
 <h3>Where it started, and what moved it</h3>
-<p>The retriever was measured before it was changed, so every gain below is a difference between two runs of the same fixture rather than an assertion.</p>
-<table>
-<tr><th>retriever</th><th class="n">hit@8</th><th class="n">recall@8</th><th class="n">MRR</th><th class="n">stability</th></tr>
-<tr><td>BM25, as it was</td><td class="n">55.6%</td><td class="n">50.0%</td><td class="n">0.361</td><td class="n">12.9%</td></tr>
-<tr><td>+ stemming, phrase expansion, concept map</td><td class="n win">83.3%</td><td class="n win">75.0%</td><td class="n win">0.546</td><td class="n win">35.7%</td></tr>
-<tr><td>+ page boilerplate removed</td><td class="n">83.3%</td><td class="n win">77.8%</td><td class="n">0.546</td><td class="n">35.9%</td></tr>
+<p>The retriever was measured before it was changed, so every gain here is a difference between two runs of the same fixture rather than an assertion.</p><table>
+<tr><th>Where it started, and what moved it</th><th class="n">hit@k</th><th class="n">recall@k</th><th class="n">MRR</th><th class="n">stability</th><th class="n">k</th><th class="n">docs</th><th class="n">n</th></tr>
+<tr><td>BM25, as it was <span class="win">&#10003;</span></td><td class="n">55.6%</td><td class="n">50.0%</td><td class="n">0.361</td><td class="n">12.9%</td><td class="n">8</td><td class="n">3</td><td class="n">18</td></tr>
+<tr><td>+ stemming, phrase expansion, concept map <span class="win">&#10003;</span></td><td class="n">83.3%</td><td class="n">75.0%</td><td class="n">0.546</td><td class="n">35.7%</td><td class="n">8</td><td class="n">3</td><td class="n">18</td></tr>
+<tr><td>+ page boilerplate removed <span class="win">&#10003;</span></td><td class="n">83.3%</td><td class="n">77.8%</td><td class="n">0.546</td><td class="n">35.9%</td><td class="n">8</td><td class="n">3</td><td class="n">18</td></tr>
+<tr><td>+ eleven more documents <span class="win">&#10003;</span><br><span class="sub">Not an improvement and not meant as one - the retriever is unchanged here, and the row exists because every number above it was measured on three documents.</span></td><td class="n">88.7%</td><td class="n">79.2%</td><td class="n">0.522</td><td class="n">38.5%</td><td class="n">8</td><td class="n">14</td><td class="n">53</td></tr>
+<tr><td>+ sixteen pages retrieved instead of eight <span class="win">&#10003;</span></td><td class="n">96.2%</td><td class="n win">91.5%</td><td class="n">0.529</td><td class="n">33.7%</td><td class="n">16</td><td class="n">14</td><td class="n">53</td></tr>
 </table>
-<p class="sub">The first three rows were measured on the three documents available at the time; the headline figures above are the full 14-document set.</p>
+<p>Eight was never chosen against evidence - it was a reasonable default written before anything measured it. Sixteen is where the curve flattens; 24 scores better still and was declined, because every extra page is prose the model must not answer from.</p><table>
+<tr><th>How many pages an answer may read</th><th class="n">hit@k</th><th class="n">recall@k</th><th class="n">MRR</th><th class="n">stability</th><th class="n">k</th><th class="n">docs</th><th class="n">n</th></tr>
+<tr><td>k = 8</td><td class="n">88.7%</td><td class="n">79.2%</td><td class="n">0.522</td><td class="n">38.5%</td><td class="n">8</td><td class="n">14</td><td class="n">53</td></tr>
+<tr><td>k = 10</td><td class="n">92.5%</td><td class="n">87.7%</td><td class="n">0.526</td><td class="n">39.6%</td><td class="n">10</td><td class="n">14</td><td class="n">53</td></tr>
+<tr><td>k = 12</td><td class="n">92.5%</td><td class="n">87.7%</td><td class="n">0.526</td><td class="n">37.2%</td><td class="n">12</td><td class="n">14</td><td class="n">53</td></tr>
+<tr><td>k = 16 <span class="win">&#10003;</span></td><td class="n">96.2%</td><td class="n">91.5%</td><td class="n">0.529</td><td class="n">33.7%</td><td class="n">16</td><td class="n">14</td><td class="n">53</td></tr>
+<tr><td>k = 20</td><td class="n">96.2%</td><td class="n">91.5%</td><td class="n">0.529</td><td class="n">33.8%</td><td class="n">20</td><td class="n">14</td><td class="n">53</td></tr>
+<tr><td>k = 24</td><td class="n">98.1%</td><td class="n">93.4%</td><td class="n">0.530</td><td class="n">33.4%</td><td class="n">24</td><td class="n">14</td><td class="n">53</td></tr>
+</table>
 
 <h3>Paraphrase stability by question group</h3>
-<p>Questions a reviewer would call the same question. This needs no answer key at all, which is why it is the most trustworthy number here: it started at 12.9%, meaning an acronym and its own expansion returned almost disjoint pages.</p>
+<p>Questions a reviewer would call the same question. This needs no answer key at all, which is why it is the most trustworthy number here: it began at 12.9%, meaning an acronym and its own expansion returned almost disjoint pages.</p>
 <table>
 <tr><th>question group</th><th class="n">page overlap between phrasings</th></tr>
-<tr><td class="mono">inrebic:liver</td><td class="n">23.1%</td></tr>
-<tr><td class="mono">inrebic:noael</td><td class="n">33.3%</td></tr>
-<tr><td class="mono">krazati:liver</td><td class="n">45.5%</td></tr>
-<tr><td class="mono">krazati:noael</td><td class="n">60.0%</td></tr>
-<tr><td class="mono">lumakras:liver</td><td class="n">14.3%</td></tr>
-<tr><td class="mono">nipocalimab:margins</td><td class="n">33.3%</td></tr>
-<tr><td class="mono">nipocalimab:noael</td><td class="n">55.6%</td></tr>
-<tr><td class="mono">nipocalimab:reversibility</td><td class="n">56.2%</td></tr>
-<tr><td class="mono">orgovyx:liver</td><td class="n">45.5%</td></tr>
-<tr><td class="mono">orgovyx:noael</td><td class="n">45.5%</td></tr>
-<tr><td class="mono">qinlock:liver</td><td class="n">33.3%</td></tr>
-<tr><td class="mono">qinlock:noael</td><td class="n">60.0%</td></tr>
-<tr><td class="mono">retevmo:noael</td><td class="n">14.3%</td></tr>
-<tr><td class="mono">slynd:nonclinical</td><td class="n">45.5%</td></tr>
-<tr><td class="mono">tazverik:liver</td><td class="n">60.0%</td></tr>
-<tr><td class="mono">trikafta:noael</td><td class="n">77.8%</td></tr>
-<tr><td class="mono">turalio:clinical-reversibility</td><td class="n">23.1%</td></tr>
-<tr><td class="mono">turalio:liver-findings</td><td class="n">14.7%</td></tr>
-<tr><td class="mono">turalio:noael</td><td class="n">23.1%</td></tr>
+<tr><td class="mono">inrebic:liver</td><td class="n">39.1%</td></tr>
+<tr><td class="mono">inrebic:noael</td><td class="n">18.5%</td></tr>
+<tr><td class="mono">krazati:liver</td><td class="n">52.4%</td></tr>
+<tr><td class="mono">krazati:noael</td><td class="n">45.5%</td></tr>
+<tr><td class="mono">lumakras:liver</td><td class="n">39.1%</td></tr>
+<tr><td class="mono">nipocalimab:margins</td><td class="n">18.5%</td></tr>
+<tr><td class="mono">nipocalimab:noael</td><td class="n">26.6%</td></tr>
+<tr><td class="mono">nipocalimab:reversibility</td><td class="n">50.3%</td></tr>
+<tr><td class="mono">orgovyx:liver</td><td class="n">68.4%</td></tr>
+<tr><td class="mono">orgovyx:noael</td><td class="n">28.0%</td></tr>
+<tr><td class="mono">qinlock:liver</td><td class="n">45.5%</td></tr>
+<tr><td class="mono">qinlock:noael</td><td class="n">23.1%</td></tr>
+<tr><td class="mono">retevmo:noael</td><td class="n">6.7%</td></tr>
+<tr><td class="mono">slynd:nonclinical</td><td class="n">60.0%</td></tr>
+<tr><td class="mono">tazverik:liver</td><td class="n">45.5%</td></tr>
+<tr><td class="mono">trikafta:noael</td><td class="n">45.5%</td></tr>
+<tr><td class="mono">turalio:clinical-reversibility</td><td class="n">28.0%</td></tr>
+<tr><td class="mono">turalio:liver-findings</td><td class="n">16.1%</td></tr>
+<tr><td class="mono">turalio:noael</td><td class="n">10.3%</td></tr>
 <tr><td class="mono">xpovio:noael</td><td class="n">6.7%</td></tr>
 </table>
 
@@ -125,7 +134,7 @@ reproduce . . . . . . npm run retrieval:eval &nbsp;|&nbsp; npm run ask:eval -- -
 <div class="kpis">
   <div class="kpi"><div class="v">100.0%</div><div class="l">stated the required fact<br>95% CI 93.2%&ndash;100.0%, n=53</div></div>
   <div class="kpi"><div class="v">100.0%</div><div class="l">refused correctly<br>on 2 questions the document cannot answer</div></div>
-  <div class="kpi"><div class="v">73.6%</div><div class="l">citation recall<br>of the pages nominated as gold</div></div>
+  <div class="kpi"><div class="v">83.0%</div><div class="l">citation recall<br>of the pages nominated as gold</div></div>
   <div class="kpi"><div class="v">0</div><div class="l">errors<br>upstream failures, truncations, refusals to parse</div></div>
 </div>
 
@@ -153,31 +162,27 @@ reproduce . . . . . . npm run retrieval:eval &nbsp;|&nbsp; npm run ask:eval -- -
 <h2>5. What was built and rejected</h2>
 <p>Both of the obvious next upgrades were implemented, measured on this fixture, and removed. They are here because a report carrying only the improvements is an advertisement, and because the next person to have these ideas should see the numbers rather than repeat the work.</p>
 <h3>Sub-page windows</h3>
-<p>Scoring windows within a page rather than whole pages, so one relevant sentence is not diluted by two thousand characters of unrelated prose. Every setting that changed anything made recall worse.</p>
-<table>
-<tr><th>scoring unit</th><th class="n">hit@8</th><th class="n">recall@8</th><th class="n">MRR</th><th class="n">stability</th></tr>
-<tr><td>whole page</td><td class="n">83.3%</td><td class="n win">75.0%</td><td class="n">0.546</td><td class="n">35.7%</td></tr>
-<tr><td>60 / 30 tokens</td><td class="n">83.3%</td><td class="n bad">69.4%</td><td class="n">0.581</td><td class="n">30.1%</td></tr>
-<tr><td>120 / 60 tokens</td><td class="n">83.3%</td><td class="n bad">66.7%</td><td class="n">0.537</td><td class="n">31.0%</td></tr>
-<tr><td>240 / 120 tokens</td><td class="n bad">77.8%</td><td class="n bad">72.2%</td><td class="n">0.583</td><td class="n">31.8%</td></tr>
-<tr><td>400 / 200 tokens</td><td class="n">83.3%</td><td class="n">75.0%</td><td class="n">0.583</td><td class="n">38.1%</td></tr>
+<p>Scoring windows within a page rather than whole pages, so one relevant sentence is not diluted by two thousand characters of unrelated prose. Every setting that changed anything made recall worse, and the only setting that matched page-level scoring used a window larger than the median page - which is page scoring under another name.</p><table>
+<tr><th>Sub-page windows</th><th class="n">hit@k</th><th class="n">recall@k</th><th class="n">MRR</th><th class="n">stability</th><th class="n">k</th><th class="n">docs</th><th class="n">n</th></tr>
+<tr><td>whole page <span class="win">&#10003;</span></td><td class="n">83.3%</td><td class="n win">75.0%</td><td class="n">0.546</td><td class="n">35.7%</td><td class="n">8</td><td class="n">3</td><td class="n">18</td></tr>
+<tr><td>60 / 30 tokens</td><td class="n">83.3%</td><td class="n">69.4%</td><td class="n">0.581</td><td class="n">30.1%</td><td class="n">8</td><td class="n">3</td><td class="n">18</td></tr>
+<tr><td>120 / 60 tokens</td><td class="n">83.3%</td><td class="n">66.7%</td><td class="n">0.537</td><td class="n">31.0%</td><td class="n">8</td><td class="n">3</td><td class="n">18</td></tr>
+<tr><td>240 / 120 tokens</td><td class="n">77.8%</td><td class="n">72.2%</td><td class="n">0.583</td><td class="n">31.8%</td><td class="n">8</td><td class="n">3</td><td class="n">18</td></tr>
+<tr><td>400 / 200 tokens</td><td class="n">83.3%</td><td class="n">75.0%</td><td class="n">0.583</td><td class="n">38.1%</td><td class="n">8</td><td class="n">3</td><td class="n">18</td></tr>
 </table>
-<p>The only setting that matched page-level scoring used a window larger than the median page, which is page scoring under another name.</p>
 <h3>Dense retrieval and hybrid fusion</h3>
-<p>All pages embedded with <span class="mono">gemini-embedding-001</span>, scored alone and fused with BM25 by reciprocal rank fusion.</p>
-<table>
-<tr><th>retriever</th><th class="n">hit@8</th><th class="n">recall@8</th><th class="n">MRR</th><th class="n">stability</th></tr>
-<tr><td>BM25 + term normalisation</td><td class="n">83.3%</td><td class="n win">77.8%</td><td class="n">0.546</td><td class="n">35.9%</td></tr>
-<tr><td>dense only</td><td class="n">83.3%</td><td class="n bad">58.3%</td><td class="n bad">0.395</td><td class="n">37.3%</td></tr>
-<tr><td>hybrid RRF 1:1</td><td class="n">83.3%</td><td class="n bad">69.4%</td><td class="n win">0.628</td><td class="n">36.3%</td></tr>
-<tr><td>hybrid RRF 2:1 lexical</td><td class="n">83.3%</td><td class="n">75.0%</td><td class="n win">0.644</td><td class="n">34.2%</td></tr>
+<p>All pages embedded with gemini-embedding-001 on Vertex, scored alone and fused with BM25 by reciprocal rank fusion. The best hybrid ties the lexical retriever on whether the answering page reaches the model at all, and buys only its position among the passages the model reads in full - against a network call per question, a vector cache larger than the documents, and the determinism that makes consistency attributable to the model rather than the retriever.</p><table>
+<tr><th>Dense retrieval and hybrid fusion</th><th class="n">hit@k</th><th class="n">recall@k</th><th class="n">MRR</th><th class="n">stability</th><th class="n">k</th><th class="n">docs</th><th class="n">n</th></tr>
+<tr><td>BM25 + term normalisation <span class="win">&#10003;</span></td><td class="n">83.3%</td><td class="n win">77.8%</td><td class="n">0.546</td><td class="n">35.9%</td><td class="n">8</td><td class="n">3</td><td class="n">18</td></tr>
+<tr><td>dense only</td><td class="n">83.3%</td><td class="n">58.3%</td><td class="n">0.395</td><td class="n">37.3%</td><td class="n">8</td><td class="n">3</td><td class="n">18</td></tr>
+<tr><td>hybrid RRF 1:1</td><td class="n">83.3%</td><td class="n">69.4%</td><td class="n">0.628</td><td class="n">36.3%</td><td class="n">8</td><td class="n">3</td><td class="n">18</td></tr>
+<tr><td>hybrid RRF 2:1 lexical</td><td class="n">83.3%</td><td class="n">75.0%</td><td class="n">0.644</td><td class="n">34.2%</td><td class="n">8</td><td class="n">3</td><td class="n">18</td></tr>
 </table>
-<p>The best hybrid ties the lexical retriever on whether the answering page reaches the model, and buys only its position among eight passages the model reads in full &mdash; against a network call per question, a vector cache larger than the documents, and the determinism that makes consistency attributable to the model rather than the retriever.</p>
 <div class="note"><p style="margin:0"><strong>The failure was worth more than the feature.</strong> Dense retrieval scored badly because every page begins with the same running header, so each page's vector encoded the document's identity rather than its content, with cosine scores bunched between 0.70 and 0.74. BM25 had hidden that for free, since idf discounts a term appearing everywhere. Removing the header lifted lexical recall and cut roughly 8% of the tokens from every prompt the surface sends.</p></div>
 
 <h2>6. Reproducing this</h2>
 <div class="meta">
-git checkout 9c314f4<br>
+git checkout 6b626cf<br>
 npm ci<br>
 npm run retrieval:eval &nbsp;&nbsp;&nbsp;# writes results/retrieval-eval.json<br>
 npm run ask:eval -- --repeats=3 &nbsp;&nbsp;&nbsp;# writes results/ask-eval.json, needs model credentials<br>

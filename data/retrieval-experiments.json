@@ -1,0 +1,80 @@
+{
+  "version": "1.0",
+  "note": "Every retrieval variant that was built and measured, kept as DATA so the report can render it instead of carrying a table somebody retyped. A number in here was produced by a run of `npm run retrieval:eval` against the fixture named in `fixture`, at the k named in `k`, over the documents named in `documents`. Rows are not comparable across different `fixture` or `documents` values, which is why both travel with every row rather than sitting in a caption.",
+  "groups": [
+    {
+      "id": "history",
+      "title": "Where it started, and what moved it",
+      "blurb": "The retriever was measured before it was changed, so every gain here is a difference between two runs of the same fixture rather than an assertion.",
+      "rows": [
+        {
+          "label": "BM25, as it was",
+          "fixture": "1.0", "documents": 3, "questions": 18, "k": 8, "measured": "2026-08-13",
+          "hit": 0.556, "recall": 0.5, "mrr": 0.361, "stability": 0.129,
+          "verdict": "baseline"
+        },
+        {
+          "label": "+ stemming, phrase expansion, concept map",
+          "fixture": "1.0", "documents": 3, "questions": 18, "k": 8, "measured": "2026-08-13",
+          "hit": 0.833, "recall": 0.75, "mrr": 0.546, "stability": 0.357,
+          "verdict": "kept"
+        },
+        {
+          "label": "+ page boilerplate removed",
+          "fixture": "1.0", "documents": 3, "questions": 18, "k": 8, "measured": "2026-08-13",
+          "hit": 0.833, "recall": 0.778, "mrr": 0.546, "stability": 0.359,
+          "verdict": "kept"
+        },
+        {
+          "label": "+ eleven more documents",
+          "fixture": "2.0", "documents": 14, "questions": 53, "k": 8, "measured": "2026-08-14",
+          "hit": 0.887, "recall": 0.792, "mrr": 0.522, "stability": 0.385,
+          "verdict": "kept",
+          "note": "Not an improvement and not meant as one - the retriever is unchanged here, and the row exists because every number above it was measured on three documents."
+        },
+        {
+          "label": "+ sixteen pages retrieved instead of eight",
+          "fixture": "2.0", "documents": 14, "questions": 53, "k": 16, "measured": "2026-08-14",
+          "hit": 0.962, "recall": 0.915, "mrr": 0.529, "stability": 0.337,
+          "verdict": "kept"
+        }
+      ]
+    },
+    {
+      "id": "k",
+      "title": "How many pages an answer may read",
+      "blurb": "Eight was never chosen against evidence - it was a reasonable default written before anything measured it. Sixteen is where the curve flattens; 24 scores better still and was declined, because every extra page is prose the model must not answer from.",
+      "rows": [
+        { "label": "k = 8", "fixture": "2.0", "documents": 14, "questions": 53, "k": 8, "measured": "2026-08-14", "hit": 0.887, "recall": 0.792, "mrr": 0.522, "stability": 0.385, "verdict": "rejected" },
+        { "label": "k = 10", "fixture": "2.0", "documents": 14, "questions": 53, "k": 10, "measured": "2026-08-14", "hit": 0.925, "recall": 0.877, "mrr": 0.526, "stability": 0.396, "verdict": "rejected" },
+        { "label": "k = 12", "fixture": "2.0", "documents": 14, "questions": 53, "k": 12, "measured": "2026-08-14", "hit": 0.925, "recall": 0.877, "mrr": 0.526, "stability": 0.372, "verdict": "rejected" },
+        { "label": "k = 16", "fixture": "2.0", "documents": 14, "questions": 53, "k": 16, "measured": "2026-08-14", "hit": 0.962, "recall": 0.915, "mrr": 0.529, "stability": 0.337, "verdict": "kept" },
+        { "label": "k = 20", "fixture": "2.0", "documents": 14, "questions": 53, "k": 20, "measured": "2026-08-14", "hit": 0.962, "recall": 0.915, "mrr": 0.529, "stability": 0.338, "verdict": "rejected" },
+        { "label": "k = 24", "fixture": "2.0", "documents": 14, "questions": 53, "k": 24, "measured": "2026-08-14", "hit": 0.981, "recall": 0.934, "mrr": 0.53, "stability": 0.334, "verdict": "rejected" }
+      ]
+    },
+    {
+      "id": "windows",
+      "title": "Sub-page windows",
+      "blurb": "Scoring windows within a page rather than whole pages, so one relevant sentence is not diluted by two thousand characters of unrelated prose. Every setting that changed anything made recall worse, and the only setting that matched page-level scoring used a window larger than the median page - which is page scoring under another name.",
+      "rows": [
+        { "label": "whole page", "fixture": "1.0", "documents": 3, "questions": 18, "k": 8, "measured": "2026-08-13", "hit": 0.833, "recall": 0.75, "mrr": 0.546, "stability": 0.357, "verdict": "kept" },
+        { "label": "60 / 30 tokens", "fixture": "1.0", "documents": 3, "questions": 18, "k": 8, "measured": "2026-08-13", "hit": 0.833, "recall": 0.694, "mrr": 0.581, "stability": 0.301, "verdict": "rejected" },
+        { "label": "120 / 60 tokens", "fixture": "1.0", "documents": 3, "questions": 18, "k": 8, "measured": "2026-08-13", "hit": 0.833, "recall": 0.667, "mrr": 0.537, "stability": 0.31, "verdict": "rejected" },
+        { "label": "240 / 120 tokens", "fixture": "1.0", "documents": 3, "questions": 18, "k": 8, "measured": "2026-08-13", "hit": 0.778, "recall": 0.722, "mrr": 0.583, "stability": 0.318, "verdict": "rejected" },
+        { "label": "400 / 200 tokens", "fixture": "1.0", "documents": 3, "questions": 18, "k": 8, "measured": "2026-08-13", "hit": 0.833, "recall": 0.75, "mrr": 0.583, "stability": 0.381, "verdict": "rejected" }
+      ]
+    },
+    {
+      "id": "dense",
+      "title": "Dense retrieval and hybrid fusion",
+      "blurb": "All pages embedded with gemini-embedding-001 on Vertex, scored alone and fused with BM25 by reciprocal rank fusion. The best hybrid ties the lexical retriever on whether the answering page reaches the model at all, and buys only its position among the passages the model reads in full - against a network call per question, a vector cache larger than the documents, and the determinism that makes consistency attributable to the model rather than the retriever.",
+      "rows": [
+        { "label": "BM25 + term normalisation", "fixture": "1.0", "documents": 3, "questions": 18, "k": 8, "measured": "2026-08-13", "hit": 0.833, "recall": 0.778, "mrr": 0.546, "stability": 0.359, "verdict": "kept" },
+        { "label": "dense only", "fixture": "1.0", "documents": 3, "questions": 18, "k": 8, "measured": "2026-08-13", "hit": 0.833, "recall": 0.583, "mrr": 0.395, "stability": 0.373, "verdict": "rejected" },
+        { "label": "hybrid RRF 1:1", "fixture": "1.0", "documents": 3, "questions": 18, "k": 8, "measured": "2026-08-13", "hit": 0.833, "recall": 0.694, "mrr": 0.628, "stability": 0.363, "verdict": "rejected" },
+        { "label": "hybrid RRF 2:1 lexical", "fixture": "1.0", "documents": 3, "questions": 18, "k": 8, "measured": "2026-08-13", "hit": 0.833, "recall": 0.75, "mrr": 0.644, "stability": 0.342, "verdict": "rejected" }
+      ]
+    }
+  ]
+}
