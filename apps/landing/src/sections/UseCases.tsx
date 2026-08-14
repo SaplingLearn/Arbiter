@@ -65,7 +65,9 @@ type Bar = { h: string; on?: boolean };
 const QUEUE_ROWS = [
   { label: "TAK-994", value: "Abstain" },
   { label: "Cyclosporine", value: "Do not advance" },
-  { label: "Troglitazone", value: "Abstain" },
+  // Troglitazone until 2026-08-14: it is in the train split and has no scored
+  // verdict, so a queue row for it was showing a decision that was never made.
+  { label: "Perhexiline", value: "Abstain" },
   { label: "Isoniazid", value: "Abstain" },
 ] as const;
 

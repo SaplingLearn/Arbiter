@@ -219,6 +219,48 @@ describe("stat count-ups", () => {
   });
 });
 
+describe("every compound named on the page is one the run actually scored", () => {
+  // THE REGRESSION THIS EXISTS FOR. Hero.tsx said verbatim "These are the run's
+  // actual numbers, not filler" while four of its six rows did not survive being
+  // checked: Troglitazone, Acetaminophen and Valproate are not in the scored split
+  // at all, and Isoniazid, which is, was printed with belief 0.070 and gap 0.930 on
+  // "qsar only" when its real figures are 0.000, 0.865 and two claims.
+  //
+  // A mockup may be an illustration or it may be data. It may not claim to be data
+  // and be an illustration. Reading the answer off disk is what stops the claim and
+  // the page drifting apart again.
+  const results = JSON.parse(readFileSync(resolve(__dirname, "../../../results/results.json"), "utf8"));
+  const compounds = JSON.parse(readFileSync(resolve(__dirname, "../../../data/out/compounds.json"), "utf8"));
+  const rows: { compoundId: string }[] = Array.isArray(results) ? results : results.rows;
+  const list: { compoundId: string; name: string }[] = Array.isArray(compounds) ? compounds : compounds.compounds;
+
+  const scoredNames = new Set(
+    rows
+      .map((r) => list.find((c) => c.compoundId === r.compoundId)?.name?.toLowerCase())
+      .filter((n): n is string => n !== undefined),
+  );
+
+  // TAK-994 is the hand-built fixture case rather than a corpus compound, so it is
+  // named here as the one deliberate exception instead of being silently allowed.
+  const FIXTURE = new Set(["tak-994"]);
+
+  it.each(["Perhexiline", "Sirolimus", "Ticagrelor", "Isoniazid", "Cyclosporine"])(
+    "%s is in the scored split",
+    (name) => {
+      expect(scoredNames.has(name.toLowerCase())).toBe(true);
+    },
+  );
+
+  it("names no compound the run never scored", () => {
+    renderLanding();
+    for (const gone of ["Troglitazone", "Acetaminophen", "Valproate"]) {
+      expect(scoredNames.has(gone.toLowerCase())).toBe(false);
+      expect(screen.queryByText(new RegExp(gone, "i"))).toBeNull();
+    }
+    expect(FIXTURE.has("tak-994")).toBe(true);
+  });
+});
+
 describe("honesty", () => {
   it("states the honest result and the abstention rate on the page, not only in the table", () => {
     // Master spec section 9a: the caveats are the part a compressed screen-share

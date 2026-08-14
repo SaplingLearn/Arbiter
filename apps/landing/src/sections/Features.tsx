@@ -58,7 +58,9 @@ const STREAM_GLYPHS = ["Q", "C", "T", "V", "R", "A", "K", "D", "P", "M"] as cons
 const SIGNOFF_ROWS = [
   { compound: "Cyclosporine", position: "Do not adv.", conflict: "0.122", tone: "t-good", opacity: 1 },
   { compound: "TAK-994", position: "Abstain", conflict: "0.000", tone: "t-muted", opacity: 1 },
-  { compound: "Troglitazone", position: "Abstain", conflict: "0.000", tone: "t-muted", opacity: 0.5 },
+  // Troglitazone until 2026-08-14, which is in the TRAIN split and carries no
+  // scored verdict at all. Perhexiline is a real test-split abstention.
+  { compound: "Perhexiline", position: "Abstain", conflict: "0.000", tone: "t-muted", opacity: 0.5 },
   { compound: "Isoniazid", position: "Abstain", conflict: "0.000", tone: "t-muted", opacity: 0.25 },
 ] as const;
 

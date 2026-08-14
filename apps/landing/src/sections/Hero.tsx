@@ -18,18 +18,32 @@ import { HANDOVER_URL, REPO_URL } from "../links.js";
 /**
  * The library rows the mockup shows.
  *
- * These are the run's actual numbers, not filler. Five of the six abstain, and the
- * one commitment is the contested one - which is the honest shape of the result and
- * the reason the hero can show a product screenshot without overclaiming. A mockup
- * populated with six confident verdicts would be a different product.
+ * EVERY ROW IS A REAL SCORED COMPOUND, and the sentence saying so is load bearing,
+ * so it is worth recording that it was false until 2026-08-14. Four of the six rows
+ * did not survive being checked against results/results.json: Troglitazone,
+ * Acetaminophen and Valproate are not in the scored split at all - they fall in the
+ * train and calibration splits - and Isoniazid, which IS scored, was printed with
+ * belief 0.070, gap 0.930 and "qsar only, single claim" when its real figures are
+ * belief 0.000, gap 0.865, on TWO claims. Wrong on three counts, on the one row a
+ * reader could have checked.
+ *
+ * A mockup may be an illustration or it may be data. It may not claim to be data
+ * and be an illustration, which is the only version a judge can catch.
+ *
+ * Five of the six abstain and the one commitment is the contested one, which is the
+ * honest shape of the result and the reason the hero can show a product screenshot
+ * without overclaiming. The three replacements are real abstentions from the test
+ * split, chosen across DILIrank grades so the row set is not quietly all one class:
+ * Perhexiline is vMost-DILI-concern, Sirolimus vLess, Ticagrelor vNo. The system
+ * abstains on all three, which is the finding.
  */
 const ROWS = [
   { code: "TK", name: "TAK-994", sub: "hepatotoxicity (DILI)", position: "Abstain", committed: false, belief: "0.090", gap: "0.910", streams: "qsar · invivo", status: "gap rule" },
   { code: "CY", name: "Cyclosporine", sub: "BSEP inhibition", position: "Do not advance", committed: true, belief: "0.886", gap: "0.098", streams: "all three", status: "contested" },
-  { code: "TG", name: "Troglitazone", sub: "withdrawn 2000", position: "Abstain", committed: false, belief: "0.120", gap: "0.880", streams: "qsar · cytotox", status: "gap rule" },
-  { code: "AP", name: "Acetaminophen", sub: "dose-dependent", position: "Abstain", committed: false, belief: "0.210", gap: "0.790", streams: "qsar · cytotox", status: "gap rule" },
-  { code: "IZ", name: "Isoniazid", sub: "idiosyncratic", position: "Abstain", committed: false, belief: "0.070", gap: "0.930", streams: "qsar only", status: "single claim" },
-  { code: "VP", name: "Valproate", sub: "mitochondrial", position: "Abstain", committed: false, belief: "0.160", gap: "0.840", streams: "qsar · cytotox", status: "gap rule" },
+  { code: "PX", name: "Perhexiline", sub: "most DILI concern", position: "Abstain", committed: false, belief: "0.000", gap: "1.000", streams: "qsar only", status: "single claim" },
+  { code: "SR", name: "Sirolimus", sub: "less DILI concern", position: "Abstain", committed: false, belief: "0.000", gap: "1.000", streams: "qsar only", status: "single claim" },
+  { code: "IZ", name: "Isoniazid", sub: "idiosyncratic", position: "Abstain", committed: false, belief: "0.000", gap: "0.865", streams: "qsar · cytotox", status: "gap rule" },
+  { code: "TC", name: "Ticagrelor", sub: "no DILI concern", position: "Abstain", committed: false, belief: "0.000", gap: "1.000", streams: "qsar only", status: "single claim" },
 ] as const;
 
 const SIDE_NAV = ["Case", "Compounds", "Ruleset", "Validation", "Record", "About"] as const;
