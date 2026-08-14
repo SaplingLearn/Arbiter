@@ -173,3 +173,49 @@ def test_study_term_threshold_is_actually_enforced():
     s = plan_split(p)
     assert not s.ok
     assert f"need {MIN_STUDY_TERMS}" in s.reason
+
+
+def test_flags_a_clinical_crossreference_in_the_nonclinical_prose():
+    # REGRESSION, HANDOVER section 13.4c. The Turalio nonclinical chapter carries a
+    # clinical cross-reference because reviewers wrote it already knowing the human
+    # outcome. The mechanical cut moves the pages, not the knowledge, so a heading
+    # guard alone cannot make this document a prediction case.
+    p = pages(
+        "5. Nonclinical Pharmacology/Toxicology\n" + SUBSTANTIVE,
+        "The liver is a major target organ clinically, with frequent elevations "
+        "in transaminases observed in patients.",
+        "6. Clinical Pharmacology\nhuman data begins",
+    )
+    s = plan_split(p)
+    assert s.ok, s.reason
+    assert s.prediction_safe is False
+    assert len(s.clinical_crossrefs) == 1
+    assert s.clinical_crossrefs[0]["page"] == BODY + 1
+    assert "major target organ clinically" in s.clinical_crossrefs[0]["text"]
+
+
+def test_a_clean_chapter_is_prediction_safe():
+    p = pages(
+        "5. Nonclinical Pharmacology/Toxicology\n" + SUBSTANTIVE,
+        "more toxicology, NOAEL 10 mg/kg",
+        "6. Clinical Pharmacology\nhuman data begins",
+    )
+    s = plan_split(p)
+    assert s.ok, s.reason
+    assert s.prediction_safe is True
+    assert s.clinical_crossrefs == []
+
+
+def test_does_not_flag_the_word_clinical_in_a_preclinical_sense():
+    # "clinical signs" is standard tox vocabulary for observations in animals, and
+    # "clinically relevant dose" is a comparison, not an outcome. Flagging either
+    # would make the guard fire on every chapter and so mean nothing.
+    p = pages(
+        "5. Nonclinical Pharmacology/Toxicology\n" + SUBSTANTIVE,
+        "Clinical signs were observed in rats at the high dose. The clinically "
+        "relevant dose margin was 12x.",
+        "6. Clinical Pharmacology\nhuman data begins",
+    )
+    s = plan_split(p)
+    assert s.ok, s.reason
+    assert s.prediction_safe is True, s.clinical_crossrefs

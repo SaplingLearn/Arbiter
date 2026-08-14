@@ -29,7 +29,7 @@ from __future__ import annotations
 import json
 import re
 import sys
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 
 # Headings that open the preclinical chapter.
@@ -75,6 +75,42 @@ NO_STUDIES_PATTERNS = [
     r"no nonclinical studies were (conducted|required|requested)",
 ]
 
+# Prose that reports a HUMAN outcome inside the nonclinical chapter. HANDOVER
+# section 13.4c: the cut is mechanical, but the writing is not - an FDA
+# multi-discipline review is written after the fact, so its nonclinical chapter can
+# refer to what happened in patients. Guard 2 catches a clinical HEADING; this
+# catches a sentence.
+#
+# WRITTEN NARROWLY ON PURPOSE. "Clinical signs" is routine tox vocabulary for
+# observations in animals and "clinically relevant dose" is a comparison, so a bare
+# search for "clinical" fires on every chapter and therefore means nothing. Each
+# pattern below needs a human-outcome word, not just the stem.
+CLINICAL_CROSSREF_PATTERNS = [
+    r"\bclinically\b(?![- ]relevant)(?![- ]meaningful)",
+    r"\bin (patients|humans|subjects)\b",
+    r"\b(patients|subjects) (experienced|developed|reported|discontinued)",
+    r"\bhuman (hepatotoxicity|toxicity|exposure data|trials?)\b",
+    r"\bHy'?s Law\b",
+    r"\belevations? in (transaminases|ALT|AST)\b.{0,60}\b(patient|human|clinical)",
+    r"\b(phase [123]|first[- ]in[- ]human)\b",
+]
+
+# Sentences are the unit reported, so a reviewer can judge each hit rather than
+# being handed a page number and a promise.
+_SENTENCE = re.compile(r"[^.!?\n]*[.!?]")
+
+
+def _clinical_crossrefs(pages: list[str], indices: list[int]) -> list[dict]:
+    """Every sentence in the input set that reports a human outcome."""
+    compiled = [re.compile(p, re.I) for p in CLINICAL_CROSSREF_PATTERNS]
+    hits: list[dict] = []
+    for i in indices:
+        for sentence in _SENTENCE.findall(pages[i]):
+            s = " ".join(sentence.split())
+            if s and any(c.search(s) for c in compiled):
+                hits.append({"page": i, "text": s})
+    return hits
+
 
 @dataclass
 class Split:
@@ -84,6 +120,11 @@ class Split:
     withheld_pages: list[int]
     nonclinical_start: int | None
     clinical_start: int | None
+    # Defaulted, not because they are optional, but because every Split(...) call
+    # below is positional and stops at clinical_start. A document that trips the
+    # cross-reference check is still a valid split; it is just not a prediction case.
+    clinical_crossrefs: list[dict] = field(default_factory=list)
+    prediction_safe: bool = True
 
 
 def _all_matches(pages: list[str], patterns: list[str], after: int = 0) -> list[int]:
@@ -214,7 +255,12 @@ def plan_split(pages: list[str], toc_pages: int = 8) -> Split:
             if c.search(pages[i]):
                 return Split(False, f"A clinical heading appears on p{i}, inside the input range. REFUSED - chapters are not contiguous.", [], [], nc, cl)
 
-    return Split(True, "ok", nonclinical, withheld, nc, cl)
+    # Guard 3: the chapter may be the right pages and still not be blind. A
+    # document that trips this is not refused - section 13.4c's resolution is that
+    # it becomes a deliberation case and never a prediction case - so the split
+    # succeeds and says so.
+    crossrefs = _clinical_crossrefs(pages, nonclinical)
+    return Split(True, "ok", nonclinical, withheld, nc, cl, crossrefs, not crossrefs)
 
 
 def split_pdf(path: Path, out_dir: Path, toc_pages: int = 8) -> Split:
@@ -275,6 +321,14 @@ def main() -> None:
         print(f"nonclinical       pages {plan.nonclinical_start}-{plan.clinical_start - 1} "
               f"({len(plan.nonclinical_pages)} pages)  -> model input")
         print(f"withheld          {len(plan.withheld_pages)} pages                -> answer key, never sent")
+        if plan.prediction_safe:
+            print("blindness         no clinical cross-reference found -> usable as a prediction case")
+        else:
+            print(f"blindness         {len(plan.clinical_crossrefs)} clinical cross-reference(s) IN THE INPUT SET")
+            for h in plan.clinical_crossrefs[:5]:
+                print(f"                  p{h['page']}: {h['text'][:96]}")
+            print("                  NOT a prediction case. The chapter was written by reviewers who")
+            print("                  already knew the outcome. Use it for deliberation only.")
         print(f"written to        {out}")
         print()
         print("NEXT: a human writes the manifest of what the nonclinical chapter contains.")
