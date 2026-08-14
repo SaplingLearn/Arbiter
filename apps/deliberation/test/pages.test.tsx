@@ -2,12 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { describe, expect, it } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { AskPage } from "../src/pages.js";
-import type { CaseListing, LibrarySource } from "../src/api.js";
-
-const listing = (over: Partial<CaseListing> = {}): CaseListing => ({
-  caseId: "c1", compoundLabel: "TAK-994", status: "open", isOwner: true,
-  submitted: 0, of: 2, documents: 0, ...over,
-});
+import type { LibrarySource } from "../src/api.js";
 
 const source = (over: Partial<LibrarySource> = {}): LibrarySource => ({
   name: "turalio", label: "Turalio - FDA NDA 211810 review",
@@ -16,66 +11,53 @@ const source = (over: Partial<LibrarySource> = {}): LibrarySource => ({
 });
 
 /**
- * What Ask searches is a DOCUMENT. Cases were the only way to name one, which meant
- * the surface could not reach the library's own regulatory reviews at all - the
- * documents the prepared cases were transcribed from, sitting in the repo, unaskable.
+ * Ask searches the LIBRARY. Case folders are read inside their case, next to the
+ * findings transcribed from them; this surface is the library's regulatory reviews,
+ * which need no case and no upload.
  */
-describe("AskPage source picker", () => {
+describe("AskPage document picker", () => {
   const refused = source({
     name: "tolcapone", label: "Tolcapone - FDA medical review, 1998", askable: false,
     reason: "48 of 48 pages carry almost no extractable text - this is a scanned document and needs OCR before anything can read it. REFUSED.",
   });
-  const empty = listing({ caseId: "empty", compoundLabel: "TAK-994", documents: 0 });
-  const full = listing({ caseId: "full", compoundLabel: "Nipocalimab", documents: 2 });
+  const library = [source(), refused];
 
-  const all = { library: [source(), refused], cases: [empty, full] };
-
-  it("lists the library's documents and the reader's cases, in separate groups", () => {
-    render(<AskPage token="t" {...all} />);
-    expect(screen.getByRole("group", { name: "Library" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Your cases" })).toBeInTheDocument();
+  it("lists the library's documents", () => {
+    render(<AskPage token="t" library={library} />);
     expect(screen.getByRole("option", { name: /Turalio - FDA NDA 211810 review/ })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: /Nipocalimab - 2 documents/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Tolcapone.*cannot be searched/ })).toBeInTheDocument();
   });
 
-  it("opens on a library document that can be searched", () => {
-    // Not on cases[0]: a case is opened before anything is uploaded to it, so the
-    // first case is routinely empty, and every question there returns "the documents
-    // do not say" - which reads as the model refusing rather than as an empty folder.
-    render(<AskPage token="t" {...all} />);
-    expect(screen.getByLabelText("Which document")).toHaveValue("lib:turalio");
+  it("opens on a document that can be searched, not simply the first one", () => {
+    render(<AskPage token="t" library={[refused, source()]} />);
+    expect(screen.getByLabelText("Which document")).toHaveValue("turalio");
   });
 
   it("keeps a refused document SELECTABLE and gives the splitter's reason", () => {
     // The library page makes the same call: choosing a refused document shows the
-    // refusal rather than hiding the document. Greying it out would leave a reader
-    // who wants tolcapone with a name and no explanation.
-    render(<AskPage token="t" {...all} />);
-    fireEvent.change(screen.getByLabelText("Which document"), { target: { value: "lib:tolcapone" } });
+    // refusal rather than hiding it. Greying it out would leave a reader who wants
+    // tolcapone with a name and no explanation.
+    render(<AskPage token="t" library={library} />);
+    fireEvent.change(screen.getByLabelText("Which document"), { target: { value: "tolcapone" } });
     expect(screen.getByText(/this is a scanned document/)).toBeInTheDocument();
     expect(screen.queryByLabelText("Your question")).not.toBeInTheDocument();
   });
 
-  it("takes no question against a case with an empty folder, and says where to upload", () => {
-    render(<AskPage token="t" {...all} />);
-    fireEvent.change(screen.getByLabelText("Which document"), { target: { value: "case:empty" } });
-    expect(screen.queryByLabelText("Your question")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /upload/i })).toHaveAttribute("href", "#/case/empty");
+  it("offers a summary of the whole document, at every point in a thread", () => {
+    // "Give a summary of this document" cannot be served by retrieval - eight pages
+    // picked by word overlap are not the document - so the summary is its own request
+    // and its own button rather than a question somebody has to phrase correctly.
+    render(<AskPage token="t" library={library} />);
+    expect(screen.getByRole("button", { name: "Summarise this document" })).toBeEnabled();
   });
 
-  it("asks against a case that holds documents", () => {
-    render(<AskPage token="t" {...all} />);
-    fireEvent.change(screen.getByLabelText("Which document"), { target: { value: "case:full" } });
-    expect(screen.getByLabelText("Your question")).toBeInTheDocument();
+  it("offers no summary of a document that cannot be read at all", () => {
+    render(<AskPage token="t" library={[refused]} />);
+    expect(screen.queryByRole("button", { name: "Summarise this document" })).not.toBeInTheDocument();
   });
 
-  it("falls back to a case with documents when no library document can be searched", () => {
-    render(<AskPage token="t" library={[refused]} cases={[empty, full]} />);
-    expect(screen.getByLabelText("Which document")).toHaveValue("case:full");
-  });
-
-  it("says there is nothing to ask when neither the library nor any case holds a document", () => {
-    render(<AskPage token="t" library={[]} cases={[]} />);
+  it("says there is nothing to ask when the library holds no readable document", () => {
+    render(<AskPage token="t" library={[]} />);
     expect(screen.getByText(/Nothing to ask yet/)).toBeInTheDocument();
   });
 });

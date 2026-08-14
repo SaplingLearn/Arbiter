@@ -168,11 +168,17 @@ export class LibraryStore {
         encoding: "utf8",
         maxBuffer: 64 * 1024 * 1024,
       });
-      const parsed = JSON.parse(out) as { ok: boolean; pages?: { page: number; text: string }[] };
+      const parsed = JSON.parse(out) as { ok: boolean; pages?: { page: number; text: string }[]; reason?: string };
+      if (!parsed.ok) console.error(`library: ${name} could not be extracted - ${parsed.reason ?? "no reason given"}`);
       const pages = parsed.ok && parsed.pages !== undefined ? parsed.pages : [];
       writeFileSync(cache, JSON.stringify(pages), "utf8");
       return pages;
-    } catch {
+    } catch (e) {
+      // LOGGED, not swallowed. An extraction that fails silently is indistinguishable
+      // on screen from a document that says nothing about the question - the reader is
+      // told "nothing matches" and the operator is told nothing at all. This is the
+      // only place the actual reason exists.
+      console.error(`library: ${name} could not be read - ${e instanceof Error ? e.message : String(e)}`);
       return [];
     }
   }

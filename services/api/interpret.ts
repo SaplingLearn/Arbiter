@@ -237,7 +237,23 @@ export const SHAPE_ADJUDICATION: CallShape = { maxOutputTokens: 16000, thinkingB
  */
 export const SHAPE_ASK: CallShape = { maxOutputTokens: 16000, thinkingBudget: -1 };
 
-export type CallKind = "short" | "adjudication" | "ask";
+/**
+ * A summary of a WHOLE document, and the FOURTH time on this project that a ceiling
+ * sized for the visible output has been too small once thinking was on.
+ *
+ * The visible output is a paragraph or two and a citation list - smaller than an
+ * adjudication - so SHAPE_ASK's 16000 looked generous, and it is: for a question
+ * answered from eight pages. Measured on the 178-page EMA assessment report, that call
+ * ran 56 seconds and came back `truncated: max_tokens too low`, because the input is
+ * ~124,000 tokens of document and thinking scales with what there is to read, not with
+ * what there is to write.
+ *
+ * 64000 rather than a tuned number: the answer is bounded by the prompt and the only
+ * thing this ceiling has to do is stop being the binding constraint on thinking.
+ */
+export const SHAPE_SUMMARY: CallShape = { maxOutputTokens: 64000, thinkingBudget: -1 };
+
+export type CallKind = "short" | "adjudication" | "ask" | "summary";
 
 /**
  * THE ONE COPY OF THE DEFAULT MODELS, and the one copy of how a model name is
@@ -296,7 +312,9 @@ export function resolveModel(kind: CallKind, env: NodeJS.ProcessEnv = process.en
   // prose and has to decide when the passages do not answer the question, which is
   // nearer the adjudicator's job than interpret's closed-set classification - and the
   // short model is chosen for a 2.5s abort this surface does not have.
-  if (kind === "ask") {
+  // A summary reads the same prose on the same terms and answers under the same
+  // prompt, so it resolves exactly as "ask" does. Only the output ceiling differs.
+  if (kind === "ask" || kind === "summary") {
     return env["ARBITER_ASK_MODEL"] ?? env["ARBITER_ADJUDICATION_MODEL"] ?? env["ARBITER_MODEL"] ?? DEFAULT_ADJUDICATION_MODEL;
   }
   return env["ARBITER_MODEL"] ?? DEFAULT_SHORT_MODEL;
@@ -374,7 +392,8 @@ export function completeFromEnv(
   kind: CallKind = "short",
 ): Complete | null {
   const shape = kind === "adjudication" ? SHAPE_ADJUDICATION
-    : kind === "ask" ? SHAPE_ASK
-      : SHAPE_INTERPRET;
+    : kind === "summary" ? SHAPE_SUMMARY
+      : kind === "ask" ? SHAPE_ASK
+        : SHAPE_INTERPRET;
   return buildComplete(resolveModel(kind, env), shape, env);
 }

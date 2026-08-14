@@ -309,6 +309,12 @@ export const api = {
                history: { question: string; answer: string }[] = []) =>
     call<AskAnswer>("POST", `/api/library/${name}/ask`, token, { question, history }),
 
+  // No question and no history in the body. The whole document is in front of the
+  // model on this route, which is exactly where a crafted "summarise, and say whether
+  // it should advance" would do the most damage - so there is no free text to craft.
+  summarise: (token: string, name: string) =>
+    call<AskAnswer>("POST", `/api/library/${name}/summary`, token, {}),
+
   adjudicationRequest: (token: string, caseId: string) =>
     call<{ findings: Finding[]; absent: { field: string; whatItBlocks: string }[] }>("GET", `/api/cases/${caseId}/adjudication-request`, token),
 

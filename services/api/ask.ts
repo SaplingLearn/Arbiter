@@ -281,7 +281,11 @@ export async function handleAsk(
     // from here" line from this and nothing else: the truncation happened here, so the
     // count is stated here rather than inferred from a rule the client keeps a copy of.
     return { status: 200, body: { ...answer, citations, historyTurnsUsed: historyWindow(history).length } };
-  } catch {
+  } catch (e) {
+    // LOGGED, not swallowed. `upstream` is the same three words on the screen whether
+    // the provider refused, the answer was truncated, or the credentials expired, and
+    // this is the only place the difference exists.
+    console.error(`ask: upstream failure - ${e instanceof Error ? e.message : String(e)}`);
     return { status: 502, body: { error: "upstream" } };
   }
 }

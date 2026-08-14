@@ -228,7 +228,7 @@ export function App(): ReactElement {
       );
 
     case "ask":
-      return shell(<AskPage token={token} cases={mine} library={library} />);
+      return shell(<AskPage token={token} library={library} />);
 
     case "cases":
       return shell(<LibraryPage catalogue={catalogue} onOpen={openPrepared} busy={opening} />);

@@ -8,6 +8,7 @@ import type { Position } from "./deliberation.js";
 import type { CoveringFinding, EvidenceChecklist, Modality } from "./inventory.js";
 import { ADJUDICATOR_PROMPT_PATH, handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
 import { handleAsk } from "./ask.js";
+import { handleSummarise } from "./summarise.js";
 import { buildIndex, search } from "./retrieval.js";
 import { completeFromEnv, resolveModel } from "./interpret.js";
 import { stubComplete } from "./probe.js";
@@ -166,7 +167,7 @@ export function makeHandler(deps: ServerDeps) {
         return json(res, 200, deps.library.list());
       }
 
-      if (parts[1] === "library" && parts[3] === "ask" && method === "POST") {
+      if (parts[1] === "library" && (parts[3] === "ask" || parts[3] === "summary") && method === "POST") {
         const source = deps.library.list().find((s) => s.name === parts[2]);
         if (source === undefined) return json(res, 404, { error: "no_document" });
         // 422 before any model call. The reason a document cannot be searched was
@@ -176,6 +177,19 @@ export function makeHandler(deps: ServerDeps) {
         if (!source.askable) {
           return json(res, 422, { error: "not_askable", detail: source.reason });
         }
+
+        // A summary reads the WHOLE document, so it does not go through retrieval at
+        // all - see summarise.ts for why a document-level question cannot be served by
+        // a passage-level one.
+        if (parts[3] === "summary") {
+          const out = await handleSummarise(
+            deps.library.textFor(source.name),
+            deps.library.filenameFor(source.name),
+            completeFromEnv(process.env, "summary"),
+          );
+          return json(res, out.status, out.body);
+        }
+
         const passages = search(
           buildIndex([{
             documentId: source.name,
