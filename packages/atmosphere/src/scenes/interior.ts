@@ -2,11 +2,14 @@ import {
   AdditiveBlending,
   BoxGeometry,
   Color,
+  DoubleSide,
   GLSL3,
   Group,
   InstancedBufferAttribute,
   InstancedMesh,
+  Mesh,
   Object3D,
+  PlaneGeometry,
   ShaderMaterial,
   Vector3,
 } from "three";
@@ -55,6 +58,11 @@ import { makeMotes, mulberry32, smoothstep } from "./common.js";
 /** Where the ground sits below the body's centre, which is where the camera ends up. */
 const GROUND_DROP = 7.6;
 
+/** The refused interior's light, in the interior's own space. One constant, because the
+ *  cube shades itself against it and the glow is drawn at it — two copies of this number
+ *  is a cube lit from somewhere the light visibly is not. */
+const CORE = new Vector3(1.5, GROUND_DROP + 0.3, -17.0);
+
 export interface Interior {
   readonly group: Group;
   /**
@@ -63,7 +71,10 @@ export interface Interior {
    * camera's.
    */
   setProgress(k: number): void;
-  /** Refused subject — the red variant. Decided before the flight starts. */
+  /**
+   * Refused subject. Not a hue on this composition — a DIFFERENT one: the plain stops
+   * drawing and a single cube in fog takes its place. Decided before the flight starts.
+   */
   setDead(dead: boolean): void;
   /**
    * Generate this case's own plain. Deterministic in `seed`, so the same case is the
@@ -104,6 +115,9 @@ export function makeInterior(quality: number): Interior {
   const nz = Math.floor((Z_NEAR - Z_FAR) / CELL) + 1;
 
   const dummy = new Object3D();
+  /** Where `build` put the refused pair, so the bob has something to be relative to. */
+  const bigBase = new Vector3();
+  const smallBase = new Vector3();
 
   const latGeo = new BoxGeometry(1, 1, 1);
   const cubeState = new Float32Array(nx * nz * 3);
@@ -237,7 +251,7 @@ export function makeInterior(quality: number): Interior {
       dummy.position.set(
         (rnd() - 0.5) * 96,
         11 + rnd() * 28,
-        -18 - rnd() * 84,
+        -24 - rnd() * 84,
       );
       dummy.scale.setScalar(0.7 + rnd() * rnd() * 3.2);
       dummy.updateMatrix();
@@ -252,10 +266,22 @@ export function makeInterior(quality: number): Interior {
     latAttr.needsUpdate = true;
     floMesh.instanceMatrix.needsUpdate = true;
     floAttr.needsUpdate = true;
-  }
 
-  // Something has to be in the buffers before the first focus lands.
-  build(0x5c1e);
+    /* AND THE REFUSED ARRANGEMENT, from the same stream. The plain is per-case and this
+       would not have been: both refused documents in the catalogue would have opened
+       onto the identical two cubes in the identical places, which is the exact failure
+       `setSeed` exists to fix, surviving in the one composition that skipped it.
+
+       Moved rather than rebuilt. The reading is "one object in a void" and a seed that
+       could turn it into three, or put it somewhere the core does not light it, would be
+       varying the argument instead of the arrangement. */
+    bigBase.set(-4.6 + rnd() * 2.0, GROUND_DROP + 0.4 + rnd() * 1.5, -16.8 + rnd() * 2.2);
+    smallBase.set(1.8 + rnd() * 1.6, GROUND_DROP - 2.1 + rnd() * 1.4, -12.2 + rnd() * 2.2);
+    bigCube.position.copy(bigBase);
+    bigCube.scale.setScalar(3.1 + rnd() * 0.7);
+    smallCube.position.copy(smallBase);
+    smallCube.scale.setScalar(1.15 + rnd() * 0.5);
+  }
 
   /**
    * PARTICULATE, AND WHERE IT IS PUT.
@@ -278,9 +304,62 @@ export function makeInterior(quality: number): Interior {
   motes.position.set(0, 10, -30);
   group.add(motes);
 
+  /**
+   * WHAT A REFUSED CASE OPENS ONTO, and it is the inverse of everything above.
+   *
+   * It used to be this same plain in a red grade. That was wrong in the one way that
+   * matters: it said a refused case is a case with the colour changed. It is not. The
+   * splitter refused the document because there was nothing in it to build a case FROM -
+   * and a landscape of a thousand structures, however red, is a picture of a great deal
+   * having been built.
+   *
+   * So the plain does not draw at all. What is in there instead is fog, a hot core, and
+   * ONE cube turning slowly, with a single small companion. A usable case opens onto a
+   * landscape of structure; a refused one opens onto a void with an object in it. That
+   * inversion is the whole argument, and it is the same thing the splitter's reason says
+   * in the panel over the top of it.
+   *
+   * THE CUBE IS SEEN THROUGH, double-sided and part-transparent, so its far walls read
+   * behind its near ones. A solid dark cube against a bright fog is a hole in the frame;
+   * one you can see the inside of is an object that failed to be filled.
+   */
+  const solitary = new Group();
+  solitary.visible = false;
+  group.add(solitary);
+
+  const solMat = makeSolitaryMaterial();
+  const solGeo = new BoxGeometry(1, 1, 1);
+
+  /* Placed in the group's own space, where the camera sits at (0, GROUND_DROP, 0)
+     looking down -Z. Large body up and to the left, small one down and to the right,
+     the core between and behind them - the reference's own arrangement, and it works
+     because the eye finds the bright thing first and the cubes second. */
+  const bigCube = new Mesh(solGeo, solMat);
+  bigCube.renderOrder = 3;
+  solitary.add(bigCube);
+
+  const smallCube = new Mesh(solGeo, solMat);
+  smallCube.renderOrder = 3;
+  solitary.add(smallCube);
+
+  /* The core, and it is doing two jobs. It is the light the cubes are read against, and
+     because it is enormous and soft it is also the fog - the bloom chain spreads it
+     across the frame, which is cheaper and more controllable than a volumetric pass and
+     lands in the same place. Billboarded in view space so it is a disc from anywhere. */
+  const core = new Mesh(new PlaneGeometry(1, 1), makeCoreMaterial());
+  core.position.copy(CORE);
+  core.frustumCulled = false;
+  core.renderOrder = 1;
+  solitary.add(core);
+
+  // Something has to be in the buffers, and the cubes somewhere, before the first
+  // focus lands. After the solitary meshes exist, because `build` places those too.
+  build(0x5c1e);
+
   const latMat = latMesh.material as ShaderMaterial;
   const floMat = floMesh.material as ShaderMaterial;
   const moteMat = motes.material as ShaderMaterial;
+  const coreMat = core.material as ShaderMaterial;
 
   return {
     group,
@@ -294,12 +373,21 @@ export function makeInterior(quality: number): Interior {
       latMat.uniforms.uAppear!.value = appear;
       floMat.uniforms.uAppear!.value = appear;
       moteMat.uniforms.uFade!.value = appear;
+      solMat.uniforms.uAppear!.value = appear;
+      coreMat.uniforms.uAppear!.value = appear;
     },
 
+    /**
+     * TWO COMPOSITIONS, not one composition with a hue swap. A refused case draws the
+     * solitary cube in fog and NOTHING of the plain - no lattice, no floaters, no
+     * particulate. See the note on `solitary` for why the environment has to say
+     * "nothing was built here" rather than "this is red".
+     */
     setDead(dead) {
-      const v = dead ? 1 : 0;
-      latMat.uniforms.uDead!.value = v;
-      floMat.uniforms.uDead!.value = v;
+      latMesh.visible = !dead;
+      floMesh.visible = !dead;
+      motes.visible = !dead;
+      solitary.visible = dead;
     },
 
     setSeed: build,
@@ -312,39 +400,41 @@ export function makeInterior(quality: number): Interior {
       latMat.uniforms.uTime!.value = t;
       floMat.uniforms.uTime!.value = t;
       moteMat.uniforms.uTime!.value = t;
+      solMat.uniforms.uTime!.value = t;
+      coreMat.uniforms.uTime!.value = t;
+
+      /* Turned on the CPU rather than in the shader, unlike the floaters. There are two
+         of these and they are plain meshes, so a per-frame rotation is four trig calls;
+         the floaters do it in the vertex shader because there are two hundred and forty
+         of them sharing one instanced draw and there is nowhere on the CPU to put it. */
+      bigCube.rotation.set(t * 0.048, t * 0.071, t * 0.021);
+      bigCube.position.y = bigBase.y + Math.sin(t * 0.21) * 0.5;
+      smallCube.rotation.set(-t * 0.089, t * 0.13, t * 0.037);
+      smallCube.position.y = smallBase.y + Math.sin(t * 0.27 + 2.1) * 0.4;
     },
 
     dispose() {
       latGeo.dispose(); latMat.dispose(); latMesh.dispose();
       floGeo.dispose(); floMat.dispose(); floMesh.dispose();
       motes.geometry.dispose(); moteMat.dispose();
+      solGeo.dispose(); solMat.dispose();
+      core.geometry.dispose(); coreMat.dispose();
     },
   };
 }
 
 /**
- * The palette, in both readings.
+ * The plain's palette — the house ramp, violet in the deep tones and cyan in the hot
+ * ones, which is the one rule `palette.ts` asks every scene to keep. Here it is mapped
+ * to HEIGHT, so the plain gets colder as it rises and the tall blocks are the bright
+ * ones.
  *
- * Live is the house ramp: violet in the deep tones, cyan in the hot ones, which is the
- * one rule `palette.ts` asks every scene to keep. Here it is mapped to HEIGHT, so the
- * plain gets colder as it rises and the tall blocks are the bright ones.
- *
- * REFUSED IS RED, and it is the whole environment rather than a marker on one object.
- * The palette file is strict that red is only ever spent on a subject that failed, never
- * as a second accent — and it holds here, because of where the camera is standing. You
- * are inside the refused body. Everything in frame is that body's interior, so all of it
- * is the subject, and none of it is decoration wearing the subject's colour.
- *
- * The red ramp travels in VALUE where the blue one travels in hue — near-black with red
- * in it, up to `stop`. There is one red in this palette by design and inventing a second
- * to give the refused variant a hue journey would be spending exactly what the rule is
- * protecting.
+ * NO RED IN IT ANY MORE. There was, when a refused case was this same plain in a red
+ * grade; a refused case draws the solitary cube now and none of this, so a dead branch
+ * in these two shaders is a branch that can never be taken and would sit there looking
+ * like a supported mode.
  */
-function ramp(): {
-  uDeep: { value: Color }; uHot: { value: Color };
-  uDeadDeep: { value: Color }; uDeadHot: { value: Color };
-  uFog: { value: Color };
-} {
+function ramp(): { uDeep: { value: Color }; uHot: { value: Color }; uFog: { value: Color } } {
   /* The deep end is not scaled UP. It was, and the plain came back a single flooded
      azure with no violet anywhere in it - a hot violet and a hot cyan a few hundred
      cubes deep average into one blue. Deep has to be genuinely dark for the ramp to
@@ -357,10 +447,151 @@ function ramp(): {
        ramp from the other one. */
     uDeep: { value: PALETTE.violet.clone().multiplyScalar(0.55) },
     uHot: { value: PALETTE.cyan.clone().multiplyScalar(0.62) },
-    uDeadDeep: { value: PALETTE.stop.clone().lerp(PALETTE.abyss, 0.86) },
-    uDeadHot: { value: PALETTE.stop.clone().multiplyScalar(0.55) },
     uFog: { value: PALETTE.abyss.clone() },
   };
+}
+
+/**
+ * THE REFUSED BODY, and the palette rule it is held to.
+ *
+ * `palette.ts` is strict that red is only ever spent on a subject that failed, never as
+ * a second accent. It holds here because of where the camera is standing: you are inside
+ * the refused body, so everything in frame is the subject and none of it is decoration
+ * wearing the subject's colour.
+ *
+ * The cube is DARK and lit from outside itself, which is the opposite of every other
+ * object in this package. The landing page's cube, the Archive's bodies and the plain
+ * above are all lit from within - that is what an object with something in it looks
+ * like. This one has nothing in it, so it takes what the core gives it and no more.
+ */
+function makeSolitaryMaterial(): ShaderMaterial {
+  return new ShaderMaterial({
+    glslVersion: GLSL3,
+    transparent: true,
+    /* Its own far walls have to show behind its near ones - that read is what makes it
+       an object which failed to be filled rather than a hole cut in a bright fog. Which
+       means no depth write, or the near faces would occlude the far ones of the same
+       cube. */
+    depthWrite: false,
+    side: DoubleSide,
+    uniforms: {
+      uTime: { value: 0 },
+      uAppear: { value: 0 },
+      uDark: { value: PALETTE.stop.clone().lerp(PALETTE.abyss, 0.88) },
+      uLit: { value: PALETTE.stop.clone().multiplyScalar(0.22) },
+      uEdge: { value: PALETTE.stop.clone().multiplyScalar(0.55) },
+      /* Where the light is, in this group's space. Passed rather than derived so the
+         cube and the core cannot disagree about which way the shadows fall. */
+      uCore: { value: CORE.clone() },
+    },
+    vertexShader: /* glsl */ `
+      out vec3 vN;
+      out vec3 vView;
+      out vec3 vLocal;
+      void main(){
+        vLocal = (modelMatrix * vec4(position, 1.0)).xyz;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vN = normalize(normalMatrix * normal);
+        vView = -mv.xyz;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      precision highp float;
+      in vec3 vN; in vec3 vView; in vec3 vLocal;
+      out vec4 fragColor;
+      uniform vec3 uDark, uLit, uEdge, uCore;
+      uniform float uTime, uAppear;
+
+      void main(){
+        vec3 n = normalize(vN);
+        vec3 v = normalize(vView);
+
+        /* One light, at the core. Absolute value, because the material is double-sided
+           and the inside of the far wall is lit by the same source as the outside of the
+           near one - signed, the interior goes black and the cube reads solid again. */
+        vec3 l = normalize(uCore - vLocal);
+        float lit = abs(dot(n, l));
+
+        // Grazing faces catch the fog behind them. This is the only bright thing on the
+        // cube, and it is what draws the silhouette.
+        float f = 1.0 - abs(dot(n, v));
+        float edge = smoothstep(0.45, 1.0, f);
+
+        vec3 col = mix(uDark, uLit, pow(lit, 2.2) * 0.70) + uEdge * edge * 0.40;
+
+        /* Thin where it faces you and dense at the silhouette, so the walls you look
+           straight through are the ones that let the far side show. */
+        float a = (0.34 + edge * 0.46) * uAppear;
+        fragColor = vec4(col, a);
+      }
+    `,
+  });
+}
+
+/**
+ * THE CORE — the light the cubes are read against, and the fog, in one object.
+ *
+ * A real volumetric pass would be the honest way to get the reference's atmosphere and
+ * it is not worth a second render target here: an enormous, very soft additive disc put
+ * through a bloom chain that is already running lands in the same place, and it stays a
+ * single number to art-direct.
+ *
+ * Billboarded in view space rather than by a lookAt on the CPU, so it is a disc from
+ * every angle including the ones the drift puts the camera at, and so nothing has to run
+ * per frame to keep it facing.
+ */
+function makeCoreMaterial(): ShaderMaterial {
+  return new ShaderMaterial({
+    glslVersion: GLSL3,
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    blending: AdditiveBlending,
+    uniforms: {
+      uTime: { value: 0 },
+      uAppear: { value: 0 },
+      uSize: { value: 30 },
+      uHot: { value: PALETTE.stop.clone().lerp(PALETTE.white, 0.45) },
+      uOuter: { value: PALETTE.stop.clone().multiplyScalar(0.55) },
+    },
+    vertexShader: /* glsl */ `
+      out vec2 vUv;
+      uniform float uSize;
+      void main(){
+        vUv = uv;
+        // The mesh's own origin in view space, then expanded along the view axes.
+        vec4 mv = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+        mv.xy += position.xy * uSize;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      precision highp float;
+      in vec2 vUv;
+      out vec4 fragColor;
+      uniform vec3 uHot, uOuter;
+      uniform float uTime, uAppear;
+
+      void main(){
+        float d = length(vUv - 0.5) * 2.0;
+
+        /* TWO falloffs summed, and the wide one is the whole reason this reads as fog
+           rather than as a lamp. A single curve either gives a tight core with dead air
+           around it or a flat wash with no source in it; a hard centre plus a long tail
+           gives both, which is what light in a dense medium actually looks like. */
+        float hot = pow(max(1.0 - d, 0.0), 5.0);
+        float haze = pow(max(1.0 - d, 0.0), 1.4);
+
+        // Slow, shallow, and never a pulse - a light that throbs is an alarm.
+        float breath = 0.92 + 0.08 * sin(uTime * 0.33);
+
+        vec3 col = uHot * hot * 0.85 + uOuter * haze * 0.16;
+        float a = (hot * 0.60 + haze * 0.14) * breath * uAppear;
+        fragColor = vec4(col * a, a);
+      }
+    `,
+  });
 }
 
 function makeLatticeMaterial(): ShaderMaterial {
@@ -369,7 +600,6 @@ function makeLatticeMaterial(): ShaderMaterial {
     uniforms: {
       uTime: { value: 0 },
       uAppear: { value: 0 },
-      uDead: { value: 0 },
       ...ramp(),
     },
     vertexShader: /* glsl */ `
@@ -393,8 +623,8 @@ function makeLatticeMaterial(): ShaderMaterial {
       precision highp float;
       in vec3 vObj; in vec3 vN; in vec3 vCube; in float vDepth;
       out vec4 fragColor;
-      uniform vec3 uDeep, uHot, uDeadDeep, uDeadHot, uFog;
-      uniform float uTime, uAppear, uDead;
+      uniform vec3 uDeep, uHot, uFog;
+      uniform float uTime, uAppear;
 
       void main(){
         /* THE CAP CARRIES THE LIGHT. Not a lighting model — there is no light in this
@@ -416,7 +646,7 @@ function makeLatticeMaterial(): ShaderMaterial {
            to the tall blocks only, so the bright ones are a minority and the field they
            stand in is violet. */
         float t = clamp(vCube.x * 0.78 + vCube.y * 0.30 - 0.10, 0.0, 1.0);
-        vec3 hue = mix(mix(uDeep, uHot, t), mix(uDeadDeep, uDeadHot, t), uDead);
+        vec3 hue = mix(uDeep, uHot, t);
 
         // A gradient ACROSS each cap, so a top face is a surface and not a swatch.
         vec2 fl = vObj.xz + 0.5;
@@ -448,7 +678,6 @@ function makeFloaterMaterial(): ShaderMaterial {
     uniforms: {
       uTime: { value: 0 },
       uAppear: { value: 0 },
-      uDead: { value: 0 },
       ...ramp(),
     },
     vertexShader: /* glsl */ `
@@ -468,9 +697,27 @@ function makeFloaterMaterial(): ShaderMaterial {
         mat3 spin = rotY(a) * rotX(a * 0.63 + aFloat.z * 6.2831);
 
         vec4 wp = instanceMatrix * vec4(spin * position, 1.0);
-        // Bob applied after the instance transform, so it is in world units and does not
-        // pick up the instance's scale.
-        wp.y += sin(uTime * 0.24 + aFloat.z * 6.2831) * 1.3;
+
+        /* THEY TRAVEL, they do not only turn. A cube spinning on the spot is a display
+           stand; the whole reason these are here is that the air is not still, and a
+           reader watching this behind a case for twenty minutes reads "nothing is
+           moving" long before they could say why.
+
+           A slow bounded wander rather than a velocity, because a velocity needs
+           wrapping and a wrap is a cube teleporting across the frame. Each one traces
+           its own ellipse of a few units around where it was placed - three
+           decorrelated periods so the set never returns to formation, and per-instance
+           phases so they are not a shoal.
+
+           Applied after the instance transform, in world units, so it does not pick up
+           the instance's scale - a large cube would otherwise wander proportionally
+           further and the field would sort itself by size. */
+        float s1 = aFloat.z * 6.2831;
+        float s2 = aFloat.x * 6.2831;
+        float rate = 0.045 + aFloat.y * 0.35;
+        wp.x += sin(uTime * rate * 0.60 + s1) * (3.0 + aFloat.x * 7.0);
+        wp.y += sin(uTime * 0.24 + s1) * 1.3 + sin(uTime * rate * 0.40 + s2) * 2.2;
+        wp.z += cos(uTime * rate * 0.45 + s2) * (2.5 + aFloat.z * 4.5);
 
         vec4 mv = modelViewMatrix * wp;
         vN = normalize(mat3(instanceMatrix) * (spin * normal));
@@ -483,12 +730,12 @@ function makeFloaterMaterial(): ShaderMaterial {
       precision highp float;
       in vec3 vN; in vec3 vView; in vec3 vFloat; in float vDepth;
       out vec4 fragColor;
-      uniform vec3 uDeep, uHot, uDeadDeep, uDeadHot;
-      uniform float uTime, uAppear, uDead;
+      uniform vec3 uDeep, uHot;
+      uniform float uTime, uAppear;
 
       void main(){
         float t = clamp(vFloat.x, 0.0, 1.0);
-        vec3 hue = mix(mix(uDeep, uHot, t), mix(uDeadDeep, uDeadHot, t), uDead);
+        vec3 hue = mix(uDeep, uHot, t);
 
         /* A CONVENTIONAL fresnel, and the only one in this file. The lattice is lit from
            its own caps because it is the ground; these are hanging in the air with

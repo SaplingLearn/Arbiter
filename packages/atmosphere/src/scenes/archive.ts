@@ -684,8 +684,16 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
            turning slightly as it drifts is what makes the plain feel wider than the
            frame. */
         eye.lerp(_tmpEye.set(held.x + Math.sin(t * 0.045) * 0.45, held.y, held.z), k);
+
+        /* AND A REFUSAL IS AIMED LEVEL, because there is no plain in there to look down
+           across. The tilt above exists to spend the frame on a terrain receding to a fog
+           line; pointed into the solitary composition it puts the cube at the top of the
+           frame and fills the rest with empty fog. Two compositions, two headings - the
+           camera cannot be neutral between a landscape and a single object. */
         aim.lerp(
-          _tmpAim.set(held.x + Math.sin(t * 0.031) * 1.6, held.y - 4.2, held.z - 22),
+          heldDead
+            ? _tmpAim.set(held.x + Math.sin(t * 0.037) * 0.9, held.y + 0.1, held.z - 14)
+            : _tmpAim.set(held.x + Math.sin(t * 0.031) * 1.6, held.y - 4.2, held.z - 22),
           k,
         );
 

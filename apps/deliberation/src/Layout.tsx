@@ -19,11 +19,13 @@ import type { CaseSummary, Person } from "./api.js";
 
 export { initials } from "./shell/Chrome.js";
 
-export function Layout({ route, me, catalogue, onSignOut, children }: {
+export function Layout({ route, me, catalogue, focusKey, onSignOut, children }: {
   route: Route;
   me: Person | null;
   /** Passed straight through to the backdrop: the Archive draws one body per case. */
   catalogue: CaseSummary[];
+  /** Also straight through — which case the environment singles out. See `Backdrop`. */
+  focusKey: string | null;
   onSignOut: () => void;
   children: ReactNode;
 }): ReactElement {
@@ -37,7 +39,7 @@ export function Layout({ route, me, catalogue, onSignOut, children }: {
           line of type vanished, because a panel carries backdrop-filter, which makes
           a stacking context, and a page title carries nothing. Out here the order is
           the whole argument: canvas at 0, shell at 1. */}
-      <Backdrop route={route} catalogue={catalogue} />
+      <Backdrop route={route} catalogue={catalogue} focusKey={focusKey} />
 
       <div className="shell">
       <Frame />

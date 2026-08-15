@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactElement } from "react";
 import type { Atmosphere, SceneSubject } from "@arbiter/atmosphere";
 import type { CaseSummary } from "../api.js";
-import { caseIdOf, type Route } from "../router.js";
+import { type Route } from "../router.js";
 import { sceneFor, transitionFor } from "./nav.js";
 
 /**
@@ -23,9 +23,20 @@ import { sceneFor, transitionFor } from "./nav.js";
  * Imported dynamically so it never blocks first paint - the case list is on screen
  * and usable before the environment arrives behind it.
  */
-export function Backdrop({ route, catalogue }: {
+export function Backdrop({ route, catalogue, focusKey }: {
   route: Route;
   catalogue: CaseSummary[];
+  /**
+   * Which case the environment should single out, or null for the wide shot.
+   *
+   * DERIVED BY THE APP, not from the route here, and that is the whole point of the
+   * prop. A refused case never becomes a route: the server answers the open with a 422
+   * and the reader stays on the library looking at the reason. So `caseIdOf(route)` was
+   * null for exactly the cases the Archive draws in red, and the refused interior - the
+   * one composition written for a failure - could not be reached from the product at
+   * all. The app knows it is showing a refusal; this lets it say so.
+   */
+  focusKey: string | null;
 }): ReactElement {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const atmoRef = useRef<Atmosphere | null>(null);
@@ -35,7 +46,7 @@ export function Backdrop({ route, catalogue }: {
   const wanted = useRef(sceneFor(route));
   /* Same race, for the focus key: a reader can land straight on a case URL, and the
      effect that announces the key runs long before `three` has finished arriving. */
-  const wantedKey = useRef(caseIdOf(route));
+  const wantedKey = useRef(focusKey);
   /* And again for the population. This one loses the race almost every time rather
      than occasionally - the catalogue is a fetch, so on a cold load it arrives after
      the engine, and on a warm one before it. Whoever finishes last wins by reading
@@ -126,11 +137,10 @@ export function Backdrop({ route, catalogue }: {
    * `focus` is held by the engine across scene swaps, so going to a closed record -
    * which IS a different world, the seal - and coming back lands on the same cell.
    */
-  const key = caseIdOf(route);
   useEffect(() => {
-    wantedKey.current = key;
-    atmoRef.current?.focus(key);
-  }, [key]);
+    wantedKey.current = focusKey;
+    atmoRef.current?.focus(focusKey);
+  }, [focusKey]);
 
   /**
    * ONE BODY IN THE ARCHIVE PER CASE IN THE LIBRARY.

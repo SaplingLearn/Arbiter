@@ -267,8 +267,25 @@ export function App(): ReactElement {
     })();
   };
 
+  /**
+   * WHICH CASE THE ENVIRONMENT SINGLES OUT, and a refusal counts.
+   *
+   * This was `caseIdOf(route)`, read inside the backdrop. A refused case never becomes a
+   * route - the server answers the open with a 422 and the reader stays on the library
+   * looking at the reason - so the key was null for exactly the cases the Archive draws
+   * in red, and the interior written for a failure could not be reached from the product
+   * at all.
+   *
+   * The refusal wins over the route because it is the more specific thing on screen: it
+   * is only ever set while the library is showing why one named document could not
+   * produce a case, and that is the case the reader is looking at.
+   */
+  const focusKey = refusal?.name ?? caseId;
+
   const shell = (children: ReactElement): ReactElement => (
-    <Layout route={route} me={me} catalogue={catalogue} onSignOut={signOut}>{children}</Layout>
+    <Layout route={route} me={me} catalogue={catalogue} focusKey={focusKey} onSignOut={signOut}>
+      {children}
+    </Layout>
   );
 
   if (fatal !== null) {
