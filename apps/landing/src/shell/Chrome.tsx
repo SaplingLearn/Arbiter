@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { APP_URL, REPO_URL } from "../links.js";
-import { Segment, SegmentPair } from "./Controls.js";
-import { Decode } from "./text/Decode.js";
-import { Wordmark } from "./Wordmark.js";
+import { APP_URL, REPO_URL, externalAttrs } from "../links.js";
+import { Segment, SegmentPair } from "@arbiter/design";
+import { Decode } from "@arbiter/design";
+import { Wordmark } from "@arbiter/design";
 
 /**
  * THE HUD BEZEL — frame, header, chapter index, footer.
@@ -193,7 +193,7 @@ function IconLink({
     <a
       href={href}
       aria-label={label}
-      {...(href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
+      {...externalAttrs(href)}
       className="p-2.5 text-off-blue/50 transition-[color,filter] duration-200 hover:text-off-blue hover:drop-shadow-[0_0_6px_var(--color-accent-bright)]"
     >
       <svg viewBox="0 0 24 24" fill="currentColor" className="size-4" aria-hidden="true">

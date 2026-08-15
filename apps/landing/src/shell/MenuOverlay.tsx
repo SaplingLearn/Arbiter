@@ -10,9 +10,10 @@ import {
   RESULTS_URL,
   RULESET_URL,
   SPECS_URL,
+  externalAttrs,
 } from "../links.js";
-import { Decode } from "./text/Decode.js";
-import { reducedMotion } from "./text/motion.js";
+import { Decode } from "@arbiter/design";
+import { reducedMotion } from "@arbiter/design";
 
 /**
  * THE MENU — a full inversion of the page.
@@ -170,9 +171,7 @@ export function MenuOverlay({ open }: { open: boolean }) {
                 <a
                   data-menu-line
                   href={item.href}
-                  {...(item.href.startsWith("http")
-                    ? { target: "_blank", rel: "noreferrer" }
-                    : {})}
+                  {...externalAttrs(item.href)}
                   onPointerEnter={() => setHovered(i)}
                   onFocus={() => setHovered(i)}
                   className={`t-display flex items-center gap-5 py-1 text-[clamp(38px,6.4vw,72px)] leading-[1] transition-opacity duration-200 ${

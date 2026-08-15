@@ -10,7 +10,7 @@
   "scripts": {
     "test": "vitest run",
     "lint": "eslint packages apps services --ext .ts,.tsx",
-    "typecheck": "tsc -b packages/engine apps/harness && tsc -p apps/web --noEmit && tsc -p apps/deliberation --noEmit && tsc -p apps/landing --noEmit && tsc -p services/api --noEmit",
+    "typecheck": "tsc -b packages/engine apps/harness && tsc -p apps/web --noEmit && tsc -p apps/deliberation --noEmit && tsc -p packages/design --noEmit && tsc -p apps/landing --noEmit && tsc -p services/api --noEmit",
     "harness": "tsx apps/harness/src/main.ts",
     "validate:evidence": "tsx apps/harness/src/validate-evidence.ts",
     "metrics": "tsx apps/harness/src/run-metrics.ts",

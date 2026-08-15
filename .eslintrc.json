@@ -28,7 +28,9 @@
         "apps/deliberation/**/*.ts",
         "apps/deliberation/**/*.tsx",
         "apps/landing/**/*.ts",
-        "apps/landing/**/*.tsx"
+        "apps/landing/**/*.tsx",
+        "packages/design/**/*.ts",
+        "packages/design/**/*.tsx"
       ],
       "env": { "browser": true }
     },

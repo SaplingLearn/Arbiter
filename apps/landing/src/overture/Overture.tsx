@@ -9,16 +9,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { externalAttrs } from "../links.js";
 import { prefersReducedMotion } from "../motion/reducedMotion.js";
 import { ChapterIndex, Footer, Frame, Header } from "../shell/Chrome.js";
-import { Cta } from "../shell/Controls.js";
-import { Cursor } from "../shell/Cursor.js";
+import { Cta } from "@arbiter/design";
+import { Cursor } from "@arbiter/design";
 import { MenuOverlay } from "../shell/MenuOverlay.js";
-import { ease, getPointer } from "../shell/pointer.js";
+import { ease, getPointer } from "@arbiter/design";
 import { Preloader } from "../shell/Preloader.js";
 import { ProgressRail } from "../shell/ProgressRail.js";
-import { Decode } from "../shell/text/Decode.js";
-import { Headline, RevealParagraph } from "../shell/text/Headline.js";
+import { Decode } from "@arbiter/design";
+import { Headline, RevealParagraph } from "@arbiter/design";
 import { SECTIONS } from "./content.js";
 import { TRACKS, useScrollEngine, type ScrollEngine } from "./useScrollEngine.js";
 
@@ -385,7 +386,12 @@ function ChapterCopy({
       </div>
 
       {section.cta ? (
-        <Cta href={section.cta.href} label={section.cta.label} className="mt-7" />
+        <Cta
+          href={section.cta.href}
+          label={section.cta.label}
+          newTab={"target" in externalAttrs(section.cta.href)}
+          className="mt-7"
+        />
       ) : null}
     </div>
   );

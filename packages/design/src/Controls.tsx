@@ -119,15 +119,20 @@ function usePressFlash(): [boolean, { onPointerDown: () => void }] {
 export function Cta({
   href,
   label,
+  newTab,
   className = "",
 }: {
   href: string;
   label: string;
+  /** Open in a new tab. Decided by the CALLER, never inferred from the URL's shape
+   *  here — a design system cannot know which hosts are "ours". Getting that wrong is
+   *  what made the landing page's own product link open a popup in development and
+   *  navigate in place in production. */
+  newTab?: boolean;
   className?: string;
 }) {
   const [hover, setHover] = useState(false);
   const [flashing, press] = usePressFlash();
-  const external = href.startsWith("http");
 
   return (
     <span className={`relative inline-block ${className}`}>
@@ -140,7 +145,7 @@ export function Cta({
       <a
         data-cta=""
         href={href}
-        {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
+        {...(newTab ? { target: "_blank" as const, rel: "noreferrer" } : {})}
         onPointerEnter={() => setHover(true)}
         onPointerLeave={() => setHover(false)}
         {...press}
@@ -180,6 +185,7 @@ export function SegmentPair({ children }: { children: ReactNode }) {
 export function Segment({
   href,
   label,
+  newTab,
   solid,
   inverted,
   onClick,
@@ -188,6 +194,8 @@ export function Segment({
 }: {
   href?: string;
   label: string;
+  /** Open in a new tab. Decided by the caller — see the note on `Cta`. */
+  newTab?: boolean;
   /** Off-blue ground, dark text — the emphasis segment on the dark page. */
   solid?: boolean;
   /** Dark ground, off-blue text — the same emphasis, on the LIGHT menu panel. */
@@ -237,7 +245,7 @@ export function Segment({
         data-pill={solid ? "primary" : "secondary"}
         className={common}
         href={href}
-        {...(href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
+        {...(newTab ? { target: "_blank" as const, rel: "noreferrer" } : {})}
         {...handlers}
       >
         {inner}

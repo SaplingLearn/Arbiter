@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import gsap from "gsap";
-import { BlockWipe, type BlockWipeHandle } from "./text/BlockWipe.js";
+import { BlockWipe, type BlockWipeHandle } from "@arbiter/design";
 
 /**
  * THE BOOT SCREEN.
