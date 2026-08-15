@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactElement } from "react";
-import type { Atmosphere } from "@arbiter/atmosphere";
+import type { Atmosphere, SceneSubject } from "@arbiter/atmosphere";
+import type { CaseSummary } from "../api.js";
 import { caseIdOf, type Route } from "../router.js";
 import { sceneFor, transitionFor } from "./nav.js";
 
@@ -22,7 +23,10 @@ import { sceneFor, transitionFor } from "./nav.js";
  * Imported dynamically so it never blocks first paint - the case list is on screen
  * and usable before the environment arrives behind it.
  */
-export function Backdrop({ route }: { route: Route }): ReactElement {
+export function Backdrop({ route, catalogue }: {
+  route: Route;
+  catalogue: CaseSummary[];
+}): ReactElement {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const atmoRef = useRef<Atmosphere | null>(null);
   /* The scene the LAST effect asked for. Route changes can outrun the dynamic
@@ -32,6 +36,11 @@ export function Backdrop({ route }: { route: Route }): ReactElement {
   /* Same race, for the focus key: a reader can land straight on a case URL, and the
      effect that announces the key runs long before `three` has finished arriving. */
   const wantedKey = useRef(caseIdOf(route));
+  /* And again for the population. This one loses the race almost every time rather
+     than occasionally - the catalogue is a fetch, so on a cold load it arrives after
+     the engine, and on a warm one before it. Whoever finishes last wins by reading
+     this. */
+  const wantedSubjects = useRef<SceneSubject[]>([]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -53,6 +62,7 @@ export function Backdrop({ route }: { route: Route }): ReactElement {
         atmo.register("record", mod.createHelix);
 
         atmo.resize(window.innerWidth, window.innerHeight);
+        atmo.populate(wantedSubjects.current);
         atmo.focus(wantedKey.current);
         atmo.mount(wanted.current);
         atmo.start();
@@ -121,6 +131,28 @@ export function Backdrop({ route }: { route: Route }): ReactElement {
     wantedKey.current = key;
     atmoRef.current?.focus(key);
   }, [key]);
+
+  /**
+   * ONE BODY IN THE ARCHIVE PER CASE IN THE LIBRARY.
+   *
+   * The scene used to draw a fixed field of forty-two over a catalogue of six, which is
+   * a claim about the size of the archive that the table underneath it disproves. The
+   * engine holds this across scene swaps, so it is announced whenever the list changes
+   * rather than when the library route opens - the Archive may not be the scene showing
+   * when the fetch lands, and it will be built with the right population when it is.
+   *
+   * Keyed on the joined names, not on array identity: App re-fetches into a new array
+   * on every sign-in and the contents are almost always the same six.
+   */
+  const names = catalogue.map((c) => c.name).join(",");
+  useEffect(() => {
+    const subjects = catalogue.map((c) => ({ key: c.name, usable: c.usable }));
+    wantedSubjects.current = subjects;
+    atmoRef.current?.populate(subjects);
+    // `catalogue` is the value read and `names` is the identity that decides when to
+    // read it. Listing the array here instead would rebuild the field on every fetch
+    // that returned the same six cases.
+  }, [names]);
 
   return <canvas ref={canvasRef} className="backdrop" aria-hidden="true" />;
 }

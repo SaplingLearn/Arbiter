@@ -24,7 +24,7 @@ import {
   FULLSCREEN_VERT,
   TRANSITION_FRAG,
 } from "./shaders.js";
-import type { AtmosphereScene, SceneContext, SceneFactory } from "./types.js";
+import type { AtmosphereScene, SceneContext, SceneFactory, SceneSubject } from "./types.js";
 
 /**
  * THE ENGINE.
@@ -79,6 +79,8 @@ export class Atmosphere {
   private currentId = "";
   /** Survives scene swaps; see `focus`. */
   private focusKey: string | null = null;
+  /** Survives scene swaps, for the same reason the focus key does; see `populate`. */
+  private subjects: readonly SceneSubject[] = [];
 
   /** Seconds since the CURRENT scene mounted. Reset on every swap so a scene always
    *  starts its own motion at zero, however late it arrives. */
@@ -182,9 +184,27 @@ export class Atmosphere {
     this.current?.dispose();
     this.current = entry.factory(this.ctx);
     this.current.resize(this.width, this.height);
+    this.current.populate?.(this.subjects);
     this.current.focus?.(this.focusKey);
     this.currentId = id;
     this.elapsed = 0;
+  }
+
+  /**
+   * Tell whichever scene is showing what it is drawing. See `AtmosphereScene.populate`.
+   *
+   * HELD, exactly as the focus key is, and for exactly the same reason: a scene is
+   * destroyed and rebuilt on every swap, and the consumer does not re-announce a list
+   * that has not changed. Without this, walking away from the library and back would
+   * come back to an empty field.
+   *
+   * Not diffed against the previous value. The consumer hands over an array it may
+   * have rebuilt from an unchanged fetch, so an identity check would pass constantly
+   * and a deep one costs more than the rebuild it saves at these sizes.
+   */
+  populate(subjects: readonly SceneSubject[]): void {
+    this.subjects = subjects;
+    this.current?.populate?.(subjects);
   }
 
   /**
@@ -230,6 +250,7 @@ export class Atmosphere {
     // Applied BEFORE the tween starts, so the incoming scene is already flying
     // toward its target while the bands are still tearing. Applied after, the
     // transition would resolve on a wide shot and then visibly re-aim.
+    next.populate?.(this.subjects);
     next.focus?.(this.focusKey);
 
     this.outgoing = this.current;

@@ -20,6 +20,24 @@ const shell = document.getElementById("shell") as HTMLDivElement;
 const atmo = new Atmosphere(canvas);
 for (const s of STATES) atmo.register(s.id, s.factory);
 
+/**
+ * THE HARNESS STANDS IN FOR THE PRODUCT'S DATA.
+ *
+ * The Archive draws one body per case and nothing at all until it is told what the
+ * cases are, so without this the library state renders an empty floor here and the
+ * screenshot harness photographs it. These are the six the product's own catalogue
+ * carries, copied rather than imported: `services/api` is a server module with a
+ * filesystem dependency, and this is a static demo with no server behind it.
+ */
+atmo.populate([
+  { key: "tak994", usable: true },
+  { key: "nipocalimab", usable: true },
+  { key: "slynd", usable: true },
+  { key: "turalio", usable: true },
+  { key: "tolcapone", usable: false },
+  { key: "troglitazone", usable: false },
+]);
+
 let index = 0;
 let locked = true; // released by the overture
 

@@ -258,7 +258,7 @@ export function App(): ReactElement {
   };
 
   const shell = (children: ReactElement): ReactElement => (
-    <Layout route={route} me={me} onSignOut={signOut}>{children}</Layout>
+    <Layout route={route} me={me} catalogue={catalogue} onSignOut={signOut}>{children}</Layout>
   );
 
   if (fatal !== null) {

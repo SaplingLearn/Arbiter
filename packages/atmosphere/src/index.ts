@@ -17,6 +17,7 @@ export type {
   AtmosphereScene,
   SceneContext,
   SceneFactory,
+  SceneSubject,
 } from "./core/types.js";
 
 export { STATES, STATE_IDS, type StateDef } from "./scenes/registry.js";

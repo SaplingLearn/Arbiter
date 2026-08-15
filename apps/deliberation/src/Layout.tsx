@@ -3,7 +3,7 @@ import { href, type Route } from "./router.js";
 import { SITE_URL } from "./links.js";
 import { Backdrop } from "./shell/Backdrop.js";
 import { CornerReadout, Frame, Header } from "./shell/Chrome.js";
-import type { Person } from "./api.js";
+import type { CaseSummary, Person } from "./api.js";
 
 /**
  * The page: a heads-up display over a live scene.
@@ -19,9 +19,11 @@ import type { Person } from "./api.js";
 
 export { initials } from "./shell/Chrome.js";
 
-export function Layout({ route, me, onSignOut, children }: {
+export function Layout({ route, me, catalogue, onSignOut, children }: {
   route: Route;
   me: Person | null;
+  /** Passed straight through to the backdrop: the Archive draws one body per case. */
+  catalogue: CaseSummary[];
   onSignOut: () => void;
   children: ReactNode;
 }): ReactElement {
@@ -35,7 +37,7 @@ export function Layout({ route, me, onSignOut, children }: {
           line of type vanished, because a panel carries backdrop-filter, which makes
           a stacking context, and a page title carries nothing. Out here the order is
           the whole argument: canvas at 0, shell at 1. */}
-      <Backdrop route={route} />
+      <Backdrop route={route} catalogue={catalogue} />
 
       <div className="shell">
       <Frame />

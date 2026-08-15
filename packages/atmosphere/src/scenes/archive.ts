@@ -2,7 +2,6 @@ import {
   AdditiveBlending,
   BoxGeometry,
   Color,
-  DoubleSide,
   GLSL3,
   InstancedBufferAttribute,
   InstancedMesh,
@@ -22,18 +21,39 @@ import type { AtmosphereScene, SceneContext } from "../core/types.js";
 /**
  * LIBRARY — "ARCHIVE"
  *
- * Ranks of specimen vitrines receding into the dark, each holding a faintly lit
- * sample. Some are dark and fractured.
+ * Standing volumes on open ground — ONE PER CASE IN THE LIBRARY, at varying scale and
+ * staggered in depth. Some are dark.
  *
  * WHY THIS FOR THIS PAGE. The library is a catalogue, and it is a catalogue that
  * deliberately shows its failures — the prepared cases include documents that could
- * not be used, because the ratio is the finding. So this is the one scene built on a
- * grid rather than on organic distribution, and the one where some of the subjects
- * are deliberately dead. A perfect archive would misrepresent the page.
+ * not be used, because the ratio is the finding. So this is the one scene where some of
+ * the subjects are deliberately dead, and the one whose population is DATA rather than
+ * composition. A perfect archive would misrepresent the page, and so would a large one.
  *
- * FROM THE REFERENCE: the plain of standing volumes — discrete translucent bodies at
- * varying scale in the mid-distance, lateral camera travel, light sweeping past along
- * the ground.
+ * FROM THE REFERENCE: the plain of standing volumes — discrete bodies at varying scale
+ * in the mid-distance, lateral camera travel, light sweeping past along the ground.
+ *
+ * THE VOLUMES ARE THE LANDING PAGE'S CUBE. Same material, ported from
+ * `apps/landing/src/overture/lib/cube.ts`: a vertical value ramp, irregular panelling
+ * at two scales, seam lines, and an INVERTED fresnel so the faces are hot and the
+ * silhouette cools — an object lit from within rather than a glass shell catching a
+ * rim. A stranger meets that object on the landing page before they are told what any
+ * of this is; meeting a field of them in the library should read as "more of these
+ * exist", and that only works if it is literally the same material. The cube's third
+ * feature, the recessed wedge, is the one thing not ported; see the shader.
+ *
+ * WHICH MEANS THEY ARE SOLID NOW, and that is the substantive change rather than a
+ * side effect. The old vitrines were additive glass shells with depth-write off, so a
+ * field of them layered into haze and read as fog with edges in it. Opaque bodies that
+ * write depth occlude each other, the floor's light bands stop shining through the ones
+ * in front of them, and the motes pass behind. The archive gets its depth from geometry
+ * now instead of from accumulated alpha.
+ *
+ * THE REFUSALS SURVIVE THE PORT, because they are the page's argument. A usable
+ * specimen is lit from inside. A refused one is the same constructed object with the
+ * light off - panelling still there as structure, ramp collapsed, and the ONE rim
+ * fresnel in this file, because a body with no light of its own can only catch the
+ * room's. The inversion is the tell, and it is legible at a glance across a whole rank.
  */
 
 export function createArchive(ctx: SceneContext): AtmosphereScene {
@@ -42,118 +62,222 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
   const baseCam = new Vector3(0, 3.4, 26);
   camera.position.copy(baseCam);
 
-  const rnd = mulberry32(0xa2c8);
+  /**
+   * Headroom, not a population. The field is built by `populate` from the real case
+   * list and nothing is drawn until that arrives - `InstancedMesh` has to be allocated
+   * with a ceiling, so this is the ceiling and `mesh.count` is the truth.
+   */
+  const MAX_BODIES = 64;
 
-  // ---- the vitrines
-  const cols = 7;
-  const rows = 6;
-  const count = cols * rows;
+  /**
+   * The landing page carries ONE of these and can afford to run it at full gain. A
+   * library of a few is closer to that than to a crowd, but it is still several bodies
+   * against a bloom chain whose bright pass wants the top few percent of the image, so
+   * the material comes down a little. One lever.
+   */
+  const GAIN = 0.55;
+
+  /* Panels sized in WORLD units, not as a count per face. The landing cube is a cube,
+     so seven-across works on every side of it; these are slabs from 2.5 to 7 units, and
+     a fixed count would give the tall ones tall panels and stretch the facade with the
+     geometry. A constant panel size is what makes the whole rank read as one build. */
+  const PANEL_A = 0.55;
+  const PANEL_B = 0.19;
 
   const box = new BoxGeometry(1, 1, 1);
   const vitMat = new ShaderMaterial({
     glslVersion: GLSL3,
-    transparent: true,
-    depthWrite: false,
-    side: DoubleSide,
-    blending: AdditiveBlending,
     uniforms: {
       uTime: { value: 0 },
-      uGlass: { value: PALETTE.azure },
-      uSample: { value: PALETTE.cyan },
-      uDead: { value: PALETTE.violet },
-      uHot: { value: PALETTE.white },
+      /* Straight from the landing cube: body cyan, foot of the ramp azure pulled 30%
+         toward electric so the object's own gradient obeys the palette's rule that deep
+         is violet and hot is cyan. */
+      uBody: { value: PALETTE.cyan.clone().multiplyScalar(3.1 * GAIN) },
+      uDeep: { value: PALETTE.azure.clone().lerp(PALETTE.electric, 0.3).multiplyScalar(1.5 * GAIN) },
+      uPanel: { value: PALETTE.sky.clone() },
+      uHot: { value: PALETTE.pale.clone() },
+      uDead: { value: PALETTE.violet.clone() },
+      /* Distance goes to the ground colour rather than to alpha. Fading a solid body
+         out by opacity puts the floor's light bands back through it, which is the exact
+         smear this scene stopped doing when the boxes went opaque. */
+      uFog: { value: PALETTE.abyss.clone() },
     },
     vertexShader: /* glsl */ `
-      in vec3 aState;    // usable (0/1), phase, height
-      out vec3 vLocal;
+      in vec3 aState;    // usable (0/1), phase, seed
+      out vec3 vObj;
       out vec3 vNormal;
       out vec3 vView;
       out vec3 vState;
-      out float vFade;
+      out vec3 vScale;
+      out float vDepth;
       void main(){
-        vLocal = position;
+        vObj = position;             // -0.5 .. 0.5, before the instance's scale
         vState = aState;
-        vec4 world = instanceMatrix * vec4(position, 1.0);
-        vec4 mv = modelViewMatrix * world;
+        /* The instance's world scale, read off the matrix columns. The panel grid is
+           in world units, so it needs to know how big this particular slab is; passing
+           it as another attribute would be a second copy of a number already here. */
+        vScale = vec3(
+          length(instanceMatrix[0].xyz),
+          length(instanceMatrix[1].xyz),
+          length(instanceMatrix[2].xyz)
+        );
+        vec4 mv = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+        /* Non-uniform scale skews normals in general. These are axis-aligned box faces
+           and the scale is axis-aligned, so each normal only changes LENGTH and the
+           normalize puts it back - no inverse-transpose needed for this geometry. */
         vNormal = normalize(mat3(instanceMatrix) * normal);
         vView = -mv.xyz;
-        vFade = 1.0 - smoothstep(34.0, 82.0, -mv.z);
+        vDepth = -mv.z;
         gl_Position = projectionMatrix * mv;
       }
     `,
     fragmentShader: /* glsl */ `
       precision highp float;
-      in vec3 vLocal; in vec3 vNormal; in vec3 vView; in vec3 vState; in float vFade;
+      in vec3 vObj; in vec3 vNormal; in vec3 vView; in vec3 vState; in vec3 vScale;
+      in float vDepth;
       out vec4 fragColor;
-      uniform vec3 uGlass, uSample, uDead, uHot;
+      uniform vec3 uBody, uDeep, uPanel, uHot, uDead, uFog;
       uniform float uTime;
+
+      float cell(vec2 id){ return fract(sin(dot(id, vec2(127.1, 311.7))) * 43758.5453); }
+
+      /* Planar coordinates for whichever face this fragment is on, plus a per-face seed
+         so the six sides do not carry the same panel layout. Returns LOCAL -0.5..0.5;
+         the caller scales it into world units. */
+      vec2 faceLocal(vec3 n, vec3 p, vec3 s, out float seed, out vec2 fs){
+        vec3 a = abs(n);
+        if (a.x > a.y && a.x > a.z) { seed = n.x > 0.0 ? 1.0 : 2.0; fs = vec2(s.z, s.y); return p.zy; }
+        if (a.y > a.z)              { seed = n.y > 0.0 ? 3.0 : 4.0; fs = vec2(s.x, s.z); return p.xz; }
+                                      seed = n.z > 0.0 ? 5.0 : 6.0; fs = vec2(s.x, s.y); return p.xy;
+      }
+
       void main(){
-        float usable = vState.x;
-        float ph = vState.y;
+        float live = vState.x;
+        float ph   = vState.y;
 
-        vec3 n = normalize(vNormal);
-        vec3 v = normalize(vView);
-        float f = 1.0 - clamp(dot(n, v), 0.0, 1.0);
+        float seed; vec2 fs;
+        vec2 fl = faceLocal(normalize(vNormal), vObj, vScale, seed, fs);
+        vec2 wq = fl * fs;           // world units, for panelling and seams
+        seed += vState.z;            // per-instance shift, so no two slabs share a facade
 
-        // Edges. A vitrine is read almost entirely from its edges — that is what makes
-        // glass look like glass without refraction.
-        vec3 a = abs(vLocal);
-        float edge = smoothstep(0.42, 0.5, max(max(a.x, a.y), a.z));
-        // Two-axis proximity gives corners, not just faces.
-        float e2 = smoothstep(0.40, 0.5, a.x) * smoothstep(0.40, 0.5, a.y)
-                 + smoothstep(0.40, 0.5, a.y) * smoothstep(0.40, 0.5, a.z)
-                 + smoothstep(0.40, 0.5, a.z) * smoothstep(0.40, 0.5, a.x);
-        e2 = clamp(e2, 0.0, 1.0);
+        vec2 gA = floor(wq / ${PANEL_A} + seed * 13.0);
+        vec2 gB = floor(wq / ${PANEL_B} + seed * 7.3 + 3.7);
+        float a = cell(gA);
+        float b = cell(gB);
 
-        float fres = pow(f, 2.2);
+        float panel = mix(0.80, 1.20, a) * mix(0.93, 1.07, b);
+        float bright = smoothstep(0.87, 0.99, a) * 0.60;
 
-        // The specimen: a soft volume floating in the lower half of the vitrine.
-        float sy = vLocal.y + 0.10;
-        float samp = pow(1.0 - clamp(length(vec3(vLocal.x, sy * 1.5, vLocal.z)) * 2.6, 0.0, 1.0), 2.2);
-        samp *= 0.55 + 0.45 * sin(uTime * 0.8 + ph * 6.2831);
+        /* The ramp runs through the WHOLE object rather than through the face, so it is
+           continuous across the silhouette and the top cap sits at the hot end of it. */
+        float ramp = pow(clamp(vObj.y + 0.5, 0.0, 1.0), 0.85);
 
-        vec3 col = uGlass * (edge * 0.30 + fres * 0.22) + uHot * e2 * 0.55;
-        col += mix(uDead * 0.35, uSample, usable) * samp * mix(0.5, 1.7, usable);
+        /* NO CUT. The landing cube's third feature is a wedge recessed into one face,
+           and it is deliberately not ported. There it is one object holding a frame on
+           its own and the notch is what the eye returns to on a second look; here the
+           hypotenuse reads as a triangle drawn ON the face rather than as geometry taken
+           out of it, and repeated down a rank it becomes a motif the scene never earned.
+           The panelling and the ramp carry the material without it. */
 
-        float alpha = (edge * 0.34 + fres * 0.22 + e2 * 0.5 + samp * 0.7) * vFade;
-        // Refused specimens keep their frame but lose their contents, so the grid
-        // still reads as complete while the gaps are unmistakable.
-        alpha *= mix(0.55, 1.0, usable);
-        fragColor = vec4(col * vFade, alpha);
+        /* A slow inhale, one cycle, no harmonics. Per-instance phase: a field breathing
+           in unison is a pulse, and a pulse is an alarm. */
+        float breath = 0.94 + 0.06 * sin(uTime * 0.55 + ph * 6.2831);
+
+        float f = 1.0 - abs(dot(normalize(vNormal), normalize(vView)));
+
+        /* Fresnel, INVERTED. The faces are hot and the silhouette cools, which is what
+           an object lit from within does. A conventional rim light would make it a glass
+           shell, and a glass shell is what this scene just stopped being. */
+        float core = 1.0 - smoothstep(0.15, 0.85, f);
+
+        vec3 col = mix(uDeep, uBody, ramp) * panel * breath;
+        col = mix(col, uPanel, bright * ramp);
+        /* 0.40 where the landing page uses 0.85. It carries one cube against empty
+           ground; several sets of face centres is more frame than the brightest value
+           in the palette should be holding at once. */
+        col += uHot * core * 0.40 * ramp;
+
+        vec2 seam = abs(fract(wq / ${PANEL_A}) - 0.5);
+        col *= mix(1.0, 0.80, 1.0 - smoothstep(0.45, 0.5, max(seam.x, seam.y)));
+
+        /* THE REFUSED. Same construction, no light in it. The rim here is the one place
+           in this file a conventional fresnel is right: a body with nothing lit inside
+           can only catch what the room gives it, so it shows up as an edge and a hint of
+           panelling and nothing else. Structure intact, contents gone. */
+        vec3 dead = uDead * (0.05 + panel * 0.04) + uDead * smoothstep(0.35, 1.0, f) * 0.22;
+        col = mix(dead, col, live);
+
+        col = mix(uFog, col, 1.0 - smoothstep(30.0, 95.0, vDepth));
+        fragColor = vec4(col, 1.0);
       }
     `,
   });
 
-  const vitrines = new InstancedMesh(box, vitMat, count);
+  const vitrines = new InstancedMesh(box, vitMat, MAX_BODIES);
   vitrines.frustumCulled = false;
+  /* Nothing until the real list arrives. An archive that shows six bodies for six cases
+     is a second reading of the table; one that shows a decorative field until the fetch
+     lands and then snaps to six has told the reader, once, that it was making it up. */
+  vitrines.count = 0;
   const dummy = new Object3D();
-  const state = new Float32Array(count * 3);
+  const state = new Float32Array(MAX_BODIES * 3);
+  const aState = new InstancedBufferAttribute(state, 3);
+  box.setAttribute("aState", aState);
+  scene.add(vitrines);
 
-  let i = 0;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++, i++) {
-      const jitterX = (rnd() - 0.5) * 1.1;
-      const jitterZ = (rnd() - 0.5) * 1.1;
-      const h = 2.2 + rnd() * rnd() * 5.0;
+  /**
+   * ONE BODY PER CASE.
+   *
+   * Was a fixed 7x6 grid of forty-two. The library holds six.
+   *
+   * OPEN GROUND, NOT RANKS, and the count is what forced it. Ranks receding into the
+   * dark are how you make six hundred of something feel like six hundred; six objects
+   * in ranks is two short rows with nothing behind them, and the scene spends its depth
+   * on empty floor. Six spread across the ground at different sizes and staggered in
+   * depth is the landing page's own fourth frame - "more of these exist" - which is the
+   * composition this material was drawn for anyway.
+   *
+   * Seeded fresh from one constant on every call, so the same case list always builds
+   * the same field. The camera has not moved and the floor has not changed; only the
+   * population is now the truth.
+   */
+  function populate(subjects: readonly { key: string; usable: boolean }[]): void {
+    const n = Math.min(subjects.length, MAX_BODIES);
+    const rnd = mulberry32(0xa2c8);
+    /* Wide enough that the lateral dolly still travels PAST things rather than orbiting
+       one clump, and it has to grow with the count or a longer catalogue would stack. */
+    const span = Math.max(30, n * 8.5);
+
+    for (let i = 0; i < n; i++) {
+      const s = subjects[i]!;
+      const t = n === 1 ? 0.5 : i / (n - 1);
+      const h = 2.6 + rnd() * rnd() * 5.2;
       dummy.position.set(
-        (c - (cols - 1) / 2) * 7.4 + jitterX,
+        (t - 0.5) * span + (rnd() - 0.5) * 4.0,
         h / 2 - 1.0,
-        -r * 9.5 - 4 + jitterZ,
+        // Staggered rather than ordered, so the sweep moves them past each other at
+        // different rates. A line at one depth is a bar chart.
+        -8 - rnd() * 32,
       );
-      dummy.scale.set(2.5 + rnd() * 1.0, h, 2.5 + rnd() * 1.0);
-      dummy.rotation.y = (rnd() - 0.5) * 0.12;
+      dummy.scale.set(2.6 + rnd() * 1.4, h, 2.6 + rnd() * 1.4);
+      dummy.rotation.y = (rnd() - 0.5) * 0.16;
       dummy.updateMatrix();
       vitrines.setMatrixAt(i, dummy.matrix);
-      // Roughly the library's own ratio: a real minority are unusable, and that is
-      // the point of the page.
-      state[i * 3] = rnd() < 0.26 ? 0 : 1;
+
+      // The refusals are DATA now. They were a 26% dice roll, which happened to be
+      // about the library's real ratio - but the two refused cases are named, and the
+      // reader can count the dark ones against the two REFUSED rows in the table.
+      state[i * 3] = s.usable ? 1 : 0;
       state[i * 3 + 1] = rnd();
-      state[i * 3 + 2] = h;
+      // Facade seed. Scaled well past the per-face 1..6 so a shifted instance lands on
+      // a genuinely different cell lattice rather than on its neighbour's other side.
+      state[i * 3 + 2] = rnd() * 40.0;
     }
+
+    vitrines.count = n;
+    vitrines.instanceMatrix.needsUpdate = true;
+    aState.needsUpdate = true;
   }
-  vitrines.instanceMatrix.needsUpdate = true;
-  box.setAttribute("aState", new InstancedBufferAttribute(state, 3));
-  scene.add(vitrines);
 
   // ---- floor: a dark reflective-ish plane with sweeping light bands, which is what
   // carries the lateral motion when the vitrines themselves are static.
@@ -214,6 +338,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
     id: "library",
     scene,
     camera,
+    populate,
     update(_dt, t) {
       vitMat.uniforms.uTime!.value = t;
       (floor.material as ShaderMaterial).uniforms.uTime!.value = t;
