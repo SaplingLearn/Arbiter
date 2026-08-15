@@ -32,8 +32,29 @@ import type { AtmosphereScene, SceneContext } from "../core/types.js";
  * dim and still, which is the page's bucketing rendered as behaviour rather than as
  * colour.
  *
- * Composition is lifted from the reference's widest shot: camera low, looking across a
- * shallow bowl, subject in the mid-distance, ridge silhouettes closing both edges.
+ * THE CAMERA STANDS IN THE CULTURE, not across the room from it.
+ *
+ * It used to sit at z=30 looking at the middle - the reference's widest shot, a shallow
+ * bowl with the subject in the mid-distance. That framing was written when the flight
+ * into a colony was the dashboard's other half: the wide shot was the state you LEFT,
+ * and opening a case took you in among the cells.
+ *
+ * Case routes stand in the Archive now. `focus` on this scene is null every time it is
+ * asked, because the only route that reaches it is the dashboard itself - so the wide
+ * shot stopped being one of two framings and became the only one anybody sees. And on
+ * its own it is thin: a hundred and fifty organisms of radius one at thirty-four units
+ * are rings a few pixels across, scattered on black behind a page of dense type. You
+ * cannot feel a count you cannot resolve.
+ *
+ * So the resting camera comes in among them. Same field, same geometry, read from
+ * inside instead of from across the room - the cells are large, they pass each other as
+ * the orbit drifts, and the filaments between neighbours are legible as connections
+ * rather than as scratches.
+ *
+ * NOT PARKED AT A CELL, which is the distinction worth keeping. `focus` is the gesture
+ * that means THIS case, and a resting state sitting on a colony would be claiming a
+ * case at all times - including when the reader is looking at a list of six. In among
+ * them is a place; at one of them is a statement. The flight still has somewhere to go.
  */
 
 const CELL_VERT = /* glsl */ `
@@ -145,7 +166,11 @@ void main(){
 export function createCulture(ctx: SceneContext): AtmosphereScene {
   const scene = new Scene();
   const camera = new PerspectiveCamera(46, 1, 0.1, 220);
-  const baseCam = new Vector3(0, 5.4, 30);
+  /* In among the colonies. Was (0, 5.4, 30) - see the note at the top of this file for
+     why that framing outlived the arrangement it was written for. Lower as well as
+     nearer, because a high camera at close range looks down ONTO the culture and turns
+     a suspended field into a floor plan. */
+  const baseCam = new Vector3(0, 2.9, 10);
   camera.position.copy(baseCam);
 
   const rnd = mulberry32(0xc01d);
@@ -320,7 +345,19 @@ export function createCulture(ctx: SceneContext): AtmosphereScene {
   let held: Vector3 | null = null;
   const eye = new Vector3();
   const aim = new Vector3();
-  const wideAim = new Vector3(0, 2.4, -4);
+  /* Deeper than the camera moved forward, so the shot still looks THROUGH the culture
+     rather than at a wall of it. The near clusters read as foreground, the far ones
+     recede, and the depth between them is what the old framing had to buy with
+     distance.
+
+     AIMED SLIGHTLY BELOW THE EYE, which is what fills the frame. The colonies are a
+     carpet - `y` is `0.6 + rnd()*rnd()*4.2`, so the mean height is about 1.6 and the
+     whole culture is four units thick. A level camera projects four units of thickness
+     as a band across the middle with empty sky above and below it, at every distance.
+     Tilting down instead spends the frame on RECESSION: near colonies sit high and
+     large, far ones fall toward the vanishing point, and the depth of the field rather
+     than its thickness is what the eye is reading. */
+  const wideAim = new Vector3(0, 1.9, -12);
   // Scratch, allocated once. A new Vector3 per frame is 60 allocations a second for
   // the lifetime of a session, and this runs inside the render loop.
   const _tmpEye = new Vector3();
@@ -364,26 +401,36 @@ export function createCulture(ctx: SceneContext): AtmosphereScene {
       (air.material as ShaderMaterial).uniforms.uTime!.value = t;
       (motes.material as ShaderMaterial).uniforms.uTime!.value = t;
 
-      // A long, shallow orbit. The reference's camera is never still and never
-      // obviously moving; the moment you can name the motion it has gone too far.
+      /* A long, shallow orbit. The reference's camera is never still and never obviously
+         moving; the moment you can name the motion it has gone too far.
+
+         The amplitudes came DOWN when the camera came in. They are the same swing in
+         world units either way, but from twelve units out rather than thirty they cover
+         three times the angle - at the old 4.2 the shot swept past whole clusters and
+         the motion became nameable. Closer camera, smaller numbers, same apparent move. */
       const a = t * 0.035;
       eye.set(
-        baseCam.x + Math.sin(a) * 4.2,
-        baseCam.y + Math.sin(t * 0.05) * 0.8,
-        baseCam.z + Math.cos(a) * 2.6,
+        baseCam.x + Math.sin(a) * 2.2,
+        baseCam.y + Math.sin(t * 0.05) * 0.5,
+        baseCam.z + Math.cos(a) * 1.4,
       );
       aim.copy(wideAim);
 
-      // Blend toward the chosen colony. The close eye keeps the orbit's sway at a
-      // fifth of its width so the arrival is still alive, and sits slightly above and
-      // in front of the cell rather than dead level with it - a camera exactly on a
-      // subject's axis is the one composition that reads as a diagram.
+      /* Blend toward the chosen colony. The close eye keeps the orbit's sway at a
+         fraction of its width so the arrival is still alive, and sits slightly above and
+         in front of the cell rather than dead level with it - a camera exactly on a
+         subject's axis is the one composition that reads as a diagram.
+
+         TIGHTER THAN IT WAS, because the resting shot moved toward it. From thirty units
+         out, arriving at 4.6 was unmistakably a flight; from twelve it is a nudge, and a
+         gesture the reader cannot feel is a gesture that is not there. This is the whole
+         cost of standing in the culture by default, and it is paid here. */
       if (held !== null && flight.k > 0.001) {
         const k = flight.k;
         const close = _tmpEye.set(
-          held.x + Math.sin(a) * 0.9,
-          held.y + 1.05,
-          held.z + 4.6,
+          held.x + Math.sin(a) * 0.55,
+          held.y + 0.75,
+          held.z + 3.0,
         );
         eye.lerp(close, k);
         aim.lerp(held, k);
