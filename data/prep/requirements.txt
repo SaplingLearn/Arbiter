@@ -5,3 +5,9 @@ rdkit==2024.9.4
 scikit-learn==1.5.2
 numpy==2.1.3
 pytest==8.3.4
+
+# PDF reading. Used by measure_pdf.py, extract_pdf_text.py and split_review.py, which
+# are the upload path: services/api shells out to them for every document. It was
+# missing, so `pip install -r data/prep/requirements.txt` - the fix those scripts print
+# when they cannot import it - did not actually install it.
+PyMuPDF==1.28.2

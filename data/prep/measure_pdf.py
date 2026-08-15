@@ -16,11 +16,19 @@ import json
 import re
 import sys
 
+# PyMuPDF >= 1.26 prints a deprecation banner to STDOUT when it is imported as `fitz`,
+# and these scripts talk to services/api by printing one JSON object to stdout. The
+# banner lands in front of it, every JSON.parse on the Node side fails, and the result is
+# that EVERY upload of EVERY document is refused on any current install. Import the new
+# module name first; keep the old one so older environments still work.
 try:
-    import fitz  # PyMuPDF
+    import pymupdf as fitz
 except ImportError:  # pragma: no cover - environment problem, not a logic branch
-    print(json.dumps({"ok": False, "reason": "PyMuPDF is not installed. pip install -r data/prep/requirements.txt"}))
-    sys.exit(0)
+    try:
+        import fitz  # PyMuPDF < 1.26
+    except ImportError:
+        print(json.dumps({"ok": False, "reason": "PyMuPDF is not installed. pip install -r data/prep/requirements.txt"}))
+        sys.exit(0)
 
 # A page carrying fewer than this many characters is treated as unreadable. Chosen
 # from the measured documents rather than guessed: the scanned tolcapone review has
@@ -28,11 +36,58 @@ except ImportError:  # pragma: no cover - environment problem, not a logic branc
 # carries several hundred.
 MIN_CHARS_PER_PAGE = 40
 
-# Terms that must appear somewhere for this to be a document about toxicology at all.
-# Troglitazone's labelling supplement is readable and scores zero on every one of
-# them, which is exactly the case this catches.
+# Vocabulary counted and reported. Kept whole because the counts are diagnostic - a
+# reader deciding whether a refusal was fair wants to see them - but NOT all of it is
+# evidence that a nonclinical review is present. See REVIEW_TERMS.
 TOX_TERMS = ["toxicolog", "nonclinical", "non-clinical", "pharmacolog", "NOAEL", "histopatholog"]
+
+# The terms that actually MARK a nonclinical toxicology review, and the floor each has
+# to clear. Measured over the sixteen documents in data/raw/approval-packages rather
+# than guessed, which is the same standard MIN_CHARS_PER_PAGE is held to.
+#
+#                        toxicolog   nonclinical(+non-clinical)
+#   14 genuine reviews      19-71            7-86
+#   troglitazone             2               0
+#   tolcapone (scanned)      0               0
+#
+# WHY THE OLD RULE MISSED. It summed all six TOX_TERMS and refused only at exactly
+# zero. Troglitazone's labelling supplement scores 24 on that sum - nineteen of them
+# the word "pharmacolog", which appears in the clinical pharmacology section of any
+# drug document and says nothing about whether a tox review is present. So the one
+# document this project cites as its example of "readable but not a review" passed the
+# check written to catch it. The comment here claimed it scored zero on every term; it
+# does not, and that claim is why nobody looked.
+#
+# NOAEL is deliberately NOT required: five of the fourteen genuine reviews never use
+# it, so requiring it would refuse real documents.
+#
+# EITHER signal suffices. A document may say "nonclinical" throughout and "toxicology"
+# rarely, or the reverse, and requiring both would refuse a real review over a
+# vocabulary preference.
+#
+# Each floor sits BELOW the weakest genuine document on its own axis, so neither axis
+# depends on the other to admit anything in the corpus - toxicolog 10 against a weakest
+# 19, nonclinical 5 against a weakest 7 (xpovio). A first pass set both to ten, which
+# was above xpovio's seven: it still passed on its toxicolog count, but the nonclinical
+# floor was doing no work and the comment claiming a margin was wrong. The test that
+# pins this caught it.
+#
+# Against troglitazone the margins are 5x on toxicolog and absolute on nonclinical,
+# which it scores zero on.
+REVIEW_TERMS = {"toxicolog": 10, "nonclinical+non-clinical": 5}
 LIVER_TERMS = ["hepat", "liver", "transaminase", "ALT", "AST", "bilirubin", "cholestat", "biliary"]
+
+
+def review_signal(tox: dict) -> bool:
+    """Whether the toxicology vocabulary is dense enough to be a nonclinical review.
+
+    Either signal on its own is enough; see REVIEW_TERMS for why, and for the measured
+    counts the thresholds come from.
+    """
+    return (
+        tox["toxicolog"] >= REVIEW_TERMS["toxicolog"]
+        or tox["nonclinical"] + tox["non-clinical"] >= REVIEW_TERMS["nonclinical+non-clinical"]
+    )
 
 
 def measure(path: str) -> dict:
@@ -77,11 +132,17 @@ def measure(path: str) -> dict:
             verdict="partly_scanned",
             reason=f"{sparse} of {n} pages carry almost no extractable text. Most of this document is images; OCR it before uploading.",
         )
-    elif sum(tox.values()) == 0:
+    elif not review_signal(tox):
         result.update(
             ok=False,
             verdict="not_a_review",
-            reason="The text is readable, but it contains no toxicology or nonclinical vocabulary anywhere. This is very likely a labelling document rather than a review.",
+            reason=(
+                "The text is readable, but it carries almost no nonclinical toxicology "
+                f"vocabulary: {tox['toxicolog']} mentions of toxicology and "
+                f"{tox['nonclinical'] + tox['non-clinical']} of nonclinical across {n} pages. "
+                "A review that supports a safety call discusses both throughout. This is "
+                "very likely a labelling or clinical document rather than a nonclinical review."
+            ),
         )
     else:
         result.update(ok=True, verdict="readable", reason="Readable, and it contains toxicology vocabulary.")

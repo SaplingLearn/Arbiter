@@ -218,7 +218,13 @@ def plan_split(pages: list[str], toc_pages: int = 8) -> Split:
 
 
 def split_pdf(path: Path, out_dir: Path, toc_pages: int = 8) -> Split:
-    import fitz  # imported here so plan_split stays testable without PyMuPDF
+    # Imported here so plan_split stays testable without PyMuPDF. The new module name
+    # first: imported as `fitz`, PyMuPDF >= 1.26 prints a deprecation banner to stdout,
+    # and these scripts speak JSON on stdout.
+    try:
+        import pymupdf as fitz
+    except ImportError:
+        import fitz
 
     doc = fitz.open(path)
     pages = [doc[i].get_text() for i in range(doc.page_count)]

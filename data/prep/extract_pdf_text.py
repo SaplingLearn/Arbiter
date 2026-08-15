@@ -32,14 +32,22 @@ from __future__ import annotations
 import json
 import sys
 
+# PyMuPDF >= 1.26 prints a deprecation banner to STDOUT when it is imported as `fitz`,
+# and these scripts talk to services/api by printing one JSON object to stdout. The
+# banner lands in front of it, every JSON.parse on the Node side fails, and the result is
+# that EVERY upload of EVERY document is refused on any current install. Import the new
+# module name first; keep the old one so older environments still work.
 try:
-    import fitz  # PyMuPDF
+    import pymupdf as fitz
 except ImportError:
-    print(json.dumps({
-        "ok": False,
-        "reason": "PyMuPDF is not installed. pip install -r data/prep/requirements.txt",
-    }))
-    sys.exit(0)
+    try:
+        import fitz  # PyMuPDF < 1.26
+    except ImportError:
+        print(json.dumps({
+            "ok": False,
+            "reason": "PyMuPDF is not installed. pip install -r data/prep/requirements.txt",
+        }))
+        sys.exit(0)
 
 
 def extract(path: str) -> dict:

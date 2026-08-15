@@ -69,6 +69,34 @@ function looksLikePdf(bytes: Buffer): boolean {
   return bytes.length > 5 && bytes.subarray(0, 5).toString("latin1") === "%PDF-";
 }
 
+/**
+ * The last JSON object printed on stdout, or null.
+ *
+ * `JSON.parse(stdout)` was the whole of this, and it assumed the Python process emits
+ * nothing but its own result. That assumption broke in the worst possible way: PyMuPDF
+ * 1.26 began printing a deprecation banner to STDOUT on `import fitz`, so the parse threw
+ * on every document and `measurePdf` reported every upload as unreadable - not one class
+ * of PDF, all of them, with a message about the measurer rather than the file.
+ *
+ * The import is fixed at the source. This exists because that class of failure should not
+ * be able to happen again: any library in the chain may decide to print, and a scraper
+ * that finds the payload is a two-line function where "stdout is exactly my JSON" is a
+ * contract nobody can enforce.
+ *
+ * The LAST object rather than the first, because a warning is a preamble and the result
+ * is what the script exits having printed.
+ */
+export function lastJsonObject(stdout: string): unknown {
+  for (let i = stdout.lastIndexOf("{"); i !== -1; i = stdout.lastIndexOf("{", i - 1)) {
+    try {
+      return JSON.parse(stdout.slice(i, stdout.lastIndexOf("}") + 1));
+    } catch {
+      // Not the start of the payload. Keep walking back.
+    }
+  }
+  return null;
+}
+
 export function measurePdf(path: string, python = process.env["PYTHON"] ?? "python"): Measurement {
   try {
     const out = execFileSync(python, ["data/prep/measure_pdf.py", path], {
@@ -76,7 +104,11 @@ export function measurePdf(path: string, python = process.env["PYTHON"] ?? "pyth
       maxBuffer: 8 * 1024 * 1024,
       timeout: 120_000,
     });
-    return JSON.parse(out) as Measurement;
+    const parsed = lastJsonObject(out);
+    if (parsed === null) {
+      throw new Error(`the measurer printed no JSON. It said: ${out.trim().slice(0, 300)}`);
+    }
+    return parsed as Measurement;
   } catch (e) {
     // A measurement that could not run is NOT a pass. Treating a crashed measurer as
     // "probably fine" is how an unreadable document gets in on the one day the
@@ -195,7 +227,11 @@ export class DocumentStore {
         encoding: "utf8",
         maxBuffer: 64 * 1024 * 1024,
       });
-      const parsed = JSON.parse(out) as { ok: boolean; pages?: { page: number; text: string }[] };
+      // Same scraper as the measurer, for the same reason: this parsed the whole of
+      // stdout, so PyMuPDF's deprecation banner emptied every uploaded document's text
+      // and the catch below turned that into "no pages" - a silently unsearchable file.
+      const parsed = lastJsonObject(out) as { ok: boolean; pages?: { page: number; text: string }[] } | null;
+      if (parsed === null) throw new Error("the extractor printed no JSON");
       // Running headers stripped before caching, exactly as the library does. Short
       // uploads are left untouched - see pages.ts for why the threshold exists.
       const pages = stripBoilerplate(parsed.ok && parsed.pages !== undefined ? parsed.pages : []);
