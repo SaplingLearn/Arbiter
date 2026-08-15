@@ -66,10 +66,11 @@ export function Header({
           corner is cut, so the pair reads as a single control with a mitre rather than
           as two chamfered buttons sitting next to each other. */}
       <SegmentPair>
-        {/* LOGIN retires while the menu is open: a translucent dark pill on a solid
-            light ground is the one combination in this palette with no good answer. The
-            pair is right-aligned, so CLOSE lands in MENU's exact position. */}
-        {menuOpen ? null : <Segment href={APP_URL} label="Login" />}
+        {/* There is no sign-in any more, so this is simply the way in — it opens the
+            product directly. It retires while the menu is open: a translucent dark pill
+            on a solid light ground is the one combination in this palette with no good
+            answer. The pair is right-aligned, so CLOSE lands in MENU's position. */}
+        {menuOpen ? null : <Segment href={APP_URL} label="Open" />}
         {menuOpen ? (
           <Segment label="Close" inverted onClick={onMenu} pressed hook="data-menu-close" />
         ) : (

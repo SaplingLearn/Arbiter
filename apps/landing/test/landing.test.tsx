@@ -141,14 +141,30 @@ describe("calls to action", () => {
     }
   });
 
-  it("sends the header's one link into the product", () => {
-    // The header pair is LOGIN + MENU. LOGIN is the link and MENU is the filled pill —
-    // filled is the visual emphasis, but the thing that leaves the page is LOGIN, and
-    // it has to reach the real app rather than a marketing anchor.
+  it("opens the product directly, with no sign-in anywhere on the page", () => {
+    /* There is no login step any more: the header's link goes straight into the app.
+       Both halves matter. The label must not promise a sign-in the product no longer
+       has, and the destination must be the real app rather than a marketing anchor. */
     const { container } = render(<Landing />);
-    const login = container.querySelector<HTMLAnchorElement>('a[data-pill]')!;
-    expect(login).toHaveTextContent(/login/i);
-    expect(login).toHaveAttribute("href", APP_URL);
+    const entry = container.querySelector<HTMLAnchorElement>("a[data-pill]")!;
+    expect(entry).toHaveAccessibleName(/open/i);
+    expect(entry).toHaveAttribute("href", APP_URL);
+
+    expect(container.textContent).not.toMatch(/log ?in|sign ?in/i);
+  });
+
+  it("never opens the product in a new tab, however APP_URL is configured", () => {
+    /* The regression this exists for: `href.startsWith("http")` was used to decide
+       "external", and APP_URL is an absolute localhost URL in development — so the most
+       important link on the site opened a popup in dev and navigated in place in prod.
+       Pointed at a dev server bound to the wrong interface, that popup read as a button
+       that does nothing. */
+    const { container } = render(<Landing />);
+    for (const a of container.querySelectorAll<HTMLAnchorElement>("a[href]")) {
+      if (a.getAttribute("href") === APP_URL) {
+        expect(a, `${a.textContent} opens the product in a new tab`).not.toHaveAttribute("target");
+      }
+    }
   });
 
   it("makes MENU a real control rather than a dead affordance", () => {

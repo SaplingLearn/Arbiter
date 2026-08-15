@@ -6,7 +6,7 @@ import {
   type Roster, type StoredDocument, type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
-import { AskPage, AuthPage, Dashboard, LibraryPage, MethodPage, NewCasePage } from "./pages.js";
+import { AskPage, Dashboard, LibraryPage, MethodPage, NewCasePage } from "./pages.js";
 import {
   Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
   Refused, Reveal, RosterPanel, Verdict, Waiting,
@@ -26,6 +26,31 @@ import "./app.css";
  * matters is whether everyone has submitted, because that decides whether the
  * reveal is available.
  */
+
+/**
+ * The identity every visitor arrives as.
+ *
+ * Configurable so a deployment can point it somewhere other than the seeded demo lead,
+ * and so this file does not hard-code a password. See the note at the sign-in branch
+ * below for what carrying one identity for everyone costs the record.
+ */
+const AUTO_EMAIL = import.meta.env["VITE_AUTO_EMAIL"] ?? "r.okafor@arbiter.demo";
+const AUTO_PASSWORD = import.meta.env["VITE_AUTO_PASSWORD"] ?? "arbiter-demo-2026";
+
+/** What is on screen for the moment between arriving and the session existing. Not a
+ *  form, and deliberately not a spinner: it states what is happening. */
+function Opening({ error }: { error: string | null }): ReactElement {
+  return (
+    <div className="opening">
+      <div>
+        <div className="eyebrow">{error === null ? "Opening the record" : "Cannot open the record"}</div>
+        <p className="muted">
+          {error ?? "Establishing a session against the deliberation service."}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export function App(): ReactElement {
   const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));
@@ -129,6 +154,27 @@ export function App(): ReactElement {
     return () => clearInterval(t);
   }, [token, caseId, loadCase]);
 
+  /* Establish the session on arrival rather than asking for it. Runs once; a failure
+     surfaces as a message on the opening panel, never as a login form. */
+  useEffect(() => {
+    if (token !== null) return;
+    let live = true;
+    void (async () => {
+      try {
+        const { token: t, user } = await api.login(AUTO_EMAIL, AUTO_PASSWORD);
+        if (!live) return;
+        setToken(t);
+        setMe(user);
+        setFatal(null);
+      } catch (e) {
+        if (live) setFatal(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [token]);
+
   const signOut = (): void => {
     if (token !== null) void api.logout(token).catch(() => undefined);
     setToken(null);
@@ -137,7 +183,19 @@ export function App(): ReactElement {
   };
 
   if (token === null || me === null) {
-    return <AuthPage onSignedIn={(t, u) => { setToken(t); setMe(u); setFatal(null); }} />;
+    /* NO SIGN-IN. The landing page opens straight into the product.
+     *
+     * A session is still established — the API is unchanged and every route behind it
+     * requires a token — but it is established for you, from a configured identity,
+     * instead of being asked for.
+     *
+     * WHAT THIS COSTS, stated plainly because it is not a styling decision. This product
+     * seals positions and attributes them to a named person; the record's whole claim is
+     * that it can prove who committed to what and that nobody edited it afterwards. With
+     * one identity signing everybody in, the record still says "R. Okafor decided" for
+     * whoever is at the keyboard. The mechanism is intact and the attribution is not.
+     * Restoring real sign-in is deleting this branch and putting `AuthPage` back. */
+    return <Opening error={fatal} />;
   }
 
   const act = (fn: () => Promise<unknown>): void => {

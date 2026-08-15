@@ -510,3 +510,19 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
 @media (prefers-reduced-motion: reduce) {
   a.card:hover, button.card:hover { transform: none; }
 }
+
+/* ---- opening ------------------------------------------------------------- */
+
+/* The moment between arriving from the landing page and the session existing. It
+   replaced a full sign-in screen, so it deliberately looks like nothing: a line of
+   status text on the same ground, not a card and not a spinner. Anything more
+   substantial would reintroduce the interruption that removing sign-in was meant to
+   delete. */
+.opening {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--s7) var(--s5);
+  text-align: center;
+}
+.opening > div { max-width: 46ch; display: grid; gap: var(--s2); }
