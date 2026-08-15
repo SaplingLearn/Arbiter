@@ -77,6 +77,8 @@ export class Atmosphere {
   private current: AtmosphereScene | null = null;
   private outgoing: AtmosphereScene | null = null;
   private currentId = "";
+  /** Survives scene swaps; see `focus`. */
+  private focusKey: string | null = null;
 
   /** Seconds since the CURRENT scene mounted. Reset on every swap so a scene always
    *  starts its own motion at zero, however late it arrives. */
@@ -180,8 +182,28 @@ export class Atmosphere {
     this.current?.dispose();
     this.current = entry.factory(this.ctx);
     this.current.resize(this.width, this.height);
+    this.current.focus?.(this.focusKey);
     this.currentId = id;
     this.elapsed = 0;
+  }
+
+  /**
+   * Single out one thing in whichever scene is showing, or `null` for the wide shot.
+   *
+   * HELD RATHER THAN FORWARDED AND FORGOTTEN. A scene is destroyed and rebuilt on
+   * every swap, so a key handed to the old one dies with it - and the consumer's
+   * navigation does not re-announce it, because from its side nothing changed. The
+   * key is remembered here and re-applied to whatever mounts next, which is what
+   * makes "open a case, go to its record, come back" land on the same cell rather
+   * than on the wide field.
+   *
+   * Scenes that draw one object do not implement `focus`, and calling this while one
+   * of them is showing is a no-op that still records the key for later.
+   */
+  focus(key: string | null): void {
+    if (key === this.focusKey) return;
+    this.focusKey = key;
+    this.current?.focus?.(key);
   }
 
   /**
@@ -205,6 +227,10 @@ export class Atmosphere {
 
     const next = entry.factory(this.ctx);
     next.resize(this.width, this.height);
+    // Applied BEFORE the tween starts, so the incoming scene is already flying
+    // toward its target while the bands are still tearing. Applied after, the
+    // transition would resolve on a wide shot and then visibly re-aim.
+    next.focus?.(this.focusKey);
 
     this.outgoing = this.current;
     this.outgoingElapsed = this.elapsed;

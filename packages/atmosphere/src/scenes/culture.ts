@@ -14,6 +14,7 @@ import {
   ShaderMaterial,
   Vector3,
 } from "three";
+import gsap from "gsap";
 import { PALETTE } from "../core/palette.js";
 import { SIMPLEX3 } from "../core/shaders.js";
 import { makeAirdrop, makeMotes, mulberry32 } from "./common.js";
@@ -41,13 +42,17 @@ in vec3 aParams;   // radius, phase, kind (0 = dormant, 1 = active)
 out vec2 vUv;
 out vec3 vParams;
 out float vDepthFade;
+flat out float vFocus;
 
 uniform float uTime;
+/** Instance the consumer has singled out, or -1 for none. */
+uniform float uFocus;
 ${SIMPLEX3}
 
 void main(){
   vUv = uv;
   vParams = aParams;
+  vFocus = abs(float(gl_InstanceID) - uFocus) < 0.5 ? 1.0 : 0.0;
 
   vec3 world = aOffset;
 
@@ -64,6 +69,9 @@ void main(){
   float r = aParams.x;
   // Active colonies breathe; dormant ones hold their size.
   r *= 1.0 + aParams.z * 0.10 * sin(uTime * 1.15 + ph * 6.2831);
+  // The singled-out colony swells and keeps breathing on its own beat, so that even
+  // before the camera has finished arriving it is obvious which one is meant.
+  r *= 1.0 + vFocus * (0.85 + 0.15 * sin(uTime * 2.1));
   mv.xy += position.xy * r;
 
   vDepthFade = 1.0 - smoothstep(38.0, 84.0, -mv.z);
@@ -84,6 +92,7 @@ precision highp float;
 in vec2 vUv;
 in vec3 vParams;
 in float vDepthFade;
+flat in float vFocus;
 out vec4 fragColor;
 
 uniform vec3 uMembrane, uCyto, uNucleus;
@@ -116,9 +125,17 @@ void main(){
   float nuc = pow(1.0 - smoothstep(0.0, 0.30, nd), 3.0) * lit;
   nuc *= 0.65 + 0.35 * sin(uTime * 1.6 + ph * 6.2831);
 
-  vec3 col = uMembrane * rim * (0.55 + 0.45 * lit)
+  // The singled-out colony always has a nucleus, whatever its dormant/active kind
+  // says. It is the one the reader came here to look at, and a dark centre would
+  // read as the camera having landed on the wrong thing.
+  nuc = max(nuc, pow(1.0 - smoothstep(0.0, 0.34, nd), 3.0) * vFocus
+                 * (0.7 + 0.3 * sin(uTime * 2.1)));
+
+  vec3 col = uMembrane * rim * (0.55 + 0.45 * max(lit, vFocus))
            + uCyto * cyto
            + uNucleus * nuc * 1.6;
+
+  col *= 1.0 + vFocus * 0.9;
 
   float a = (rim + cyto + nuc) * vDepthFade;
   fragColor = vec4(col * vDepthFade, a);
@@ -177,6 +194,7 @@ export function createCulture(ctx: SceneContext): AtmosphereScene {
     blending: AdditiveBlending,
     uniforms: {
       uTime: { value: 0 },
+      uFocus: { value: -1 },
       uMembrane: { value: PALETTE.cyan },
       uCyto: { value: new Color().copy(PALETTE.azure).multiplyScalar(0.55) },
       uNucleus: { value: PALETTE.pale },
@@ -286,9 +304,58 @@ export function createCulture(ctx: SceneContext): AtmosphereScene {
   motes.position.set(0, 4, 4);
   scene.add(motes);
 
+  /**
+   * THE CAMERA FLIGHT INTO ONE COLONY.
+   *
+   * `k` is how far in we are: 0 is the wide field, 1 is standing at the chosen cell.
+   * Everything the camera does is a blend between those two, so the orbit never
+   * stops - it is still drifting when you arrive, which is what keeps a close-up from
+   * feeling like a still photograph of a cell.
+   *
+   * `held` is kept after the target clears so the flight back OUT has somewhere to
+   * leave from. Dropping it on release would snap the camera to the wide shot on the
+   * first frame and then tween a value nothing was reading.
+   */
+  const flight = { k: 0 };
+  let held: Vector3 | null = null;
+  const eye = new Vector3();
+  const aim = new Vector3();
+  const wideAim = new Vector3(0, 2.4, -4);
+  // Scratch, allocated once. A new Vector3 per frame is 60 allocations a second for
+  // the lifetime of a session, and this runs inside the render loop.
+  const _tmpEye = new Vector3();
+
   return {
     id: "dashboard",
     scene,
+
+    /**
+     * Which cell a key lands on, by hashing the string.
+     *
+     * A HASH, NOT A COUNTER, because the mapping has to survive a reload and a
+     * different ordering of the same cases. The dashboard sorts by what needs
+     * attention, so a positional mapping would move a case's cell every time somebody
+     * else answered - the environment would be reporting activity it knows nothing
+     * about. The same case is the same colony forever, which is the only version of
+     * this that carries information.
+     */
+    focus(key) {
+      if (key === null) {
+        cellMat.uniforms.uFocus!.value = -1;
+        gsap.to(flight, { k: 0, duration: 1.1, ease: "power2.inOut" });
+        return;
+      }
+      let h = 2166136261;
+      for (let i = 0; i < key.length; i++) {
+        h ^= key.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      const index = Math.abs(h) % count;
+      cellMat.uniforms.uFocus!.value = index;
+      held = nodes[index] ?? null;
+      gsap.to(flight, { k: 1, duration: 1.6, ease: "power2.inOut" });
+    },
+
     camera,
     update(_dt, t) {
       cellMat.uniforms.uTime!.value = t;
@@ -300,12 +367,30 @@ export function createCulture(ctx: SceneContext): AtmosphereScene {
       // A long, shallow orbit. The reference's camera is never still and never
       // obviously moving; the moment you can name the motion it has gone too far.
       const a = t * 0.035;
-      camera.position.set(
+      eye.set(
         baseCam.x + Math.sin(a) * 4.2,
         baseCam.y + Math.sin(t * 0.05) * 0.8,
         baseCam.z + Math.cos(a) * 2.6,
       );
-      camera.lookAt(0, 2.4, -4);
+      aim.copy(wideAim);
+
+      // Blend toward the chosen colony. The close eye keeps the orbit's sway at a
+      // fifth of its width so the arrival is still alive, and sits slightly above and
+      // in front of the cell rather than dead level with it - a camera exactly on a
+      // subject's axis is the one composition that reads as a diagram.
+      if (held !== null && flight.k > 0.001) {
+        const k = flight.k;
+        const close = _tmpEye.set(
+          held.x + Math.sin(a) * 0.9,
+          held.y + 1.05,
+          held.z + 4.6,
+        );
+        eye.lerp(close, k);
+        aim.lerp(held, k);
+      }
+
+      camera.position.copy(eye);
+      camera.lookAt(aim);
     },
     resize(w, h) {
       camera.aspect = w / h;

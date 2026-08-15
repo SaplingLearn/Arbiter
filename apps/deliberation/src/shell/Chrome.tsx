@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { Wordmark } from "@arbiter/design";
+import { Decode, Wordmark } from "@arbiter/design";
 import { href, type Route } from "../router.js";
 import type { Person } from "../api.js";
 import { NAV, currentNav } from "./nav.js";
@@ -64,18 +64,25 @@ export function Header({ route, me, onSignOut }: {
 }
 
 /**
- * THE MENU.
+ * THE MENU — the landing page's chapter index, laid along the top instead of down
+ * the left edge.
  *
- * One glass plate holding four entries, centred in the header. A single plate rather
- * than four chamfered buttons in a row: the pair of controls in the landing page's
- * header is built the same way and for the same reason - with a gap between them they
- * read as separate objects that happen to be adjacent, and the block loses its edge.
+ * It is the same control, part for part: a 6px square in the current colour that is
+ * present only on the entry you are on, a mono label at 11px tracked to .16em, and
+ * the three states that page uses - 35% at rest, 70% on hover, full when current.
+ * Inactive entries sitting at a third is not an accident of taste over there and it
+ * is not one here either: the set is a position readout first and a menu second, and
+ * at full contrast four stacked labels compete with the page title beside them.
  *
- * ANCHORS, NOT BUTTONS, and every label permanently visible. The reference this is
- * drawn from reveals its labels on hover and consumes the wheel to move between
- * states, which is right for a page you look at and wrong for one you work in: a menu
- * you cannot read until you point at it cannot be scanned, tabbed through, or read
- * aloud. The look is kept; the interaction is not.
+ * THE LABEL DECODES ON ACTIVATION, through the same component the landing page uses,
+ * and for the reason its own comment gives: on ACTIVATION, never on hover, because a
+ * label that scrambles when the pointer crosses it would fire three times on the way
+ * to the one you meant.
+ *
+ * ANCHORS, NOT BUTTONS. The chapter index drives a scroll position, so a button is
+ * right there; these change the URL and the page, so they have to be links - middle
+ * click, open in a new tab, and copy link address are things a reviewer does with a
+ * case list.
  */
 function Tabs({ route }: { route: Route }): ReactElement {
   const active = currentNav(route);
@@ -91,7 +98,8 @@ function Tabs({ route }: { route: Route }): ReactElement {
             href={href(n.to)}
             {...(on ? { "aria-current": "page" as const } : {})}
           >
-            {n.label}
+            <span className="hud-dot" aria-hidden="true" />
+            <Decode text={n.label} play={on} />
           </a>
         );
       })}

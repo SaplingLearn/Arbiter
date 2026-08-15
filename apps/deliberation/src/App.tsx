@@ -325,7 +325,11 @@ export function App(): ReactElement {
   if (route.name === "case") {
     return caseShell(
       <div className="stack-l">
-        <Section title="What the documents contain">
+        {/* No title on the Section: InventoryPanel carries its own heading, and the
+            paragraph explaining why the list is ordered the way it is belongs with
+            it. Both were set, so the evidence stage opened on the same sentence
+            printed twice. */}
+        <Section>
           <InventoryPanel inv={inventory} documentScope={head.scope} />
         </Section>
 

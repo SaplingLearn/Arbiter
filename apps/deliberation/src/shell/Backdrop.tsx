@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactElement } from "react";
 import type { Atmosphere } from "@arbiter/atmosphere";
-import type { Route } from "../router.js";
+import { caseIdOf, type Route } from "../router.js";
 import { sceneFor, transitionFor } from "./nav.js";
 
 /**
@@ -29,6 +29,9 @@ export function Backdrop({ route }: { route: Route }): ReactElement {
      import on a cold load, and without this the engine mounts whichever scene won
      the race rather than the one the reader is looking at. */
   const wanted = useRef(sceneFor(route));
+  /* Same race, for the focus key: a reader can land straight on a case URL, and the
+     effect that announces the key runs long before `three` has finished arriving. */
+  const wantedKey = useRef(caseIdOf(route));
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -50,6 +53,7 @@ export function Backdrop({ route }: { route: Route }): ReactElement {
         atmo.register("record", mod.createHelix);
 
         atmo.resize(window.innerWidth, window.innerHeight);
+        atmo.focus(wantedKey.current);
         atmo.mount(wanted.current);
         atmo.start();
         // Up from black rather than cutting in - the scene arrives after the page
@@ -95,6 +99,28 @@ export function Backdrop({ route }: { route: Route }): ReactElement {
     if (atmo === null || atmo.activeId === scene) return;
     atmo.transitionTo(scene, transitionFor(scene));
   }, [scene]);
+
+  /**
+   * OPENING A CASE FLIES THE CAMERA INTO ONE CELL OF THE FIELD.
+   *
+   * The dashboard draws every case as one colony among many. Naming a case here
+   * singles out its colony and the camera goes to it - so the background answers
+   * "where am I" with "in that one", and the whole field you just came from is still
+   * around you rather than replaced by a different world.
+   *
+   * NOTHING HERE IS CLICKABLE, deliberately. The cells are scenery that reports
+   * state, not a control surface: navigation stays in the DOM where it can be
+   * tabbed to, read aloud, and hit reliably at any window size. The 3D reacts to
+   * where you are; it is never how you get there.
+   *
+   * `focus` is held by the engine across scene swaps, so going to a closed record -
+   * which IS a different world, the seal - and coming back lands on the same cell.
+   */
+  const key = caseIdOf(route);
+  useEffect(() => {
+    wantedKey.current = key;
+    atmoRef.current?.focus(key);
+  }, [key]);
 
   return <canvas ref={canvasRef} className="backdrop" aria-hidden="true" />;
 }
