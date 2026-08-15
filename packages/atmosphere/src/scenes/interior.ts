@@ -83,6 +83,16 @@ export interface Interior {
   setSeed(seed: number): void;
   /** Stand it on a body's centre. */
   place(centre: Vector3): void;
+  /**
+   * Show every part for one off-screen render, then put the visibility back.
+   *
+   * Nothing in here draws until the flight is a third of the way in, so its buffers and
+   * its four shader programs met the GPU for the first time in the middle of a camera
+   * move — a multi-frame stall exactly where the eye is following something. The engine
+   * builds an incoming scene before starting the tween for this precise reason; hidden
+   * geometry is how a scene gets to skip that and pay later.
+   */
+  prewarm(draw: () => void): void;
   update(t: number): void;
   dispose(): void;
 }
@@ -391,6 +401,16 @@ export function makeInterior(quality: number): Interior {
     },
 
     setSeed: build,
+
+    /* Everything, including the branch this case will not take. A refused case compiles
+       the solitary pair and a usable one compiles the plain, so warming only what is
+       about to be shown would leave half the file to stall on its first refusal. */
+    prewarm(draw) {
+      const was = [group, solitary, latMesh, floMesh, motes].map((o) => o.visible);
+      for (const o of [group, solitary, latMesh, floMesh, motes]) o.visible = true;
+      draw();
+      [group, solitary, latMesh, floMesh, motes].forEach((o, i) => { o.visible = was[i]!; });
+    },
 
     place(centre) {
       group.position.set(centre.x, centre.y - GROUND_DROP, centre.z);

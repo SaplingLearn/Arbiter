@@ -15,6 +15,7 @@ import {
   Scene,
   ShaderMaterial,
   Vector3,
+  WebGLRenderTarget,
 } from "three";
 import { PALETTE } from "../core/palette.js";
 import { SIMPLEX3 } from "../core/shaders.js";
@@ -357,6 +358,36 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
   scene.add(interior.group);
 
   /**
+   * PAY FOR THE INTERIOR NOW, not a second into the flight.
+   *
+   * Measured, not guessed: sampling the camera every frame through a dashboard-to-case
+   * transition showed the browser dropping five frames about 940ms in - and 940ms is
+   * where `flight.k` crosses `APPEAR_IN` and the interior draws for the first time.
+   * Twelve hundred instanced cubes, two hundred and forty floaters and four shader
+   * programs, all meeting the GPU in the middle of a camera move. Shader compilation
+   * alone is usually the multi-frame part.
+   *
+   * The engine already builds an incoming scene before starting the tween because
+   * "geometry upload can cost several frames" and a hitch is least visible when nothing
+   * is moving. Hidden geometry is how a scene skips that and pays in the worst place
+   * instead. One 1x1 render at build time puts the cost back where the engine intended
+   * it - the ghost included, because it is hidden at build too and its material is a
+   * different program from the field's.
+   */
+  const warmTarget = new WebGLRenderTarget(1, 1);
+  {
+    const ghostWas = ghost.visible;
+    ghost.visible = true;
+    interior.prewarm(() => {
+      const prev = ctx.renderer.getRenderTarget();
+      ctx.renderer.setRenderTarget(warmTarget);
+      ctx.renderer.render(scene, camera);
+      ctx.renderer.setRenderTarget(prev);
+    });
+    ghost.visible = ghostWas;
+  }
+
+  /**
    * ONE BODY PER CASE.
    *
    * Was a fixed 7x6 grid of forty-two. The library holds six.
@@ -417,9 +448,26 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
     vitrines.count = n;
     vitrines.instanceMatrix.needsUpdate = true;
     aState.needsUpdate = true;
-    // A re-populate can land while a body is being flown into, and the index it was
-    // holding may now be a different case or gone. Re-resolve against the new list.
-    if (heldKey !== null) applyFocus(heldKey);
+
+    if (heldKey !== null) {
+      // A re-populate can land while a body is being flown into, and the index it was
+      // holding may now be a different case or gone. Re-resolve against the new list.
+      const hadBody = heldIndex !== -1;
+      applyFocus(heldKey);
+
+      /* AND THIS IS WHERE A COLD LOAD ON A CASE URL ACTUALLY STARTS FLYING.
+         `focus` is announced long before the catalogue fetch returns - the backdrop
+         says so itself - so `resolve` found nothing, `heldIndex` stayed -1 and no
+         tween was ever created. The key was remembered and the body was found here,
+         but nothing started the move: the camera sat in the wide shot for the whole
+         session while `applyFocus` had already pulled that body out of the field and
+         drawn it as a translucent ghost. One body visibly wrong, and the flight the
+         gesture promises never happening at all.
+
+         Only when the body did not exist a moment ago. A re-populate during a flight,
+         or while already inside, must not restart it. */
+      if (!hadBody && heldIndex !== -1) enter();
+    }
   }
 
   /* ---- the flight into one body -------------------------------------------------
@@ -508,6 +556,62 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
        another case's landscape inside it, which is a worse lie than the one this scene
        already admits to. */
     interior.setSeed(hash32(keys[index] ?? key));
+  }
+
+  /**
+   * Start the flight in.
+   *
+   * `overwrite` on every tween of `flight.k`, and it is not defensive tidying. On a
+   * swap INTO this scene the engine builds the scene and hands it the key it is
+   * holding - which, coming from the dashboard, is still null - so this scene's own
+   * `focus(null)` runs first and starts a release tween. The consumer's focus effect
+   * then lands a microsecond later with the real case and starts an entry tween. Two
+   * live tweens on one number, and which one you saw depended on the order GSAP
+   * happened to render them in. Whichever lost, the result was the camera pinned at
+   * the wide shot and then jumping most of the way inside when the loser completed.
+   *
+   * Slower than the dashboard's 1.6s. That one crosses open water to a colony; this
+   * one ends with the camera passing through a surface, and a wall arriving fast is a
+   * collision rather than an arrival.
+   */
+  function enter(): void {
+    if (heldIndex === -1) return;
+    gsap.to(flight, { k: 1, duration: 2.1, ease: "power2.inOut", overwrite: true });
+  }
+
+  /**
+   * Go to a body, from wherever the camera currently is.
+   *
+   * LEAVING BEFORE ENTERING, when it is already inside a different one. Both ends of
+   * the tween are `flight.k`, so re-aiming while inside meant tweening 1 to 1 - a
+   * no-op - and the camera cut from the middle of one case's interior to the middle of
+   * another's on a single frame, with the plain regenerating under it. Reachable from
+   * any link or typed URL that goes case-to-case without passing through a list.
+   *
+   * So it flies out first and enters on arrival at the wide shot. Three seconds rather
+   * than none, and it is the only reading of "you are somewhere else now" that does not
+   * teleport.
+   */
+  function fly(key: string): void {
+    const next = resolve(key);
+    if (heldIndex !== -1 && next !== heldIndex && flight.k > 0.001) {
+      gsap.to(flight, {
+        k: 0,
+        duration: 0.9,
+        ease: "power2.in",
+        overwrite: true,
+        onComplete: () => {
+          // Released, or re-aimed again, while this was running: that decision is newer
+          // than this one and has already started its own move.
+          if (heldKey !== key) return;
+          applyFocus(key);
+          enter();
+        },
+      });
+      return;
+    }
+    applyFocus(key);
+    enter();
   }
 
   // ---- floor: a dark reflective-ish plane with sweeping light bands, which is what
@@ -610,6 +714,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
           k: 0,
           duration: 1.2,
           ease: "power2.inOut",
+          overwrite: true,
           onComplete: () => {
             // Only once the camera is clear. Guarded on the tween's own value rather
             // than on nothing, because a second focus can land mid-flight and this
@@ -622,12 +727,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
         });
         return;
       }
-      applyFocus(key);
-      if (heldIndex === -1) return;
-      /* Slower than the dashboard's 1.6s. That one crosses open water to a colony; this
-         one ends with the camera passing through a surface, and a wall arriving fast is
-         a collision rather than an arrival. */
-      gsap.to(flight, { k: 1, duration: 2.1, ease: "power2.inOut" });
+      fly(key);
     },
 
     update(_dt, t) {
@@ -731,6 +831,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       box.dispose(); vitMat.dispose(); vitrines.dispose();
       ghostBox.dispose(); ghostMat.dispose(); ghost.dispose();
       interior.dispose();
+      warmTarget.dispose();
       floor.geometry.dispose(); (floor.material as ShaderMaterial).dispose();
       air.geometry.dispose(); (air.material as ShaderMaterial).dispose();
       motes.geometry.dispose(); (motes.material as ShaderMaterial).dispose();

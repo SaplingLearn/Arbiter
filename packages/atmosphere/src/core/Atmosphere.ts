@@ -112,6 +112,20 @@ export class Atmosphere {
   /** 0 = fully on the outgoing scene, 1 = fully arrived. Driven by GSAP. */
   private progress = { value: 0 };
   private transitioning = false;
+  /**
+   * A swap asked for while one was already running.
+   *
+   * The tear takes up to 1.8s and a reader can hit two rail entries inside that, so
+   * dropping the second request is not a rare case - and dropping it is PERMANENT.
+   * The consumer is an effect keyed on the scene id: it has already run, the id has
+   * already changed, and nothing will call again until the reader navigates somewhere
+   * else. The product would sit on the wrong background indefinitely, with the rail
+   * naming a scene that is not on screen.
+   *
+   * Only the latest is kept. Three clicks during one tear should land on the third,
+   * not play two transitions nobody asked to watch.
+   */
+  private pending: { id: string; style: TransitionStyle } | null = null;
 
   /** Global fade, used by the intro. Separate from progress so the overture can hold
    *  the scene at black while it is already running and warm. */
@@ -188,6 +202,8 @@ export class Atmosphere {
     this.current.focus?.(this.focusKey);
     this.currentId = id;
     this.elapsed = 0;
+    // A hard mount overrides anything queued behind a tear.
+    this.pending = null;
   }
 
   /**
@@ -235,9 +251,12 @@ export class Atmosphere {
    * where both scenes exist, which is cheap next to a stutter the eye is watching for.
    */
   transitionTo(id: string, style: TransitionStyle = {}): void {
-    if (id === this.currentId || this.transitioning) return;
+    if (id === this.currentId) { this.pending = null; return; }
     const entry = this.registry.get(id);
     if (entry === undefined) throw new Error(`atmosphere: unknown scene "${id}"`);
+
+    // Queued rather than dropped. See `pending` for why dropping it is permanent.
+    if (this.transitioning) { this.pending = { id, style }; return; }
 
     if (this.ctx.reducedMotion) { this.mount(id); return; }
 
@@ -273,6 +292,13 @@ export class Atmosphere {
         this.outgoing = null;
         this.transitioning = false;
         this.progress.value = 0;
+
+        /* Run whatever arrived while this was playing. Cleared BEFORE the call, so a
+           destination equal to where we just landed simply stops here rather than
+           leaving a stale entry for the next swap to pick up. */
+        const next = this.pending;
+        this.pending = null;
+        if (next !== null) this.transitionTo(next.id, next.style);
       },
     });
   }

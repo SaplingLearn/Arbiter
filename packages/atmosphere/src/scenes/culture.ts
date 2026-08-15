@@ -376,10 +376,19 @@ export function createCulture(ctx: SceneContext): AtmosphereScene {
      * about. The same case is the same colony forever, which is the only version of
      * this that carries information.
      */
+    /**
+     * `overwrite` on both, and it is the same hazard the Archive documents at `enter`.
+     * Leaving a case, the engine builds this scene and hands it the key it is still
+     * holding - the case - so a flight toward a colony starts; the consumer's focus
+     * effect then arrives with null and starts a release. Two live tweens on one
+     * number, resolved by whatever order GSAP rendered them in. Here the wrong order
+     * would have flown the dashboard's camera into a cell nobody asked for and left it
+     * there.
+     */
     focus(key) {
       if (key === null) {
         cellMat.uniforms.uFocus!.value = -1;
-        gsap.to(flight, { k: 0, duration: 1.1, ease: "power2.inOut" });
+        gsap.to(flight, { k: 0, duration: 1.1, ease: "power2.inOut", overwrite: true });
         return;
       }
       let h = 2166136261;
@@ -390,7 +399,7 @@ export function createCulture(ctx: SceneContext): AtmosphereScene {
       const index = Math.abs(h) % count;
       cellMat.uniforms.uFocus!.value = index;
       held = nodes[index] ?? null;
-      gsap.to(flight, { k: 1, duration: 1.6, ease: "power2.inOut" });
+      gsap.to(flight, { k: 1, duration: 1.6, ease: "power2.inOut", overwrite: true });
     },
 
     camera,
