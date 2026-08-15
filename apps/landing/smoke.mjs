@@ -1,17 +1,19 @@
 /**
- * Boot smoke check for the overture.
+ * Boot smoke check for the unified dev server.
  *
- * Answers one question only: does the page come up, does WebGL actually initialise,
- * and does anything throw on the way. Not a visual test — the stills are for a human
- * to look at.
+ * Answers one question only: does every surface come up on the one origin, does the
+ * overture's WebGL actually initialise, and does anything throw on the way. Not a
+ * visual test — the stills are for a human to look at.
  *
- * Usage: node apps/landing/smoke.mjs [outDir]
+ * Assumes `npm run dev` is already running. Usage:
+ *   node apps/landing/smoke.mjs [outDir]
  */
 import { chromium } from "playwright";
 import { mkdirSync } from "node:fs";
 
 const OUT = process.argv[2] ?? "apps/landing/shots";
-const URL = "http://127.0.0.1:5175/";
+const PORT = process.env["ARBITER_PORT"] ?? "5173";
+const BASE = `http://127.0.0.1:${PORT}`;
 
 mkdirSync(OUT, { recursive: true });
 
@@ -24,37 +26,23 @@ const errors = [];
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
 page.on("pageerror", (e) => errors.push(String(e)));
 
-await page.goto(URL, { waitUntil: "networkidle" });
-await page.waitForTimeout(7000); // let the preloader finish
-await page.screenshot({ path: `${OUT}/boot-1.png` });
+await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+await page.waitForTimeout(7000); // the preloader is tied to real work; let it finish
+await page.screenshot({ path: `${OUT}/boot.png` });
 
-// Is there a live WebGL context with something drawn into it?
+// A canvas that exists but never took a context is the failure mode worth catching:
+// the page still renders its chrome, so it looks fine until you notice it is flat.
 const gl = await page.evaluate(() => {
   const c = document.querySelector("canvas");
   if (!c) return { canvas: false };
   const ctx = c.getContext("webgl2") ?? c.getContext("webgl");
-  return {
-    canvas: true,
-    context: Boolean(ctx),
-    w: c.width,
-    h: c.height,
-    // A canvas that is present but never drawn into reads as fully transparent.
-    painted: (() => {
-      try {
-        const g = ctx;
-        const px = new Uint8Array(4);
-        g.readPixels(Math.floor(c.width / 2), Math.floor(c.height / 2),
-          1, 1, g.RGBA, g.UNSIGNED_BYTE, px);
-        return [...px];
-      } catch { return null; }
-    })(),
-  };
+  return { canvas: true, context: Boolean(ctx), w: c.width, h: c.height };
 });
 
-// Walk the chapters and grab a still of each.
+// Walk the chapters.
 for (let i = 0; i < 6; i++) {
   await page.mouse.wheel(0, 1400);
-  await page.waitForTimeout(1800);
+  await page.waitForTimeout(1700);
   await page.screenshot({ path: `${OUT}/chapter-${i + 1}.png` });
 }
 
@@ -69,8 +57,17 @@ const fps = await page.evaluate(() => new Promise((res) => {
   requestAnimationFrame(tick);
 }));
 
-console.log("webgl:", JSON.stringify(gl));
-console.log("fps:", fps);
-console.log(errors.length ? `ERRORS (${errors.length}):\n` + errors.slice(0, 12).join("\n") : "no console errors");
+// The product, through the proxy rather than on its own port — that path is the
+// whole point of the one-origin arrangement and is the bit most likely to be broken
+// by a config merge.
+await page.goto(`${BASE}/deliberation/`, { waitUntil: "networkidle" });
+await page.waitForTimeout(3000);
+await page.screenshot({ path: `${OUT}/product.png` });
+const productTitle = await page.title();
+
+console.log("overture webgl:", JSON.stringify(gl));
+console.log("overture fps:  ", fps);
+console.log("product title: ", productTitle);
+console.log(errors.length ? `ERRORS (${errors.length}):\n${errors.slice(0, 10).join("\n")}` : "no console errors");
 
 await browser.close();

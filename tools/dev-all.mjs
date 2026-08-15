@@ -29,6 +29,22 @@ import { spawn } from "node:child_process";
 
 const ENTRY_PORT = process.env["ARBITER_PORT"] ?? "5173";
 
+/**
+ * On Windows `npm` is `npm.cmd`, a batch file, and `spawn("npm")` cannot find it -
+ * spawn does not consult PATHEXT, so the lookup fails with ENOENT before anything
+ * starts. `npm run dev` died on the first server every time on that platform.
+ *
+ * `shell: true` rather than hardcoding "npm.cmd": Node 20.12.2 and 18.20.2 closed
+ * CVE-2024-27980 by REFUSING to spawn a .cmd without a shell, so naming the file
+ * directly fixes the ENOENT and then breaks again on any patched Node. Going through
+ * the shell is the arrangement that works on both sides of that change.
+ *
+ * Every argument below is a literal in this file - no user input, no paths with
+ * spaces - so shell interpolation has nothing to bite on here. If an argument ever
+ * becomes dynamic, quote it.
+ */
+const USE_SHELL = process.platform === "win32";
+
 const SERVERS = [
   {
     name: "api",
@@ -58,7 +74,7 @@ function shutdown(code) {
 }
 
 for (const { name, args } of SERVERS) {
-  const child = spawn("npm", args, { stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn("npm", args, { stdio: ["ignore", "pipe", "pipe"], shell: USE_SHELL });
   const tag = `[${name}]`.padEnd(8);
   const relay = (stream, out) =>
     stream.on("data", (chunk) => {
