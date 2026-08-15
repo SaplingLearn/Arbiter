@@ -45,18 +45,10 @@
      The ink here is near-white, so contrast has to come from taking light OUT
      of the ground. The panel darkens what is behind it and keeps its lit edge
      from the sheen gradient and the hairline, which is what glass actually does
-     in a dark room.
-
-     AND THE ALPHA KEPT COMING DOWN, to 0.14. At 0.72 the panel is
-     legible and it has stopped being glass - the scene no longer shows through
-     the work, and the product goes back to reading as flat cards with a picture
-     behind them. The lever that buys legibility without buying opacity is BLUR,
-     not alpha: at 28px the backdrop keeps its colour and its motion and loses
-     the high-frequency detail that was actually breaking the type. A lit panel
-     behind a card should arrive as a soft glow, not as an edge. */
+     in a dark room. */
   --app: #020a18;
-  --paper: rgba(10, 22, 49, 0.06);
-  --sunken: rgba(2, 6, 20, 0.20);
+  --paper: rgba(6, 12, 28, 0.72);
+  --sunken: rgba(2, 6, 20, 0.72);
   --brand-deep: #070e1f;
 
   /* ink. ink-2 carries most of the body copy on a card, so it was the token the
@@ -160,9 +152,6 @@ a { color: var(--accent); text-underline-offset: 3px; }
   --hud-gutter: 26px;
   --hud-h: 64px;
   --cut: 14px;
-  /* See the liquid glass block: the inner mitre has to be C - 2 + sqrt(2) for
-     the rim to stay 1px wide around the corner as well as along the sides. */
-  --cut-in: calc(var(--cut) - 0.586px);
   /* The reference's easing, used by everything in the chrome that moves. */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -323,181 +312,55 @@ a { color: var(--accent); text-underline-offset: 3px; }
   font: 400 11px/1.6 var(--mono); letter-spacing: .06em; color: var(--ink-3);
 }
 
-/* ---- liquid glass ---------------------------------------------------------
+/* ---- glass ----------------------------------------------------------------
    THE ONE SURFACE THAT CARRIES A GROUND.
 
-   Built as a material rather than as a tinted box, in the manner of Apple's
-   Liquid Glass. Four things make that material, and leaving any one of them out
-   gets you a grey rectangle with a blur behind it:
+   A panel over a moving scene has a job the old flat card did not: stay
+   readable over a bright colony and over empty black, without hiding what is
+   behind it. So it is a low-alpha wash plus a blur, not a fill - the scene
+   stays visible THROUGH the panel, which is what makes the product look like
+   it is standing in the environment rather than pasted over a screenshot of
+   one.
 
-   1. VIBRANCY, NOT OPACITY. blur(30px) saturate(1.9) brightness(1.12). The
-      saturation lift is what makes the scene's colour bleed through the plate
-      instead of going grey behind it, and the brightness lift is what makes the
-      panel read as lit FROM BEHIND on a dark ground. The fill is only 5% white
-      - almost all of the legibility comes from the blur flattening the
-      backdrop's detail, not from covering it up.
+   The gradient runs top-light to bottom-dark by a couple of percent. Flat
+   translucency reads as a grey rectangle; the fall gives the plate an edge lit
+   from above, which is the whole difference between glass and tint.
 
-   2. A SPECULAR RIM, not a uniform border. Real glass catches light on the
-      edges that face it and goes nearly dark on the ones that do not, so the
-      edge runs from 42% at the top-left, down to 6% across the middle, and back
-      up at the bottom-right where the mitre catches it again. A single flat
-      hairline all the way round is the tell that reads as a CSS border.
-
-   3. AN INNER TOP HIGHLIGHT. One inset hairline of white just under the top
-      edge, which is the light entering the thickness of the sheet. This is the
-      cheapest of the four and does the most.
-
-   4. A BODY THAT IS NOT FLAT. The fill falls from 10% to 2% and lifts again at
-      the bottom, so the plate has a slight bend in it.
-
-   DRAWN AS TWO STACKED LAYERS, which the rim requires and the mitre rewards.
-   A clip-path cuts the BORDER off along with the box, so a chamfered panel
-   drawn the obvious way has three bordered sides and a bare diagonal - and a
-   gradient rim cannot be a border at all. The outer layer is the rim gradient
-   clipped to the chamfer; the inner is the body, inset 1px and clipped to a
-   chamfer 0.586px smaller. The edge is the GAP between two identical shapes,
-   so it follows the mitre exactly and there are no joins to misalign.
-
-   THE 0.586 IS GEOMETRY. Inset the box 1px a side and the cut line moves
-   (C' + 2 - C)/sqrt(2), so the gap is a true 1px only at C' = C - 2 + sqrt(2).
-   Reuse C and the diagonal sits 1.41px in while the straight sides sit at 1 -
-   which is exactly the mismatch that reads as a corner not meeting.
-
-   Both layers sit at negative z-index, under the panel's own content and over
-   whatever is behind it. Deliberately NO `isolation: isolate` to contain them:
-   that would make every panel a backdrop root and the blur would have nothing
-   left to sample.
-
-   STILL CHAMFERED, NOT ROUNDED. Liquid Glass is a material, and this system's
-   shape language is a separate decision the design package states in one line -
-   square or chamfered, never radiused. Taking the material without the corner
-   radius is the point; a rounded panel here would not match the bezel, the
-   buttons, or the landing page it is reached from. */
-
-.glass, .card, .panel, .inv, .tile {
-  position: relative;
-  border: 0;
-  background: transparent;
-  --rim-lit: rgba(213, 224, 255, .42);
-  --rim-dim: rgba(213, 224, 255, .035);
-  /* THE TINT IS THE BRAND'S NAVY, NOT NEUTRAL WHITE, and at a fifth alpha.
-     A white wash over a blue scene desaturates it toward grey, which is the
-     one thing this palette cannot afford - the whole system is a blue wedge
-     plus two verdict hues. Tinting with #0A1631 instead means the plate
-     deepens the scene's own colour rather than washing it out, and at 0.18 it
-     is barely a tint at all: nearly everything you see through the panel is
-     the scene, blurred. */
-  --fill: rgba(10, 22, 49, .03);
+   ONE CUT CORNER, bottom right, at the same 14px the primary action uses. Not
+   all four: a panel with four mitres is a decorative object, and there are a
+   dozen of these on a screen. */
+.glass {
+  background-color: var(--paper);
+  background-image: linear-gradient(180deg, rgba(213, 224, 255, .07), rgba(213, 224, 255, .015));
+  border: 1px solid rgba(213, 224, 255, .14);
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+  padding: var(--s5);
 }
-.glass { padding: var(--s5); }
 
-/* the rim */
-.glass::before, .card::before, .panel::before, .inv::before, .tile::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  pointer-events: none;
-  background: linear-gradient(148deg,
-    var(--rim-lit) 0%,
-    var(--rim-dim) 38%,
-    var(--rim-dim) 64%,
-    var(--rim-lit) 100%);
+/* The rest of the product's surfaces, given the same treatment.
+
+   Listed by their existing class names rather than by adding `glass` to a
+   hundred JSX call sites: the classes already mean "a surface carrying content"
+   and this is what that now looks like. The blur is the expensive half, so it
+   goes only on containers - never on a row, a badge or a cell, where a dozen
+   stacked blur layers buy nothing the parent has not already bought. */
+.card, .tile, .panel, .inv, .scroll, .empty, .pos, .concern, .note, .stub {
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+}
+.card, .panel, .empty, .scroll, .inv, .tile {
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
 }
-
-/* the body */
-.glass::after, .card::after, .panel::after, .inv::after, .tile::after {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  z-index: -1;
-  pointer-events: none;
-  background-color: var(--fill);
-  background-image: linear-gradient(165deg,
-    rgba(213, 224, 255, .022) 0%,
-    rgba(213, 224, 255, .002) 42%,
-    rgba(213, 224, 255, .010) 100%);
-  /* Saturation up, brightness barely. An early pass ran brightness at 1.12 and
-     the plates came out milky - a lift that large stops reading as glass over a
-     dark room and starts reading as frosted plastic laid on top of it. 1.04 is
-     enough to keep the panel from going dead against the scene. */
-  backdrop-filter: blur(38px) saturate(1.85) brightness(1.02);
-  -webkit-backdrop-filter: blur(38px) saturate(1.85) brightness(1.02);
-  /* The light entering the thickness of the sheet. */
-  box-shadow: inset 0 1px 0 rgba(213, 224, 255, .11);
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut-in)), calc(100% - var(--cut-in)) 100%, 0 100%);
+/* The sheen, as a second background layer over whatever ground the class already
+   set. Flat translucency reads as a grey rectangle; the fall from 7% to 1.5%
+   gives the plate an edge lit from above, which is the difference between glass
+   and tint. Declared as background-image so it composites over background-color
+   instead of fighting the shorthand each of these classes already uses. */
+.card, .panel, .empty, .scroll, .inv, .tile, .pos {
+  background-image: linear-gradient(180deg, rgba(213, 224, 255, .07), rgba(213, 224, 255, .015));
 }
-
-/* The states that used to move a border now move the material. Each also has
-   to put its own background back to transparent: the rules that set them sit
-   earlier in this file at a higher specificity, and an element's own background
-   paints OVER a negative z-index pseudo, so one leftover fill hides the plate. */
-a.card:hover, button.card:hover {
-  background: transparent;
-  --rim-lit: rgba(213, 224, 255, .55);
-  --rim-dim: rgba(213, 224, 255, .10);
-}
-.card[aria-pressed="true"] { --rim-lit: rgba(79, 195, 255, .55); --rim-dim: rgba(79, 195, 255, .08); }
-/* THE ACCENT LIGHTS THE EDGE; IT NEVER FILLS THE PLATE. With the accent as
-   both rim and fill, saturate(1.75) turned this tile into a solid cyan block -
-   the exact "website with a blue button on it" the design system's own note
-   forbids. The rim carries the state and the fill stays the same glass as
-   everything else, lifted a few percent toward the accent so it reads as lit
-   rather than as coloured. */
-/* THE RIM LAYER IS A FULL RECTANGLE, not a ring, and the body layer above it is
-   translucent AND blurs what is behind it - so whatever the rim is painted with
-   bleeds through the whole plate. That is a feature at 42% white: it is where
-   the plates get their soft luminosity from. It is a disaster at full accent,
-   which is what turned this tile into a solid cyan block - the "website with a
-   blue button on it" the design system's own note forbids.
-
-   So an accent state states itself in low alpha. The edge still reads as
-   electric because the 1px gap shows the rim undimmed; the interior only picks
-   up a wash. */
-.tile.act {
-  background: transparent;
-  --rim-lit: rgba(79, 195, 255, .5);
-  --rim-dim: rgba(79, 195, 255, .07);
-  --fill: rgba(20, 60, 120, .07);
-}
-.panel.sunken { background: transparent; --fill: rgba(2, 6, 20, .14); }
-
-/* Surfaces that keep an ordinary border and square corners. `.scroll` scrolls
-   horizontally, and absolutely positioned layers inside a scroll container
-   travel away from the box they belong to; `.empty` is dashed, and a dashed
-   mitre is not a thing worth building. The rest are callouts whose left rule
-   carries their meaning, so a rim would compete with it. */
-.scroll, .empty, .pos, .concern, .note, .stub {
-  backdrop-filter: blur(38px) saturate(1.85) brightness(1.02);
-  -webkit-backdrop-filter: blur(38px) saturate(1.85) brightness(1.02);
-}
-.scroll, .empty, .pos {
-  background-image: linear-gradient(165deg, rgba(213, 224, 255, .022), rgba(213, 224, 255, .002));
-}
-
-/* ---- holding type over a see-through plate --------------------------------
-   THE PANEL NO LONGER CARRIES THE CONTRAST, so the type has to.
-
-   At a 3% fill the plate is a blurred window with a lit edge - which is the
-   point, and which means there is no longer a ground under the words. The
-   landing page solved this exact problem for its own copy over a live scene and
-   the answer is there in its markup: a wide, very dark, very soft shadow behind
-   the glyphs. It is invisible as an effect and it puts a couple of stops of
-   local contrast under every letter, so the text stays readable over a lit
-   colony without the panel having to go opaque to do it.
-
-   Two shadows, not one: a tight one for the edge of the glyph and a wide one
-   for the halo. A single large blur alone reads as a glow. */
-.work-col :where(h1, h2, h3, h4, p, span, b, a, td, th, li, label, blockquote) {
-  text-shadow:
-    0 1px 2px rgba(2, 8, 20, .55),
-    0 2px 14px rgba(2, 8, 20, .75);
-}
-/* The exceptions. A badge, a state chip and a verdict pill sit on their own
-   tinted ground and already have their contrast; a shadow there just makes
-   small mono type look smudged. */
-.work-col :where(.badge, .state, .basis, .pip, .eyebrow) { text-shadow: none; }
 
 /* THE PRIMARY ACTION, as a link.
    The dashboard's "New case" was a flat #4FC3FF pill with white text, written as
@@ -539,40 +402,38 @@ a.card:hover, button.card:hover {
 
 /* ---- summary tiles ------------------------------------------------------- */
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--s3); }
-/* No background and no border here: the liquid glass block above draws both, as
-   two clipped layers behind the tile's own content. A fill declared on the
-   element paints OVER those layers and hides the whole plate. */
 .tile {
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r);
   padding: var(--s4) var(--s5); display: flex; flex-direction: column; gap: var(--s1);
 }
 /* Mono, like every other measured figure in the system: a number always reads as
    something a run produced rather than as a headline. */
 .tile b { font: 400 30px/1.05 var(--mono); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.tile.act { border-color: var(--accent-line); background: var(--accent-wash); }
 .tile.act b { color: var(--accent); }
 
 /* ---- cards --------------------------------------------------------------- */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--s4); }
 
-/* No background and no border here: the liquid glass block above draws both as
-   two clipped layers behind the card's content. A fill declared on the element
-   paints OVER those layers and hides the plate entirely. */
 .card {
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg);
   padding: var(--s5); display: flex; flex-direction: column; gap: var(--s3);
-  text-decoration: none; color: inherit; text-align: left;
+  box-shadow: var(--e1); text-decoration: none; color: inherit; text-align: left;
 }
 a.card, button.card { cursor: pointer; }
-/* No lift. The system is flat, so a hovered card answers by catching more light
-   on its rim than by pretending to leave the page - which is also what glass
-   does when you tilt it. Set on the layers, in the block above. */
+/* No lift. BLUEPRINT is flat, so a hovered card answers with a fill and a border
+   rather than by pretending to leave the page. */
+a.card:hover, button.card:hover { border-color: var(--ink-3); background: var(--sunken); }
 .card h3 { letter-spacing: -.005em; }
 .card .row { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; margin-top: auto; padding-top: var(--s2); }
-.card[aria-pressed="true"] { box-shadow: var(--e2); }
+.card[aria-pressed="true"] { border-color: var(--accent); box-shadow: var(--e2); }
 
 .panel {
-  padding: var(--s5);
+  background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: var(--s5);
   display: flex; flex-direction: column; gap: var(--s3);
 }
-.panel.sunken { box-shadow: none; }
+.panel.sunken { background: var(--sunken); box-shadow: none; }
 
 .empty {
   border: 1px dashed var(--line); border-radius: var(--r-lg); padding: var(--s7) var(--s5);
@@ -622,7 +483,7 @@ a.card, button.card { cursor: pointer; }
 .tabbar a[aria-current="page"] .pip { background: var(--accent-wash); color: var(--accent); }
 
 /* ---- evidence inventory -------------------------------------------------- */
-.inv { overflow: hidden; }
+.inv { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--paper); }
 .inv-row {
   display: grid; grid-template-columns: 112px 1fr; gap: var(--s4);
   padding: var(--s4) var(--s5); border-top: 1px solid var(--line-soft); align-items: start;
