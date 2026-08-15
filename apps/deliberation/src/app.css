@@ -82,10 +82,32 @@
   --open-wash: rgba(213, 224, 255, 0.06);
   --open-line: rgba(213, 224, 255, 0.15);
 
-  /* Elevation is a ring, never a blur. A rule is on-system; a shadow is not. */
-  --e1: none;
-  --e2: 0 0 0 1px var(--line);
-  --e3: 0 0 0 1px var(--accent-line);
+  /* THE SPECULAR RIM - the edge of a sheet of glass, not a shadow under a box.
+
+     Glass catches light on the faces turned toward it and goes nearly dark
+     everywhere else. One flat hairline all the way round is the tell that reads
+     as a CSS border, so the rim runs bright along the top and left and drops to
+     almost nothing along the bottom and right. The third line is the light
+     entering the thickness of the sheet, falling a few pixels in from the top.
+
+     DRAWN AS INSETS, which is the whole reason this fits inside the existing
+     design. A gradient rim has to be a real gradient, a gradient cannot be a
+     border, and a clip-path cuts a border off with the box - which is what drove
+     the reverted attempt to rebuild every plate as two stacked layers. Inset
+     shadows are painted inside the element and clipped along with it, so they
+     get the directional edge with no new elements, no z-index and no change to
+     the mitre. The chamfered diagonal stays bare, exactly as it is today.
+
+     "Elevation is a ring, never a blur" still holds: nothing here casts outward.
+     The rim is the material, and it rides along in the elevation slot so the
+     hundred selectors already naming --e1 pick it up without moving. */
+  --rim:
+    inset 1px 1px 0 rgba(213, 224, 255, .30),
+    inset -1px -1px 0 rgba(213, 224, 255, .06),
+    inset 0 6px 12px -8px rgba(213, 224, 255, .40);
+  --e1: var(--rim);
+  --e2: var(--rim), 0 0 0 1px var(--line);
+  --e3: var(--rim), 0 0 0 1px var(--accent-line);
 
   --display: "Space Grotesk", "Archivo", system-ui, sans-serif;
   --sans: var(--display);
@@ -337,10 +359,12 @@ a { color: var(--accent); text-underline-offset: 3px; }
    dozen of these on a screen. */
 .glass {
   background-color: var(--paper);
-  background-image: linear-gradient(180deg, rgba(213, 224, 255, .07), rgba(213, 224, 255, .015));
+  background-image: linear-gradient(180deg,
+    rgba(213, 224, 255, .075) 0%, rgba(213, 224, 255, .012) 62%, rgba(213, 224, 255, .045) 100%);
   border: 1px solid rgba(213, 224, 255, .14);
-  backdrop-filter: blur(3px) saturate(1.25);
-  -webkit-backdrop-filter: blur(3px) saturate(1.25);
+  box-shadow: var(--e1);
+  backdrop-filter: blur(3px) saturate(1.5);
+  -webkit-backdrop-filter: blur(3px) saturate(1.5);
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
   padding: var(--s5);
 }
@@ -352,20 +376,47 @@ a { color: var(--accent); text-underline-offset: 3px; }
    and this is what that now looks like. The blur is the expensive half, so it
    goes only on containers - never on a row, a badge or a cell, where a dozen
    stacked blur layers buy nothing the parent has not already bought. */
+/* VIBRANCY, NOT OPACITY. saturate(1.5) is the half of the material that costs
+   nothing: a translucent plate over a lit colony pulls the colour out of it and
+   leaves grey, and grey is the one thing this palette - a blue wedge plus two
+   verdict hues - cannot spend. The saturation lift puts the scene's own colour
+   back through the plate instead of buying legibility with alpha. The blur stays
+   at 3px; the point of the last pass was that you can see what is back there. */
 .card, .tile, .panel, .inv, .scroll, .empty, .pos, .concern, .note, .stub {
-  backdrop-filter: blur(3px) saturate(1.25);
-  -webkit-backdrop-filter: blur(3px) saturate(1.25);
+  backdrop-filter: blur(3px) saturate(1.5);
+  -webkit-backdrop-filter: blur(3px) saturate(1.5);
 }
 .card, .panel, .empty, .scroll, .inv, .tile {
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
 }
+/* The rim, on every surface that already reads as a plate. .card and .pos name
+   --e1 themselves further down and land on the same value; .panel.sunken used to
+   say `none` to opt out of elevation and now says --e1, because there is no
+   elevation left to opt out of and the sheet still has an edge. */
+.glass, .card, .panel, .empty, .scroll, .inv, .tile, .pos {
+  box-shadow: var(--e1);
+}
 /* The sheen, as a second background layer over whatever ground the class already
-   set. Flat translucency reads as a grey rectangle; the fall from 7% to 1.5%
-   gives the plate an edge lit from above, which is the difference between glass
-   and tint. Declared as background-image so it composites over background-color
-   instead of fighting the shorthand each of these classes already uses. */
+   set. Flat translucency reads as a grey rectangle; the fall gives the plate an
+   edge lit from above, which is the difference between glass and tint. Declared
+   as background-image so it composites over background-color instead of fighting
+   the shorthand each of these classes already uses.
+
+   THAT ARGUMENT WAS RIGHT AND THE CODE LOST ANYWAY. Every one of these classes
+   said `background: var(--paper)` a few hundred lines further down, and the
+   shorthand resets background-image to none - so this rule has been dead on all
+   seven of them since it was written, and only .glass, which sets
+   background-color, ever showed a sheen. They say background-color now. It is a
+   one-word change per class and it is the difference between a flat tinted
+   rectangle and a plate.
+
+   THREE STOPS, NOT TWO. A straight fall top-to-bottom is a gradient; a body that
+   falls and then lifts again at the foot is a sheet with thickness, catching a
+   little of the light that came through it. That last 4.5% at the bottom is the
+   difference, and it is the cheapest part of the material. */
 .card, .panel, .empty, .scroll, .inv, .tile, .pos {
-  background-image: linear-gradient(180deg, rgba(213, 224, 255, .07), rgba(213, 224, 255, .015));
+  background-image: linear-gradient(180deg,
+    rgba(213, 224, 255, .075) 0%, rgba(213, 224, 255, .012) 62%, rgba(213, 224, 255, .045) 100%);
 }
 
 /* THE PANEL NO LONGER CARRIES THE CONTRAST, SO THE TYPE HAS TO.
@@ -433,42 +484,42 @@ a { color: var(--accent); text-underline-offset: 3px; }
 /* ---- summary tiles ------------------------------------------------------- */
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--s3); }
 .tile {
-  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r);
+  background-color: var(--paper); border: 1px solid var(--line); border-radius: var(--r);
   padding: var(--s4) var(--s5); display: flex; flex-direction: column; gap: var(--s1);
 }
 /* Mono, like every other measured figure in the system: a number always reads as
    something a run produced rather than as a headline. */
 .tile b { font: 400 30px/1.05 var(--mono); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.tile.act { border-color: var(--accent-line); background: var(--accent-wash); }
+.tile.act { border-color: var(--accent-line); background-color: var(--accent-wash); }
 .tile.act b { color: var(--accent); }
 
 /* ---- cards --------------------------------------------------------------- */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--s4); }
 
 .card {
-  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg);
+  background-color: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg);
   padding: var(--s5); display: flex; flex-direction: column; gap: var(--s3);
   box-shadow: var(--e1); text-decoration: none; color: inherit; text-align: left;
 }
 a.card, button.card { cursor: pointer; }
 /* No lift. BLUEPRINT is flat, so a hovered card answers with a fill and a border
    rather than by pretending to leave the page. */
-a.card:hover, button.card:hover { border-color: var(--ink-3); background: var(--sunken); }
+a.card:hover, button.card:hover { border-color: var(--ink-3); background-color: var(--sunken); }
 .card h3 { letter-spacing: -.005em; }
 .card .row { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; margin-top: auto; padding-top: var(--s2); }
 .card[aria-pressed="true"] { border-color: var(--accent); box-shadow: var(--e2); }
 
 .panel {
-  background: var(--paper); border: 1px solid var(--line);
+  background-color: var(--paper); border: 1px solid var(--line);
   border-radius: var(--r-lg); padding: var(--s5);
   display: flex; flex-direction: column; gap: var(--s3);
 }
-.panel.sunken { background: var(--sunken); box-shadow: none; }
+.panel.sunken { background-color: var(--sunken); box-shadow: var(--e1); }
 
 .empty {
   border: 1px dashed var(--line); border-radius: var(--r-lg); padding: var(--s7) var(--s5);
   text-align: center; display: flex; flex-direction: column; gap: var(--s3); align-items: center;
-  background: var(--paper);
+  background-color: var(--paper);
 }
 .empty p { max-width: 46ch; }
 
@@ -513,7 +564,7 @@ a.card:hover, button.card:hover { border-color: var(--ink-3); background: var(--
 .tabbar a[aria-current="page"] .pip { background: var(--accent-wash); color: var(--accent); }
 
 /* ---- evidence inventory -------------------------------------------------- */
-.inv { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--paper); }
+.inv { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background-color: var(--paper); }
 .inv-row {
   display: grid; grid-template-columns: 112px 1fr; gap: var(--s4);
   padding: var(--s4) var(--s5); border-top: 1px solid var(--line-soft); align-items: start;
@@ -605,7 +656,7 @@ button.danger:hover { border-color: var(--stop-line); color: var(--stop); }
 /* ---- positions ----------------------------------------------------------- */
 .pos {
   border: 1px solid var(--line); border-left: 3px solid var(--line);
-  border-radius: 0 var(--r) var(--r) 0; padding: var(--s5); background: var(--paper);
+  border-radius: 0 var(--r) var(--r) 0; padding: var(--s5); background-color: var(--paper);
   display: flex; flex-direction: column; gap: var(--s3); box-shadow: var(--e1);
 }
 .pos.cited { border-left-color: var(--go); }
@@ -641,7 +692,7 @@ button.danger:hover { border-color: var(--stop-line); color: var(--stop); }
 .ok { color: var(--go); }
 
 /* ---- tables -------------------------------------------------------------- */
-.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--paper); }
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-lg); background-color: var(--paper); }
 table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 480px; }
 th, td { text-align: left; padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line-soft); vertical-align: top; }
 thead th {
