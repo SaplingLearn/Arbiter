@@ -1,0 +1,248 @@
+@import "tailwindcss";
+
+/**
+ * THE SHELL — design tokens and the few primitives Tailwind cannot express inline.
+ *
+ * TAILWIND IS v4. There is no `tailwind.config.js`: tokens are declared in the `@theme`
+ * block below and become utilities automatically (`--color-off-blue` → `text-off-blue`,
+ * `bg-off-blue`, `border-off-blue`). Anyone arriving from v3 will go looking for a
+ * config file that deliberately does not exist.
+ */
+
+@theme {
+  /* ---- surface ------------------------------------------------------------
+     Near-black navy, not black. A true black page makes emissive WebGL look pasted
+     on; the eye needs a hue in the ground to read the glow as being IN something.
+     This value must show through everywhere the canvas has not painted. */
+  --color-dark-blue: #020a18;
+
+  /* ---- ink ----------------------------------------------------------------
+     Icy lavender-white. Never pure white: #FFF against #020A18 is a harder contrast
+     than any of the artwork reaches, so it would make the type the brightest thing
+     in the frame and pull focus off the subject. */
+  --color-off-blue: #d5e0ff;
+
+  /* ---- accent -------------------------------------------------------------
+     Electric blue through cyan. RESERVED FOR LIGHT — the WebGL scenes, glows and
+     focus rings. Never a flat UI fill: the moment one of these becomes a button
+     background the page stops reading as a dark room with light in it and starts
+     reading as a website with a blue button on it. */
+  --color-accent-deep: #1e6fff;
+  --color-accent-bright: #4fc3ff;
+
+  --font-display: "Space Grotesk", "Archivo", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+
+  /* The two sizes and the two trackings the whole interface is built from. Named so
+     `text-11` and `tracking-16` appear in markup instead of bracketed magic numbers. */
+  --text-11: 11px;
+  --tracking-4: 0.04em;
+  --tracking-16: 0.16em;
+
+  /* The frame's inset and the size of its corner cuts. Every chamfer on the page —
+     bezel, buttons, panels — is derived from these two numbers, which is what makes
+     the set read as one bezel rather than as unrelated clipped boxes. */
+  --frame-inset: 10px;
+  --frame-cut: 16px;
+
+  /* How far the CONTENT sits inside the bezel, as distinct from where the bezel sits
+     inside the viewport. Two separate numbers because they answer different questions,
+     and collapsing them put the wordmark and the buttons directly on the hairline. */
+  --hud-gutter: 26px;
+}
+
+/* -------------------------------------------------------------------- base */
+
+html,
+body {
+  /* Locked. The page does not scroll — an inner container does, so the frame, the
+     header, the chapter index and the footer can be static children of a fixed shell
+     rather than `position: fixed` elements fighting the document's scroll. */
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
+  margin: 0;
+}
+
+body {
+  background: var(--color-dark-blue);
+  color: var(--color-off-blue);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+}
+
+/* NO ROUNDED CORNERS ANYWHERE. Square or chamfered, never radiused — a single
+   stray border-radius is enough to make the whole bezel look like a UI kit. */
+* {
+  border-radius: 0;
+}
+
+/* ---------------------------------------------------------------- chamfers */
+
+/**
+ * The 45-degree corner cut, in four variants.
+ *
+ * Written as utilities rather than inline arbitrary values because a `polygon()` with
+ * six vertices and two `calc()` calls is unreadable in a class attribute, and because
+ * every one of them has to derive from `--frame-cut`. Change that one token and the
+ * bezel, the buttons and the panels all re-cut together.
+ */
+@utility chamfer-all {
+  clip-path: polygon(
+    var(--frame-cut) 0,
+    calc(100% - var(--frame-cut)) 0,
+    100% var(--frame-cut),
+    100% calc(100% - var(--frame-cut)),
+    calc(100% - var(--frame-cut)) 100%,
+    var(--frame-cut) 100%,
+    0 calc(100% - var(--frame-cut)),
+    0 var(--frame-cut)
+  );
+}
+
+/** Top-right only — the header button block, whose outer corner matches the bezel. */
+@utility chamfer-tr {
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--btn-cut, 12px)) 0,
+    100% var(--btn-cut, 12px),
+    100% 100%,
+    0 100%
+  );
+}
+
+/** Bottom-right only — the primary call to action and its backing plate. Both must use
+ *  the same cut or the offset layer shows a sliver of square corner behind the cut one. */
+@utility chamfer-br {
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--btn-cut, 14px)),
+    calc(100% - var(--btn-cut, 14px)) 100%,
+    0 100%
+  );
+}
+
+/** The opposed pair, for panels and buttons that need an orientation rather than a
+ *  symmetrical border. */
+@utility chamfer-tr-bl {
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--btn-cut, 12px)) 0,
+    100% var(--btn-cut, 12px),
+    100% 100%,
+    var(--btn-cut, 12px) 100%,
+    0 calc(100% - var(--btn-cut, 12px))
+  );
+}
+
+/* ------------------------------------------------------------------- type */
+
+/**
+ * Two type roles, and the distinction is absolute.
+ *
+ * `.t-label` is the machine voice: nav, buttons, chapter index, progress readouts.
+ * Mono, 11px, uppercase, tracked wide enough that it reads as spaced characters
+ * rather than as a word. `.t-display` is the human voice: headlines only.
+ *
+ * They never swap. The moment a headline goes mono the page reads as a terminal
+ * emulator, and the moment a label goes grotesque it reads as an ordinary website.
+ */
+@utility t-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+@utility t-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------------ focus */
+
+:where(a, button):focus-visible {
+  outline: 1px solid var(--color-accent-bright);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------------------ boot */
+
+/** The terminal cursor. `steps(1)` so it snaps on and off — a cursor that fades is a
+ *  cursor from a design tool, not from a console. */
+@keyframes ov-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* ------------------------------------------------------------- responsive */
+
+@media (max-width: 900px) {
+  :root {
+    /* The bezel tightens rather than disappearing. At 10px on a 390px screen it eats
+       5% of the width; at 6px it still reads as a frame and gives the content back. */
+    --frame-inset: 6px;
+    --hud-gutter: 16px;
+  }
+}
+
+/* --------------------------------------------------------- scanline wash */
+
+/**
+ * A scanline and noise wash over the entire frame.
+ *
+ * The one element that touches BOTH layers. The DOM chrome is crisp vector at device
+ * resolution; the WebGL scene is a rendered buffer with its own grain. Side by side they
+ * read as two images pasted together, and no amount of colour matching fixes it because
+ * the difference is texture, not hue. A single wash across both puts them on the same
+ * surface — the same reason a film grain pass is applied after the composite and not per
+ * layer.
+ *
+ * 2.5%, and that ceiling is the whole craft of it: at 5% it is a visible effect and the
+ * page looks like a CRT filter; at 2.5% nobody can point to it and everything beneath it
+ * belongs together. `pointer-events: none` and `aria-hidden` — it is texture, not
+ * content.
+ */
+.ov-wash {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      #d5e0ff 0px,
+      #d5e0ff 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  mix-blend-mode: overlay;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ov-wash {
+    /* Static either way, but halved: a fixed high-frequency pattern is exactly the kind
+       of thing that triggers visual discomfort for some readers. */
+    opacity: 0.012;
+  }
+}
