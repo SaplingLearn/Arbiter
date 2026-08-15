@@ -66,8 +66,20 @@ export function Headline({
       0,
     );
 
+    /* THE CLEANUP MUST LAND THE END STATE, NOT JUST STOP.
+       
+       `tl.kill()` alone leaves whatever frame it was on, and for a `fromTo` that begins
+       off-screen the frame it was on is the FROM state — lines translated fully below
+       their masks, paragraph at zero. React 18's StrictMode mounts, cleans up and mounts
+       again in development, so the first run was killed at frame one; and because the
+       rising-edge ref survives a remount, the second run saw `wasPlaying === true` and
+       skipped. The headline and its paragraph simply never appeared.
+       
+       So: jump to the end before killing, and clear the edge flag so a genuine remount
+       replays. Either fix alone leaves the other half of the bug. */
     return () => {
-      tl.kill();
+      tl.progress(1).kill();
+      wasPlaying.current = false;
     };
   }, [play]);
 
@@ -121,8 +133,10 @@ export function RevealParagraph({
       { opacity: 0 },
       { opacity: 1, duration: 0.6, delay: 0.1, ease: "power2.out" },
     );
+    // Same rule as the headline above: land the end state, then allow a replay.
     return () => {
-      tw.kill();
+      tw.progress(1).kill();
+      wasPlaying.current = false;
     };
   }, [play]);
 
