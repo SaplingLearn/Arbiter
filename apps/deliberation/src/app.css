@@ -1,142 +1,76 @@
-/* ============================================================================
-   ARBITER - BLUEPRINT
-   ----------------------------------------------------------------------------
-   One design system across all three surfaces: the landing page (apps/landing),
-   the evidence artifact (apps/web) and this deliberation client. Engineering
-   drawing / technical spec sheet - Swiss-minimal, flat, precise. No shadows, no
-   gradients, no rounded cards, no decorative colour, one electric blue.
+@import "@arbiter/design/tokens.css";
 
-   TYPE. Inter Tight for display and body, IBM Plex Mono for every utility label,
-   both loaded in index.html. This client is a CLIENT FOR A SERVICE: without the
-   API there is nothing to show, so a webfont request is not the liability it is in
-   apps/web, which is opened from the filesystem and must make zero requests. That
-   app runs BLUEPRINT on system faces for exactly that reason, and it is the only
-   difference between the two.
+/* ==========================================================================
+   THE PRODUCT, IN THE DESIGN SYSTEM'S PALETTE.
 
-   COLOUR. Red and green are spoken for by the evidence states, so the accent stays
-   the one blue and never competes with them. There is no amber: BLUEPRINT has no
-   third hue, and "inconclusive" is the ABSENCE of a finding rather than a warning,
-   so it reads neutral. Nothing meaningful is carried by colour alone - every state
-   also carries its word.
+   The app is dark now, unconditionally, because the site it is reached from is.
+   A reader who clicks LOGIN on a near-black landing page and lands on a
+   near-white product has crossed a seam, and no amount of matched typography
+   hides it — the two surfaces have to be the same object.
 
    THE TOKEN NAMES ARE UNCHANGED and only their values are remapped. app.css,
-   pages.tsx and screens.tsx reference them in well over a hundred places;
-   remapping values rethemes the product without touching a selector, which is the
-   difference between a change that can be reviewed and one that cannot.
+   pages.tsx and screens.tsx name them in well over a hundred places; remapping
+   values rethemes the entire product without touching a selector, which is the
+   difference between a change that can be reviewed and one that cannot. This
+   file already proved the point once — it carried a whole dark palette behind a
+   media query, built the same way.
+
+   THE LIGHT/DARK FORK IS GONE. Three copies of the same token list (root, media
+   query, data-theme) had to be kept in step by hand, and the design system this
+   now draws from ships one palette. Fewer places to disagree.
+
+   RED AND GREEN STILL MEAN SOMETHING. They are the verdict semantics — stop and
+   advance on a safety call — and they are the only hues on the surface that are
+   not in the blue wedge. Lifted for a dark ground, not re-hued.
    ========================================================================== */
 
 :root {
-  /* surfaces */
-  --app: #F2F2EF;
-  --paper: #FFFFFF;
-  --sunken: #ECECE9;
-  --brand-deep: #0E0E0E;
+  /* surfaces — the system's ground, then two steps above it */
+  --app: #020a18;
+  --paper: #070e1f;
+  --sunken: #040a17;
+  --brand-deep: #070e1f;
 
   /* ink */
-  --ink: #0E0E0E;
-  --ink-2: #5B5B60;
-  --ink-3: #74747B;
-  --on-brand: #FFFFFF;
+  --ink: #d5e0ff;
+  --ink-2: rgba(213, 224, 255, 0.62);
+  --ink-3: rgba(213, 224, 255, 0.42);
+  --on-brand: #020a18;
 
-  /* lines. BLUEPRINT has ONE hairline weight: cells share a single 1px border, so
-     --line-soft is the same value rather than a lighter second tier. */
-  --line: #DEDEDA;
-  --line-soft: #DEDEDA;
+  /* lines. One hairline weight, as before. */
+  --line: rgba(213, 224, 255, 0.15);
+  --line-soft: rgba(213, 224, 255, 0.15);
 
-  /* accent */
-  --accent: #2B2BF0;
-  --accent-hover: #2222D6;
-  --accent-wash: #E6E8FC;
-  --accent-line: #C3C8F6;
+  /* accent — the system's electric blue through cyan */
+  --accent: #4fc3ff;
+  --accent-hover: #8ad8ff;
+  --accent-wash: rgba(30, 111, 255, 0.16);
+  --accent-line: rgba(79, 195, 255, 0.38);
 
   /* semantics */
-  --stop: #E5484D;   --stop-wash: #FCEFEF;   --stop-line: #F2C9CA;
-  --go: #1CA64C;     --go-wash: #EDF7F0;     --go-line: #BFE3CC;
-  --open: #74747B;   --open-wash: #ECECE9;   --open-line: #DEDEDA;
+  --stop: #ff8a8e;  --stop-wash: rgba(255, 138, 142, 0.1);  --stop-line: rgba(255, 138, 142, 0.32);
+  --go: #55c97f;    --go-wash: rgba(85, 201, 127, 0.1);     --go-line: rgba(85, 201, 127, 0.3);
+  --open: rgba(213, 224, 255, 0.55);
+  --open-wash: rgba(213, 224, 255, 0.06);
+  --open-line: rgba(213, 224, 255, 0.15);
 
-  /* Elevation, which BLUEPRINT does not have. Kept as tokens because ~15 rules
-     name them; --e1 disappears, and the two that separate something genuinely
-     floating become a hard 1px ring rather than a soft shadow. A ring is a rule,
-     which is on-system; a blur is not. */
+  /* Elevation is a ring, never a blur. A rule is on-system; a shadow is not. */
   --e1: none;
   --e2: 0 0 0 1px var(--line);
-  --e3: 0 0 0 1px var(--ink);
+  --e3: 0 0 0 1px var(--accent-line);
 
-  --display: "Inter Tight", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --display: "Space Grotesk", "Archivo", system-ui, sans-serif;
   --sans: var(--display);
-  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
 
-  /* Radius 0 everywhere except chips (2px) and avatars (6px). A square corner is
-     the cheapest possible signal that this is a spec sheet, not a dashboard. */
-  --r-sm: 2px; --r: 0px; --r-lg: 0px;
+  /* No radius anywhere. Corners are square or chamfered. */
+  --r-sm: 0px; --r: 0px; --r-lg: 0px;
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px;
   --s5: 24px; --s6: 32px; --s7: 48px; --s8: 72px;
   --measure: 66ch;
   --col: 1160px;
 }
 
-/* BLUEPRINT DOES NOT DEFINE A DARK PALETTE. This one is derived by swapping the
-   paper/ink relationship rather than invented: the ground becomes ink, the insets
-   sit just above it, and the hairline keeps the same job at the weight that reads
-   on a dark ground.
-
-   THE ACCENT IS THE ONE VALUE THAT CANNOT CARRY OVER. #2B2BF0 on a near-black
-   ground is roughly 1.3:1 - unreadable - so dark mode lifts it. It is the same
-   hue doing the same three jobs, at the only lightness that clears AA.
-
-   Duplicated below for the explicit toggle because a media query and an attribute
-   selector cannot share one rule; the two bodies must be kept in step. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --app: #0E0E0E;
-    --paper: #171717;
-    --sunken: #202020;
-    /* THE ONE TOKEN THAT DOES NOT INVERT. `.auth-brand` hardcodes `color: #fff`,
-       so a paper-coloured --brand-deep renders white text on a light panel -
-       measured, and completely unreadable. It stays dark and separates from the
-       ground by being one step lighter than it, not by flipping. */
-    --brand-deep: #171717;
-    --ink: #F2F2EF;
-    --ink-2: #A5A5A8;
-    --ink-3: #7E7E84;
-    --line: #2A2A28;
-    --line-soft: #2A2A28;
-    --accent: #7B84FF;
-    --accent-hover: #9AA1FF;
-    --accent-wash: #191A33;
-    --accent-line: #33366B;
-    --stop: #FF8A8E;  --stop-wash: #2A1516;  --stop-line: #4A2325;
-    --go: #55C97F;    --go-wash: #10241A;    --go-line: #1F4430;
-    --open: #9A9AA0;  --open-wash: #202020;  --open-line: #2A2A28;
-    --e1: none;
-    --e2: 0 0 0 1px var(--line);
-    --e3: 0 0 0 1px var(--ink);
-  }
-}
-
-/* Keep in step with the media-query block above. */
-:root[data-theme="dark"] {
-  --app: #0E0E0E;
-  --paper: #171717;
-  --sunken: #202020;
-  /* Does not invert - see the note above. */
-  --brand-deep: #171717;
-  --ink: #F2F2EF;
-  --ink-2: #A5A5A8;
-  --ink-3: #7E7E84;
-  --line: #2A2A28;
-  --line-soft: #2A2A28;
-  --accent: #7B84FF;
-  --accent-hover: #9AA1FF;
-  --accent-wash: #191A33;
-  --accent-line: #33366B;
-  --stop: #FF8A8E;  --stop-wash: #2A1516;  --stop-line: #4A2325;
-  --go: #55C97F;    --go-wash: #10241A;    --go-line: #1F4430;
-  --open: #9A9AA0;  --open-wash: #202020;  --open-line: #2A2A28;
-  --e1: none;
-  --e2: 0 0 0 1px var(--line);
-  --e3: 0 0 0 1px var(--ink);
-}
 
 * { box-sizing: border-box; }
 
@@ -188,10 +122,14 @@ a { color: var(--accent); text-underline-offset: 3px; }
 
 /* The hatched band, used once, as the boundary between the app chrome and the
    work - the same single application it gets in apps/web. */
+/* BLUEPRINT's hatched band, retired. On a near-white page it read as a rest between
+   sections; on the dark ground it is a bright diagonal stripe directly under the header
+   and the eye goes to it before anything on the screen. One hairline does the same job:
+   it separates the chrome from the work and then gets out of the way. */
 .hatch-band {
-  height: 10px;
-  background: repeating-linear-gradient(45deg, transparent 0 10px, var(--line) 10px 11px);
-  border-bottom: 1px solid var(--line);
+  height: 1px;
+  background: var(--line);
+  border: 0;
 }
 .topbar .col { display: flex; align-items: center; gap: var(--s5); min-height: 62px; }
 .col { max-width: var(--col); margin: 0 auto; padding-inline: var(--s5); width: 100%; }
@@ -373,13 +311,33 @@ input[type="file"] { padding: var(--s3); background: var(--sunken); border-style
 
 .btn-row { display: flex; gap: var(--s3); flex-wrap: wrap; align-items: center; margin-top: var(--s5); }
 
+/* THE ACCENT IS LIGHT, NEVER A FILL.
+   The system reserves the electric blue-through-cyan range for emitted light: the WebGL
+   scenes, glows, focus rings. The moment it becomes a button background the surface
+   stops reading as a dark room with light in it and starts reading as a website with a
+   blue button on it — which is exactly what a flat #4FC3FF fill did here.
+   The primary action is a glass plate with a chamfered corner, matching the landing
+   page's call to action: brighter ground, brighter hairline, and the accent present only
+   as the glow around it. */
 button.primary {
-  font: 650 14.5px/1 var(--sans); padding: 12px var(--s5);
-  background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: var(--r-sm);
-  cursor: pointer; box-shadow: var(--e1);
+  font: 500 11px/1 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: rgba(213, 224, 255, 0.08);
+  border: 1px solid rgba(213, 224, 255, 0.2);
+  padding: 14px 24px;
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
 }
-button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-button.primary:disabled { background: var(--sunken); border-color: var(--line); color: var(--ink-3); cursor: not-allowed; box-shadow: none; }
+button.primary:hover {
+  background: rgba(213, 224, 255, 0.16);
+  border-color: var(--accent-line);
+  box-shadow: 0 0 24px -6px var(--accent);
+}
+/* The press is an instant invert, as everywhere else in the system. */
+button.primary:active { background: var(--ink); color: var(--app); transition: none; }
+button.primary:disabled { background: transparent; border-color: var(--line); color: var(--ink-3); cursor: not-allowed; box-shadow: none; }
 button.ghost {
   font: 550 14px/1 var(--sans); padding: 10px var(--s4); background: var(--paper);
   color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-sm); cursor: pointer;
