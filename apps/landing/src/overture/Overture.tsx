@@ -220,7 +220,9 @@ export function Overture() {
           type="button"
           onClick={() => engine.jumpTo(Math.min(chapter + 1, SECTIONS.length - 1))}
           className="t-label absolute left-1/2 z-30 hidden -translate-x-1/2 items-center gap-2.5 text-off-blue/45 transition-colors duration-200 hover:text-off-blue sm:flex"
-          style={{ bottom: "calc(var(--frame-inset) + 3.5rem + 1.6rem)" }}
+          // Clear of the call to action above it. At the old offset the two sat ~10px
+          // apart and read as one crowded stack rather than as an action and a hint.
+          style={{ bottom: "calc(var(--frame-inset) + 3.5rem + 0.5rem)" }}
         >
           <Chevron />
           <Decode text="Scroll to explore" hover />
@@ -348,7 +350,7 @@ function ChapterCopy({
       {...(index === 0 ? { "data-hero-copy": "" } : {})}
       id={`ov-${section.id}`}
       aria-hidden={!active}
-      className="absolute left-1/2 top-[55%] w-full px-6 text-center"
+      className="absolute left-1/2 top-[51%] w-full px-6 text-center"
       // The opening block starts visible; the rest start hidden. The FIRST PAINT happens
       // before any rAF has fired, and a hero that is `visibility: hidden` at that moment
       // is a hero the boot screen reveals as a blank rectangle.
