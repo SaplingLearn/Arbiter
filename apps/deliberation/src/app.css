@@ -333,8 +333,8 @@ a { color: var(--accent); text-underline-offset: 3px; }
   background-color: var(--paper);
   background-image: linear-gradient(180deg, rgba(213, 224, 255, .07), rgba(213, 224, 255, .015));
   border: 1px solid rgba(213, 224, 255, .14);
-  backdrop-filter: blur(16px) saturate(1.25);
-  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  backdrop-filter: blur(8px) saturate(1.25);
+  -webkit-backdrop-filter: blur(8px) saturate(1.25);
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
   padding: var(--s5);
 }
@@ -347,8 +347,8 @@ a { color: var(--accent); text-underline-offset: 3px; }
    goes only on containers - never on a row, a badge or a cell, where a dozen
    stacked blur layers buy nothing the parent has not already bought. */
 .card, .tile, .panel, .inv, .scroll, .empty, .pos, .concern, .note, .stub {
-  backdrop-filter: blur(16px) saturate(1.25);
-  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  backdrop-filter: blur(8px) saturate(1.25);
+  -webkit-backdrop-filter: blur(8px) saturate(1.25);
 }
 .card, .panel, .empty, .scroll, .inv, .tile {
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
@@ -515,8 +515,8 @@ input[type="text"], input[type="email"], input[type="password"], input[type="num
   width: 100%; font: 15px/1.5 var(--sans); color: var(--ink);
   padding: 10px var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm);
   background: rgba(2, 6, 20, 0.62); margin-top: var(--s2);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 input::placeholder, textarea::placeholder { color: var(--ink-3); }
 input:hover, textarea:hover, select:hover { border-color: var(--accent-line); }
@@ -700,8 +700,8 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
   /* Heavier than a panel, and it has to be: this one rides over the thread's own
      text as it scrolls past, so it is hiding type rather than a background. */
   background: rgba(2, 6, 20, 0.72);
-  backdrop-filter: blur(18px) saturate(1.2);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
   border-top: 1px solid var(--line);
   padding: var(--s4) var(--s4) var(--s5);
   margin-inline: calc(var(--s4) * -1);
