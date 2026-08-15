@@ -1,10 +1,13 @@
+import gsap from "gsap";
 import {
   AdditiveBlending,
   BoxGeometry,
   Color,
+  DoubleSide,
   GLSL3,
   InstancedBufferAttribute,
   InstancedMesh,
+  Matrix4,
   Mesh,
   Object3D,
   PerspectiveCamera,
@@ -101,6 +104,14 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
          deep tone of the wedge - it made a refused case read as a body further away
          rather than as a body that failed. */
       uRefused: { value: PALETTE.stop.clone() },
+      /* The body being flown into is drawn twice: once here, opaque, in the field, and
+         once as `ghost` below, translucent, so the camera can pass through its wall.
+         This is the index the field leaves out - without it the opaque copy is still
+         there and the camera arrives inside a solid box. -1 means nothing skipped. */
+      uSkip: { value: -1 },
+      /* 1 in the field. The ghost drives this down as it is entered, which is what
+         lets the rest of the archive stay visible through the walls. */
+      uAlpha: { value: 1 },
       /* Distance goes to the ground colour rather than to alpha. Fading a solid body
          out by opacity puts the floor's light bands back through it, which is the exact
          smear this scene stopped doing when the boxes went opaque. */
@@ -108,13 +119,19 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
     },
     vertexShader: /* glsl */ `
       in vec3 aState;    // usable (0/1), phase, seed
+      uniform float uSkip;
       out vec3 vObj;
       out vec3 vNormal;
       out vec3 vView;
       out vec3 vState;
       out vec3 vScale;
       out float vDepth;
+      out float vSkip;
       void main(){
+        /* Constant across the primitive, so interpolating it is harmless and a flat
+           qualifier would buy nothing. Compared with a tolerance rather than equality
+           because it arrives as a float uniform. */
+        vSkip = abs(float(gl_InstanceID) - uSkip) < 0.5 ? 1.0 : 0.0;
         vObj = position;             // -0.5 .. 0.5, before the instance's scale
         vState = aState;
         /* The instance's world scale, read off the matrix columns. The panel grid is
@@ -138,10 +155,10 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
     fragmentShader: /* glsl */ `
       precision highp float;
       in vec3 vObj; in vec3 vNormal; in vec3 vView; in vec3 vState; in vec3 vScale;
-      in float vDepth;
+      in float vDepth; in float vSkip;
       out vec4 fragColor;
       uniform vec3 uBody, uDeep, uPanel, uHot, uRefused, uFog;
-      uniform float uTime;
+      uniform float uTime, uAlpha;
 
       float cell(vec2 id){ return fract(sin(dot(id, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -156,6 +173,10 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       }
 
       void main(){
+        // The body the ghost is drawing. Leaving it in would put a solid wall where
+        // the camera is about to be.
+        if (vSkip > 0.5) discard;
+
         float live = vState.x;
         float ph   = vState.y;
 
@@ -219,7 +240,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
         col = mix(dead, col, live);
 
         col = mix(uFog, col, 1.0 - smoothstep(30.0, 95.0, vDepth));
-        fragColor = vec4(col, 1.0);
+        fragColor = vec4(col, uAlpha);
       }
     `,
   });
@@ -237,6 +258,57 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
   scene.add(vitrines);
 
   /**
+   * THE BODY YOU GO INSIDE, drawn as a second copy of the one you are flying at.
+   *
+   * A solid body cannot be entered - the camera arrives and the near plane clips into
+   * a wall, or worse, the wall is simply there. But the field must stay solid, because
+   * opaque bodies occluding each other is where the whole scene gets its depth. So the
+   * chosen body leaves the field (`uSkip`) and is redrawn here translucent and
+   * double-sided, and it is the ONE object in this scene that is neither.
+   *
+   * Still an InstancedMesh, with a count of one. It looks odd next to a plain Mesh
+   * until you notice the shader: it reads `instanceMatrix` and the `aState` attribute,
+   * both of which only exist under instancing. A Mesh would need a second copy of the
+   * whole material with those two inputs swapped for uniforms, which is two shaders to
+   * keep identical forever. A count of one costs a draw call and keeps one shader.
+   */
+  const ghostBox = new BoxGeometry(1, 1, 1);
+  const ghostState = new Float32Array(3);
+  const ghostAState = new InstancedBufferAttribute(ghostState, 3);
+  ghostBox.setAttribute("aState", ghostAState);
+
+  const ghostMat = new ShaderMaterial({
+    glslVersion: GLSL3,
+    // Source shared with the field rather than copied. Three keeps the strings on the
+    // material, so the two can never drift.
+    vertexShader: vitMat.vertexShader,
+    fragmentShader: vitMat.fragmentShader,
+    transparent: true,
+    /* No depth write. It is entered from outside and then surrounds the camera, so
+       there is no ordering against the field that a depth buffer could get right - what
+       is wanted is for the field to show THROUGH it, which is the definition of not
+       writing depth. */
+    depthWrite: false,
+    /* The inside faces are the entire point. `abs()` in the fresnel term already means
+       the material does not care which way a face is turned. */
+    side: DoubleSide,
+    uniforms: {
+      ...Object.fromEntries(
+        Object.entries(vitMat.uniforms).map(([k, v]) => [k, { value: v.value }]),
+      ),
+      // Never skips: this mesh exists only to draw the body the field left out.
+      uSkip: { value: -1 },
+      uAlpha: { value: 1 },
+    },
+  });
+
+  const ghost = new InstancedMesh(ghostBox, ghostMat, 1);
+  ghost.frustumCulled = false;
+  ghost.visible = false;
+  ghost.renderOrder = 1;
+  scene.add(ghost);
+
+  /**
    * ONE BODY PER CASE.
    *
    * Was a fixed 7x6 grid of forty-two. The library holds six.
@@ -252,9 +324,16 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
    * the same field. The camera has not moved and the floor has not changed; only the
    * population is now the truth.
    */
+  /** Populated bodies, in the consumer's order. `focus` resolves a key against these. */
+  const keys: string[] = [];
+  /** Each body's world centre and half-height, kept for the flight to aim at. */
+  const centres: Vector3[] = [];
+
   function populate(subjects: readonly { key: string; usable: boolean }[]): void {
     const n = Math.min(subjects.length, MAX_BODIES);
     const rnd = mulberry32(0xa2c8);
+    keys.length = 0;
+    centres.length = 0;
     /* Wide enough that the lateral dolly still travels PAST things rather than orbiting
        one clump, and it has to grow with the count or a longer catalogue would stack. */
     const span = Math.max(30, n * 8.5);
@@ -274,6 +353,8 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       dummy.rotation.y = (rnd() - 0.5) * 0.16;
       dummy.updateMatrix();
       vitrines.setMatrixAt(i, dummy.matrix);
+      keys.push(s.key);
+      centres.push(dummy.position.clone());
 
       // The refusals are DATA now. They were a 26% dice roll, which happened to be
       // about the library's real ratio - but the two refused cases are named, and the
@@ -288,6 +369,80 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
     vitrines.count = n;
     vitrines.instanceMatrix.needsUpdate = true;
     aState.needsUpdate = true;
+    // A re-populate can land while a body is being flown into, and the index it was
+    // holding may now be a different case or gone. Re-resolve against the new list.
+    if (heldKey !== null) applyFocus(heldKey);
+  }
+
+  /* ---- the flight into one body -------------------------------------------------
+     `k` is how far in we are: 0 is the wide sweep, 1 is standing inside the chosen
+     body. Everything the camera does is a blend between those two, so the sweep never
+     stops - it is still drifting when you arrive, which is what keeps the interior
+     from reading as a still photograph of a box. */
+  const flight = { k: 0 };
+  let heldKey: string | null = null;
+  let heldIndex = -1;
+  const held = new Vector3();
+  const eye = new Vector3();
+  const aim = new Vector3();
+  // Scratch, allocated once. A new Vector3 per frame is sixty allocations a second for
+  // the length of a session, and this runs inside the render loop.
+  const _tmpEye = new Vector3();
+  const _tmpAim = new Vector3();
+  const _mat = new Matrix4();
+
+  /**
+   * Which body a case is.
+   *
+   * EXACT, THEN PREFIX, THEN A HASH, and the order is the whole point.
+   *
+   * A prepared case opened from the library gets a caseId built from the case file's
+   * own id and the opener's account - `nipocalimab-imaavy--<userId>` for the catalogue
+   * entry named `nipocalimab`. So the route's key is neither the catalogue name nor
+   * equal between two people who opened the same case. Cutting at `--` and matching the
+   * remainder by prefix lands both of them on the same body, which is the behaviour a
+   * reader would expect and the reason this is not a plain lookup.
+   *
+   * THE HASH IS FOR CASES THAT ARE NOT IN THE LIBRARY AT ALL. A case somebody opened
+   * themselves has no entry in the catalogue and therefore no body of its own - there
+   * is nothing here to fly into, and the honest options are to stay wide or to pick one
+   * deterministically. Picking one keeps the gesture consistent for every case; it is
+   * also the one place in this scene where the environment is showing something it does
+   * not know, and it is worth saying so out loud.
+   */
+  function resolve(key: string): number {
+    if (keys.length === 0) return -1;
+    const exact = keys.indexOf(key);
+    if (exact !== -1) return exact;
+
+    const stem = key.split("--")[0] ?? key;
+    const byPrefix = keys.findIndex((k) => stem === k || stem.startsWith(`${k}-`));
+    if (byPrefix !== -1) return byPrefix;
+
+    let h = 2166136261;
+    for (let i = 0; i < key.length; i++) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return Math.abs(h) % keys.length;
+  }
+
+  /** Point the ghost at a body and hide the field's copy of it. */
+  function applyFocus(key: string): void {
+    const index = resolve(key);
+    heldIndex = index;
+    if (index === -1) return;
+
+    vitrines.getMatrixAt(index, _mat);
+    ghost.setMatrixAt(0, _mat);
+    ghost.instanceMatrix.needsUpdate = true;
+    ghostState[0] = state[index * 3]!;
+    ghostState[1] = state[index * 3 + 1]!;
+    ghostState[2] = state[index * 3 + 2]!;
+    ghostAState.needsUpdate = true;
+    ghost.visible = true;
+    vitMat.uniforms.uSkip!.value = index;
+    held.copy(centres[index] ?? held);
   }
 
   // ---- floor: a dark reflective-ish plane with sweeping light bands, which is what
@@ -350,20 +505,75 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
     scene,
     camera,
     populate,
+
+    /**
+     * Fly inside the body this case is.
+     *
+     * `null` on the way out, and the ghost is kept until the camera has actually left -
+     * dropping it on release would put a solid wall back where the camera is standing,
+     * for the whole length of the flight out.
+     */
+    focus(key) {
+      heldKey = key;
+      if (key === null) {
+        gsap.to(flight, {
+          k: 0,
+          duration: 1.2,
+          ease: "power2.inOut",
+          onComplete: () => {
+            // Only once the camera is clear. Guarded on the tween's own value rather
+            // than on nothing, because a second focus can land mid-flight and this
+            // completion belongs to a tween that is no longer the current one.
+            if (flight.k > 0.001) return;
+            ghost.visible = false;
+            vitMat.uniforms.uSkip!.value = -1;
+            heldIndex = -1;
+          },
+        });
+        return;
+      }
+      applyFocus(key);
+      if (heldIndex === -1) return;
+      /* Slower than the dashboard's 1.6s. That one crosses open water to a colony; this
+         one ends with the camera passing through a surface, and a wall arriving fast is
+         a collision rather than an arrival. */
+      gsap.to(flight, { k: 1, duration: 2.1, ease: "power2.inOut" });
+    },
+
     update(_dt, t) {
       vitMat.uniforms.uTime!.value = t;
+      ghostMat.uniforms.uTime!.value = t;
       (floor.material as ShaderMaterial).uniforms.uTime!.value = t;
       (air.material as ShaderMaterial).uniforms.uTime!.value = t;
       (motes.material as ShaderMaterial).uniforms.uTime!.value = t;
 
-      // Lateral dolly with a slow push-in. Travelling ACROSS ranks rather than down
-      // them is what makes an archive feel large — you never reach the end of a row.
-      camera.position.set(
+      // Lateral dolly with a slow push-in. Travelling ACROSS the field rather than into
+      // it is what keeps the archive feeling wider than the frame.
+      eye.set(
         baseCam.x + Math.sin(t * 0.045) * 9.5,
         baseCam.y + Math.sin(t * 0.035) * 0.9,
         baseCam.z + Math.sin(t * 0.021) * 4.0,
       );
-      camera.lookAt(Math.sin(t * 0.045) * 3.2, 2.0, -22);
+      aim.set(Math.sin(t * 0.045) * 3.2, 2.0, -22);
+
+      if (heldIndex !== -1 && flight.k > 0.001) {
+        const k = flight.k;
+        /* INSIDE, not in front of. The eye ends at the body's own centre, keeping a
+           twentieth of the sweep's width so the interior is still alive, and the aim
+           goes straight out through the far wall - so what you see from in there is the
+           panelling wrapped around you and the rest of the archive through it. */
+        eye.lerp(_tmpEye.set(held.x + Math.sin(t * 0.045) * 0.45, held.y, held.z), k);
+        aim.lerp(_tmpAim.set(held.x, held.y - 0.4, held.z - 14), k);
+
+        /* The wall thins as it is entered rather than on arrival. Approaching a solid
+           box that turns translucent at the last moment reads as the box giving up;
+           thinning the whole way in reads as the camera passing into something. Never
+           to zero - at zero there is nothing to have gone inside of. */
+        ghostMat.uniforms.uAlpha!.value = 1 - 0.74 * k;
+      }
+
+      camera.position.copy(eye);
+      camera.lookAt(aim);
     },
     resize(w, h) {
       camera.aspect = w / h;
@@ -371,7 +581,9 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       (air.material as ShaderMaterial).uniforms.uAspect!.value = w / h;
     },
     dispose() {
+      gsap.killTweensOf(flight);
       box.dispose(); vitMat.dispose(); vitrines.dispose();
+      ghostBox.dispose(); ghostMat.dispose(); ghost.dispose();
       floor.geometry.dispose(); (floor.material as ShaderMaterial).dispose();
       air.geometry.dispose(); (air.material as ShaderMaterial).dispose();
       motes.geometry.dispose(); (motes.material as ShaderMaterial).dispose();

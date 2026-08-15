@@ -29,20 +29,33 @@ export const NAV: NavItem[] = [
 /**
  * Which environment a route stands in.
  *
- * THE CASE ROUTES STAY IN THE DASHBOARD'S FIELD, and that is the whole idea rather
- * than a saving. The dashboard draws every case as one cell among many; opening a case
- * flies the camera to a single cell instead of cutting to a different world, so the
- * background answers "where am I" with "in one of those". A scene swap here would
- * throw away the only spatial relationship this interface has.
+ * THE CASE ROUTES STAND IN THE ARCHIVE, and the bodies there are why.
  *
- * The record is the exception. Once a case is closed and signed, the subject is no
- * longer the case among its neighbours - it is the seal - so the Helix takes over and
- * the swap is doing real work.
+ * This used to send them to the dashboard, on the argument that opening a case should
+ * fly to one cell of the field you came from rather than cut to a different world - the
+ * background answering "where am I" with "in one of those". The reasoning was right and
+ * the field was wrong: the dashboard's colonies are organic blobs picked by hashing the
+ * case id, so the thing you flew to was A cell, never THAT case's cell. Nothing in that
+ * field knows what a case is.
+ *
+ * The Archive does. It draws one body per case in the library, keyed by case, and it
+ * can be entered - so opening a case now goes inside the specific body that case is.
+ * A named object beats an unnamed neighbourhood.
+ *
+ * WHAT THIS COSTS, stated rather than buried: opening a case from the dashboard cuts
+ * from the colonies to the archive, which is a scene swap the old arrangement existed
+ * to avoid. And a case somebody opened themselves has no body in the library at all, so
+ * the Archive picks one deterministically and the environment is, for that case,
+ * showing something it does not know. Both are real. The exchange is a gesture that
+ * means something for library cases against one that meant nothing for any case.
+ *
+ * The record is still the exception. Once a case is closed and signed the subject is no
+ * longer the case among its neighbours - it is the seal - so the Helix takes over.
  */
 export function sceneFor(route: Route): string {
   if (route.name === "record") return "record";
   if (route.name === "case" || route.name === "position" || route.name === "reveal") {
-    return "dashboard";
+    return "library";
   }
   return NAV.find((n) => n.to.name === route.name)?.scene ?? "dashboard";
 }
@@ -75,10 +88,21 @@ export function transitionFor(scene: string): { duration: number; bands: number;
   }
 }
 
-/** The rail entry a route lights up. Case routes belong to the dashboard. */
+/**
+ * The rail entry a route lights up.
+ *
+ * CASE ROUTES LIGHT THE LIBRARY, because that is the scene behind them. This file's
+ * opening note is that the rail and the backdrop are one decision and drift silently
+ * when they are two - a rail reading ARCHIVE over a field of cells. Moving the case
+ * routes to the Archive without moving this would have produced exactly that, the other
+ * way round: DASHBOARD over a field of cubes, with the codename naming the wrong world.
+ */
 export function currentNav(route: Route): NavItem | undefined {
   if (route.name === "cases") return NAV[2];
   const direct = NAV.find((n) => n.to.name === route.name);
   if (direct !== undefined) return direct;
+  if (route.name === "case" || route.name === "position" || route.name === "reveal") {
+    return NAV[2];
+  }
   return NAV[0];
 }
