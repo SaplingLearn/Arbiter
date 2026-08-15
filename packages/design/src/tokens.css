@@ -1,6 +1,23 @@
 @import "tailwindcss";
 
 /**
+ * SCAN THIS PACKAGE'S OWN SOURCE.
+ *
+ * Tailwind v4 detects content automatically, rooted at the build's working directory —
+ * which for each app is that app's folder. A linked workspace package sits outside it and
+ * is never looked at, so every utility used ONLY in here silently fails to be generated.
+ *
+ * That is not a subtle degradation. Without `invisible` the decode's sizing ghost becomes
+ * visible and every label renders twice ("LOGINLOGIN", "OVEROVERTURE"); without `sr-only`
+ * the screen-reader copy prints as a third; and without `size-[9px]` the pixel glyphs draw
+ * at an SVG's default size and land on the page as large white squares. All of it looked
+ * like a dozen unrelated layout bugs and all of it was this one missing line.
+ *
+ * The path is relative to THIS file, so it holds for every app that imports the system.
+ */
+@source "./";
+
+/**
  * THE ARBITER DESIGN SYSTEM.
  *
  * Shared by every surface: the landing page and the product. It moved out of the landing
