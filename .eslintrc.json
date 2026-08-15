@@ -27,6 +27,7 @@
         "apps/landing/**/*.tsx",
         "packages/design/**/*.ts",
         "packages/design/**/*.tsx",
+        "packages/atmosphere/**/*.ts",
         "apps/atmosphere/**/*.ts",
         "apps/atmosphere/**/*.tsx"
       ],
