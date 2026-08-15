@@ -55,8 +55,8 @@
      the high-frequency detail that was actually breaking the type. A lit panel
      behind a card should arrive as a soft glow, not as an edge. */
   --app: #020a18;
-  --paper: rgba(10, 22, 49, 0.14);
-  --sunken: rgba(2, 6, 20, 0.30);
+  --paper: rgba(10, 22, 49, 0.06);
+  --sunken: rgba(2, 6, 20, 0.20);
   --brand-deep: #070e1f;
 
   /* ink. ink-2 carries most of the body copy on a card, so it was the token the
@@ -387,7 +387,7 @@ a { color: var(--accent); text-underline-offset: 3px; }
      deepens the scene's own colour rather than washing it out, and at 0.18 it
      is barely a tint at all: nearly everything you see through the panel is
      the scene, blurred. */
-  --fill: rgba(10, 22, 49, .08);
+  --fill: rgba(10, 22, 49, .03);
 }
 .glass { padding: var(--s5); }
 
@@ -415,15 +415,15 @@ a { color: var(--accent); text-underline-offset: 3px; }
   pointer-events: none;
   background-color: var(--fill);
   background-image: linear-gradient(165deg,
-    rgba(213, 224, 255, .038) 0%,
-    rgba(213, 224, 255, .006) 42%,
-    rgba(213, 224, 255, .020) 100%);
+    rgba(213, 224, 255, .022) 0%,
+    rgba(213, 224, 255, .002) 42%,
+    rgba(213, 224, 255, .010) 100%);
   /* Saturation up, brightness barely. An early pass ran brightness at 1.12 and
      the plates came out milky - a lift that large stops reading as glass over a
      dark room and starts reading as frosted plastic laid on top of it. 1.04 is
      enough to keep the panel from going dead against the scene. */
-  backdrop-filter: blur(34px) saturate(1.8) brightness(1.03);
-  -webkit-backdrop-filter: blur(34px) saturate(1.8) brightness(1.03);
+  backdrop-filter: blur(38px) saturate(1.85) brightness(1.02);
+  -webkit-backdrop-filter: blur(38px) saturate(1.85) brightness(1.02);
   /* The light entering the thickness of the sheet. */
   box-shadow: inset 0 1px 0 rgba(213, 224, 255, .11);
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut-in)), calc(100% - var(--cut-in)) 100%, 0 100%);
@@ -459,9 +459,9 @@ a.card:hover, button.card:hover {
   background: transparent;
   --rim-lit: rgba(79, 195, 255, .5);
   --rim-dim: rgba(79, 195, 255, .07);
-  --fill: rgba(14, 34, 72, .10);
+  --fill: rgba(20, 60, 120, .07);
 }
-.panel.sunken { background: transparent; --fill: rgba(2, 6, 20, .22); }
+.panel.sunken { background: transparent; --fill: rgba(2, 6, 20, .14); }
 
 /* Surfaces that keep an ordinary border and square corners. `.scroll` scrolls
    horizontally, and absolutely positioned layers inside a scroll container
@@ -469,12 +469,35 @@ a.card:hover, button.card:hover {
    mitre is not a thing worth building. The rest are callouts whose left rule
    carries their meaning, so a rim would compete with it. */
 .scroll, .empty, .pos, .concern, .note, .stub {
-  backdrop-filter: blur(34px) saturate(1.8) brightness(1.03);
-  -webkit-backdrop-filter: blur(34px) saturate(1.8) brightness(1.03);
+  backdrop-filter: blur(38px) saturate(1.85) brightness(1.02);
+  -webkit-backdrop-filter: blur(38px) saturate(1.85) brightness(1.02);
 }
 .scroll, .empty, .pos {
-  background-image: linear-gradient(165deg, rgba(213, 224, 255, .038), rgba(213, 224, 255, .006));
+  background-image: linear-gradient(165deg, rgba(213, 224, 255, .022), rgba(213, 224, 255, .002));
 }
+
+/* ---- holding type over a see-through plate --------------------------------
+   THE PANEL NO LONGER CARRIES THE CONTRAST, so the type has to.
+
+   At a 3% fill the plate is a blurred window with a lit edge - which is the
+   point, and which means there is no longer a ground under the words. The
+   landing page solved this exact problem for its own copy over a live scene and
+   the answer is there in its markup: a wide, very dark, very soft shadow behind
+   the glyphs. It is invisible as an effect and it puts a couple of stops of
+   local contrast under every letter, so the text stays readable over a lit
+   colony without the panel having to go opaque to do it.
+
+   Two shadows, not one: a tight one for the edge of the glyph and a wide one
+   for the halo. A single large blur alone reads as a glow. */
+.work-col :where(h1, h2, h3, h4, p, span, b, a, td, th, li, label, blockquote) {
+  text-shadow:
+    0 1px 2px rgba(2, 8, 20, .55),
+    0 2px 14px rgba(2, 8, 20, .75);
+}
+/* The exceptions. A badge, a state chip and a verdict pill sit on their own
+   tinted ground and already have their contrast; a shadow there just makes
+   small mono type look smudged. */
+.work-col :where(.badge, .state, .basis, .pip, .eyebrow) { text-shadow: none; }
 
 /* THE PRIMARY ACTION, as a link.
    The dashboard's "New case" was a flat #4FC3FF pill with white text, written as
