@@ -185,6 +185,49 @@ One command, one origin. The landing page is at `/`, the product at `/deliberati
 
 The demo team is already seeded - five accounts, whose shared password is printed in `services/api/seed-demo.ts` because the fixture is the secrecy, not the check.
 
+### It runs with no credentials, and says so
+
+There is nothing to obtain and nothing to paste. `cp .env.example .env` if you want to
+configure anything; an empty file, or no file, is a valid configuration.
+
+| | Without credentials |
+|---|---|
+| Cases, positions, blind reveal, unanimity, audit, the hash-chained record | Work. Pure code, no model. |
+| Adjudication | Runs against a stub. Every response carries `source: "stub"`, so it can never be read as a model's answer. |
+| Ask & summary | `503 {"error":"no_key"}`. The only surfaces that genuinely need a model. |
+
+The startup banner names which of the two you are in.
+
+**For live AI, pick one provider.** It is inferred from the model name, so there is no
+second switch to disagree with it:
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-...  ARBITER_MODEL=claude-sonnet-5   # a key, and nothing else
+ARBITER_GCP_PROJECT=your-project                              # Vertex: ADC, no key exists
+```
+
+The Vertex path has **no API key by design** - it is Application Default Credentials, so
+each person runs `gcloud auth application-default login` against their own project.
+Nothing secret belongs in `.env`.
+
+### Deploying it
+
+The code is deployable; the hosting decision is not made here.
+
+- **`ARBITER_HOST=0.0.0.0`** to accept outside traffic. It is loopback otherwise, because
+  this process terminates no TLS - set it only behind a proxy that does. The banner warns
+  when it is not loopback.
+- **`ARBITER_MODEL_BUDGET`** (default 30 per account per 10 minutes, 6x that per source)
+  caps the four endpoints that cost money. This is what makes them safe to expose: without
+  it, a public deployment is an open proxy to whoever's model quota it holds.
+- **On Google Cloud, attach a service account** rather than shipping a key. The auth
+  library finds it as ADC, so no key material exists on disk, in git, or in an env var.
+  Off Google Cloud, `GOOGLE_APPLICATION_CREDENTIALS_JSON` takes the JSON as a secret.
+- **State is local files** - `results/deliberation-log.jsonl` (the record itself),
+  `results/documents/`, and the account store. On an ephemeral container all three are
+  wiped on redeploy. Fine for a demo; if the record must persist, it needs a volume, and
+  that is the largest single piece of work in deploying this.
+
 ### Verify everything
 
 ```bash

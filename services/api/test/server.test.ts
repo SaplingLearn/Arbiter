@@ -12,6 +12,7 @@ import { DocumentStore } from "../documents.js";
 import { LibraryStore } from "../library.js";
 import { InviteStore } from "../invites.js";
 import { LoginThrottle } from "../throttle.js";
+import { ModelBudget } from "../spend.js";
 import { seedDemoTeam, DEMO_PASSWORD } from "../seed-demo.js";
 import type { EvidenceChecklist, CoveringFinding } from "../inventory.js";
 import { ADJUDICATOR_PROMPT_PATH, type AdjudicateRequest } from "../adjudicate.js";
@@ -64,6 +65,9 @@ beforeAll(async () => {
     library: new LibraryStore({ cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib-")) }),
     invites: new InviteStore(null),
     throttle: new LoginThrottle(),
+    // Deliberately generous: this suite drives many model-calling routes in one run and
+    // the cap is not what any of these cases are measuring. `spend.test.ts` measures it.
+    budget: new ModelBudget(10_000),
     rules: RULES,
     prompt: PROMPT,
   };
