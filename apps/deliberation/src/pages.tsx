@@ -4,11 +4,15 @@ import { href } from "./router.js";
 import { api, ApiError, uploadDocument, type AskAnswer, type CaseListing, type CaseSummary, type LibrarySource, type Person } from "./api.js";
 
 /**
- * The composition pages: authentication, the dashboard, case creation, and the
- * method explainer. The working screens - inventory, position form, reveal,
- * verdict, audit, documents - stay in screens.tsx, where they carry behaviour and
- * tests. Moving them for the sake of a folder layout would churn a passing suite
- * for nothing.
+ * The composition pages: authentication, the dashboard, case creation, the library
+ * and ask. The working screens - inventory, position form, reveal, verdict, audit,
+ * documents - stay in screens.tsx, where they carry behaviour and tests. Moving them
+ * for the sake of a folder layout would churn a passing suite for nothing.
+ *
+ * THE METHOD PAGE USED TO BE HERE. It explained what the record proves and what it
+ * does not; the landing page now makes that argument at length and in the same
+ * palette, so the product links out to it rather than keeping a second copy that
+ * would have to be corrected twice.
  */
 
 /** ---------------------------------------------------------- authentication */
@@ -484,80 +488,6 @@ export function LibraryPage({ catalogue, onOpen, busy }: {
     </>
   );
 }
-
-/** ---------------------------------------------------------------- method */
-export function MethodPage(): ReactElement {
-  return (
-    <>
-      <PageHead eyebrow="How this works" title="Method"
-        lede="What the product does, what the record proves, and what is not built yet." />
-
-      <div className="stack-l">
-        <Section title="The evidence comes before any opinion">
-          <p>
-            Everyone reads the same neutral account of the documents before anyone
-            states a position. It is ordered by checklist identifier and by nothing
-            else - ranking gaps by severity would push the room before it has spoken.
-          </p>
-          <p>
-            A finding covers a question only when it <em>declares</em> that it does.
-            Nothing is inferred from a plausible-looking label, because guessing fails
-            silently in the dangerous direction: a question wrongly marked answered
-            never appears on the missing-evidence list again.
-          </p>
-        </Section>
-
-        <Section title="Blind submission, and how it is enforced">
-          <p>
-            While a case is open the server returns your own position and, for everyone
-            else, one bit: submitted or not. Not their call, not their reasoning, not a
-            running tally - a tally drags a room as hard as the positions themselves.
-            It is enforced by not sending the data, never by a screen choosing not to
-            render it.
-          </p>
-          <div className="note">
-            <strong>What the record proves.</strong> Every position is hashed when you
-            submit, and only that hash enters the log while the case is open. At reveal
-            the published answer must match it, so it can be proved that no position was
-            edited after sealing.
-            <p style={{ marginTop: 10 }}>
-              <strong>What it does not prove.</strong> That the server never read one
-              early. No server-side scheme can, because the server holds the text in
-              order to hand it to the adjudicator. Claiming otherwise would be the more
-              dangerous error.
-            </p>
-          </div>
-        </Section>
-
-        <Section title="Two questions, never one">
-          <p>
-            <em>Is there a route by which this compound injures the liver?</em> and{" "}
-            <em>is it severe enough to stop the programme?</em> are answered separately.
-            Collapsing them is a measured defect, not a theoretical one: an earlier
-            fixed-rule version flagged five compounds that are approved and widely
-            prescribed, because a mechanism finding alone was allowed to produce
-            “do not advance”.
-          </p>
-        </Section>
-
-        <Section title="What is not built yet">
-          <div className="scroll">
-            <table>
-              <thead><tr><th style={{ width: "34%" }}>Part</th><th>Status</th></tr></thead>
-              <tbody>
-                <tr><td>Blind deliberation, sealing, audit</td><td>Working. No model is involved in any of it.</td></tr>
-                <tr><td>Accounts, access control, document upload</td><td>Working. Running locally, with no transport encryption.</td></tr>
-                <tr><td>Reading findings out of a PDF automatically</td><td><b>Not built.</b> Findings are entered by hand, each with its source page. When extraction lands it will pre-fill exactly that form for a human to approve.</td></tr>
-                <tr><td>The adjudication itself</td><td><b>Unmeasured.</b> Without an API key it runs against a fixed stub, and every stub answer is labelled as one.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </Section>
-      </div>
-    </>
-  );
-}
-
 
 /** ------------------------------------------------------------------- ask */
 /**

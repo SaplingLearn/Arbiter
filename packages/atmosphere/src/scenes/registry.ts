@@ -72,8 +72,11 @@ export const STATES: StateDef[] = [
     factory: createSynapse,
   },
   {
-    id: "method",
-    label: "Method",
+    // Was "method", for a product page that no longer exists — the landing page makes
+    // that argument now. The environment outlived the page because what it draws is a
+    // seal closing, which is the RECORD, and the record is where a case ends.
+    id: "record",
+    label: "Record",
     codename: "Helix",
     headline: ["SEALED", "ON SUBMISSION"],
     lede: "What the record proves, and what it does not.",

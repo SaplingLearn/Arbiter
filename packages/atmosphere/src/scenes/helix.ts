@@ -210,7 +210,7 @@ export function createHelix(ctx: SceneContext): AtmosphereScene {
   const group = { rot: 0 };
 
   return {
-    id: "method",
+    id: "record",
     scene,
     camera,
     update(dt, t) {

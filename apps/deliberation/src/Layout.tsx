@@ -1,5 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { href, type Route } from "./router.js";
+import { SITE_URL } from "./links.js";
 import type { Person } from "./api.js";
 
 /**
@@ -29,7 +30,6 @@ export function Layout({ route, me, onSignOut, children }: {
     // the information architecture" - and asking what a document says is not a step in
     // it. The same question is often asked across cases.
     { label: "Ask", to: { name: "ask" } },
-    { label: "Method", to: { name: "method" } },
   ];
 
   return (
@@ -80,7 +80,7 @@ export function Layout({ route, me, onSignOut, children }: {
         <div className="col">
           <span>
             Positions are sealed on submission and the record is hash-chained.{" "}
-            <a href={href({ name: "method" })}>What that proves, and what it does not</a>.
+            <a href={SITE_URL}>What that proves, and what it does not</a>.
           </span>
           <span>Running locally · no transport encryption</span>
         </div>

@@ -6,7 +6,7 @@ import {
   type Roster, type StoredDocument, type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
-import { AskPage, Dashboard, LibraryPage, MethodPage, NewCasePage } from "./pages.js";
+import { AskPage, Dashboard, LibraryPage, NewCasePage } from "./pages.js";
 import {
   Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
   Refused, Reveal, RosterPanel, Verdict, Waiting,
@@ -290,9 +290,6 @@ export function App(): ReactElement {
 
     case "cases":
       return shell(<LibraryPage catalogue={catalogue} onOpen={openPrepared} busy={opening} />);
-
-    case "method":
-      return shell(<MethodPage />);
 
     default:
       break;
