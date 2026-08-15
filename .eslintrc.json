@@ -30,7 +30,9 @@
         "apps/landing/**/*.ts",
         "apps/landing/**/*.tsx",
         "packages/design/**/*.ts",
-        "packages/design/**/*.tsx"
+        "packages/design/**/*.tsx",
+        "apps/atmosphere/**/*.ts",
+        "apps/atmosphere/**/*.tsx"
       ],
       "env": { "browser": true }
     },

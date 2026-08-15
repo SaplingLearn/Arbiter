@@ -1,7 +1,6 @@
 import {
   AdditiveBlending,
   BoxGeometry,
-  Color,
   DoubleSide,
   GLSL3,
   Mesh,

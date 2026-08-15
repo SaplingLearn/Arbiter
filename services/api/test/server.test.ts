@@ -374,7 +374,20 @@ describe("the roster is on the record", () => {
   });
 });
 
-describe("document upload", () => {
+// TIMEOUT RAISED, and only here. Every other block in this file is an HTTP round trip
+// against an in-process server and comfortably fits the 5s default. Upload does not:
+// the server runs data/prep/measure_pdf.py in a child process on every PDF, so each of
+// these tests pays a Python interpreter start plus a PyMuPDF import.
+//
+// In isolation that costs ~360ms. Under `npm test`, which runs 89 files in parallel,
+// the same call has been measured past 5s purely from CPU contention - and because the
+// measurement is a SYNCHRONOUS execFileSync, a starved child also blocks the server's
+// event loop, which is why the timeout used to take the following test down with it as
+// an ECONNRESET rather than failing alone.
+//
+// 20s is not a guess about how long the work takes; it is enough headroom that the
+// figure being measured is the upload path rather than the machine's load average.
+describe("document upload", { timeout: 20_000 }, () => {
   const upload = async (who: string, filename: string, bytes: Buffer): Promise<{ status: number; body: any }> => {
     const res = await fetch(`${base}/api/cases/c1/documents`, {
       method: "POST",
