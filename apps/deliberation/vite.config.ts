@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 /**
  * Deliberately NOT apps/web's config.
@@ -14,7 +15,7 @@ import react from "@vitejs/plugin-react";
  * requests and no CORS configuration exists to get wrong.
  */
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   /**
    * Relative, so the bundle works wherever it is mounted - at the root, or under
    * the /app/ subpath apps/landing links to. The default "/" would emit absolute
@@ -28,6 +29,12 @@ export default defineConfig({
   base: "./",
   server: {
     port: 5174,
+    // Bound to the IPv4 loopback explicitly. Left to itself Vite binds ::1 only, and
+    // Chrome resolves 127.0.0.1 first — so the landing page's LOGIN button, which points
+    // here, fails with a refused connection while the dev server sits there looking
+    // perfectly healthy in the terminal. `apps/atmosphere` and `apps/landing` both carry
+    // the same pin for the same reason; this was the last app missing it.
+    host: "127.0.0.1",
     proxy: { "/api": { target: `http://127.0.0.1:${process.env["API_PORT"] ?? 8787}`, changeOrigin: false } },
   },
   build: { outDir: "dist" },
