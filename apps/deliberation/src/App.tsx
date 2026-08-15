@@ -86,6 +86,16 @@ export function App(): ReactElement {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  /* A refusal does not survive leaving the library, so coming back to it is a library
+     and not the last thing you looked at. Scoping the render to the `cases` route (see
+     the switch below) is what stops a refusal pinning the other pages; this is what
+     stops it waiting for you when you return.
+
+     Safe against clearing a refusal the instant it arrives: `openPrepared` does not
+     navigate on the refused path - it returns early and leaves you on the library - so
+     setting one never coincides with a route change. */
+  useEffect(() => { setRefusal(null); }, [route]);
+
   const caseId = caseIdOf(route);
   const nameOf = useCallback(
     (id: string): string => people.find((p) => p.id === id)?.displayName ?? id,
@@ -273,8 +283,6 @@ export function App(): ReactElement {
     );
   }
 
-  if (refusal !== null) return shell(<Refused r={refusal} />);
-
   switch (route.name) {
     case "dashboard":
       return shell(<Dashboard mine={mine} me={me} />);
@@ -288,8 +296,27 @@ export function App(): ReactElement {
     case "ask":
       return shell(<AskPage token={token} library={library} />);
 
+    /**
+     * A REFUSAL IS THE LIBRARY'S, and it is rendered here rather than above this switch.
+     *
+     * It used to be an early return sitting over the whole route table, cleared only at
+     * the top of `openPrepared`. So opening a refused case pinned EVERY route in the
+     * product to the refusal: the hash changed, `route` changed, the backdrop swapped
+     * scene - and the page did not, because the switch below was never reached.
+     *
+     * It was also unrecoverable rather than merely wrong. The only call that clears the
+     * state lives behind `LibraryPage`, and `LibraryPage` is the one thing the early
+     * return replaced, so nothing short of a reload could get the product back.
+     *
+     * The state itself was never the problem. Its SCOPE was: a value produced by one
+     * page, deciding what every other page renders. It is the library's answer to "open
+     * this one", so it is drawn on the library's route, and the routes it has nothing to
+     * do with are none of its business.
+     */
     case "cases":
-      return shell(<LibraryPage catalogue={catalogue} onOpen={openPrepared} busy={opening} />);
+      return shell(refusal !== null
+        ? <Refused r={refusal} onBack={() => setRefusal(null)} />
+        : <LibraryPage catalogue={catalogue} onOpen={openPrepared} busy={opening} />);
 
     default:
       break;

@@ -334,7 +334,17 @@ export function Documents({ docs, onUpload, busy, error }: {
   );
 }
 
-export function Refused({ r }: { r: Refusal }): ReactElement {
+/**
+ * WHY THIS TAKES A WAY BACK.
+ *
+ * A refusal is not an error page and not a route - it is what the library shows when
+ * you ask it to open a document that cannot produce a case. So it has to be leaveable
+ * from inside, the way the fatal panel is: it lives on the library's own route, which
+ * means the header's Library link is the tab you are ALREADY on and clicking it fires
+ * no hashchange. Without a control here, the one obvious gesture for going back to the
+ * list does nothing at all.
+ */
+export function Refused({ r, onBack }: { r: Refusal; onBack: () => void }): ReactElement {
   return (
     <section>
       <h2>{r.label}</h2>
@@ -354,6 +364,9 @@ export function Refused({ r }: { r: Refusal }): ReactElement {
         works.
       </p>
       <p className="mono small muted">{r.document}</p>
+      <div className="btn-row">
+        <button className="ghost" onClick={onBack}>Back to the library</button>
+      </div>
     </section>
   );
 }
