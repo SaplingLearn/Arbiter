@@ -5,6 +5,11 @@
 §10 - read it with §3.3, which it corrects.**
 **Updated 2026-08-05 for the multi-case work (branch `multi-case-spec`, seven tasks). The
 record is §11.**
+**Updated 2026-08-14: `apps/web` was DELETED. The deliberation client is the product
+surface now, and every frontend is served from one origin by `npm run dev`. §0 below is
+corrected; sections §3 onward still describe `apps/web` internals and are kept as the
+historical record of a deleted app, not as instructions. Read any `apps/web` path in
+this document as "was, until 2026-08-14".**
 Pfizer Digital & Technology Hackathon 2026, Round 1.
 Team: Jack He, Andres Lopez, Jose Cruz-Lopez.
 
@@ -55,38 +60,39 @@ It is two things in one repo:
   randomness, no I/O. Deterministic to a single hash across 1000 runs. **The redesign
   keeps this** - §2 of the redesign spec demotes it from the decider to the instrument
   that measures the decider, which is the one component the audit did not fault.
-- **A seven-tab web app** (`apps/web`) that runs that engine **in the browser** and
-  ships as one self-contained `index.html`. The tabs are About, Compounds, Case,
-  Ruleset, Validation, Record, Intake - `TAB_IDS` in `apps/web/src/router.ts` is the
-  source of truth, and the nav renders from it. **This said "five-tab" until
-  2026-08-06.** The master spec designed five (Compounds · Case · Ruleset ·
-  Validation · Record); About arrived later the same day this document was written,
-  in 606356b on branch `ui-redesign`, and the count was never updated. Intake was
-  added 2026-08-06 (§12). The specs are right as of their own dates - that line was
-  not.
+- **A multi-user deliberation client** (`apps/deliberation`) backed by
+  `services/api`, in which each reviewer records a position **before** anyone sees
+  anyone else's, then the room reveals, adjudicates and signs a hash-chained audit
+  log. `src/router.ts` is the route table and the source of truth.
 
-  **Intake is the most cuttable surface in the app and is meant to be.** Removing it
-  from `TAB_IDS` is the whole of removing it from the nav; `TAB_LABEL` in `App.tsx`
-  is a total `Record<TabId, string>`, so the typecheck names the other end for you.
-  Nothing in the eight-beat demo touches it.
+  **This bullet said "a seven-tab web app (`apps/web`) that runs that engine in the
+  browser" until 2026-08-14.** That app - About, Compounds, Case, Ruleset,
+  Validation, Record, Intake, shipped as one self-contained `index.html` that worked
+  over `file://` - was deleted that day, and the deliberation client supersedes it.
+  It took 361 of the repo's 1077 vitest tests and all 12 Playwright tests with it.
+  Its history is in the git log; the design of the four-tab shell that was going to
+  replace it is in `docs/superpowers/specs/2026-08-14-phase0-deletion-and-sequence-spine-design.md`,
+  which the deletion retires.
 
-Plus `apps/harness` (the benchmark runner) and `data/prep` (Python ingestion).
+Plus `apps/landing` (the public entry page), `apps/harness` (the benchmark runner)
+and `data/prep` (Python ingestion).
 
 ### Run it
 
 ```bash
 npm ci
-npm run web:dev            # http://localhost:5173
+npm run dev                # http://localhost:5173
 ```
 
-Keys: `→`/`←` step the eight demo beats, `M` motion kill switch, `?` pre-flight panel,
-`Esc` clear focus.
+One command, one origin: landing at `/`, the product at `/deliberation/`, the API at
+`/api`. `ARBITER_PORT=4173 npm run dev` moves the group if 5173 is taken. Five demo
+accounts are already seeded; their shared password is in `services/api/seed-demo.ts`.
 
 ### Verify everything
 
 ```bash
-npm run lint && npm run typecheck && npm test      # 552 tests, 55 files
-npm run web:build && npm run e2e                   # 12 Playwright tests
+npm run lint && npm run typecheck && npm test      # 716 tests, 48 files
+npm run landing:build && npm run deliberate:build && npm run e2e   # 5 Playwright tests
 npm run golden:update && git diff --exit-code results/   # must produce NO diff
 ```
 

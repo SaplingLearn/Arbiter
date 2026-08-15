@@ -18,13 +18,9 @@
   },
   "overrides": [
     {
-      // The web app targets the browser, so window and document are exactly the
-      // globals to reach for. This also covers the Playwright specs: they run in
-      // node, but their page.evaluate callbacks are serialised and executed
-      // inside the page.
+      // Both surviving apps target the browser, so window and document are
+      // exactly the globals to reach for.
       "files": [
-        "apps/web/**/*.ts",
-        "apps/web/**/*.tsx",
         "apps/deliberation/**/*.ts",
         "apps/deliberation/**/*.tsx",
         "apps/landing/**/*.ts",
