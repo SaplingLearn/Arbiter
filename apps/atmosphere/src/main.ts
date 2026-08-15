@@ -1,6 +1,5 @@
 import gsap from "gsap";
-import { Atmosphere } from "./core/Atmosphere.js";
-import { STATES } from "./scenes/registry.js";
+import { Atmosphere, STATES } from "@arbiter/atmosphere";
 
 /**
  * DEMO SHELL.

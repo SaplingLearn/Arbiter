@@ -1,5 +1,5 @@
 {
-  "name": "@arbiter/atmosphere",
+  "name": "@arbiter/atmosphere-demo",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@arbiter/atmosphere": "*",
     "gsap": "^3.15.0",
     "three": "^0.185.1"
   }
