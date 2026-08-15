@@ -15,6 +15,11 @@ Prints one JSON object to stdout. Called from services/api/documents.ts.
 import json
 import re
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from split_review import largest_nonclinical_span
 
 # PyMuPDF >= 1.26 prints a deprecation banner to STDOUT when it is imported as `fitz`,
 # and these scripts talk to services/api by printing one JSON object to stdout. The
@@ -75,6 +80,49 @@ TOX_TERMS = ["toxicolog", "nonclinical", "non-clinical", "pharmacolog", "NOAEL",
 # Against troglitazone the margins are 5x on toxicolog and absolute on nonclinical,
 # which it scores zero on.
 REVIEW_TERMS = {"toxicolog": 10, "nonclinical+non-clinical": 5}
+
+# Pages a nonclinical chapter must span. THIS is what separates a review from the
+# clinical half of one, and the word counts alone could not.
+#
+# Measured over 29 documents (data/prep/gate_eval.py): the fourteen genuine reviews plus
+# fifteen negatives, thirteen of which are those same reviews with their nonclinical
+# chapter deleted - the exact mistake of uploading the clinical half of a package.
+#
+#                        toxicolog   chapter span
+#   genuine reviews         19-71        14-48
+#   clinical-only           6-19          0-14
+#
+# Counting mentions cannot do this. "Toxicology" and "nonclinical" appear in the
+# contents, the executive summary and every cross-reference, so deleting the chapter
+# only takes krazati from 71 mentions to 14 - inside the genuine range. On word counts
+# alone the gate scored 0.586 accuracy and admitted twelve of thirteen clinical-only
+# documents.
+#
+# Twelve, below the weakest genuine chapter of fourteen. One negative also spans
+# fourteen (inrebic, whose executive summary sits fourteen pages before a clinical
+# heading), so this corpus has one unavoidable collision and the threshold is set to
+# keep every genuine document rather than to win it. A false REFUSAL silently removes a
+# reviewer's evidence and they cannot argue with it; a false ACCEPT produces an
+# inventory visibly full of gaps, which is a thing they can see.
+MIN_CHAPTER_PAGES = 12
+
+# A document that is ENTIRELY nonclinical has no clinical chapter for a span to end at,
+# so the structural test scores it zero and refuses it. That is not a corner case: it is
+# the standalone Pharmacology/Toxicology Review - what FDA published as its own document
+# before the multidiscipline format, and the shape of a sponsor's own tox report. The
+# first version of the chapter rule refused ALL THIRTEEN in the corpus and took recall
+# from 1.000 to 0.519, which is the worst failure this gate can have: the most valuable
+# document a reviewer owns, rejected with a message about chapters.
+#
+# So density rescues them. Toxicology mentions per page, measured:
+#
+#   nonclinical-only (must accept)   0.44 - 1.24
+#   clinical-only    (must refuse)   0.06 - 0.09
+#
+# 0.25 sits between, with roughly 2x headroom to the weakest document it must admit and
+# 3x to the strongest it must refuse. It does not have to carry the full reviews - those
+# pass on their chapter - so it can be set purely to separate these two.
+MIN_TOX_DENSITY = 0.25
 LIVER_TERMS = ["hepat", "liver", "transaminase", "ALT", "AST", "bilirubin", "cholestat", "biliary"]
 
 
@@ -82,7 +130,9 @@ def review_signal(tox: dict) -> bool:
     """Whether the toxicology vocabulary is dense enough to be a nonclinical review.
 
     Either signal on its own is enough; see REVIEW_TERMS for why, and for the measured
-    counts the thresholds come from.
+    counts the thresholds come from. NECESSARY, NOT SUFFICIENT - it is what catches a
+    labelling supplement, and it cannot tell a review from the clinical half of one.
+    See MIN_CHAPTER_PAGES for the test that can.
     """
     return (
         tox["toxicolog"] >= REVIEW_TERMS["toxicolog"]
@@ -105,8 +155,12 @@ def measure(path: str) -> dict:
     tox = {t: len(re.findall(t, text, re.I)) for t in TOX_TERMS}
     liver = {t: len(re.findall(t, text, re.I)) for t in LIVER_TERMS}
 
+    span = largest_nonclinical_span(pages)
+
     result = {
         "pages": n,
+        "nonclinicalChapterPages": span,
+        "toxPerPage": round(tox["toxicolog"] / n, 3) if n else 0,
         "characters": len(text),
         "charactersPerPage": len(text) // n if n else 0,
         "embeddedImages": images,
@@ -142,6 +196,20 @@ def measure(path: str) -> dict:
                 f"{tox['nonclinical'] + tox['non-clinical']} of nonclinical across {n} pages. "
                 "A review that supports a safety call discusses both throughout. This is "
                 "very likely a labelling or clinical document rather than a nonclinical review."
+            ),
+        )
+    elif span < MIN_CHAPTER_PAGES and tox["toxicolog"] / n < MIN_TOX_DENSITY:
+        result.update(
+            ok=False,
+            verdict="no_nonclinical_chapter",
+            reason=(
+                "The text is readable and mentions toxicology, but there is no nonclinical "
+                f"chapter in it: the longest run between a nonclinical heading and the next "
+                f"clinical one is {span} page(s), and toxicology is mentioned on "
+                f"{tox['toxicolog'] / n:.2f} of every page. A review that can support a safety "
+                "call either carries a nonclinical chapter or is one throughout. This looks "
+                "like the clinical half of a package, or a summary that refers to a review "
+                "held elsewhere."
             ),
         )
     else:

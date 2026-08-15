@@ -129,6 +129,27 @@ def _reports_studies(text: str) -> tuple[bool, str]:
     return True, f"{hits} study-evidence terms present"
 
 
+def largest_nonclinical_span(pages: list[str], toc_pages: int = 8) -> int:
+    """How many pages lie between a nonclinical heading and the next clinical one.
+
+    A WEAKER TEST THAN plan_split, on purpose, and the difference is the point. Splitting
+    needs boundaries clean enough to cut a PDF at, so plan_split refuses a document whose
+    chapters interleave. The upload gate is asking something else - does a nonclinical
+    review exist in here at all - and a document that cannot be cut cleanly can still be
+    read by a person. Holding the gate to the splitter's standard refused
+    modern-fda-multidiscipline-211367, a genuine review, for a reason that has nothing to
+    do with whether it contains toxicology.
+
+    Zero when no nonclinical heading is followed by a clinical one.
+    """
+    best = 0
+    for s in _all_matches(pages, NONCLINICAL_PATTERNS, after=toc_pages):
+        e = _first_match(pages, CLINICAL_PATTERNS, after=s + 1)
+        if e is not None and e > s:
+            best = max(best, e - s)
+    return best
+
+
 def plan_split(pages: list[str], toc_pages: int = 8) -> Split:
     """Decide the cut from page texts alone. Pure, so it is testable without a PDF.
 
