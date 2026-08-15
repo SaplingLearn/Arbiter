@@ -52,9 +52,15 @@ export function Backdrop({ route }: { route: Route }): ReactElement {
         atmo.resize(window.innerWidth, window.innerHeight);
         atmo.mount(wanted.current);
         atmo.start();
-        // Up from black rather than cutting in. The scene arrives after the page
+        // Up from black rather than cutting in - the scene arrives after the page
         // has painted, and a background that snaps on reads as a bug.
-        atmo.reveal(1.4);
+        //
+        // AND ONLY TO 0.62. On the landing page the scene is the subject and belongs
+        // at full strength; here it is behind a document somebody has to read, and
+        // the Archive's lit panels put library card copy on a bright ground at full
+        // brightness. Dimming the source fixes every surface at once, which raising
+        // panel opacity one class at a time does not.
+        atmo.reveal(1.4, 0.62);
         atmoRef.current = atmo;
       } catch (e) {
         console.error("[atmosphere] the background failed; the product does not:", e);

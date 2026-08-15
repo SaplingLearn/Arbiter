@@ -37,15 +37,26 @@
      page. An opaque #070E1F card over a living field is a hole cut in the
      environment, and a screen full of them is the old flat product with a
      picture behind it rather than a product standing inside one. */
+     DARK AND TRANSLUCENT, NOT LIGHT AND TRANSLUCENT. The first attempt washed
+     paper with white at 5%, which looks right over an empty black field and
+     fails completely over the library's Archive scene - lit panels behind a
+     lightening plate leave body copy sitting on a bright ground at about 2:1.
+     The ink here is near-white, so contrast has to come from taking light OUT
+     of the ground. The panel darkens what is behind it and keeps its lit edge
+     from the sheen gradient and the hairline, which is what glass actually does
+     in a dark room. */
   --app: #020a18;
-  --paper: rgba(213, 224, 255, 0.055);
-  --sunken: rgba(2, 6, 20, 0.45);
+  --paper: rgba(6, 12, 28, 0.72);
+  --sunken: rgba(2, 6, 20, 0.72);
   --brand-deep: #070e1f;
 
   /* ink */
+  /* ink-2 carries most of the body copy on a card, so it was the token the
+     scene was beating. Lifted from 0.62; ink-3 is for furniture that is allowed
+     to recede and stays where it was. */
   --ink: #d5e0ff;
-  --ink-2: rgba(213, 224, 255, 0.62);
-  --ink-3: rgba(213, 224, 255, 0.42);
+  --ink-2: rgba(213, 224, 255, 0.76);
+  --ink-3: rgba(213, 224, 255, 0.46);
   --on-brand: #020a18;
 
   /* lines. One hairline weight, as before. */
@@ -306,7 +317,8 @@ a { color: var(--accent); text-underline-offset: 3px; }
    all four: a panel with four mitres is a decorative object, and there are a
    dozen of these on a screen. */
 .glass {
-  background: linear-gradient(180deg, rgba(213, 224, 255, .06), rgba(213, 224, 255, .022));
+  background-color: var(--paper);
+  background-image: linear-gradient(180deg, rgba(213, 224, 255, .07), rgba(213, 224, 255, .015));
   border: 1px solid rgba(213, 224, 255, .14);
   backdrop-filter: blur(16px) saturate(1.25);
   -webkit-backdrop-filter: blur(16px) saturate(1.25);
@@ -327,6 +339,34 @@ a { color: var(--accent); text-underline-offset: 3px; }
 }
 .card, .panel, .empty, .scroll, .inv, .tile {
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+}
+/* The sheen, as a second background layer over whatever ground the class already
+   set. Flat translucency reads as a grey rectangle; the fall from 7% to 1.5%
+   gives the plate an edge lit from above, which is the difference between glass
+   and tint. Declared as background-image so it composites over background-color
+   instead of fighting the shorthand each of these classes already uses. */
+.card, .panel, .empty, .scroll, .inv, .tile, .pos {
+  background-image: linear-gradient(180deg, rgba(213, 224, 255, .07), rgba(213, 224, 255, .015));
+}
+
+/* THE PRIMARY ACTION, as a link.
+   The dashboard's "New case" was a flat #4FC3FF pill with white text, written as
+   an inline style so no rule in this file could reach it - the exact thing the
+   note above button.primary forbids, three sections down from the note. Same
+   glass plate, same chamfer, accent only as the glow. */
+.cta {
+  display: inline-block; text-decoration: none;
+  font: 500 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink);
+  background: rgba(213, 224, 255, .08);
+  border: 1px solid rgba(213, 224, 255, .2);
+  padding: 14px 24px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+.cta:hover {
+  background: rgba(213, 224, 255, .16);
+  border-color: var(--accent-line);
+  box-shadow: 0 0 24px -6px var(--accent);
 }
 
 

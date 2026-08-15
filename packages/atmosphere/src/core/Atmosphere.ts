@@ -230,9 +230,19 @@ export class Atmosphere {
     });
   }
 
-  /** Fade the whole composite up from black. Used once, by the overture. */
-  reveal(duration = 1.6): gsap.core.Tween {
-    return gsap.to(this.fade, { value: 1, duration, ease: "power2.out" });
+  /**
+   * Fade the whole composite up from black.
+   *
+   * `to` is a CEILING on the scene's brightness, and it exists because the engine has
+   * two kinds of consumer. On a page where the scene IS the subject it belongs at 1.
+   * Behind a product it is scenery, and scenery that reaches the same brightness as
+   * the artwork puts a reviewer's body copy on a lit ground - measured on the library
+   * over the Archive's panels, about 2:1, which is not a contrast ratio, it is a
+   * guess. Dimming the source fixes every surface at once and is honest about which
+   * of the two things on screen is being read.
+   */
+  reveal(duration = 1.6, to = 1): gsap.core.Tween {
+    return gsap.to(this.fade, { value: to, duration, ease: "power2.out" });
   }
 
   start(): void {

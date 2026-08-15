@@ -200,10 +200,7 @@ export function Dashboard({ mine, me }: { mine: CaseListing[]; me: Person }): Re
         eyebrow="Dashboard"
         title={`Good to see you, ${firstName}`}
         lede="Cases you are named on, ordered by what they need from you."
-        actions={<a className="primary" href={href({ name: "new" })}
-          style={{ textDecoration: "none", display: "inline-block", padding: "12px 24px", borderRadius: 6, background: "var(--accent)", color: "#fff", fontWeight: 650, fontSize: 14.5 }}>
-          New case
-        </a>}
+        actions={<a className="cta" href={href({ name: "new" })}>New case</a>}
       />
 
       <div className="tiles" style={{ marginBottom: 32 }}>
