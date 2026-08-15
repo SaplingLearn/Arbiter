@@ -47,6 +47,34 @@ export function sceneFor(route: Route): string {
   return NAV.find((n) => n.to.name === route.name)?.scene ?? "dashboard";
 }
 
+/**
+ * HOW EACH ARRIVAL LOOKS.
+ *
+ * The engine's transition is a band tear, and its character is entirely in how many
+ * bands there are, which way they run, and how long they take. One transition played
+ * identically every time stops being a transition and becomes a wipe, so each
+ * destination gets the move that suits what it is:
+ *
+ *   dashboard  wide horizontal bands, unhurried — opening onto a field
+ *   new        few, vertical, quick — a structure standing up out of nothing
+ *   library    many fine horizontal bands — shelves, riffled through
+ *   ask        thin vertical bands, fastest of the set — a thought firing
+ *   record     three heavy bands, slowest of the set — something closing
+ *
+ * Keyed by destination rather than by pair. A per-pair table is more expressive and
+ * has twenty-five entries, twenty of which nobody will ever look at closely enough to
+ * justify keeping them correct.
+ */
+export function transitionFor(scene: string): { duration: number; bands: number; axis: "x" | "y" } {
+  switch (scene) {
+    case "new": return { duration: 1.0, bands: 5, axis: "y" };
+    case "library": return { duration: 1.45, bands: 18, axis: "x" };
+    case "ask": return { duration: 0.85, bands: 26, axis: "y" };
+    case "record": return { duration: 1.8, bands: 3, axis: "x" };
+    default: return { duration: 1.35, bands: 9, axis: "x" };
+  }
+}
+
 /** The rail entry a route lights up. Case routes belong to the dashboard. */
 export function currentNav(route: Route): NavItem | undefined {
   if (route.name === "cases") return NAV[2];

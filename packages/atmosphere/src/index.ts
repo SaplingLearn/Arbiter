@@ -11,7 +11,7 @@
  * their own motion; the consumer owns which one exists and when. That line is what
  * kept the engine reusable in the first place and it is worth holding.
  */
-export { Atmosphere } from "./core/Atmosphere.js";
+export { Atmosphere, type TransitionStyle } from "./core/Atmosphere.js";
 export { PALETTE } from "./core/palette.js";
 export type {
   AtmosphereScene,

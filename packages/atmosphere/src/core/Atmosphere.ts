@@ -51,6 +51,24 @@ interface Registered {
   factory: SceneFactory;
 }
 
+/**
+ * How one swap should look.
+ *
+ * The transition is a band tear, and its character is entirely in these three
+ * numbers: three wide bands closing slowly reads as a seal, two dozen thin ones
+ * reads as a thought. Exposed per call rather than fixed per scene because it
+ * describes the MOVE, not the destination - arriving somewhere from a wide field
+ * is not the same event as arriving there from a document.
+ */
+export interface TransitionStyle {
+  /** Seconds. Default 1.35. */
+  duration?: number;
+  /** How many strips the frame is cut into. Default 9. */
+  bands?: number;
+  /** "x" cuts strips across the frame, "y" cuts them down it. Default "x". */
+  axis?: "x" | "y";
+}
+
 export class Atmosphere {
   readonly renderer: WebGLRenderer;
   private readonly clock = new Clock();
@@ -121,6 +139,7 @@ export class Atmosphere {
     this.matTransition = fsMaterial(TRANSITION_FRAG, {
       uFrom: { value: null }, uTo: { value: null },
       uProgress: { value: 0 }, uTime: { value: 0 }, uAspect: { value: 1 },
+      uBands: { value: 9 }, uAxis: { value: 0 },
     });
     this.matBright = fsMaterial(BRIGHT_FRAG, {
       uTex: { value: null }, uThreshold: { value: 0.42 }, uKnee: { value: 0.28 },
@@ -173,12 +192,16 @@ export class Atmosphere {
    * more visible than the same hitch while nothing is moving. The cost is one frame
    * where both scenes exist, which is cheap next to a stutter the eye is watching for.
    */
-  transitionTo(id: string, duration = 1.35): void {
+  transitionTo(id: string, style: TransitionStyle = {}): void {
     if (id === this.currentId || this.transitioning) return;
     const entry = this.registry.get(id);
     if (entry === undefined) throw new Error(`atmosphere: unknown scene "${id}"`);
 
     if (this.ctx.reducedMotion) { this.mount(id); return; }
+
+    const duration = style.duration ?? 1.35;
+    this.matTransition.uniforms.uBands!.value = style.bands ?? 9;
+    this.matTransition.uniforms.uAxis!.value = style.axis === "y" ? 1 : 0;
 
     const next = entry.factory(this.ctx);
     next.resize(this.width, this.height);

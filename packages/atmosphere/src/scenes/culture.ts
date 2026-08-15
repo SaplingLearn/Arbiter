@@ -94,7 +94,12 @@ void main(){
   float d = length(p);
   if (d > 1.0) discard;
 
-  float active = vParams.z;
+  // Named "lit" and not the obvious word, which is RESERVED in GLSL ES 3.00 and
+  // fails the whole shader with "Illegal use of reserved word" - a scene that does
+  // not compile, not a warning. It survived because the engine's only consumer was a
+  // demo page no automated check opens, and a dead scene looks exactly like a dark
+  // background until something is drawn in front of it.
+  float lit = vParams.z;
   float ph = vParams.y;
 
   // Membrane: a thin annulus just inside the edge.
@@ -108,10 +113,10 @@ void main(){
   // makes a dormant cell read as dormant at a glance.
   vec2 nOff = vec2(cos(ph * 6.2831), sin(ph * 6.2831)) * 0.16;
   float nd = length(p - nOff);
-  float nuc = pow(1.0 - smoothstep(0.0, 0.30, nd), 3.0) * active;
+  float nuc = pow(1.0 - smoothstep(0.0, 0.30, nd), 3.0) * lit;
   nuc *= 0.65 + 0.35 * sin(uTime * 1.6 + ph * 6.2831);
 
-  vec3 col = uMembrane * rim * (0.55 + 0.45 * active)
+  vec3 col = uMembrane * rim * (0.55 + 0.45 * lit)
            + uCyto * cyto
            + uNucleus * nuc * 1.6;
 

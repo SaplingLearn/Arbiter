@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { href, type Route } from "./router.js";
 import { SITE_URL } from "./links.js";
+import { Backdrop } from "./shell/Backdrop.js";
 import { CornerReadout, Frame, Header } from "./shell/Chrome.js";
 import type { Person } from "./api.js";
 
@@ -25,7 +26,18 @@ export function Layout({ route, me, onSignOut, children }: {
   children: ReactNode;
 }): ReactElement {
   return (
-    <div className="shell">
+    <>
+      {/* THE CANVAS IS A SIBLING OF THE SHELL, NOT A CHILD, and that is load-bearing
+          rather than tidy. Inside the shell it was a positioned element at z-index 0,
+          which CSS paints in the same step as positioned descendants - ABOVE the
+          inline text of everything non-positioned around it. The symptom was very
+          specific and very confusing: every panel rendered perfectly and every bare
+          line of type vanished, because a panel carries backdrop-filter, which makes
+          a stacking context, and a page title carries nothing. Out here the order is
+          the whole argument: canvas at 0, shell at 1. */}
+      <Backdrop route={route} />
+
+      <div className="shell">
       <Frame />
       <Header route={route} me={me} onSignOut={onSignOut} />
       {me !== null && <CornerReadout route={route} />}
@@ -46,7 +58,8 @@ export function Layout({ route, me, onSignOut, children }: {
           </footer>
         </div>
       </main>
-    </div>
+      </div>
+    </>
   );
 }
 

@@ -143,6 +143,15 @@ a { color: var(--accent); text-underline-offset: 3px; }
   --cut: 14px;
 }
 
+/* The scene. Fixed and full-bleed, under everything, and inert - it is scenery,
+   and a canvas that swallows a click is a canvas covering the product. */
+.backdrop {
+  position: fixed; inset: 0;
+  width: 100%; height: 100%;
+  display: block; z-index: 0;
+  pointer-events: none;
+}
+
 .shell { min-height: 100vh; position: relative; z-index: 1; }
 
 /* The bezel. Bordered box under a clip-path rather than an SVG: the clip cuts

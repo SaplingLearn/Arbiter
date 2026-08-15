@@ -104,6 +104,22 @@ uniform float uProgress;
 uniform float uTime;
 uniform float uAspect;
 
+/**
+ * The tear's shape, so one transition can be many.
+ *
+ * uBands  how many strips the frame is cut into. Few and wide reads heavy and
+ *         deliberate; many and thin reads fast and electrical.
+ * uAxis   0 = strips run across the frame and slide sideways, 1 = strips run down
+ *         it and slide vertically.
+ *
+ * These exist because the consumer navigates between pages that mean different
+ * things, and one transition played identically every time stops being a
+ * transition and becomes a wipe. Three wide bands closing slowly is a seal; two
+ * dozen thin ones is a thought.
+ */
+uniform float uBands;
+uniform float uAxis;
+
 float hash(float n){ return fract(sin(n) * 43758.5453123); }
 
 void main(){
@@ -114,10 +130,13 @@ void main(){
   float energy = sin(p * 3.14159265);
   energy = pow(energy, 0.7);
 
-  // ~9 bands of uneven height. Hashing the band index (not the row) is what makes
+  // Bands of uneven height. Hashing the band index (not the row) is what makes
   // them irregular; hashing the row would shimmer every frame.
-  float bands = 9.0;
-  float bandIdx = floor(vUv.y * bands);
+  float bands = max(uBands, 1.0);
+  // The axis the bands are cut ALONG. Everything below works in this one
+  // coordinate, so a vertical tear is the same maths with the frame turned.
+  float along = mix(vUv.y, vUv.x, uAxis);
+  float bandIdx = floor(along * bands);
   float r1 = hash(bandIdx * 12.9898);
   float r2 = hash(bandIdx * 78.233 + 4.0);
 
@@ -128,8 +147,12 @@ void main(){
   float amount = (0.04 + r2 * 0.16) * energy * dir;
   amount *= 0.6 + 0.4 * hash(bandIdx + stutter * 3.0);
 
-  vec2 uvA = vUv + vec2(amount, 0.0);
-  vec2 uvB = vUv - vec2(amount * 0.6, 0.0);
+  // The slide is perpendicular to the cut, so bands cut across the frame move
+  // sideways and bands cut down it move up and down.
+  vec2 slideA = mix(vec2(amount, 0.0), vec2(0.0, amount), uAxis);
+  vec2 slideB = mix(vec2(amount * 0.6, 0.0), vec2(0.0, amount * 0.6), uAxis);
+  vec2 uvA = vUv + slideA;
+  vec2 uvB = vUv - slideB;
 
   // Per-channel offsets, scaled by the same energy, so fringing tracks the tear.
   float ca = 0.006 * energy;
@@ -153,7 +176,7 @@ void main(){
 
   // A thin bright seam on the leading edge of each displaced band — the scan-line
   // flare that sells it as a signal fault rather than a filter.
-  float seam = smoothstep(0.985, 1.0, fract(vUv.y * bands)) * energy;
+  float seam = smoothstep(0.985, 1.0, fract(along * bands)) * energy;
   col += vec3(0.25, 0.55, 0.9) * seam * 0.5;
 
   fragColor = vec4(col, 1.0);
