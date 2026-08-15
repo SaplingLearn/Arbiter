@@ -45,10 +45,16 @@
      The ink here is near-white, so contrast has to come from taking light OUT
      of the ground. The panel darkens what is behind it and keeps its lit edge
      from the sheen gradient and the hairline, which is what glass actually does
-     in a dark room. */
+     in a dark room.
+
+     0.50, DOWN FROM 0.72. At 0.72 the scene behind a card was a mood - you could
+     tell something was moving back there and not what it was. Half alpha lets the
+     colony resolve into the object it actually is, which is the only reason to
+     have put the product inside a scene. The contrast that alpha used to buy is
+     bought by the type instead; see the text-shadow rule under the glass section. */
   --app: #020a18;
-  --paper: rgba(6, 12, 28, 0.72);
-  --sunken: rgba(2, 6, 20, 0.72);
+  --paper: rgba(6, 12, 28, 0.50);
+  --sunken: rgba(2, 6, 20, 0.50);
   --brand-deep: #070e1f;
 
   /* ink. ink-2 carries most of the body copy on a card, so it was the token the
@@ -333,8 +339,8 @@ a { color: var(--accent); text-underline-offset: 3px; }
   background-color: var(--paper);
   background-image: linear-gradient(180deg, rgba(213, 224, 255, .07), rgba(213, 224, 255, .015));
   border: 1px solid rgba(213, 224, 255, .14);
-  backdrop-filter: blur(8px) saturate(1.25);
-  -webkit-backdrop-filter: blur(8px) saturate(1.25);
+  backdrop-filter: blur(3px) saturate(1.25);
+  -webkit-backdrop-filter: blur(3px) saturate(1.25);
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
   padding: var(--s5);
 }
@@ -347,8 +353,8 @@ a { color: var(--accent); text-underline-offset: 3px; }
    goes only on containers - never on a row, a badge or a cell, where a dozen
    stacked blur layers buy nothing the parent has not already bought. */
 .card, .tile, .panel, .inv, .scroll, .empty, .pos, .concern, .note, .stub {
-  backdrop-filter: blur(8px) saturate(1.25);
-  -webkit-backdrop-filter: blur(8px) saturate(1.25);
+  backdrop-filter: blur(3px) saturate(1.25);
+  -webkit-backdrop-filter: blur(3px) saturate(1.25);
 }
 .card, .panel, .empty, .scroll, .inv, .tile {
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
@@ -361,6 +367,30 @@ a { color: var(--accent); text-underline-offset: 3px; }
 .card, .panel, .empty, .scroll, .inv, .tile, .pos {
   background-image: linear-gradient(180deg, rgba(213, 224, 255, .07), rgba(213, 224, 255, .015));
 }
+
+/* THE PANEL NO LONGER CARRIES THE CONTRAST, SO THE TYPE HAS TO.
+
+   At 0.50 and a 3px blur the plate is a window, and a window does not darken
+   what is behind it enough to float body copy over the library's lit shelves -
+   ink-2 over a bright colony lands near 2:1 on its own. That is the price of
+   the transparency, and it is paid here rather than by putting the alpha back.
+
+   The landing page already solved this exact problem for its copy over a live
+   scene, and the answer is in its markup: a wide, very dark, very soft shadow
+   behind the glyphs. Invisible as an effect, worth a couple of stops of local
+   contrast under every letter, and it costs the panel no opacity at all.
+
+   Two shadows, not one: a tight 2px for the glyph's own edge and a wide 14px
+   for the halo. A single large blur on its own reads as a glow. */
+.work-col :where(h1, h2, h3, h4, p, span, b, a, td, th, li, label, blockquote) {
+  text-shadow:
+    0 1px 2px rgba(2, 8, 20, .55),
+    0 2px 14px rgba(2, 8, 20, .75);
+}
+/* The exceptions. A badge, a state chip and a verdict pill sit on their own
+   tinted ground and already have their contrast; a shadow there only makes
+   small mono type look smudged. */
+.work-col :where(.badge, .state, .basis, .pip, .eyebrow) { text-shadow: none; }
 
 /* THE PRIMARY ACTION, as a link.
    The dashboard's "New case" was a flat #4FC3FF pill with white text, written as
@@ -514,9 +544,9 @@ label { font: 650 13.5px/1.5 var(--sans); color: var(--ink); }
 input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
   width: 100%; font: 15px/1.5 var(--sans); color: var(--ink);
   padding: 10px var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm);
-  background: rgba(2, 6, 20, 0.62); margin-top: var(--s2);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(2, 6, 20, 0.46); margin-top: var(--s2);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 input::placeholder, textarea::placeholder { color: var(--ink-3); }
 input:hover, textarea:hover, select:hover { border-color: var(--accent-line); }
@@ -699,9 +729,9 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
   position: sticky; bottom: 0; z-index: 2;
   /* Heavier than a panel, and it has to be: this one rides over the thread's own
      text as it scrolls past, so it is hiding type rather than a background. */
-  background: rgba(2, 6, 20, 0.72);
-  backdrop-filter: blur(10px) saturate(1.2);
-  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  background: rgba(2, 6, 20, 0.56);
+  backdrop-filter: blur(5px) saturate(1.2);
+  -webkit-backdrop-filter: blur(5px) saturate(1.2);
   border-top: 1px solid var(--line);
   padding: var(--s4) var(--s4) var(--s5);
   margin-inline: calc(var(--s4) * -1);
