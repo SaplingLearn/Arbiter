@@ -68,6 +68,17 @@ import type { AtmosphereScene, SceneContext } from "../core/types.js";
  * ground you land on are one fact read twice.
  */
 
+/** FNV-1a. Two callers now: which body a stray case lands on, and which plain is inside
+ *  the body it lands on. Both need the same case to give the same answer forever. */
+function hash32(key: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+
 export function createArchive(ctx: SceneContext): AtmosphereScene {
   const scene = new Scene();
   const camera = new PerspectiveCamera(50, 1, 0.1, 260);
@@ -458,12 +469,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
     const byPrefix = keys.findIndex((k) => stem === k || stem.startsWith(`${k}-`));
     if (byPrefix !== -1) return byPrefix;
 
-    let h = 2166136261;
-    for (let i = 0; i < key.length; i++) {
-      h ^= key.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return Math.abs(h) % keys.length;
+    return hash32(key) % keys.length;
   }
 
   /** Point the ghost at a body, hide the field's copy of it, and stand the interior in it. */
@@ -490,6 +496,18 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
     heldDead = state[index * 3]! < 0.5;
     interior.place(held);
     interior.setDead(heldDead);
+
+    /* THIS CASE'S OWN PLAIN. Seeded off the BODY's key rather than the route's, so the
+       two route keys that mean one case - `nipocalimab` and
+       `nipocalimab-imaavy--<userId>` - open onto the same landscape, exactly as they
+       already fly to the same body. Seeding off the raw route key would give two people
+       looking at one case two different insides.
+
+       And a case with no entry in the library, which borrows a body by hash, borrows
+       that body's interior with it. The alternative is a body belonging to one case with
+       another case's landscape inside it, which is a worse lie than the one this scene
+       already admits to. */
+    interior.setSeed(hash32(keys[index] ?? key));
   }
 
   // ---- floor: a dark reflective-ish plane with sweeping light bands, which is what

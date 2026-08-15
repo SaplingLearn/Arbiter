@@ -65,6 +65,11 @@ export interface Interior {
   setProgress(k: number): void;
   /** Refused subject — the red variant. Decided before the flight starts. */
   setDead(dead: boolean): void;
+  /**
+   * Generate this case's own plain. Deterministic in `seed`, so the same case is the
+   * same landscape on every visit; a no-op when the seed has not changed.
+   */
+  setSeed(seed: number): void;
   /** Stand it on a body's centre. */
   place(centre: Vector3): void;
   update(t: number): void;
@@ -98,53 +103,12 @@ export function makeInterior(quality: number): Interior {
   const nx = Math.floor((HALF_X * 2) / CELL) + 1;
   const nz = Math.floor((Z_NEAR - Z_FAR) / CELL) + 1;
 
-  const rnd = mulberry32(0x5c1e);
   const dummy = new Object3D();
 
   const latGeo = new BoxGeometry(1, 1, 1);
   const cubeState = new Float32Array(nx * nz * 3);
   const latMesh = new InstancedMesh(latGeo, makeLatticeMaterial(), nx * nz);
-
-  let n = 0;
-  for (let ix = 0; ix < nx; ix++) {
-    for (let iz = 0; iz < nz; iz++) {
-      const x = -HALF_X + ix * CELL;
-      const z = Z_NEAR - iz * CELL;
-
-      /* Two terms, and the second one alone would be static. Pure per-cell randomness
-         gives a field with no shape to it — every cube is as likely to be tall as its
-         neighbour, and the eye finds no ridges to follow into the distance. The low
-         frequency term is what puts broad rises and troughs under the noise. */
-      const broad = 0.5 + 0.5 * Math.sin(x * 0.13 + 1.3) * Math.cos(z * 0.1 - 0.7);
-      let h = 0.55 + (0.42 * broad + 0.58 * Math.pow(rnd(), 1.5)) * 8.6;
-
-      /* A CLEARING, because the camera stops at the origin and would otherwise be
-         standing inside a block. Radial and soft rather than a rectangle cut out of the
-         grid: the cubes lie down toward the middle instead of stopping, which reads as
-         an opening in the field rather than as geometry that was deleted.
-
-         It also does the job the layout above only half does. The plain runs a little
-         PAST the camera's own plane, so the ground does not end in mid-air behind it -
-         which means there is lattice between the camera and the body on the way in. The
-         clearing is what makes that harmless: nothing within ten units of the middle is
-         tall enough to reach the sight line, so what stands in front of the body being
-         entered is flat pads. */
-      h *= Math.max(0.06, smoothstep(3.6, 11.0, Math.hypot(x, z)));
-
-      dummy.position.set(x, h / 2, z);
-      dummy.scale.set(CELL * 0.92, h, CELL * 0.92);
-      dummy.updateMatrix();
-      latMesh.setMatrixAt(n, dummy.matrix);
-
-      cubeState[n * 3] = Math.min(1, h / 9.15); // height, normalised — drives the hue
-      cubeState[n * 3 + 1] = rnd();             // per-cube shift along the ramp
-      cubeState[n * 3 + 2] = rnd();             // breath phase
-      n++;
-    }
-  }
-
-  latMesh.count = n;
-  latMesh.instanceMatrix.needsUpdate = true;
+  latMesh.count = nx * nz;
   const latAttr = new InstancedBufferAttribute(cubeState, 3);
   latGeo.setAttribute("aCube", latAttr);
   latMesh.frustumCulled = false;
@@ -167,35 +131,131 @@ export function makeInterior(quality: number): Interior {
    * instance matrices. Uniform scale only, so rotating in object space before the
    * instance transform cannot shear them.
    */
-  const FLOATERS = Math.round(46 * quality) + 14;
+  /* FOUR TIMES WHAT IT WAS. Sixty cubes over a sky this wide is a handful of objects a
+     reader can count, and a countable handful reads as decoration placed by someone. The
+     PS2 menus this borrows from are not sparse - the air is BUSY, and the busyness is
+     what makes the space feel occupied rather than staged. They are cheap: one instanced
+     draw, additive, no depth write, spun in the vertex shader. */
+  const FLOATERS = Math.round(190 * quality) + 50;
   const floGeo = new BoxGeometry(1, 1, 1);
   const floState = new Float32Array(FLOATERS * 3);
   const floMesh = new InstancedMesh(floGeo, makeFloaterMaterial(), FLOATERS);
-
-  for (let i = 0; i < FLOATERS; i++) {
-    /* Ahead of the camera and above it, on both counts so that none of them can pass
-       through the lens - a cube crossing the near plane is a glitch rather than an
-       object. Uniform scale, because the vertex shader spins these in object space and a
-       non-uniform scale applied after that would shear them. */
-    dummy.position.set(
-      (rnd() - 0.5) * 68,
-      9 + rnd() * 12,
-      -10 - rnd() * 56,
-    );
-    dummy.scale.setScalar(0.8 + rnd() * rnd() * 2.2);
-    dummy.updateMatrix();
-    floMesh.setMatrixAt(i, dummy.matrix);
-
-    floState[i * 3] = rnd();                    // ramp position
-    floState[i * 3 + 1] = 0.05 + rnd() * 0.16;  // turn rate
-    floState[i * 3 + 2] = rnd();                // bob phase
-  }
-
-  floMesh.instanceMatrix.needsUpdate = true;
-  floGeo.setAttribute("aFloat", new InstancedBufferAttribute(floState, 3));
+  const floAttr = new InstancedBufferAttribute(floState, 3);
+  floGeo.setAttribute("aFloat", floAttr);
   floMesh.frustumCulled = false;
   floMesh.renderOrder = 2;
   group.add(floMesh);
+
+  /**
+   * ONE PLAIN PER CASE, and it is the same argument the bodies outside are held to.
+   *
+   * A single generated interior means every case opens onto the identical landscape.
+   * Six cases, six bodies, one inside - the environment would be saying "you are in a
+   * case" where it could be saying "you are in THIS case", and a reader who opens two
+   * of them learns in about four seconds that the place is wallpaper.
+   *
+   * DETERMINISTIC, from a hash of the case rather than from a counter or a clock. The
+   * Archive holds itself to the rule that a body which moves between visits is scenery
+   * pretending to be information, and an interior that reshuffles on every open is the
+   * same failure one level down. The same case is the same plain, forever.
+   *
+   * Rebuilt in place: the grid dimensions do not depend on the seed, so the buffers are
+   * allocated once and rewritten. It runs on `focus`, which is once per case opened -
+   * not per frame - and it is guarded on the seed actually changing, because a
+   * re-populate can re-resolve the same case and this is a thousand matrix writes.
+   */
+  let builtSeed = Number.NaN;
+
+  function build(seed: number): void {
+    if (seed === builtSeed) return;
+    builtSeed = seed;
+    const rnd = mulberry32(seed);
+
+    /* The low-frequency term gets its phases from the seed too. Left as constants, every
+       interior would carry the SAME broad ridges under differently-shuffled noise - the
+       structure the eye actually reads at distance would be identical from case to case
+       while the details changed, which is the most expensive way to look repetitive. */
+    const px = 1.3 + rnd() * 6.2831;
+    const pz = -0.7 + rnd() * 6.2831;
+
+    let n = 0;
+    for (let ix = 0; ix < nx; ix++) {
+      for (let iz = 0; iz < nz; iz++) {
+        const x = -HALF_X + ix * CELL;
+        const z = Z_NEAR - iz * CELL;
+
+        /* Two terms, and the second one alone would be static. Pure per-cell randomness
+           gives a field with no shape to it — every cube is as likely to be tall as its
+           neighbour, and the eye finds no ridges to follow into the distance. The low
+           frequency term is what puts broad rises and troughs under the noise. */
+        const broad = 0.5 + 0.5 * Math.sin(x * 0.13 + px) * Math.cos(z * 0.1 + pz);
+        let h = 0.55 + (0.42 * broad + 0.58 * Math.pow(rnd(), 1.5)) * 8.6;
+
+        /* A CLEARING, because the camera stops at the origin and would otherwise be
+           standing inside a block. Radial and soft rather than a rectangle cut out of the
+           grid: the cubes lie down toward the middle instead of stopping, which reads as
+           an opening in the field rather than as geometry that was deleted.
+
+           It also does the job the layout above only half does. The plain runs a little
+           PAST the camera's own plane, so the ground does not end in mid-air behind it -
+           which means there is lattice between the camera and the body on the way in. The
+           clearing is what makes that harmless: nothing within ten units of the middle is
+           tall enough to reach the sight line, so what stands in front of the body being
+           entered is flat pads. And it is seed-INDEPENDENT for that reason: every case's
+           plain has to keep the same opening in the middle, or some of them put a wall
+           where the camera is about to be. */
+        h *= Math.max(0.06, smoothstep(3.6, 11.0, Math.hypot(x, z)));
+
+        dummy.position.set(x, h / 2, z);
+        dummy.scale.set(CELL * 0.92, h, CELL * 0.92);
+        dummy.updateMatrix();
+        latMesh.setMatrixAt(n, dummy.matrix);
+
+        cubeState[n * 3] = Math.min(1, h / 9.15); // height, normalised — drives the hue
+        cubeState[n * 3 + 1] = rnd();             // per-cube shift along the ramp
+        cubeState[n * 3 + 2] = rnd();             // breath phase
+        n++;
+      }
+    }
+
+    for (let i = 0; i < FLOATERS; i++) {
+      /* Ahead of the camera and above it, on both counts so that none of them can pass
+         through the lens - a cube crossing the near plane is a glitch rather than an
+         object. Uniform scale, because the vertex shader spins these in object space and
+         a non-uniform scale applied after that would shear them. */
+      /* Spread wider and deeper than the lattice, so they read as air the plain is
+         standing in rather than as a second layer sitting on top of it. The vertical
+         range starts above the tallest blocks and runs well past the top of frame - the
+         ones overhead are only ever caught at the edge of the eye, which is the point of
+         them.
+
+         HELD BACK FROM THE LENS on both axes, and the reason is what these are made of.
+         A floater is a rim and a thin face; at eighteen units that reads as a cube
+         catching light on its edges, and at six it is a large flat angular shape with no
+         volume in it - the geometry is right and the material stops selling it. The near
+         limit is where the cube stops being a cube. */
+      dummy.position.set(
+        (rnd() - 0.5) * 96,
+        11 + rnd() * 28,
+        -18 - rnd() * 84,
+      );
+      dummy.scale.setScalar(0.7 + rnd() * rnd() * 3.2);
+      dummy.updateMatrix();
+      floMesh.setMatrixAt(i, dummy.matrix);
+
+      floState[i * 3] = rnd();                    // ramp position
+      floState[i * 3 + 1] = 0.05 + rnd() * 0.16;  // turn rate
+      floState[i * 3 + 2] = rnd();                // bob phase
+    }
+
+    latMesh.instanceMatrix.needsUpdate = true;
+    latAttr.needsUpdate = true;
+    floMesh.instanceMatrix.needsUpdate = true;
+    floAttr.needsUpdate = true;
+  }
+
+  // Something has to be in the buffers before the first focus lands.
+  build(0x5c1e);
 
   /**
    * PARTICULATE, AND WHERE IT IS PUT.
@@ -241,6 +301,8 @@ export function makeInterior(quality: number): Interior {
       latMat.uniforms.uDead!.value = v;
       floMat.uniforms.uDead!.value = v;
     },
+
+    setSeed: build,
 
     place(centre) {
       group.position.set(centre.x, centre.y - GROUND_DROP, centre.z);
@@ -435,7 +497,12 @@ function makeFloaterMaterial(): ShaderMaterial {
            glance — edges against tops. */
         float f = 1.0 - abs(dot(normalize(vN), normalize(vView)));
         float rim = smoothstep(0.25, 1.0, f);
-        float a = (0.08 + rim * 0.38) * uAppear * (1.0 - smoothstep(20.0, 70.0, vDepth));
+        /* Dimmer per cube than when there were sixty of them, and the falloff reaches
+           much further. Additive brightness ACCUMULATES, so quadrupling the count at the
+           old alpha would have turned the sky into a haze; the depth range had to grow
+           at the same time, or the far two thirds of the new spread would simply not
+           draw and the extra cubes would all pile into the near air. */
+        float a = (0.06 + rim * 0.30) * uAppear * (1.0 - smoothstep(34.0, 120.0, vDepth));
 
         vec3 col = hue * (0.10 + rim * 0.55);
         fragColor = vec4(col * a, a);
