@@ -55,7 +55,7 @@ Each rule works twice: as a **defeat rule** in the argumentation graph, and as a
 
 The ruleset lives in `rules/ruleset-v1.0.json` and is hashed to `ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136`. **The harness refuses to run if the computed hash differs.** That is the whole methodological claim: no rule was tuned after seeing a result.
 
-### 2. The product: a four-stage deliberation app (`apps/deliberation`)
+### 2. The deliberation client (`apps/deliberation`)
 
 **This is where the work happens, and where new work goes.** Four case stages, in a
 fixed order, because the order is the point:
@@ -73,27 +73,22 @@ failure the sequence exists to prevent. The decider is an AI adjudicator behind
 `services/api`, disclosing a position on every rule; the engine measures it rather
 than being it. See `docs/superpowers/specs/2026-08-09-arbiter-ai-redesign-design.md`.
 
-### 3. The predecessor: a seven-tab web app (`apps/web`)
+A multi-user client for `services/api`, and the product surface. Its point is that **each reviewer answers privately before anyone sees anyone else's answer**, so a room produces independent readings rather than one confident one.
 
-Runs that same engine **in the browser** and ships as one self-contained `index.html` that works over `file://`.
-
-**Kept, and still submitted for judging - but closed to new surface.** It was built
-before the 2026-08-09 audit retired the engine-as-decider architecture. It must keep
-working; it does not grow.
-
-| Tab | What it is for |
+| Route | What it is for |
 |---|---|
-| **Case** | The compound in front of you: evidence, the argument trace, the belief track, the position |
-| **Compounds** | The library - every scored compound and its claims |
-| **Ruleset** | The six rules, their registered statements, and live editing |
-| **Validation** | The benchmark, the baselines, and the honesty warnings |
-| **Record** | Positions, sign-off, and the hash-chained audit log |
-| **About** | Framing, scope, and what the numbers do and do not say |
-| **Intake** | Enter your own compound's evidence and see whether it could decide |
+| `/dashboard` | Cases you own or sit on |
+| `/library` | The case library |
+| `/case/:id` | The case: roster, documents, findings, inventory |
+| `/case/:id/position` | Your blind position - recorded before the reveal |
+| `/case/:id/reveal` | Every position at once, and where the room split |
+| `/case/:id/record` | The signed, hash-chained, tamper-checked audit log |
+| `/ask` | Retrieval-backed Q&A over the case's uploaded documents |
+| `/method` | What the system does and does not claim |
 
-An **eight-beat guided demo** (`→`/`←` to step) walks two hero cases: **TAK-994**, where the engine abstains and says exactly what evidence would change that, and **Cyclosporine**, where it commits to *do not advance* with non-zero Dempster–Shafer conflict mass, driven by a `transporter:toxic` claim - cyclosporine's real hepatotoxicity is BSEP-mediated, so the engine is right for the right reason.
+Plus `apps/landing` (the public entry page), `apps/harness` (benchmark runner, Node only), `services/api` (auth, documents, retrieval, adjudication), and `data/prep` (Python ingestion of DILIrank, splits, QSAR/Tox21 streams).
 
-Plus `apps/harness` (benchmark runner, Node only), **`services/api`** (the backend: accounts, cases, blind submission, document screening, and the AI adjudicator - not the "rung-1 AI surface handlers" it began as), `apps/landing` (the marketing page, which links into `apps/deliberation`), and `data/prep` (Python ingestion of DILIrank, splits, QSAR/Tox21 streams).
+> The original single-user artifact, `apps/web` - a seven-tab app that ran the engine in the browser and shipped as one self-contained `index.html` - was **deleted on 2026-08-14**. The deliberation client supersedes it. Its history is in the git log.
 
 ---
 
@@ -183,29 +178,30 @@ The left column is defensible; the right overclaims regulatory standing we do no
 
 ```bash
 npm ci
-npm run web:dev            # http://localhost:5173
+npm run dev                # http://localhost:5173
 ```
 
-Keys: `→`/`←` step the eight demo beats, `M` motion kill switch, `?` pre-flight panel, `Esc` clear focus.
+One command, one origin. The landing page is at `/`, the product at `/deliberation/`, the API at `/api`. `ARBITER_PORT=4173 npm run dev` moves the whole group if something already holds 5173.
+
+The demo team is already seeded - five accounts, whose shared password is printed in `services/api/seed-demo.ts` because the fixture is the secrecy, not the check.
 
 ### Verify everything
 
 ```bash
 npm run lint && npm run typecheck && npm test
-npm run web:build && npm run e2e
+npm run landing:build && npm run deliberate:build && npm run e2e
 npm run golden:update && git diff --exit-code results/   # must produce NO diff
 ```
 
-CI runs all of it on every push. The whole block was executed on 2026-08-06 from `cde62f5`:
+CI runs all of it on every push. The whole block was executed on 2026-08-14, after `apps/web` was deleted:
 
 | | |
 |---|---|
-| Lint / typecheck / `web:build` | clean |
-| Vitest | **623 tests across 60 files** |
-| Playwright | **12 tests** |
+| Lint / typecheck / both builds | clean |
+| Vitest | **716 tests across 48 files** - was 1077 across 89 before the deletion |
+| Playwright | **5 tests** - the one-origin arrangement, incl. the no-WebGL guard |
 | Pytest (`data/prep`) | **32 tests across 4 files** - run separately, see below |
 | `golden:update` | **no diff - no reported number has moved** |
-| Bundle | **1,164 kB raw / 202 kB gzipped**, one self-contained file |
 | Ruleset hash | `ed073a8a…` matches pre-registration |
 
 **On Windows, `golden:update` will make the golden file look modified when it is not** - the script writes LF, git's `autocrlf` rewrites to CRLF, and `git status` reports a modification with an empty `git diff`. Confirm it is nothing before hunting:
@@ -254,21 +250,29 @@ apps/harness/             Benchmark runner. Node only.
 apps/deliberation/        THE PRODUCT. Four stages, real backend, AI decider.
   src/Layout.tsx          Steps() - the four stages. The order IS the product.
   src/router.ts           Route union; reveal is gated on the server, not here.
-  vite.config.ts          Port 5174 + /api proxy. Deliberately NOT apps/web's.
+  src/screens.tsx         Position, reveal, verdict, audit - the working screens
+  src/pages.tsx           Auth, dashboard, case creation, method
 
-services/api/             The backend. Accounts, cases, adjudication.
+services/api/             The backend. Accounts, cases, adjudication. Node only.
   server.ts               Routes. /api/auth/* is the only unauthenticated surface.
   adjudicate.ts           ADJUDICATOR_PROMPT_PATH - the in-force prompt version
   deliberation.ts         Blind submission + unanimity. Read the contracts.
+  gemini.ts               Vertex AI. Falls back to a labelled stub without creds.
 
-apps/landing/             Marketing page. APP_URL links into apps/deliberation.
+apps/landing/             The public entry page, and the one-origin front door.
+  vite.config.ts          server.proxy mounts /deliberation and /api behind it
+  src/overture/           The six-chapter WebGL overture. One canvas, six scenes.
+  src/overture/registry.ts  The chapters. Same list the rail renders from.
+  src/shell/              HUD chrome: rail, preloader, menu, cursor, controls.
 
-apps/web/                 PREDECESSOR. Seven tabs. Engine runs in the BROWSER.
-  src/data/heroCases.ts   TAK-994 and Cyclosporine, keyed by compoundId
-  src/tour/beats.ts       The eight demo beats
-  vite.config.ts          inlineEverything - read HANDOVER §6.1 before touching
-  e2e/static-file.spec.ts The file:// guard. Do not delete.
-  src/ui/Preflight.tsx    The ? panel: real checks, not captions
+packages/design/          The design system both frontends dress in.
+
+apps/atmosphere/          Scene R&D. Standalone, not wired into the product.
+  src/core/palette.ts     ALL colour. Deep goes violet, emissive goes cyan.
+  src/core/Atmosphere.ts  Renderer, render targets, the tear between scenes.
+
+tools/dev-all.mjs         `npm run dev`: every surface behind one port
+e2e/                      Playwright. Drives the unified server, not one app.
 
 data/prep/*.py            DILIrank ingestion, splits, QSAR/Tox21 streams
 rules/ruleset-v1.0.json   PRE-REGISTERED AND HASHED. Do not edit.

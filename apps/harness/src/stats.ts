@@ -1,7 +1,7 @@
 // Interval and Confusion are declared in @arbiter/engine, not here, because they
-// are part of the shape of results/metrics.json and apps/web has to read that
-// shape too. The web app cannot import from this package - the harness reads
-// node:fs - so the one definition lives where both ends can reach it.
+// are part of the shape of results/metrics.json, which is read outside this
+// package. A reader cannot import from the harness - it reads node:fs - so the
+// one definition lives where both ends can reach it.
 import type { Confusion, Interval } from "@arbiter/engine";
 
 export type { Confusion, Interval };

@@ -50,7 +50,7 @@ function main(): void {
   // corpus-wide mean is dominated by cases that were never close to deciding.
   const robCommitted = rob.filter((r) => r.baselineVerdict !== "abstain");
 
-  // Annotated, not inferred. This document is the contract apps/web reads, and an
+  // Annotated, not inferred. This document is a published contract, and an
   // anonymous object literal let a field be renamed here while every reader kept
   // compiling. A rename must now fail at the WRITER.
   const metrics: MetricsDocument = {
