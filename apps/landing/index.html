@@ -9,16 +9,16 @@
       content="A reasoning layer that adjudicates conflicting preclinical toxicity evidence, and returns a position with the argument that produced it and the evidence that would change it."
     />
 
-    <!-- The two faces BLUEPRINT names. preconnect to both hosts, not just one:
-         the CSS comes from fonts.googleapis.com but the font files come from
-         fonts.gstatic.com, so warming only the first host leaves the expensive
-         connection to make. crossorigin on the gstatic hint is required - a font
-         is fetched in CORS mode, and a preconnect without it opens a connection
-         the font request cannot reuse. -->
+    <!-- The two faces the overture names: Space Grotesk for display, IBM Plex Mono for
+         every label. preconnect to BOTH hosts, not just one: the CSS comes from
+         fonts.googleapis.com but the font files come from fonts.gstatic.com, so warming
+         only the first leaves the expensive connection to make. crossorigin on the
+         gstatic hint is required - a font is fetched in CORS mode, and a preconnect
+         without it opens a connection the font request cannot reuse. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
   </head>
