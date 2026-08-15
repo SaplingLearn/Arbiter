@@ -25,10 +25,21 @@
    ========================================================================== */
 
 :root {
-  /* surfaces — the system's ground, then two steps above it */
+  /* surfaces — the system's ground, then two steps above it.
+
+     PAPER AND SUNKEN ARE TRANSLUCENT NOW, and that one change rethemes every
+     surface in the product at once: the two tokens are named in a hundred-odd
+     places and not one of those selectors had to move. The file's header makes
+     this argument already - remapping values is a change that can be reviewed,
+     and rewriting a hundred rules is not.
+
+     They have to be translucent because a WebGL scene is drawing behind the
+     page. An opaque #070E1F card over a living field is a hole cut in the
+     environment, and a screen full of them is the old flat product with a
+     picture behind it rather than a product standing inside one. */
   --app: #020a18;
-  --paper: #070e1f;
-  --sunken: #040a17;
+  --paper: rgba(213, 224, 255, 0.055);
+  --sunken: rgba(2, 6, 20, 0.45);
   --brand-deep: #070e1f;
 
   /* ink */
@@ -109,67 +120,206 @@ a { color: var(--accent); text-underline-offset: 3px; }
   border-radius: var(--r-sm);
 }
 
-/* ---- app chrome ---------------------------------------------------------- */
-.page { min-height: 100vh; display: flex; flex-direction: column; }
+/* ==========================================================================
+   THE HEADS-UP DISPLAY
+   --------------------------------------------------------------------------
+   The product stands inside a live scene now, so the chrome had to stop being
+   an opaque bar and start being a bezel. Everything in this block is the
+   landing page's frame language - a hairline inset from the viewport, corners
+   cut at 45 degrees, mono labels at 11px, the accent present only as light.
 
-/* Paper, not white. BLUEPRINT's chrome is the same ground as the page, separated
-   by a hairline and the hatched band below it - exactly as the landing header is. */
-.topbar {
-  background: var(--app);
-  border-bottom: 1px solid var(--line);
-  position: sticky; top: 0; z-index: 20;
+   THE GROUND IS GONE ON PURPOSE. Nothing here paints a solid fill across the
+   viewport, because a WebGL canvas is drawing behind it. The one surface that
+   carries a ground is glass, below, and it earns it by having to stay legible
+   over six different backgrounds.
+   ========================================================================== */
+
+/* Frame inset and corner cut come from the design system so the product's
+   chamfers and the landing page's re-cut together from one number. */
+:root {
+  --hud-inset: 10px;
+  --hud-gutter: 26px;
+  --hud-h: 64px;
+  --cut: 14px;
 }
 
-/* The hatched band, used once, as the boundary between the app chrome and the
-   work - the same single application it gets in apps/web. */
-/* BLUEPRINT's hatched band, retired. On a near-white page it read as a rest between
-   sections; on the dark ground it is a bright diagonal stripe directly under the header
-   and the eye goes to it before anything on the screen. One hairline does the same job:
-   it separates the chrome from the work and then gets out of the way. */
-.hatch-band {
-  height: 1px;
-  background: var(--line);
-  border: 0;
-}
-.topbar .col { display: flex; align-items: center; gap: var(--s5); min-height: 62px; }
-.col { max-width: var(--col); margin: 0 auto; padding-inline: var(--s5); width: 100%; }
+.shell { min-height: 100vh; position: relative; z-index: 1; }
 
-.brand { display: inline-flex; align-items: center; gap: var(--s3); text-decoration: none; color: inherit; }
-/* The mark: four squares on a 2x2 grid, one at 40% and the bottom-right inset a
-   pixel, so it reads as a panel that has not quite agreed with itself - which is
-   the product. Identical construction across all three surfaces. */
-.mark {
-  position: relative; width: 22px; height: 22px; flex: none; display: inline-block;
+/* The bezel. Bordered box under a clip-path rather than an SVG: the clip cuts
+   the border with it, so each corner is a real mitre instead of a border
+   meeting a transparent notch. Inert - it sits over the canvas and must not
+   intercept a single event. */
+.bezel {
+  position: fixed;
+  inset: var(--hud-inset);
+  z-index: 40;
+  pointer-events: none;
+  border: 1px solid rgba(213, 224, 255, 0.18);
+  clip-path: polygon(
+    16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px),
+    calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px
+  );
 }
+
+.hud-head {
+  position: fixed;
+  top: calc(var(--hud-inset) + var(--hud-gutter) - 8px);
+  left: calc(var(--hud-inset) + var(--hud-gutter));
+  right: calc(var(--hud-inset) + var(--hud-gutter));
+  z-index: 50;
+  display: flex; align-items: center; gap: var(--s5);
+}
+
+.brand { display: inline-flex; flex-direction: column; gap: 6px; text-decoration: none; color: var(--ink); flex: none; }
+.brand-word { display: block; height: 15px; width: auto; }
+.brand-sub { font: 400 10px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); }
+
+/* ---- the menu -------------------------------------------------------------
+   ONE PLATE, not four buttons in a row. With a gap between them they read as
+   separate objects that happen to be adjacent; as one block with a single cut
+   outer corner the set reads as a control. The landing page's header pair is
+   built the same way for the same reason. */
+/* `hud-` prefixed because `.tabs` is already taken by the sign-in page's
+   in/up switcher. That page is unreachable - the product opens straight into a
+   session - but it is kept deliberately, and a redesign quietly breaking the
+   thing it was told to leave alone is how dead code turns into a broken
+   restore six months later. */
+.hud-tabs {
+  margin-inline: auto;
+  display: flex;
+  background: linear-gradient(180deg, rgba(213, 224, 255, .07), rgba(213, 224, 255, .03));
+  border: 1px solid rgba(213, 224, 255, .16);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+}
+
+.hud-tab {
+  position: relative;
+  font: 500 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-3); text-decoration: none;
+  padding: 15px var(--s5);
+  white-space: nowrap;
+}
+/* The lit underline, scaling from the left as in the reference. Inset from the
+   padding so it reads as belonging to the word rather than to the cell. */
+.hud-tab::after {
+  content: "";
+  position: absolute; left: var(--s5); right: var(--s5); bottom: 8px; height: 1px;
+  background: var(--accent);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform .45s cubic-bezier(.22, 1, .36, 1);
+}
+.hud-tab:hover { color: var(--ink-2); }
+.hud-tab:hover::after { transform: scaleX(1); }
+.hud-tab[aria-current="page"] { color: var(--ink); }
+.hud-tab[aria-current="page"]::after { transform: scaleX(1); box-shadow: 0 0 9px var(--accent); }
+
+/* The four-square mark, kept for the sign-in page above. Four squares on a 2x2
+   grid, one at 40% and the bottom-right inset a pixel, so it reads as a panel
+   that has not quite agreed with itself - which is the product. */
+.mark { position: relative; width: 22px; height: 22px; flex: none; display: inline-block; }
 .mark i { position: absolute; width: 9px; height: 9px; background: var(--accent); }
 .mark i:nth-child(1) { top: 0; left: 0; }
 .mark i:nth-child(2) { top: 0; right: 0; opacity: .4; }
 .mark i:nth-child(3) { bottom: 0; left: 0; }
 .mark i:nth-child(4) { bottom: 0; right: 2px; }
-.brand b { font: 600 20px/1 var(--display); letter-spacing: -.02em; }
-.brand span { font: 600 9.5px/1 var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); display: block; margin-top: 3px; }
 
-.nav { display: flex; gap: var(--s1); align-items: center; }
-.nav a {
-  font: 500 14px/1 var(--sans); color: var(--ink-2); text-decoration: none;
-  padding: var(--s2) var(--s3); border-radius: var(--r-sm);
+.account { display: flex; align-items: center; gap: var(--s3); flex: none; }
+.account-name {
+  font: 400 11px/1 var(--mono); letter-spacing: .08em; color: var(--ink-3);
+  max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.nav a:hover { background: var(--sunken); color: var(--ink); }
-.nav a[aria-current="page"] { color: var(--ink); background: var(--sunken); font-weight: 600; }
-.spacer { margin-left: auto; }
-
-.account { display: flex; align-items: center; gap: var(--s3); }
-/* 6px, which is the one radius BLUEPRINT grants an avatar. */
 .avatar {
-  width: 30px; height: 30px; border-radius: 6px; flex: none;
+  width: 28px; height: 28px; flex: none;
   background: var(--accent-wash); color: var(--accent); border: 1px solid var(--accent-line);
-  display: grid; place-items: center; font: 400 12px/1 var(--mono);
+  display: grid; place-items: center; font: 400 11px/1 var(--mono);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
 }
 
-main { flex: 1; padding-block: var(--s6) var(--s8); }
+/* The header's own control, matching the landing page's segment buttons. */
+.seg {
+  font: 500 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-2); background: rgba(213, 224, 255, .06);
+  border: 1px solid rgba(213, 224, 255, .18); padding: 9px 14px; cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+.seg:hover { color: var(--ink); border-color: var(--accent-line); background: rgba(213, 224, 255, .12); }
 
-.foot { border-top: 1px solid var(--line); background: var(--paper); padding-block: var(--s5); }
-.foot .col { display: flex; gap: var(--s5); flex-wrap: wrap; justify-content: space-between; font-size: 13px; color: var(--ink-2); }
+/* The corner readout: the name of the environment drawn behind this screen. */
+.corner {
+  position: fixed;
+  left: calc(var(--hud-inset) + var(--hud-gutter));
+  bottom: calc(var(--hud-inset) + var(--hud-gutter) - 8px);
+  z-index: 40; pointer-events: none;
+  display: flex; align-items: center; gap: 10px;
+  font: 400 10px/1 var(--mono); letter-spacing: .22em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.corner-dot { width: 5px; height: 5px; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+/* ---- the work -------------------------------------------------------------
+   A normal document, scrolling normally. The landing page locks the body and
+   scrolls an empty spacer stack so a camera can fly; a case table with three
+   hundred rows is a document and must behave like one. */
+.work {
+  padding-top: calc(var(--hud-inset) + var(--hud-gutter) + var(--hud-h));
+  padding-bottom: var(--s8);
+}
+.work-col {
+  max-width: var(--col); margin: 0 auto; width: 100%;
+  padding-inline: calc(var(--hud-inset) + var(--hud-gutter));
+}
+.col { max-width: var(--col); margin: 0 auto; padding-inline: var(--s5); width: 100%; }
+
+.work-foot {
+  margin-top: var(--s8); padding-top: var(--s5);
+  border-top: 1px solid var(--line);
+  display: flex; gap: var(--s5); flex-wrap: wrap; justify-content: space-between;
+  font: 400 11px/1.6 var(--mono); letter-spacing: .06em; color: var(--ink-3);
+}
+
+/* ---- glass ----------------------------------------------------------------
+   THE ONE SURFACE THAT CARRIES A GROUND.
+
+   A panel over a moving scene has a job the old flat card did not: stay
+   readable over a bright colony and over empty black, without hiding what is
+   behind it. So it is a low-alpha wash plus a blur, not a fill - the scene
+   stays visible THROUGH the panel, which is what makes the product look like
+   it is standing in the environment rather than pasted over a screenshot of
+   one.
+
+   The gradient runs top-light to bottom-dark by a couple of percent. Flat
+   translucency reads as a grey rectangle; the fall gives the plate an edge lit
+   from above, which is the whole difference between glass and tint.
+
+   ONE CUT CORNER, bottom right, at the same 14px the primary action uses. Not
+   all four: a panel with four mitres is a decorative object, and there are a
+   dozen of these on a screen. */
+.glass {
+  background: linear-gradient(180deg, rgba(213, 224, 255, .06), rgba(213, 224, 255, .022));
+  border: 1px solid rgba(213, 224, 255, .14);
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+  padding: var(--s5);
+}
+
+/* The rest of the product's surfaces, given the same treatment.
+
+   Listed by their existing class names rather than by adding `glass` to a
+   hundred JSX call sites: the classes already mean "a surface carrying content"
+   and this is what that now looks like. The blur is the expensive half, so it
+   goes only on containers - never on a row, a badge or a cell, where a dozen
+   stacked blur layers buy nothing the parent has not already bought. */
+.card, .tile, .panel, .inv, .scroll, .empty, .pos, .concern, .note, .stub {
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+}
+.card, .panel, .empty, .scroll, .inv, .tile {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+}
+
 
 /* ---- page header --------------------------------------------------------- */
 .pagehead { display: flex; flex-wrap: wrap; gap: var(--s4); align-items: flex-end; margin-bottom: var(--s6); }
@@ -294,10 +444,17 @@ a.card:hover, button.card:hover { border-color: var(--ink-3); background: var(--
 .field { display: flex; flex-direction: column; margin-top: var(--s5); }
 .field:first-child { margin-top: 0; }
 label { font: 650 13.5px/1.5 var(--sans); color: var(--ink); }
+/* A FIELD IS WHERE TRANSLUCENCY GIVES WAY. A blurred plate is legible for
+   prose; a caret and a half-typed compound name over a moving scene are not,
+   and this is the one surface where being wrong costs a reviewer their entry
+   rather than their patience. Darker than paper, not lighter - the ink is
+   near-white, so contrast comes from taking light out of the ground. */
 input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
   width: 100%; font: 15px/1.5 var(--sans); color: var(--ink);
   padding: 10px var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm);
-  background: var(--paper); margin-top: var(--s2);
+  background: rgba(2, 6, 20, 0.62); margin-top: var(--s2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 input::placeholder, textarea::placeholder { color: var(--ink-3); }
 input:hover, textarea:hover, select:hover { border-color: var(--accent-line); }
@@ -478,8 +635,14 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
    answer on a short page or strand itself over a footer on a long one. */
 .composer {
   position: sticky; bottom: 0; z-index: 2;
-  background: var(--app); border-top: 1px solid var(--line);
-  padding: var(--s4) 0 var(--s5);
+  /* Heavier than a panel, and it has to be: this one rides over the thread's own
+     text as it scrolls past, so it is hiding type rather than a background. */
+  background: rgba(2, 6, 20, 0.72);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  border-top: 1px solid var(--line);
+  padding: var(--s4) var(--s4) var(--s5);
+  margin-inline: calc(var(--s4) * -1);
 }
 .composer-row { display: flex; gap: var(--s3); align-items: flex-end; }
 .composer-row textarea { min-height: 0; margin-top: 0; }
