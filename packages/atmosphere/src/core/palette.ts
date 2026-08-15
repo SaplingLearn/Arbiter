@@ -51,6 +51,17 @@ export const PALETTE = {
   pale: srgb(0xd3e9f8),
   white: srgb(0xeaf5ff),
 
+  /* -------------------------------------------------- refusal
+     THE ONE HUE OUTSIDE THE WEDGE, and it is here for the same reason the product's
+     CSS carries `--stop` outside its own: red means one thing on a safety call, and a
+     refused document is that thing. Same value as `--stop` in the deliberation app, so
+     a refused case is the same red in the table and in the environment behind it.
+
+     Never decoration, never a second accent. If anything in a scene is red, it is
+     because a subject was refused - the moment it is spent on anything else, the
+     colour stops carrying the meaning and the scenes go back to being wallpaper. */
+  stop: srgb(0xff8a8e),
+
   /* -------------------------------------------------- neutrals
      From the deck. Violet-tinted greys — a neutral grey would read as dirt against
      this ramp. Used for chrome and type, never for geometry. */
@@ -75,6 +86,7 @@ export const CSS = {
   sky: "#66C5FA",
   pale: "#D3E9F8",
   white: "#EAF5FF",
+  stop: "#FF8A8E",
   ink: "#0F1013",
   slate: "#5C5C74",
   mist: "#8A8AA5",

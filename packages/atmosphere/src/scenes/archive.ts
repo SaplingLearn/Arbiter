@@ -51,9 +51,9 @@ import type { AtmosphereScene, SceneContext } from "../core/types.js";
  *
  * THE REFUSALS SURVIVE THE PORT, because they are the page's argument. A usable
  * specimen is lit from inside. A refused one is the same constructed object with the
- * light off - panelling still there as structure, ramp collapsed, and the ONE rim
- * fresnel in this file, because a body with no light of its own can only catch the
- * room's. The inversion is the tell, and it is legible at a glance across a whole rank.
+ * light off, and it is RED - the one hue this palette carries outside its blue wedge,
+ * the same value the table underneath uses for a refusal. The colour is the tell and it
+ * is legible at a glance across the whole field.
  */
 
 export function createArchive(ctx: SceneContext): AtmosphereScene {
@@ -96,7 +96,11 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       uDeep: { value: PALETTE.azure.clone().lerp(PALETTE.electric, 0.3).multiplyScalar(1.5 * GAIN) },
       uPanel: { value: PALETTE.sky.clone() },
       uHot: { value: PALETTE.pale.clone() },
-      uDead: { value: PALETTE.violet.clone() },
+      /* Refused bodies are RED, the one hue in this palette outside the blue wedge and
+         the same value the table underneath uses for a refusal. Was violet, which is a
+         deep tone of the wedge - it made a refused case read as a body further away
+         rather than as a body that failed. */
+      uRefused: { value: PALETTE.stop.clone() },
       /* Distance goes to the ground colour rather than to alpha. Fading a solid body
          out by opacity puts the floor's light bands back through it, which is the exact
          smear this scene stopped doing when the boxes went opaque. */
@@ -136,7 +140,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       in vec3 vObj; in vec3 vNormal; in vec3 vView; in vec3 vState; in vec3 vScale;
       in float vDepth;
       out vec4 fragColor;
-      uniform vec3 uBody, uDeep, uPanel, uHot, uDead, uFog;
+      uniform vec3 uBody, uDeep, uPanel, uHot, uRefused, uFog;
       uniform float uTime;
 
       float cell(vec2 id){ return fract(sin(dot(id, vec2(127.1, 311.7))) * 43758.5453); }
@@ -200,11 +204,18 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
         vec2 seam = abs(fract(wq / ${PANEL_A}) - 0.5);
         col *= mix(1.0, 0.80, 1.0 - smoothstep(0.45, 0.5, max(seam.x, seam.y)));
 
-        /* THE REFUSED. Same construction, no light in it. The rim here is the one place
-           in this file a conventional fresnel is right: a body with nothing lit inside
-           can only catch what the room gives it, so it shows up as an edge and a hint of
-           panelling and nothing else. Structure intact, contents gone. */
-        vec3 dead = uDead * (0.05 + panel * 0.04) + uDead * smoothstep(0.35, 1.0, f) * 0.22;
+        /* THE REFUSED, IN RED. Same construction, same panelling, and none of the light
+           that comes from inside a usable one - a refused document is a body that failed,
+           not a body further away, so it keeps its structure and loses its interior.
+
+           Red enough to be named as red at a glance across the field, and dim enough
+           that it is plainly not lit the way its neighbours are. The rim is the one
+           conventional fresnel in this file: a body with nothing lit inside can only
+           catch what the room gives it, so the edge is where most of the colour lands.
+           The ramp survives at reduced range, so a refused body still stands upright in
+           the same light as the rest rather than going flat. */
+        vec3 dead = uRefused * (0.10 + panel * 0.10) * (0.45 + 0.55 * ramp)
+                  + uRefused * smoothstep(0.30, 1.0, f) * 0.45;
         col = mix(dead, col, live);
 
         col = mix(uFog, col, 1.0 - smoothstep(30.0, 95.0, vDepth));
