@@ -47,7 +47,7 @@
      from the sheen gradient and the hairline, which is what glass actually does
      in a dark room.
 
-     BUT ONLY 0.40, NOT THE 0.72 THAT FIRST FIXED IT. At 0.72 the panel is
+     AND THE ALPHA KEPT COMING DOWN, to 0.14. At 0.72 the panel is
      legible and it has stopped being glass - the scene no longer shows through
      the work, and the product goes back to reading as flat cards with a picture
      behind them. The lever that buys legibility without buying opacity is BLUR,
@@ -55,8 +55,8 @@
      the high-frequency detail that was actually breaking the type. A lit panel
      behind a card should arrive as a soft glow, not as an edge. */
   --app: #020a18;
-  --paper: rgba(10, 22, 49, 0.24);
-  --sunken: rgba(2, 6, 20, 0.40);
+  --paper: rgba(10, 22, 49, 0.14);
+  --sunken: rgba(2, 6, 20, 0.30);
   --brand-deep: #070e1f;
 
   /* ink. ink-2 carries most of the body copy on a card, so it was the token the
@@ -379,7 +379,7 @@ a { color: var(--accent); text-underline-offset: 3px; }
   border: 0;
   background: transparent;
   --rim-lit: rgba(213, 224, 255, .42);
-  --rim-dim: rgba(213, 224, 255, .06);
+  --rim-dim: rgba(213, 224, 255, .035);
   /* THE TINT IS THE BRAND'S NAVY, NOT NEUTRAL WHITE, and at a fifth alpha.
      A white wash over a blue scene desaturates it toward grey, which is the
      one thing this palette cannot afford - the whole system is a blue wedge
@@ -387,7 +387,7 @@ a { color: var(--accent); text-underline-offset: 3px; }
      deepens the scene's own colour rather than washing it out, and at 0.18 it
      is barely a tint at all: nearly everything you see through the panel is
      the scene, blurred. */
-  --fill: rgba(10, 22, 49, .18);
+  --fill: rgba(10, 22, 49, .08);
 }
 .glass { padding: var(--s5); }
 
@@ -415,17 +415,17 @@ a { color: var(--accent); text-underline-offset: 3px; }
   pointer-events: none;
   background-color: var(--fill);
   background-image: linear-gradient(165deg,
-    rgba(213, 224, 255, .065) 0%,
-    rgba(213, 224, 255, .012) 42%,
-    rgba(213, 224, 255, .035) 100%);
+    rgba(213, 224, 255, .038) 0%,
+    rgba(213, 224, 255, .006) 42%,
+    rgba(213, 224, 255, .020) 100%);
   /* Saturation up, brightness barely. An early pass ran brightness at 1.12 and
      the plates came out milky - a lift that large stops reading as glass over a
      dark room and starts reading as frosted plastic laid on top of it. 1.04 is
      enough to keep the panel from going dead against the scene. */
-  backdrop-filter: blur(30px) saturate(1.75) brightness(1.04);
-  -webkit-backdrop-filter: blur(30px) saturate(1.75) brightness(1.04);
+  backdrop-filter: blur(34px) saturate(1.8) brightness(1.03);
+  -webkit-backdrop-filter: blur(34px) saturate(1.8) brightness(1.03);
   /* The light entering the thickness of the sheet. */
-  box-shadow: inset 0 1px 0 rgba(213, 224, 255, .14);
+  box-shadow: inset 0 1px 0 rgba(213, 224, 255, .11);
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut-in)), calc(100% - var(--cut-in)) 100%, 0 100%);
 }
 
@@ -459,9 +459,9 @@ a.card:hover, button.card:hover {
   background: transparent;
   --rim-lit: rgba(79, 195, 255, .5);
   --rim-dim: rgba(79, 195, 255, .07);
-  --fill: rgba(14, 34, 72, .2);
+  --fill: rgba(14, 34, 72, .10);
 }
-.panel.sunken { background: transparent; --fill: rgba(2, 6, 20, .34); }
+.panel.sunken { background: transparent; --fill: rgba(2, 6, 20, .22); }
 
 /* Surfaces that keep an ordinary border and square corners. `.scroll` scrolls
    horizontally, and absolutely positioned layers inside a scroll container
@@ -469,11 +469,11 @@ a.card:hover, button.card:hover {
    mitre is not a thing worth building. The rest are callouts whose left rule
    carries their meaning, so a rim would compete with it. */
 .scroll, .empty, .pos, .concern, .note, .stub {
-  backdrop-filter: blur(30px) saturate(1.75) brightness(1.04);
-  -webkit-backdrop-filter: blur(30px) saturate(1.75) brightness(1.04);
+  backdrop-filter: blur(34px) saturate(1.8) brightness(1.03);
+  -webkit-backdrop-filter: blur(34px) saturate(1.8) brightness(1.03);
 }
 .scroll, .empty, .pos {
-  background-image: linear-gradient(165deg, rgba(213, 224, 255, .06), rgba(213, 224, 255, .012));
+  background-image: linear-gradient(165deg, rgba(213, 224, 255, .038), rgba(213, 224, 255, .006));
 }
 
 /* THE PRIMARY ACTION, as a link.
