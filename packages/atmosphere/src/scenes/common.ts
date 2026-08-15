@@ -34,6 +34,14 @@ export function mulberry32(seed: number): () => number {
   };
 }
 
+/** GLSL's `smoothstep`, on the CPU side. Here rather than in two scene files because a
+ *  crossfade whose two halves are eased by two copies of this drifts the moment one of
+ *  them is tuned. */
+export function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
 /**
  * THE ATMOSPHERE ITSELF — a full-frame gradient that every scene sits inside.
  *
@@ -140,6 +148,12 @@ export function makeMotes(count: number, radius: number, seed: number, opts?: {
       uSize: { value: opts?.size ?? 2.2 },
       uSpeed: { value: opts?.speed ?? 1 },
       uRise: { value: opts?.rise ?? 0.35 },
+      /* Global dimmer, 1 unless a scene is taking the layer out. Here rather than on
+         `visible`, because these are additive and switching them off is a step change in
+         the brightness of the whole frame. A scene that flies the camera from one place
+         to another needs to cross-fade its particulate the way it cross-fades everything
+         else. */
+      uFade: { value: 1 },
       uColorA: { value: opts?.colorA ?? PALETTE.cyan },
       uColorB: { value: opts?.colorB ?? PALETTE.sky },
       uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
@@ -148,7 +162,7 @@ export function makeMotes(count: number, radius: number, seed: number, opts?: {
       in vec3 aMote;
       out float vAlpha;
       out float vMix;
-      uniform float uTime, uSize, uSpeed, uRise, uPixelRatio;
+      uniform float uTime, uSize, uSpeed, uRise, uPixelRatio, uFade;
       ${SIMPLEX3}
       void main(){
         vec3 p = position;
@@ -171,6 +185,7 @@ export function makeMotes(count: number, radius: number, seed: number, opts?: {
         // across the lens, far ones would stipple.
         vAlpha = smoothstep(0.5, 4.0, dist) * (1.0 - smoothstep(26.0, 46.0, dist));
         vAlpha *= 0.35 + 0.65 * (0.5 + 0.5 * sin(uTime * 0.7 * aMote.z + s * 6.0));
+        vAlpha *= uFade;
         vMix = fract(s * 0.37);
       }
     `,

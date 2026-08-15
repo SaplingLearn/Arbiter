@@ -18,7 +18,8 @@ import {
 } from "three";
 import { PALETTE } from "../core/palette.js";
 import { SIMPLEX3 } from "../core/shaders.js";
-import { makeAirdrop, makeMotes, mulberry32 } from "./common.js";
+import { makeAirdrop, makeMotes, mulberry32, smoothstep } from "./common.js";
+import { APPEAR_IN, makeInterior } from "./interior.js";
 import type { AtmosphereScene, SceneContext } from "../core/types.js";
 
 /**
@@ -57,6 +58,14 @@ import type { AtmosphereScene, SceneContext } from "../core/types.js";
  * light off, and it is RED - the one hue this palette carries outside its blue wedge,
  * the same value the table underneath uses for a refusal. The colour is the tell and it
  * is legible at a glance across the whole field.
+ *
+ * AND THE BODIES HAVE AN INSIDE NOW. Opening a case still flies the camera into that
+ * case's body; what it arrives in is no longer the inside of a box. `interior.ts` builds
+ * a plain of cubes at varying height running out to a fog line with more of them hanging
+ * above it, standing on the entered body's own centre, and the two worlds crossfade
+ * through the ground colour off the single value the camera is already tweening. A
+ * refused case lands in the red grade of the same place - the body you flew at and the
+ * ground you land on are one fact read twice.
  */
 
 export function createArchive(ctx: SceneContext): AtmosphereScene {
@@ -116,6 +125,15 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
          out by opacity puts the floor's light bands back through it, which is the exact
          smear this scene stopped doing when the boxes went opaque. */
       uFog: { value: PALETTE.abyss.clone() },
+      /* THE FIELD GIVING WAY TO THE INTERIOR. 0 is the archive; 1 is the archive gone.
+         For the same reason as the line above it, this is a mix to `uFog` and not a
+         drop in alpha — a see-through field would put the floor's bands through the
+         bodies for the whole length of the flight, and the point is that the outside
+         stops existing, not that it turns to glass.
+
+         The ghost shares this shader and keeps its own copy at 0. The wall you pass
+         through is not supposed to dissolve; it thins, on `uAlpha`. */
+      uDissolve: { value: 0 },
     },
     vertexShader: /* glsl */ `
       in vec3 aState;    // usable (0/1), phase, seed
@@ -158,7 +176,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       in float vDepth; in float vSkip;
       out vec4 fragColor;
       uniform vec3 uBody, uDeep, uPanel, uHot, uRefused, uFog;
-      uniform float uTime, uAlpha;
+      uniform float uTime, uAlpha, uDissolve;
 
       float cell(vec2 id){ return fract(sin(dot(id, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -240,6 +258,10 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
         col = mix(dead, col, live);
 
         col = mix(uFog, col, 1.0 - smoothstep(30.0, 95.0, vDepth));
+        /* Out through the same door distance already uses. The interior fades UP from
+           this exact value over the same stretch of the flight, so the two worlds meet
+           at one colour and neither opens a hole in the frame. */
+        col = mix(col, uFog, uDissolve);
         fragColor = vec4(col, uAlpha);
       }
     `,
@@ -307,6 +329,21 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
   ghost.visible = false;
   ghost.renderOrder = 1;
   scene.add(ghost);
+
+  /**
+   * WHAT IS ACTUALLY IN THERE.
+   *
+   * The flight used to end in the inside of a box — the same panelling from the wrong
+   * side, the rest of the archive showing through the walls. That is a camera position
+   * rather than a place, and a reader sits in this shot for the length of a review.
+   *
+   * The body is bigger on the inside now: a plain of cubes at varying height running out
+   * to a fog line, with more of them hanging free above it. See `interior.ts` for why the
+   * light is on the caps, why it occupies the far half-space, and why it fades up out of
+   * the fog colour rather than out of nothing.
+   */
+  const interior = makeInterior(ctx.quality);
+  scene.add(interior.group);
 
   /**
    * ONE BODY PER CASE.
@@ -382,6 +419,8 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
   const flight = { k: 0 };
   let heldKey: string | null = null;
   let heldIndex = -1;
+  /** Whether the body being entered is a refusal — read off the same bit the field uses. */
+  let heldDead = false;
   const held = new Vector3();
   const eye = new Vector3();
   const aim = new Vector3();
@@ -427,7 +466,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
     return Math.abs(h) % keys.length;
   }
 
-  /** Point the ghost at a body and hide the field's copy of it. */
+  /** Point the ghost at a body, hide the field's copy of it, and stand the interior in it. */
   function applyFocus(key: string): void {
     const index = resolve(key);
     heldIndex = index;
@@ -443,6 +482,14 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
     ghost.visible = true;
     vitMat.uniforms.uSkip!.value = index;
     held.copy(centres[index] ?? held);
+
+    /* The interior stands on THIS body's centre, and it is graded by the same bit the
+       field paints the body with — so the red you are flying at and the red you land in
+       are one fact read twice, and they cannot disagree. Set here rather than during the
+       flight because a re-populate can land mid-flight and change which case this is. */
+    heldDead = state[index * 3]! < 0.5;
+    interior.place(held);
+    interior.setDead(heldDead);
   }
 
   // ---- floor: a dark reflective-ish plane with sweeping light bands, which is what
@@ -458,6 +505,10 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
         uTime: { value: 0 },
         uColor: { value: PALETTE.azure },
         uDeep: { value: PALETTE.reflex },
+        // Goes out with the bodies. The interior stands on its own ground, and light
+        // bands from the archive's floor sweeping under it would be the outside world
+        // visibly still running.
+        uDissolve: { value: 0 },
       },
       vertexShader: `out vec2 vUv; out float vD;
         void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position,1.0);
@@ -465,7 +516,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       fragmentShader: /* glsl */ `
         precision highp float;
         in vec2 vUv; in float vD; out vec4 fragColor;
-        uniform float uTime; uniform vec3 uColor, uDeep;
+        uniform float uTime, uDissolve; uniform vec3 uColor, uDeep;
         ${SIMPLEX3}
         void main(){
           vec2 p = (vUv - 0.5) * 420.0;
@@ -474,7 +525,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
           band = pow(max(band, 0.0), 7.0);
           float grid = smoothstep(0.96, 1.0, abs(sin(p.y * 0.13)));
           float fade = 1.0 - smoothstep(20.0, 150.0, vD);
-          float a = (band * 0.30 + grid * 0.05) * fade;
+          float a = (band * 0.30 + grid * 0.05) * fade * (1.0 - uDissolve);
           fragColor = vec4(mix(uDeep, uColor, band) * a, a);
         }
       `,
@@ -485,8 +536,29 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
   floor.frustumCulled = false;
   scene.add(floor);
 
+  /**
+   * The air goes red with the interior, and it has to.
+   *
+   * A refused chamber of red blocks sitting inside a navy bloom is two light sources in
+   * one room, and the eye reads the mismatch long before it can say what is wrong. The
+   * gradient the entire frame sits in is part of the same decision as the geometry.
+   *
+   * Lerped on the way IN rather than switched when the case is named, so the shift
+   * happens under the flight instead of announcing itself over the wide shot.
+   *
+   * VERY DARK, and darker than the navy it replaces. This is a full-frame radial and the
+   * camera inside the interior has geometry across most of the viewport, so the gradient
+   * is being read as the sky behind a plain rather than as a bloom behind a few bodies.
+   * At the navy's own strength the red version came back as a lit red sky, and a refusal
+   * that floods the frame is a colour that has stopped meaning anything.
+   */
+  const AIR_LIVE = new Color().copy(PALETTE.navy).multiplyScalar(1.25);
+  const AIR_DEAD = PALETTE.stop.clone().lerp(PALETTE.abyss, 0.9).multiplyScalar(0.85);
+  // Mutated in place each frame; `makeAirdrop` holds this instance as its uniform.
+  const airInner = AIR_LIVE.clone();
+
   const air = makeAirdrop({
-    inner: new Color().copy(PALETTE.navy).multiplyScalar(1.25),
+    inner: airInner,
     outer: PALETTE.abyss,
     centre: [0.5, 0.48],
     scale: 1.0,
@@ -546,6 +618,30 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       (floor.material as ShaderMaterial).uniforms.uTime!.value = t;
       (air.material as ShaderMaterial).uniforms.uTime!.value = t;
       (motes.material as ShaderMaterial).uniforms.uTime!.value = t;
+      interior.update(t);
+
+      /* ---- the crossfade, from one value ------------------------------------------
+         The archive going to ground colour and the interior coming up out of it are the
+         same event seen from two sides. Two timelines here is how they drift apart into
+         a visible seam, so there is one: `flight.k`, the tween the camera is already on.
+
+         The archive leads. It is most of the way out by the time the interior's opaque
+         cubes start drawing, which is what keeps them from ever being seen punching a
+         hole through a body that is still lit. `APPEAR_IN` is imported rather than
+         copied for exactly that reason - the two ends of a crossfade tuned in separate
+         files stop overlapping the first time one of them is touched. */
+      const inside = heldIndex !== -1 ? flight.k : 0;
+      const dissolve = smoothstep(0.2, APPEAR_IN + 0.26, inside);
+      vitMat.uniforms.uDissolve!.value = dissolve;
+      (floor.material as ShaderMaterial).uniforms.uDissolve!.value = dissolve;
+      interior.setProgress(inside);
+      airInner.copy(AIR_LIVE).lerp(AIR_DEAD, heldDead ? dissolve : 0);
+      /* The motes go with the field. This layer is a sphere centred on the middle of the
+         wide shot, and the camera now ENDS inside it - eight hundred additive points at
+         close range read as fog on the lens rather than as depth, and only for the cases
+         whose body happens to sit near the cloud's centre. The interior carries its own,
+         placed ahead of the camera instead of around it. */
+      (motes.material as ShaderMaterial).uniforms.uFade!.value = 1 - dissolve;
 
       // Lateral dolly with a slow push-in. Travelling ACROSS the field rather than into
       // it is what keeps the archive feeling wider than the frame.
@@ -559,17 +655,41 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       if (heldIndex !== -1 && flight.k > 0.001) {
         const k = flight.k;
         /* INSIDE, not in front of. The eye ends at the body's own centre, keeping a
-           twentieth of the sweep's width so the interior is still alive, and the aim
-           goes straight out through the far wall - so what you see from in there is the
-           panelling wrapped around you and the rest of the archive through it. */
+           twentieth of the sweep's width so the shot is still alive on arrival.
+
+           THE AIM IS WHAT CHANGED. It used to go straight out through the far wall,
+           because what was in there was the far wall. It now looks DOWN and much further
+           out - the eye sits `GROUND_DROP` above the interior's ground with blocks
+           rising to about eye height, so the shot is across the tops of a plain rather
+           than level at a surface. A lateral term on the aim as well as the eye, because
+           a camera that only slides keeps a fixed heading and reads as a dolly on rails;
+           turning slightly as it drifts is what makes the plain feel wider than the
+           frame. */
         eye.lerp(_tmpEye.set(held.x + Math.sin(t * 0.045) * 0.45, held.y, held.z), k);
-        aim.lerp(_tmpAim.set(held.x, held.y - 0.4, held.z - 14), k);
+        aim.lerp(
+          _tmpAim.set(held.x + Math.sin(t * 0.031) * 1.6, held.y - 4.2, held.z - 22),
+          k,
+        );
 
         /* The wall thins as it is entered rather than on arrival. Approaching a solid
            box that turns translucent at the last moment reads as the box giving up;
            thinning the whole way in reads as the camera passing into something. Never
-           to zero - at zero there is nothing to have gone inside of. */
-        ghostMat.uniforms.uAlpha!.value = 1 - 0.74 * k;
+           to zero - at zero there is nothing to have gone inside of.
+
+           TO A FORTIETH, from the old 0.26, and the number is small because of where the
+           camera is rather than because the wall is unimportant. From inside, this box
+           covers the ENTIRE viewport - so its alpha is not the opacity of an object in
+           the frame, it is a tint over every pixel of the frame. At a tenth it laid a
+           flat blue veil across the whole interior and lifted the empty sky above the
+           plain to the same value as the plain itself, which read as haze and cost the
+           scene all of its contrast. It also only did it to USABLE cases: a refused body
+           draws the dark branch of the same shader, so the veil was blue for some cases
+           and invisible for others.
+
+           What is wanted at the end is a trace that says you are standing in something,
+           and a trace is worth about a fortieth. The wall still does its real work on
+           the way in, where it is a surface being approached rather than a filter. */
+        ghostMat.uniforms.uAlpha!.value = 1 - 0.975 * k;
       }
 
       camera.position.copy(eye);
@@ -584,6 +704,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       gsap.killTweensOf(flight);
       box.dispose(); vitMat.dispose(); vitrines.dispose();
       ghostBox.dispose(); ghostMat.dispose(); ghost.dispose();
+      interior.dispose();
       floor.geometry.dispose(); (floor.material as ShaderMaterial).dispose();
       air.geometry.dispose(); (air.material as ShaderMaterial).dispose();
       motes.geometry.dispose(); (motes.material as ShaderMaterial).dispose();
