@@ -11,8 +11,17 @@ import { chromium } from "playwright";
 import { mkdirSync } from "node:fs";
 
 const OUT = process.argv[2] ?? "shots";
-const URL = "http://127.0.0.1:5180/";
-const STATES = ["landing", "dashboard", "new", "library", "ask", "record"];
+// OVERRIDABLE, because this attaches to a server it does not start. A probe pointed at
+// whichever dev server happens to hold 5180 will happily shoot somebody else's checkout
+// and report "no console errors" about code that was never loaded - which is what it did
+// when this scene set gained a seventh state and the port was already taken.
+const URL = process.env["ATMOSPHERE_URL"] ?? "http://127.0.0.1:5180/";
+// A SECOND COPY of the list in scenes/registry.ts, and it silently skipped "read" when
+// that scene was added - the probe reported "no console errors" for a scene it had never
+// mounted, which is worse than reporting nothing. Kept as a literal because this is a
+// plain .mjs script outside the TS build and importing STATE_IDS would mean compiling
+// the package to run the probe. Add new scenes here too; the ordering must match.
+const STATES = ["landing", "dashboard", "read", "new", "library", "ask", "record"];
 
 mkdirSync(OUT, { recursive: true });
 

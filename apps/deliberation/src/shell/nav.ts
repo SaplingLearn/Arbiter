@@ -54,11 +54,23 @@ export const NAV: NavItem[] = [
  */
 export function sceneFor(route: Route): string {
   if (route.name === "record") return "record";
+  // READING STANDS IN ITS OWN SCENE, and it is the one case route that does not stay in
+  // the Archive. The argument above for sending case routes there is that the Archive
+  // draws the case as a body you go inside; that holds while the subject is the case
+  // among its neighbours. On the reading surface the subject is narrower than the case -
+  // it is one document, and one passage of it - and Section is the environment for
+  // exactly that: a volume with a focal plane moving through it. A field of vitrines
+  // behind somebody reading page 112 is the case's neighbourhood answering a question
+  // about a paragraph.
+  if (route.name === "read") return "read";
   if (route.name === "case" || route.name === "position" || route.name === "reveal") {
     return "library";
   }
   return NAV.find((n) => n.to.name === route.name)?.scene ?? "dashboard";
 }
+
+/** Rail entry by scene id, so inserting a NAV entry cannot silently repoint another. */
+const navByScene = (scene: string): NavItem | undefined => NAV.find((n) => n.scene === scene);
 
 /**
  * HOW EACH ARRIVAL LOOKS.
@@ -71,6 +83,7 @@ export function sceneFor(route: Route): string {
  *   dashboard  wide horizontal bands, unhurried — opening onto a field
  *   new        few, vertical, quick — a structure standing up out of nothing
  *   library    many fine horizontal bands — shelves, riffled through
+ *   read       few wide horizontal bands, slow — a plane settling onto a page
  *   ask        thin vertical bands, fastest of the set — a thought firing
  *   record     three heavy bands, slowest of the set — something closing
  *
@@ -82,6 +95,7 @@ export function transitionFor(scene: string): { duration: number; bands: number;
   switch (scene) {
     case "new": return { duration: 1.0, bands: 5, axis: "y" };
     case "library": return { duration: 1.45, bands: 18, axis: "x" };
+    case "read": return { duration: 1.6, bands: 6, axis: "x" };
     case "ask": return { duration: 0.85, bands: 26, axis: "y" };
     case "record": return { duration: 1.8, bands: 3, axis: "x" };
     default: return { duration: 1.35, bands: 9, axis: "x" };
@@ -98,11 +112,20 @@ export function transitionFor(scene: string): { duration: number; bands: number;
  * way round: DASHBOARD over a field of cubes, with the codename naming the wrong world.
  */
 export function currentNav(route: Route): NavItem | undefined {
-  if (route.name === "cases") return NAV[2];
+  // BY SCENE, NOT BY INDEX. These were NAV[2] and NAV[0] until a sixth entry was
+  // inserted second, which moved Library from 2 to 3 and would have lit the wrong rail
+  // entry everywhere a case is open - silently, because an index that still resolves
+  // does not throw. The lookup is the same decision the file's opening note makes about
+  // the rail and the backdrop: name the thing, do not count to it.
+  if (route.name === "cases") return navByScene("library");
   const direct = NAV.find((n) => n.to.name === route.name);
   if (direct !== undefined) return direct;
+  // Reading has no rail entry of its own yet - there is no top-level route to give one,
+  // since `read` needs a caseId and a menu entry has none. It lights the Library, which
+  // is where the case it belongs to lives.
+  if (route.name === "read") return navByScene("library");
   if (route.name === "case" || route.name === "position" || route.name === "reveal") {
-    return NAV[2];
+    return navByScene("library");
   }
-  return NAV[0];
+  return navByScene("dashboard");
 }

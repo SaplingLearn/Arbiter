@@ -27,4 +27,5 @@ export { createCulture } from "./scenes/culture.js";
 export { createGenesis } from "./scenes/genesis.js";
 export { createHelix } from "./scenes/helix.js";
 export { createMonolith } from "./scenes/monolith.js";
+export { createSection } from "./scenes/section.js";
 export { createSynapse } from "./scenes/synapse.js";

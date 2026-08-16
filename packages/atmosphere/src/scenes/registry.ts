@@ -3,6 +3,7 @@ import { createCulture } from "./culture.js";
 import { createGenesis } from "./genesis.js";
 import { createHelix } from "./helix.js";
 import { createMonolith } from "./monolith.js";
+import { createSection } from "./section.js";
 import { createSynapse } from "./synapse.js";
 import type { SceneFactory } from "../core/types.js";
 
@@ -20,7 +21,8 @@ export interface StateDef {
 }
 
 /**
- * The five states, in product order.
+ * The states, in product order. Deliberately not counted here — the number has been
+ * wrong twice already, once when Method went and once when Read arrived.
  *
  * Order is the order of the tab strip, not a narrative order — but it happens to run
  * wide → tight → wide → flowing → vertical, which gives the set the same shape-variety
@@ -46,6 +48,23 @@ export const STATES: StateDef[] = [
     headline: ["EVERY CASE", "IN ONE FIELD"],
     lede: "Cases you are named on, ordered by what they need from you.",
     factory: createCulture,
+  },
+  {
+    // Second, because Read & mark sits second in the case strip and the rail should
+    // agree with the product about where reading happens.
+    //
+    // ADJACENT TO CULTURE, which the note above says to check: two wide fields back to
+    // back is the thing to avoid. These are both wide and they are not the same
+    // composition. Culture is a plane read ACROSS - colonies spread laterally, all of
+    // them legible at once. Section is a volume read THROUGH, where the axis is depth
+    // and almost everything is out of focus at any moment. One is a map, the other is a
+    // pass. The variety survives.
+    id: "read",
+    label: "Read",
+    codename: "Section",
+    headline: ["THE FEW LINES", "THAT DECIDE IT"],
+    lede: "Go through the documents. What extraction already found is lit.",
+    factory: createSection,
   },
   {
     id: "new",
