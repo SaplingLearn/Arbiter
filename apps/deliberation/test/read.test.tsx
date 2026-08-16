@@ -763,6 +763,30 @@ describe("the viewer's marks and attribution", () => {
     expect(screen.queryByText(/sealed until/i)).not.toBeInTheDocument();
   });
 
+  /**
+   * The silent case, and the one that actually reached a reader: a finding that names
+   * a page but no passage renders an unmarked page, which looks exactly like a
+   * highlighter that has stopped working.
+   */
+  it("says a finding recorded no passage rather than leaving the page silently unmarked", async () => {
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
+    // One per unquoted finding, naming its own page - g1 cites 88 and g2 cites 141,
+    // and a single shared notice would leave a reader guessing which is unmarked.
+    const said = await screen.findAllByText(/No passage recorded/i);
+    expect(said).toHaveLength(2);
+    expect(said.map((p) => p.textContent)).toEqual([
+      expect.stringContaining("page 88"),
+      expect.stringContaining("page 141"),
+    ]);
+    expect(marks()).toHaveLength(0);
+  });
+
+  it("says nothing of the sort when the finding does carry a passage", async () => {
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={QUOTED} />);
+    await waitFor(() => { expect(marks().length).toBeGreaterThan(0); });
+    expect(screen.queryByText(/No passage recorded/i)).not.toBeInTheDocument();
+  });
+
   it("says so when a revealed case simply has no citation for a finding", async () => {
     render(
       <Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={QUOTED}

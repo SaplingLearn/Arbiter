@@ -85,6 +85,42 @@ const SOURCES = [
   },
 ];
 
+/**
+ * Findings that carry the passage they were read off, so the reader has something to
+ * MARK rather than only a page number to point at.
+ *
+ * Every quote below is lifted verbatim from the page it names - checked by running
+ * the matcher against the real file, not by eye. That is not decoration: the viewer
+ * matches exactly, so a quote with a word retyped marks nothing and says so, and a
+ * seeded demo whose highlights all fail is worse than one with no highlights.
+ *
+ * Applied only to OPEN cases. A closed case's findings live in the hash-chained log
+ * behind `case_opened`, and the Record stage checks that chain - editing it to slip a
+ * quote in would forge exactly the evidence the product exists to make checkable.
+ */
+const FINDINGS = [
+  {
+    caseId: "case_298194277",
+    id: "repeat-dose-mortality-6-month-rat",
+    label: "Unscheduled deaths in the 6-month rat study",
+    assertion: "toxic",
+    detail: "Eleven unscheduled deaths in the 6-month rat toxicity study; no mortality in the other repeat-dose studies.",
+    file: "sotyktu-epar-assessment.pdf",
+    sourcePage: 37,
+    sourceQuote: "No mortality in the repeat-dose toxicity studies were observed, except in the 6-month rat toxicity study where 11 unscheduled deaths occurred.",
+  },
+  {
+    caseId: "case_298194277",
+    id: "hepatobiliary-effects-raised-at-chmp-request",
+    label: "Heart, liver and kidney effects raised at CHMP request",
+    assertion: "ambiguous",
+    detail: "Adverse effects on heart, liver and kidneys in the rat and monkey toxicology studies; discussed and ruled out for imputability, with MACE followed up post-marketing.",
+    file: "sotyktu-epar-assessment.pdf",
+    sourcePage: 37,
+    sourceQuote: "Some concerns were raised on adverse effects on heart, liver and kidneys which occurred during the toxicology studies in rats and monkeys.",
+  },
+];
+
 /** The ones a person has to fetch by hand, and exactly where from. */
 const MANUAL = [
   ["turalio-211810-multidiscipline.pdf", "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2019/211810Orig1s000MultidisciplineR.pdf"],
@@ -174,6 +210,40 @@ for (const s of ready) {
   // A second run re-posting the same bytes is answered with the document already
   // stored rather than a duplicate, so this script is safe to run twice.
   console.log(`uploaded ${s.uploadAs} -> ${s.label}${out.duplicateOf === null ? "" : " (already stored)"}`);
+}
+
+// ---- findings, with the passage they were read off -------------------------------
+
+/** Which document id each seeded file ended up with, so a finding can point at it. */
+const idOf = new Map();
+for (const s of ready) {
+  const list = await (await fetch(`${API}/api/cases/${s.caseId}/documents`, {
+    headers: { authorization: `Bearer ${token}` },
+  })).json();
+  for (const d of list) idOf.set(d.filename, { id: d.id, caseId: s.caseId });
+}
+
+console.log("");
+for (const f of FINDINGS) {
+  const doc = [...idOf.values()].find((d) => d.caseId === f.caseId);
+  if (doc === undefined) { console.log(`skipped  ${f.id} - its document is not on the case`); continue; }
+
+  const res = await fetch(`${API}/api/cases/${f.caseId}/findings`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      id: f.id, label: f.label, assertion: f.assertion, detail: f.detail,
+      sourceDocumentId: doc.id, sourcePage: f.sourcePage, sourceQuote: f.sourceQuote,
+      covers: [],
+    }),
+  });
+  if (res.status === 201) { console.log(`finding  ${f.id} -> p.${f.sourcePage}, quoted`); continue; }
+
+  const out = await res.json();
+  // A closed case and an already-seeded one are both expected on a re-run, and
+  // neither is a failure worth a non-zero exit - but they are named, because a
+  // silently skipped finding is a highlight that never appears.
+  console.log(`skipped  ${f.id} [${res.status}] ${out.detail ?? out.error ?? ""}`);
 }
 
 console.log("");

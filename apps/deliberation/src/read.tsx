@@ -631,6 +631,19 @@ function PdfView({ caseId, token, document: doc, page, highlights, unresolved, c
                   <span className="pip">p.{f.sourcePage}</span> {f.label}
                 </a>
                 {/*
+                  A CITATION WITH NO PASSAGE SAYS SO. Findings written before a quote
+                  was recordable - and any written since without one - point at a page
+                  and nothing finer, so the page renders unmarked. Left silent, that is
+                  indistinguishable from a highlighter that is broken, which is the
+                  same confusion the not-found message downstairs exists to prevent;
+                  covering one case and not the other just moved the ambiguity.
+                */}
+                {(f.sourceQuote ?? "").trim() === "" && (
+                  <p className="no-quote">
+                    No passage recorded, so nothing is marked on page {f.sourcePage}.
+                  </p>
+                )}
+                {/*
                   WHO USED THIS, AND FOR WHAT - once the case is open, and not one
                   moment before. `citers` returns nothing while `positions` is null,
                   which is the state the server puts the client in for the whole blind
