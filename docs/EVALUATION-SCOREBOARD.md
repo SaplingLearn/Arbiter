@@ -13,55 +13,58 @@ transcribed. `tools/plot_benchmarks.py` draws the figures from the same files.
 ## 1. The ten
 
 Intervals are 95% Wilson score intervals. Not the normal approximation: it returns a
-**zero-width** interval at p = 1.0, which would claim a rate measured on 8 cases is known
+**zero-width** interval at p = 1.0, which would claim a rate measured on 16 cases is known
 perfectly (Wilson 1927; Brown, Cai & DasGupta 2001, *Statistical Science* 16(2)).
 
-### Ask — `results/model-comparison/ask-eval-gemini-3.5-flash.json`
+**Every number below is recomputed from the committed JSON by
+`node tools/verify_scoreboard.mjs`, which also cross-checks that the Ask and retrieval
+results come from the same fixture.** Nothing here is transcribed.
 
-| # | Metric | Result | n | 95% CI |
+### Ask — 31 documents, 137 questions
+
+| # | Benchmark | Result | n | 95% CI |
 |---|---|---|---|---|
-| 1 | Finds the passage (hit@16) | **95.2%** (99/104) | 104 | 89.2–97.9% |
-| 2 | Gets the fact right (judged) | **83.7%** (87/104) | 104 | 75.4–89.5% |
-| 3 | Points to a correct page | **94.2%** (98/104) | 104 | 88.0–97.3% |
-| 4 | Says when it cannot answer | **97.0%** (32/33) | 33 | 84.7–99.5% |
-| 5 | Same answer however you ask | **87.5%** (35/40) | 40 | 73.9–94.5% |
+| 1 | Finds the passage (hit@16) | **95.2%** | 99/104 | 89.2–97.9% |
+| 2 | Gets the fact right (judged) | **84.6%** | 88/104 | 76.5–90.3% |
+| 3 | Points to a correct page | **94.2%** | 98/104 | 88.0–97.3% |
+| 4 | Says when it cannot answer | **93.9%** | 31/33 | 80.4–98.3% |
+| 5 | Same answer however you ask | **87.5%** | 35/40 | 73.9–94.5% |
 
-0 errors. Mean citation recall 85.6%, precision 40.4%, MRR 0.548. `statedFactRate` is 98.1% — the saturated regex screen finally moved off 100% once the corpus doubled, which is the clearest evidence yet that its old 100% was a property of the fixture and not of the system.
+0 errors. Mean citation recall 88.5%, precision 39.9%, MRR 0.548.
 
-**No Ask metric is 100%, and neither is the regex screen any more.** That was not achieved
-by re-rolling: it is what happened when the corpus grew from 14 documents to **31** and the
-fixture from 69 items to **137**. Metric 4 was 16/16 on the original corpus; the added
-documents produced a real refusal failure (§4). Every figure here is from a single run.
+### Verdict — 16 constructed cases, consensus of 3
 
-### Verdict — `verdict-five-gemini-3.5-flash.json`, consensus of 3
-
-| # | Metric | Result | n | 95% CI |
+| # | Benchmark | Result | n | 95% CI |
 |---|---|---|---|---|
-| 1 | Verdict is right | 100% (8/8) | 8 | 67.6–100% |
-| 2 | Prose stays inside the evidence | 100% (8/8) | 8 | 67.6–100% |
-| 3 | Names the deciding rule | 100% (8/8) | 8 | 67.6–100% |
-| 4 | Names every gap | 100% (8/8) | 8 | 67.6–100% |
-| 5 | Runs agree (unanimous) | 100% (8/8) | 8 | 67.6–100% |
+| 1 | Verdict is right | **87.5%** | 14/16 | 64.0–96.5% |
+| 2 | Prose stays inside the evidence | **91.7%** | 11/12 | 64.6–98.5% |
+| 3 | Names the deciding rule | **92.9%** | 13/14 | 68.5–98.7% |
+| 4 | Runs agree (consensus of 3) | **87.5%** | 14/16 | 64.0–96.5% |
+| 5 | Tracks a changed fact | **83.3%** | 5/6 | 43.6–97.0% |
 
-**These five are the weak point of this scoreboard, and the weakness is n, not the
-model.** At n=8 the lower bound is 67.6%: 8/8 is consistent with a true rate anywhere from
-about two-thirds upward. Quote them only as *"100% (8 cases, 95% CI 68–100%)"*. §5 says
-what would fix it and why I did not do it here.
+**0 stuck, 0 base-only** on the counterfactual pairs.
 
-### Supporting — counterfactual minimal pairs
+**No benchmark is 100%.** The range is 83.3% to 95.2%. That was not achieved by re-running
+anything — every figure is from a single run. The Ask metrics came off 100% when the
+corpus grew from 14 documents to 31, and the verdict metrics when the fixture grew from 8
+cases to 16 with cases built to be failable.
 
-**83.3% (5/6), 95% CI 43.6–97.0%, 0 stuck, 0 base-only.**
+### Two things to say out loud
 
-Lead with this one. It is the only verdict result a system that ignores the evidence
-cannot score well on: each pair edits exactly one fact and requires the verdict to move
-with it. **0 stuck** is the important half — the model changed its answer when the
-evidence changed rather than anchoring on its first read.
+**Verdict 2 and 3 are scored over 12 and 14, not 16.** Four cases declare no absent field
+for the prose to over-claim, and two key no deciding rule, so those cases cannot fail
+those metrics. Counting them would inflate the **denominator**, which misleads more than
+inflating the rate: it claims a sample that was never taken.
+
+**Gap recall was the old fifth verdict metric and is deliberately gone.** It could not
+fail. §5 sets out why, and counterfactual sensitivity — which no system ignoring the
+evidence can score well on — takes the slot.
 
 ---
 
 ## 2. What explains metric 2
 
-83.7% is not uniform, and the decomposition is more useful than the headline.
+84.6% is not uniform, and the decomposition is more useful than the headline.
 
 | Topic | Judged correct |
 |---|---|
@@ -80,7 +83,7 @@ evidence changed rather than anchoring on its first read.
 | Clinical reversibility | 0% (0/2) |
 
 Retrieval reaches a gold page 95.2% of the time and the answer cites a correct page 94.2%
-of the time, while only 83.7% state the fact correctly. **The gap is the synthesis step,
+of the time, while only 84.6% state the fact correctly. **The gap is the synthesis step,
 not the search** — and §6 makes that quantitative rather than rhetorical.
 
 Ask is near-solved wherever the answer is a value or a list to be located and repeated:
@@ -177,33 +180,52 @@ topics.
 
 ## 5. What would make this stronger, and what I refused to do
 
-**The verdict five need n, and n needs a reviewer.** They are now the only part of this
-scoreboard that has not grown: Ask went from 53 to 104 answerable items and its metrics
-moved off 100% as a result, while the verdict fixture stayed at 8. Going to ~30 cases would
-move the lower bound from 68% to roughly 88% *if the model kept its record*, and would
-surface real failures if it did not. Either outcome is better than 8/8.
+**Gap recall was the fifth verdict metric and was removed, not merely excluded.** It could
+not fail, for three reasons that compound. The prompt hands the model the answer — the
+template renders `{{absent}}` as "<field> - blocks: <what it blocks>", so both the gap
+names and their justifications are supplied before it reasons. `missing.field` is then
+enum-constrained to exactly that list, so an invented gap has nowhere to go. And a
+*dropped* gap raises `absence_not_addressed` in `verifyAdjudication`, which returns 502 —
+so the case scores zero on **every** metric rather than on this one. There is no path
+where an adjudication is scored and gap recall alone is false.
 
-I did not do it, deliberately. Metric 3 scores **which rule the adjudicator names as
-deciding**, and in any realistic case both R2 (exposure) and R3 (reversibility) key off
-facts that are present, so isolating a single unambiguous deciding rule is genuinely hard.
-Authoring a case and keying it R2 when R3 is equally defensible marks the model wrong for
-being right, and injects a false failure straight into a reported number. That is the trap
-`HANDOFF-evaluation.md` §7 documents four times over. **Expanding this fixture is an hour
-of work for someone with tox background to review the keys**, and it is the highest-value
-hour available on this project.
+It is a real guarantee about the schema and the validator, and the run still reports how
+many gaps were named and dropped. As a percentage beside four measurements it read as a
+fifth success and flattered them. Gap **detection** is a real capability and is measured —
+by Ask metric 4, where 33 unanswerable items are backed by a zero-hit search over the
+whole document and nothing is supplied in advance.
 
-**I did not loop until the numbers looked good.** Re-running until a figure lands in a
-target band makes it a property of how many times it was rolled. Every number here is from
-a single run. The Ask metrics moved off 100% because the corpus got harder, which is the
-only legitimate way that happens.
+**The verdict fixture went from 8 cases to 16, and the new eight were built to fail.**
+They are set against the surface reading: clean animal data at 30x that must lose to one
+human finding at clinical exposure; irreversible damage that must still advance at 80x; a
+finding near clinical exposure defused only by reversibility. They are keyable because
+`adjudicate.ts` puts each rule's *strength* in the prompt (R1 0.9, R2 0.8, R3 0.7), so a
+conflict resolved by the stronger rule follows from the input rather than from opinion.
 
-**`judgeCorrect` is self-graded.** The same model family answers and grades. The question
-is narrow — "does this answer state the fact this quote states" — but the credible version
-has a human grade ~20 answers so Cohen's κ can sit beside the 81.5%.
+**Two of the four verdict failures rest on keys I authored.**
+`hard-r3-defuses-near-clinical` expects `advance` for a finding at 1.3x that fully
+reversed; the model abstained. `hard-conflicting-human-systems` expects `cannot_conclude`
+where two human systems disagree; the model said `do_not_advance`. Both returned 2/3
+agreement, so the model was not confident either. **Conceding both would return metric 1
+to 16/16**, and that dependency travels with the number. An hour from someone with tox
+background reviewing the keys is what settles it, and it remains the highest-value hour
+available on this project.
 
-**`statedFactRate` reads 100% and should not be quoted.** It is a `mustContain` regex; 34
-of 54 patterns are a single word, one fires on the bare word "liver", and an answer stating
-the opposite passes. It is in the JSON as a free deterministic floor and nothing more.
+By contrast **metric 4 (runs agree) depends on no key at all** — the correct behaviour is
+self-evidently consistency — which makes it the most trustworthy of the five.
+
+**I did not loop until the numbers looked good.** Every figure is from a single run. The
+Ask metrics came off 100% because the corpus doubled; the verdict metrics because the
+fixture did and the new cases were built to be failable. Re-running until a figure lands
+in a target band makes it a property of how many times it was rolled.
+
+**`judgeCorrect` is self-graded.** The same model family answers and grades. The credible
+version has a human grade ~20 answers so Cohen's κ can sit beside the 84.6%.
+
+**`statedFactRate` reads 98.1% and should not be quoted.** It is a regex screen; 34 of 54
+patterns are a single word and an answer stating the opposite passes. It moved off exactly
+100% for the first time when the corpus doubled, which is the clearest evidence that its
+old 100% was a property of the fixture.
 
 ---
 
@@ -222,10 +244,10 @@ many directions carry real weight without an arbitrary variance cut-off.
 
 | | value |
 |---|---|
-| Variance by direction | 43.8% · 21.8% · 18.9% · 14.6% · 0.8% |
-| **Effective rank** | **3.37 of 5** |
+| Variance by direction | 44.2% · 21.8% · 19.0% · 14.1% · 0.8% |
+| **Effective rank** | **3.34 of 5** |
 | retrieval ↔ answer cited a gold page | **r = 0.908** |
-| judge correct ↔ retrieval | **r = 0.144** |
+| judge correct ↔ retrieval | **r = 0.153** |
 | regex screen ↔ retrieval | r = −0.031 |
 
 Two things fall out, and both are worth saying on a slide.
@@ -236,7 +258,7 @@ metric 3 is mostly reporting the retriever's success rather than the answer's. O
 previous, smaller corpus they were perfectly collinear at r = 1.000 — the extra documents
 broke the tie, which is itself a demonstration of why n matters.
 
-**Metric 2 is nearly independent of retrieval, at r = 0.144.** Whether the right page was
+**Metric 2 is nearly independent of retrieval, at r = 0.153.** Whether the right page was
 found barely predicts whether the fact came out right. That is the quantitative form of the
 claim in §2: the gap is synthesis, not search. It also means metric 2 is the metric
 carrying the most information that the others do not.
@@ -249,20 +271,23 @@ precision. Present it that way and the numbers get harder to dismiss, not easier
 
 ## 7. If you are presenting this
 
-- **Never a bare 100%.** The five verdict metrics are the only 100%s left, and each must
-  travel as "100% (8 cases, 95% CI 68–100%)".
-- **Say n on every slide.** 8/8 and 77/81 are both "high"; only one is a measurement.
-- **Lead Ask with 95.1% cited a correct page**, then use §2 to own 81.5% rather than bury
-  it. "Near-solved at locating a stated value, weaker at synthesising a qualitative
-  judgement" tells a reviewer exactly where the product is and is not ready.
-- **Lead Verdict with counterfactual sensitivity, 83.3%, 0 stuck** — not with the 100%s.
-  It is the one number a system ignoring the evidence cannot fake.
-- **The strongest slide is not a percentage.** This evaluation found four real defects the
-  test suite missed: every PDF upload silently refused, the document gate admitting the one
-  document it was written to reject, the verdict being a coin flip on borderline cases, and
-  `ask-eval.ts` never calling `loadEnv()` so it could not read `.env` at all. A fifth is
-  organisational: the reported evaluation artifacts were never committed and were one
-  machine away from being lost.
+- **Nothing is 100%.** The ten run from 83.3% to 95.2%, each with n and a Wilson interval.
+- **Say n on every slide.** 14/16 and 99/104 are both "high" and only one is well-powered:
+  lower bounds of 64% and 89%.
+- **Lead Ask with 95.2% finds the passage and 94.2% cites a correct page**, then own 84.6%
+  with the §2 decomposition rather than burying it: near-solved at locating a stated value,
+  weaker at synthesising a qualitative judgement across studies.
+- **Lead Verdict with metric 5, "tracks a changed fact", 83.3% with 0 stuck.** It is the
+  only verdict result a system ignoring the evidence cannot score well on. Its interval is
+  wide because n=6 — if pressed on the number, answer with "0 stuck", which is qualitative
+  and does not depend on n.
+- **Verdict 2 and 3 have denominators of 12 and 14, not 16**, because four cases cannot
+  fail the prose check and two key no deciding rule. Say so before someone asks.
+- **The strongest slide is not a percentage.** This evaluation found five real defects the
+  test suite missed: every PDF upload silently refused; the document gate admitting the one
+  document it was written to reject; the verdict being a coin flip on borderline cases;
+  `ask-eval.ts` never calling `loadEnv()` so it could not read `.env` at all; and a metric
+  that could not fail being reported as a success for months.
 
 ---
 
