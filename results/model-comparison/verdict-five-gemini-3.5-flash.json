@@ -3,15 +3,15 @@
   "cases": 16,
   "runs": 3,
   "score": {
-    "verdict": 16,
-    "prose": 12,
-    "rule": 12,
+    "verdict": 14,
+    "prose": 11,
+    "rule": 13,
     "gaps": 12,
-    "stable": 16
+    "stable": 14
   },
   "tested": {
     "prose": 12,
-    "rule": 12,
+    "rule": 14,
     "gaps": 12
   },
   "rows": [
@@ -152,7 +152,7 @@
       "agreement": 1
     },
     {
-      "id": "conflict-human-beats-animal-b",
+      "id": "hard-r1-outweighs-clean-animal",
       "verdict": true,
       "prose": true,
       "rule": true,
@@ -169,7 +169,7 @@
       "agreement": 1
     },
     {
-      "id": "conflict-exposure-defuses-it-b",
+      "id": "hard-r2-defuses-irreversible",
       "verdict": true,
       "prose": true,
       "rule": true,
@@ -186,44 +186,27 @@
       "agreement": 1
     },
     {
-      "id": "conflict-unresolvable-b",
-      "verdict": true,
+      "id": "hard-r3-defuses-near-clinical",
+      "verdict": false,
       "prose": true,
       "rule": true,
       "gaps": true,
-      "stable": true,
+      "stable": false,
       "testsProse": true,
       "testsRule": true,
       "testsGaps": true,
       "got": "cannot_conclude",
-      "want": "cannot_conclude",
+      "want": "advance",
       "violations": [],
       "missedGaps": [],
-      "ruleGot": "does_not_apply",
-      "agreement": 1
+      "ruleGot": "applies",
+      "agreement": 0.6666666666666666
     },
     {
-      "id": "gap-no-margin-b",
+      "id": "hard-r2-no-relief-at-two-fold",
       "verdict": true,
-      "prose": true,
-      "rule": true,
-      "gaps": true,
-      "stable": true,
-      "testsProse": true,
-      "testsRule": true,
-      "testsGaps": true,
-      "got": "cannot_conclude",
-      "want": "cannot_conclude",
-      "violations": [],
-      "missedGaps": [],
-      "ruleGot": "cannot_determine",
-      "agreement": 1
-    },
-    {
-      "id": "gap-reversibility-unknown-b",
-      "verdict": true,
-      "prose": true,
-      "rule": true,
+      "prose": false,
+      "rule": false,
       "gaps": true,
       "stable": true,
       "testsProse": true,
@@ -231,30 +214,15 @@
       "testsGaps": true,
       "got": "do_not_advance",
       "want": "do_not_advance",
-      "violations": [],
+      "violations": [
+        "Intended dosing duration"
+      ],
       "missedGaps": [],
-      "ruleGot": "cannot_determine",
+      "ruleGot": "applies",
       "agreement": 1
     },
     {
-      "id": "gap-consequence-half-empty-b",
-      "verdict": true,
-      "prose": true,
-      "rule": true,
-      "gaps": true,
-      "stable": true,
-      "testsProse": true,
-      "testsRule": false,
-      "testsGaps": true,
-      "got": "cannot_conclude",
-      "want": "cannot_conclude",
-      "violations": [],
-      "missedGaps": [],
-      "ruleGot": null,
-      "agreement": 1
-    },
-    {
-      "id": "clean-complete-package-b",
+      "id": "hard-r1-human-clears-animal",
       "verdict": true,
       "prose": true,
       "rule": true,
@@ -267,25 +235,59 @@
       "want": "advance",
       "violations": [],
       "missedGaps": [],
-      "ruleGot": "does_not_apply",
+      "ruleGot": "applies",
       "agreement": 1
     },
     {
-      "id": "out-of-domain-prediction-b",
+      "id": "hard-r3-persistence-holds",
       "verdict": true,
       "prose": true,
       "rule": true,
       "gaps": true,
       "stable": true,
       "testsProse": true,
-      "testsRule": false,
+      "testsRule": true,
+      "testsGaps": true,
+      "got": "do_not_advance",
+      "want": "do_not_advance",
+      "violations": [],
+      "missedGaps": [],
+      "ruleGot": "applies",
+      "agreement": 1
+    },
+    {
+      "id": "hard-two-gaps-block-the-call",
+      "verdict": true,
+      "prose": true,
+      "rule": true,
+      "gaps": true,
+      "stable": true,
+      "testsProse": true,
+      "testsRule": true,
       "testsGaps": true,
       "got": "cannot_conclude",
       "want": "cannot_conclude",
       "violations": [],
       "missedGaps": [],
-      "ruleGot": null,
+      "ruleGot": "cannot_determine",
       "agreement": 1
+    },
+    {
+      "id": "hard-conflicting-human-systems",
+      "verdict": false,
+      "prose": true,
+      "rule": true,
+      "gaps": true,
+      "stable": false,
+      "testsProse": true,
+      "testsRule": true,
+      "testsGaps": true,
+      "got": "do_not_advance",
+      "want": "cannot_conclude",
+      "violations": [],
+      "missedGaps": [],
+      "ruleGot": "does_not_apply",
+      "agreement": 0.6666666666666666
     }
   ]
 }
