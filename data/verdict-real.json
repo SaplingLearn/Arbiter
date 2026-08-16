@@ -1,0 +1,825 @@
+{
+  "_note": "REAL drugs, real quotes, real regulatory outcome. Companion to verdict-eval.json, which uses constructed cases to isolate one rule each. This one asks the opposite question: over packages nobody designed for a test, does the adjudicator flag hepatotoxicity where the label ultimately did?",
+  "_groundTruth": "The outcome is read from each drug's own review: a recommended BOXED WARNING for hepatotoxicity. One of thirteen has one (turalio), quoted under labelEvidence.",
+  "_theImbalance": "1 positive, 12 negatives, and it is structural rather than bad luck. These are APPROVAL packages, so every drug in them cleared the bar - survivorship bias by construction. An always-advance classifier scores 12/13 = 92.3% here, which is why this file reports sensitivity (n=1, a single observation, NOT a rate) and specificity separately and never averages them. Genuine negative outcomes exist - troglitazone was withdrawn for hepatotoxicity, tolcapone restricted - but the upload gate refuses both documents, so they cannot supply cases.",
+  "_findingsAreNotPreLabelled": "Every finding is asserted `ambiguous` and its detail is the verbatim quote with its page. Marking turalio's findings `toxic` would encode the answer in the input and score the model for reading my label back. `ambiguous` is a real value in the schema and means exactly this: here is what the document says, you decide what follows.",
+  "rules": [
+    {
+      "id": "R1",
+      "name": "Human relevance",
+      "statement": "Human-cell evidence defeats animal in vivo evidence when the question is human hepatotoxicity.",
+      "enabled": true,
+      "strength": 0.9
+    },
+    {
+      "id": "R2",
+      "name": "Exposure relevance",
+      "statement": "A finding at an exposure far above the projected human Cmax carries less weight than one at or near it.",
+      "enabled": true,
+      "strength": 0.8
+    },
+    {
+      "id": "R3",
+      "name": "Reversibility",
+      "statement": "Damage that reverses on withdrawal is weaker evidence of a safety concern than damage that persists.",
+      "enabled": true,
+      "strength": 0.7
+    }
+  ],
+  "cases": [
+    {
+      "id": "exkivity",
+      "drug": "exkivity",
+      "expectFlag": false,
+      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in exkivity's review.",
+      "compoundLabel": "exkivity",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "exkivity:reversibility:p60",
+          "label": "reversibility (from the review, p60)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from exkivity p60: \"toxicity of mobocertinib, the reversibility of effects, and exposures of mobocertinib and its 2 active\"",
+          "sourceDocument": "exkivity",
+          "sourcePage": 60
+        },
+        {
+          "id": "exkivity:reversibility:p61",
+          "label": "reversibility (from the review, p61)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from exkivity p61: \"effects were fully or partially reversible with a recovery period. The FDA\u2019s Assessment: In general, F\"",
+          "sourceDocument": "exkivity",
+          "sourcePage": 61
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        }
+      ]
+    },
+    {
+      "id": "inrebic",
+      "drug": "inrebic",
+      "expectFlag": false,
+      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in inrebic's review.",
+      "compoundLabel": "inrebic",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "inrebic:noael:p79",
+          "label": "noael (from the review, p79)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from inrebic p79: \"NOAEL for maternal toxicity and developmental toxicity in rats was 3 mg/kg\"",
+          "sourceDocument": "inrebic",
+          "sourcePage": 79
+        },
+        {
+          "id": "inrebic:noael:p83",
+          "label": "noael (from the review, p83)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from inrebic p83: \"NOAEL for F0 maternal toxicity is 30 mg/kg\"",
+          "sourceDocument": "inrebic",
+          "sourcePage": 83
+        },
+        {
+          "id": "inrebic:liver:p59",
+          "label": "liver (from the review, p59)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from inrebic p59: \"bilirubin corresponded with findings in the liver of centrilobular degeneration, congestion, and hematopoiesis; these ch\"",
+          "sourceDocument": "inrebic",
+          "sourcePage": 59
+        },
+        {
+          "id": "inrebic:reversibility:p60",
+          "label": "reversibility (from the review, p60)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from inrebic p60: \"recovery period of 4 weeks, microscopic findings were limited to minimal submucosal edema in the non\u2010glandular stomach i\"",
+          "sourceDocument": "inrebic",
+          "sourcePage": 60
+        },
+        {
+          "id": "inrebic:reversibility:p69",
+          "label": "reversibility (from the review, p69)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from inrebic p69: \"recovery period in rats Route of administration: Oral gavage Formulation/Vehicle: Aqueous solution of 0.5% methylcellulo\"",
+          "sourceDocument": "inrebic",
+          "sourcePage": 69
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Human-cell hepatotoxicity result",
+          "half": "mechanism"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "half": "consequence"
+        },
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        }
+      ]
+    },
+    {
+      "id": "krazati",
+      "drug": "krazati",
+      "expectFlag": false,
+      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in krazati's review.",
+      "compoundLabel": "krazati",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "krazati:noael:p61",
+          "label": "noael (from the review, p61)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from krazati p61: \"NOAEL) in the rat 28-day and 13-week studies was 150 mg/kg\"",
+          "sourceDocument": "krazati",
+          "sourcePage": 61
+        },
+        {
+          "id": "krazati:noael:p77",
+          "label": "noael (from the review, p77)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from krazati p77: \"NOAEL in rats was 90 mg/kg\"",
+          "sourceDocument": "krazati",
+          "sourcePage": 77
+        },
+        {
+          "id": "krazati:liver:p63",
+          "label": "liver (from the review, p63)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from krazati p63: \"liver to body weight ratios at \u2265 150 mg/kg\"",
+          "sourceDocument": "krazati",
+          "sourcePage": 63
+        },
+        {
+          "id": "krazati:liver:p64",
+          "label": "liver (from the review, p64)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from krazati p64: \"AST; and decreased albumin/globulin ratio. Organ Weight Increased organ weight (adrenal, kidney, liver, spleen) at 150 m\"",
+          "sourceDocument": "krazati",
+          "sourcePage": 64
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Human-cell hepatotoxicity result",
+          "half": "mechanism"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "half": "consequence"
+        }
+      ]
+    },
+    {
+      "id": "lumakras",
+      "drug": "lumakras",
+      "expectFlag": false,
+      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in lumakras's review.",
+      "compoundLabel": "lumakras",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "lumakras:liver:p66",
+          "label": "liver (from the review, p66)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p66: \"hepatocellular enzyme induction. No renal toxicity was identified in the dog. The HNSTD was 1000 mg/kg\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 66
+        },
+        {
+          "id": "lumakras:liver:p72",
+          "label": "liver (from the review, p72)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p72: \"liver, gall bladder, and thymus GLP compliance: Yes Methods Dose and frequency of dosing: 0, 100, and 500 mg/kg\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 72
+        },
+        {
+          "id": "lumakras:reversibility:p65",
+          "label": "reversibility (from the review, p65)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p65: \"recovery phase, there was partial recovery of sotorasib-related kidney changes at all dose levels accompanied with inter\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 65
+        },
+        {
+          "id": "lumakras:reversibility:p66",
+          "label": "reversibility (from the review, p66)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p66: \"Recovery Period / 150432 Key Study Findings x One high dose recovery cohort rat was euthanized on Day 126 due to poor cl\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 66
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Human-cell hepatotoxicity result",
+          "half": "mechanism"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "half": "consequence"
+        },
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        }
+      ]
+    },
+    {
+      "id": "nipocalimab",
+      "drug": "nipocalimab",
+      "expectFlag": false,
+      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in nipocalimab's review.",
+      "compoundLabel": "nipocalimab",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "nipocalimab:noael:p36",
+          "label": "noael (from the review, p36)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nipocalimab p36: \"NOAEL) was set at 306 mg/kg based on the absence of findings\"",
+          "sourceDocument": "nipocalimab",
+          "sourcePage": 36
+        },
+        {
+          "id": "nipocalimab:noael:p37",
+          "label": "noael (from the review, p37)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nipocalimab p37: \"NOAEL in the 26-week study was set by the applicant at the highest dose used in that study of 300 mg/kg/week\"",
+          "sourceDocument": "nipocalimab",
+          "sourcePage": 37
+        },
+        {
+          "id": "nipocalimab:reversibility:p36",
+          "label": "reversibility (from the review, p36)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nipocalimab p36: \"reversibility was evaluated for 9 and 8 weeks, respectively\"",
+          "sourceDocument": "nipocalimab",
+          "sourcePage": 36
+        },
+        {
+          "id": "nipocalimab:reversibility:p37",
+          "label": "reversibility (from the review, p37)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nipocalimab p37: \"recovery period, thus showing reversibility\"",
+          "sourceDocument": "nipocalimab",
+          "sourcePage": 37
+        },
+        {
+          "id": "nipocalimab:margins:p37",
+          "label": "margins (from the review, p37)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nipocalimab p37: \"safety margins, an AUC comparison of a two-week interval period was used\"",
+          "sourceDocument": "nipocalimab",
+          "sourcePage": 37
+        },
+        {
+          "id": "nipocalimab:margins:p42",
+          "label": "margins (from the review, p42)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nipocalimab p42: \"Safety margins were considered adequate as exposure values in cynomolgus monkeys\"",
+          "sourceDocument": "nipocalimab",
+          "sourcePage": 42
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        },
+        {
+          "field": "Projected human daily dose",
+          "half": "consequence"
+        }
+      ]
+    },
+    {
+      "id": "nubeqa",
+      "drug": "nubeqa",
+      "expectFlag": false,
+      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in nubeqa's review.",
+      "compoundLabel": "nubeqa",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "nubeqa:reversibility:p29",
+          "label": "reversibility (from the review, p29)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nubeqa p29: \"recovery period in rats and 8-week recovery period in dogs Darolutamide was clastogenic in an in vitro chromosome aberra\"",
+          "sourceDocument": "nubeqa",
+          "sourcePage": 29
+        },
+        {
+          "id": "nubeqa:reversibility:p30",
+          "label": "reversibility (from the review, p30)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nubeqa p30: \"recovery period but were reversible following an 8-week recovery period in dogs. Recommendations The nonclinical data su\"",
+          "sourceDocument": "nubeqa",
+          "sourcePage": 30
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        }
+      ]
+    },
+    {
+      "id": "orgovyx",
+      "drug": "orgovyx",
+      "expectFlag": false,
+      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in orgovyx's review.",
+      "compoundLabel": "orgovyx",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "orgovyx:noael:p54",
+          "label": "noael (from the review, p54)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from orgovyx p54: \"NOAEL for liver toxicity is considered to be 15 mg/kg\"",
+          "sourceDocument": "orgovyx",
+          "sourcePage": 54
+        },
+        {
+          "id": "orgovyx:noael:p55",
+          "label": "noael (from the review, p55)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from orgovyx p55: \"NOAEL (15 mg/kg\"",
+          "sourceDocument": "orgovyx",
+          "sourcePage": 55
+        },
+        {
+          "id": "orgovyx:liver:p33",
+          "label": "liver (from the review, p33)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from orgovyx p33: \"liver enzymes were also reported in rats at 2000 mg/kg\"",
+          "sourceDocument": "orgovyx",
+          "sourcePage": 33
+        },
+        {
+          "id": "orgovyx:liver:p48",
+          "label": "liver (from the review, p48)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from orgovyx p48: \"liver enzymes at 50 mg/kg\"",
+          "sourceDocument": "orgovyx",
+          "sourcePage": 48
+        },
+        {
+          "id": "orgovyx:reversibility:p33",
+          "label": "reversibility (from the review, p33)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from orgovyx p33: \"recovery phase. Monkeys were the most sensitive species and possibly reflect the most toxicologically relevant species b\"",
+          "sourceDocument": "orgovyx",
+          "sourcePage": 33
+        },
+        {
+          "id": "orgovyx:reversibility:p34",
+          "label": "reversibility (from the review, p34)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from orgovyx p34: \"toxicities in male reproductive organs but caused reversible cessation of menses in females starting on Day 13 of treatm\"",
+          "sourceDocument": "orgovyx",
+          "sourcePage": 34
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Human-cell hepatotoxicity result",
+          "half": "mechanism"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "half": "consequence"
+        },
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        }
+      ]
+    },
+    {
+      "id": "qinlock",
+      "drug": "qinlock",
+      "expectFlag": false,
+      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in qinlock's review.",
+      "compoundLabel": "qinlock",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "qinlock:noael:p50",
+          "label": "noael (from the review, p50)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from qinlock p50: \"NOAELs) for ripretinib in the 4 and 13 Week studies were 300 and 100 mg/kg\"",
+          "sourceDocument": "qinlock",
+          "sourcePage": 50
+        },
+        {
+          "id": "qinlock:noael:p53",
+          "label": "noael (from the review, p53)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from qinlock p53: \"NOAEL for ripretinib was 100 mg/kg\"",
+          "sourceDocument": "qinlock",
+          "sourcePage": 53
+        },
+        {
+          "id": "qinlock:liver:p55",
+          "label": "liver (from the review, p55)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from qinlock p55: \"aminotransferase (ALT) activity in males administered \u2265 30 mg/kg\"",
+          "sourceDocument": "qinlock",
+          "sourcePage": 55
+        },
+        {
+          "id": "qinlock:liver:p56",
+          "label": "liver (from the review, p56)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from qinlock p56: \"liver, lungs, and/or mesenteric lymph node at \u2265 100 mg/kg\"",
+          "sourceDocument": "qinlock",
+          "sourcePage": 56
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Human-cell hepatotoxicity result",
+          "half": "mechanism"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "half": "consequence"
+        }
+      ]
+    },
+    {
+      "id": "retevmo",
+      "drug": "retevmo",
+      "expectFlag": false,
+      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in retevmo's review.",
+      "compoundLabel": "retevmo",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "retevmo:noael:p105",
+          "label": "noael (from the review, p105)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from retevmo p105: \"NOAEL for maternal toxicity was 100 mg/kg\"",
+          "sourceDocument": "retevmo",
+          "sourcePage": 105
+        },
+        {
+          "id": "retevmo:reversibility:p80",
+          "label": "reversibility (from the review, p80)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from retevmo p80: \"toxicities induced in rats and minipig reversed or were partially reversible; the exception was the testis. In the minip\"",
+          "sourceDocument": "retevmo",
+          "sourcePage": 80
+        },
+        {
+          "id": "retevmo:reversibility:p81",
+          "label": "reversibility (from the review, p81)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from retevmo p81: \"recovery phase, all other observations occurred during dosing phase Body Weights Male animals gained weight at the same \"",
+          "sourceDocument": "retevmo",
+          "sourcePage": 81
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        }
+      ]
+    },
+    {
+      "id": "slynd",
+      "drug": "slynd",
+      "expectFlag": false,
+      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in slynd's review.",
+      "compoundLabel": "slynd",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "slynd:nonclinical:p124",
+          "label": "nonclinical (from the review, p124)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from slynd p124: \"no further nonclinical studies were necessary to support an NDA filing\"",
+          "sourceDocument": "slynd",
+          "sourcePage": 124
+        },
+        {
+          "id": "slynd:nonclinical:p130",
+          "label": "nonclinical (from the review, p130)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from slynd p130: \"nonclinical safety for\"",
+          "sourceDocument": "slynd",
+          "sourcePage": 130
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        }
+      ]
+    },
+    {
+      "id": "tazverik",
+      "drug": "tazverik",
+      "expectFlag": false,
+      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in tazverik's review.",
+      "compoundLabel": "tazverik",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "tazverik:liver:p33",
+          "label": "liver (from the review, p33)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from tazverik p33: \"AST, ALT, ALP, and triglycerides occurred during the study period with changes still elevated for AST, ALT, and ALP in t\"",
+          "sourceDocument": "tazverik",
+          "sourcePage": 33
+        },
+        {
+          "id": "tazverik:liver:p49",
+          "label": "liver (from the review, p49)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from tazverik p49: \"bilirubin compared to controls Findings were reversible with no notable clinical chemistry changes in recovery animals. \"",
+          "sourceDocument": "tazverik",
+          "sourcePage": 49
+        },
+        {
+          "id": "tazverik:reversibility:p33",
+          "label": "reversibility (from the review, p33)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from tazverik p33: \"recovery period and deaths occurred even at the low dose of 50 mg/kg (approximately equal to the adult human exposure at\"",
+          "sourceDocument": "tazverik",
+          "sourcePage": 33
+        },
+        {
+          "id": "tazverik:reversibility:p47",
+          "label": "reversibility (from the review, p47)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from tazverik p47: \"Recovery Period in Rats Key Study Findings \u2022 25% (5/20) main toxicology group rats and 12.5% (1/8) toxicokinetic group r\"",
+          "sourceDocument": "tazverik",
+          "sourcePage": 47
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Human-cell hepatotoxicity result",
+          "half": "mechanism"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "half": "consequence"
+        },
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        }
+      ]
+    },
+    {
+      "id": "trikafta",
+      "drug": "trikafta",
+      "expectFlag": false,
+      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in trikafta's review.",
+      "compoundLabel": "trikafta",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "trikafta:noael:p44",
+          "label": "noael (from the review, p44)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from trikafta p44: \"NOAEL) were determined to be 50 and 30 mg/kg\"",
+          "sourceDocument": "trikafta",
+          "sourcePage": 44
+        },
+        {
+          "id": "trikafta:noael:p45",
+          "label": "noael (from the review, p45)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from trikafta p45: \"NOAEL was deemed to be 30 mg/kg\"",
+          "sourceDocument": "trikafta",
+          "sourcePage": 45
+        },
+        {
+          "id": "trikafta:reversibility:p43",
+          "label": "reversibility (from the review, p43)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from trikafta p43: \"Recovery Period Doses: 0 (vehicle), 10, 25, or 50 mg/kg/day in males; and 0, 5, 15 or 30 mg/kg/day in females; 15/sex/gr\"",
+          "sourceDocument": "trikafta",
+          "sourcePage": 43
+        },
+        {
+          "id": "trikafta:reversibility:p45",
+          "label": "reversibility (from the review, p45)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from trikafta p45: \"changes were not fully reversible and were adverse. In conclusion, 6 mg/kg/day was the NOAEL\"",
+          "sourceDocument": "trikafta",
+          "sourcePage": 45
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        }
+      ]
+    },
+    {
+      "id": "turalio",
+      "drug": "turalio",
+      "expectFlag": true,
+      "labelEvidence": "turalio-211810-multidiscipline.pdf p22, p25: 'The review team recommends a boxed warning for hepatotoxicity and distribution through a restricted program under a Risk Evaluation and Mitigation Strategy (REMS)'.",
+      "compoundLabel": "turalio",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "turalio:liver-findings:p40",
+          "label": "liver-findings (from the review, p40)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p40: \"hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 40
+        },
+        {
+          "id": "turalio:liver-findings:p50",
+          "label": "liver-findings (from the review, p50)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p50: \"ALT and AST at doses \u226520 mg/kg\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 50
+        },
+        {
+          "id": "turalio:noael:p67",
+          "label": "noael (from the review, p67)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p67: \"NOAEL of 10 mg/kg/day was approximately 0\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 67
+        },
+        {
+          "id": "turalio:clinical-reversibility:p21",
+          "label": "clinical-reversibility (from the review, p21)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p21: \"reversible liver injury among the 768 patients in the overall development program of pexidartinib\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 21
+        },
+        {
+          "id": "turalio:clinical-reversibility:p23",
+          "label": "clinical-reversibility (from the review, p23)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p23: \"reversible liver injury, and biopsies in a few patients indicating ductopenia\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 23
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Human-cell hepatotoxicity result",
+          "half": "mechanism"
+        },
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        }
+      ]
+    },
+    {
+      "id": "xpovio",
+      "drug": "xpovio",
+      "expectFlag": false,
+      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in xpovio's review.",
+      "compoundLabel": "xpovio",
+      "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
+      "findings": [
+        {
+          "id": "xpovio:noael:p40",
+          "label": "noael (from the review, p40)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from xpovio p40: \"NOAEL for maternal toxicity was 0.25 mg/kg\"",
+          "sourceDocument": "xpovio",
+          "sourcePage": 40
+        },
+        {
+          "id": "xpovio:reversibility:p30",
+          "label": "reversibility (from the review, p30)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from xpovio p30: \"effects on male reproductive tissues, the effects were somewhat reversible. In the definitive embryo-fetal developmental\"",
+          "sourceDocument": "xpovio",
+          "sourcePage": 30
+        },
+        {
+          "id": "xpovio:reversibility:p35",
+          "label": "reversibility (from the review, p35)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from xpovio p35: \"Recovery Period/ KNC-G-13-001 Key Study Findings \u2022 There were no unscheduled deaths. \u2022 Hematological changes included de\"",
+          "sourceDocument": "xpovio",
+          "sourcePage": 35
+        }
+      ],
+      "absent": [],
+      "present": [
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        }
+      ]
+    }
+  ]
+}
