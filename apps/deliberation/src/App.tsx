@@ -367,6 +367,11 @@ export function App(): ReactElement {
     );
   }
 
+  if (route.name === "read") {
+    // Replaced by the Read screen in Task 8.
+    return caseShell(<p className="small muted">Loading documents…</p>);
+  }
+
   return caseShell(audit === null
     ? <p className="muted">The record opens once the case is closed.</p>
     : <Audit audit={audit} nameOf={nameOf} />);

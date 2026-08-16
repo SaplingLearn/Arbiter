@@ -62,7 +62,7 @@ describe("seat tokens", () => {
     const extractTokenValue = (block: string, tokenName: string): string | null => {
       const regex = new RegExp(`${tokenName}:\\s*(#[0-9A-Fa-f]{6})`);
       const match = block.match(regex);
-      return match ? match[1] : null;
+      return match?.[1] ?? null;
     };
 
     // For each seat and variant, verify media-query and explicit toggle have identical values
