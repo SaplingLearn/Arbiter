@@ -130,3 +130,6 @@ results/documents/
 # Atmosphere screenshot output (tuning artefacts, not source)
 apps/atmosphere/shots/
 apps/landing/shots/
+
+# Worktrees created by the harness. Not part of the repository.
+.claude/worktrees/
