@@ -36,26 +36,118 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
-          "id": "exkivity:reversibility:p60",
-          "label": "reversibility (from the review, p60)",
+          "id": "exkivity:liver:p42",
+          "label": "liver (from the review, p42)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from exkivity p60: \"toxicity of mobocertinib, the reversibility of effects, and exposures of mobocertinib and its 2 active\"",
+          "detail": "Verbatim from exkivity p42: \"ed alanine aminotransferase [ALT], aspartate transaminase [AST]), skin (erosion/ulceration, red and/or dry; histological findings of hyperplasia and inflammation), oral\"",
           "sourceDocument": "exkivity",
-          "sourcePage": 60
+          "sourcePage": 42
         },
         {
-          "id": "exkivity:reversibility:p61",
-          "label": "reversibility (from the review, p61)",
+          "id": "exkivity:liver:p63",
+          "label": "liver (from the review, p63)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from exkivity p61: \"effects were fully or partially reversible with a recovery period. The FDA’s Assessment: In general, F\"",
+          "detail": "Verbatim from exkivity p63: \"triglycerides (males only); and increases in liver enzymes (ALT, AST – associated with spontaneous foci of liver necrosis in 2 males and 3 females), urea nitrogen, and globulin. Changes were generally\"",
+          "sourceDocument": "exkivity",
+          "sourcePage": 63
+        },
+        {
+          "id": "exkivity:liver:p67",
+          "label": "liver (from the review, p67)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from exkivity p67: \"helial Minimal 1 2 1 Mild 3 3 Moderate 2 4 9 Liver Necrosis; focal, multifocal Minimal 1 2 2 3 Mild 1 Esophagus Decreased thickness; epithelial Minimal 1 7/1R 7/2R 1 4 8 Moderate 1 Eye Decreased thick\"",
+          "sourceDocument": "exkivity",
+          "sourcePage": 67
+        },
+        {
+          "id": "exkivity:reversibility:p19",
+          "label": "reversibility (from the review, p19)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from exkivity p19: \".1 Product Introduction Mobocertinib is an irreversible tyrosine kinase inhibitor that forms a covalent bond with cysteine 797 in EGFR, leading to the inhibition of EGFR signaling. At the time of appl\"",
+          "sourceDocument": "exkivity",
+          "sourcePage": 19
+        },
+        {
+          "id": "exkivity:reversibility:p21",
+          "label": "reversibility (from the review, p21)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from exkivity p21: \"l. Mobocertinib is a kinase inhibitor that irreversibly binds to EGFR exon 20 insertion mutations at lower concentrations that wild type EGFR. The proposed dosing regimen is 160 mg orally once daily,\"",
+          "sourceDocument": "exkivity",
+          "sourcePage": 21
+        },
+        {
+          "id": "exkivity:reversibility:p35",
+          "label": "reversibility (from the review, p35)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from exkivity p35: \"788 and AP32788), an oral, first-in-class, irreversible TKI, was uniquely designed to address the limitations of existing therapies targeting EGFR and HER2. An iterative, structure-guided design strat\"",
+          "sourceDocument": "exkivity",
+          "sourcePage": 35
+        },
+        {
+          "id": "exkivity:exposure_margin:p43",
+          "label": "exposure_margin (from the review, p43)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from exkivity p43: \"with 1 mg/kg mobocertinib (approximately 0.7 times the human exposure by AUC of 951 ng*hr/mL at the 160 mg once daily clinical dose) was not tolerated in males, with clinical toxicity (ulceration of t\"",
+          "sourceDocument": "exkivity",
+          "sourcePage": 43
+        },
+        {
+          "id": "exkivity:exposure_margin:p44",
+          "label": "exposure_margin (from the review, p44)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from exkivity p44: \"only) in rats and/or dogs at exposures ≥ 0.2 times the human exposure at the 160 mg clinical dose. To address the potential reproductive effects of mobocertinib, the Applicant conducted a GLP- complia\"",
+          "sourceDocument": "exkivity",
+          "sourcePage": 44
+        },
+        {
+          "id": "exkivity:exposure_margin:p74",
+          "label": "exposure_margin (from the review, p74)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from exkivity p74: \"repeat-dose toxicology study at doses ≥ 0.8 times the human exposure (AUC) at the 160 mg once daily clinical dose. In the 4-week repeat-dose study in dogs, mobocertinib administration resulted in dis\"",
+          "sourceDocument": "exkivity",
+          "sourcePage": 74
+        },
+        {
+          "id": "exkivity:injury_pattern:p43",
+          "label": "injury_pattern (from the review, p43)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from exkivity p43: \"ight loss; histological findings of atrophy, single cell necrosis, and mononuclear cell infiltration). Additional target organs in both species included the reproductive system (atrophy and single cel\"",
+          "sourceDocument": "exkivity",
+          "sourcePage": 43
+        },
+        {
+          "id": "exkivity:injury_pattern:p61",
+          "label": "injury_pattern (from the review, p61)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from exkivity p61: \"nges in the gastrointestinal tract (atrophy, single cell necrosis, mononuclear cell infiltration), reproductive system (atrophy and single cell necrosis), hematological system (acute phase responses),\"",
           "sourceDocument": "exkivity",
           "sourcePage": 61
+        },
+        {
+          "id": "exkivity:injury_pattern:p206",
+          "label": "injury_pattern (from the review, p206)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from exkivity p206: \"ed to have a concurrent condition of hepatic steatosis, liver metastasis, concurrent Grade 1 GGT prior therapies that included pembrolizumab, and concurrent prolonged GI TEAEs (Grade 1 to 2 TEAEs of d\"",
+          "sourceDocument": "exkivity",
+          "sourcePage": 206
         }
       ],
       "absent": [],
       "present": [
         {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
           "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
           "half": "consequence"
         }
       ],
@@ -70,34 +162,34 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
-          "id": "inrebic:noael:p79",
-          "label": "noael (from the review, p79)",
+          "id": "inrebic:liver:p5",
+          "label": "liver (from the review, p5)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from inrebic p79: \"NOAEL for maternal toxicity and developmental toxicity in rats was 3 mg/kg\"",
+          "detail": "Verbatim from inrebic p5: \"r Grade 4 thrombocytopenia, Grade >3 hepatic transaminase or total bilirubin elevation, Grade >3 nausea, vomiting diarrhea, constipation, or fatigue unresponsive to therapeutic/supportive measures wit\"",
           "sourceDocument": "inrebic",
-          "sourcePage": 79
+          "sourcePage": 5
         },
         {
-          "id": "inrebic:noael:p83",
-          "label": "noael (from the review, p83)",
+          "id": "inrebic:liver:p8",
+          "label": "liver (from the review, p8)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from inrebic p83: \"NOAEL for F0 maternal toxicity is 30 mg/kg\"",
+          "detail": "Verbatim from inrebic p8: \"ty in the rat were the liver (hypertrophy of bile ducts) and bone marrow (hypoplasia). In the dog target organs of toxicity included adrenals, GI track, liver, kidney, pancreas, lymphatic organs (bone\"",
           "sourceDocument": "inrebic",
-          "sourcePage": 83
+          "sourcePage": 8
         },
         {
-          "id": "inrebic:liver:p59",
-          "label": "liver (from the review, p59)",
+          "id": "inrebic:liver:p9",
+          "label": "liver (from the review, p9)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from inrebic p59: \"bilirubin corresponded with findings in the liver of centrilobular degeneration, congestion, and hematopoiesis; these ch\"",
+          "detail": "Verbatim from inrebic p9: \"tive of anemia and neutropenia; increases in liver enzymes (AST, ALT, ALP) and decreases in total bilirubin corresponded with findings in the liver. Fedratinib was not mutagenic or clastogenic in in v\"",
           "sourceDocument": "inrebic",
-          "sourcePage": 59
+          "sourcePage": 9
         },
         {
           "id": "inrebic:reversibility:p60",
           "label": "reversibility (from the review, p60)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from inrebic p60: \"recovery period of 4 weeks, microscopic findings were limited to minimal submucosal edema in the non‐glandular stomach i\"",
+          "detail": "Verbatim from inrebic p60: \"fied as additional targets organs. After the recovery period of 4 weeks, microscopic findings were limited to minimal submucosal edema in the non‐glandular stomach in males at 30 mg/kg. In a chromosom\"",
           "sourceDocument": "inrebic",
           "sourcePage": 60
         },
@@ -105,9 +197,49 @@
           "id": "inrebic:reversibility:p69",
           "label": "reversibility (from the review, p69)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from inrebic p69: \"recovery period in rats Route of administration: Oral gavage Formulation/Vehicle: Aqueous solution of 0.5% methylcellulo\"",
+          "detail": "Verbatim from inrebic p69: \"the results of a 28‐day study with a 14‐ day recovery period in rats Route of administration: Oral gavage Formulation/Vehicle: Aqueous solution of 0.5% methylcellulose Species/Strain: Sprague Dawley C\"",
           "sourceDocument": "inrebic",
           "sourcePage": 69
+        },
+        {
+          "id": "inrebic:reversibility:p72",
+          "label": "reversibility (from the review, p72)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from inrebic p72: \"the results of a 28‐day study with a 14‐ day recovery period in dogs. HD was reduced to 15 mg/kg/day on Day 26 because of mortality. Route of administration: Oral gavage Formulation/Vehicle: Aqueous s\"",
+          "sourceDocument": "inrebic",
+          "sourcePage": 72
+        },
+        {
+          "id": "inrebic:exposure_margin:p63",
+          "label": "exposure_margin (from the review, p63)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from inrebic p63: \"animals at the high dose of 80 mg/kg was 0.3‐fold the human AUC at the recommended dose of 400 1 Zhao, R. and Goldman, D. 2013. Folate and Thiamine Transporters mediated by Facilitative Carriers (SLC1\"",
+          "sourceDocument": "inrebic",
+          "sourcePage": 63
+        },
+        {
+          "id": "inrebic:exposure_margin:p67",
+          "label": "exposure_margin (from the review, p67)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from inrebic p67: \"/kg or 30 mg/kg is approximately 0.01X or 0.1X the clinical exposure based on AUC at the recommended human daily dose of 400 mg. Study for Effects on Embryo‐Fetal Development in Rabbits / Study Report\"",
+          "sourceDocument": "inrebic",
+          "sourcePage": 67
+        },
+        {
+          "id": "inrebic:exposure_margin:p68",
+          "label": "exposure_margin (from the review, p68)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from inrebic p68: \"g or 30 mg/kg is approximately 0.005X or 0.08X the clinical exposure based on AUC at the recommended human daily dose of 400 mg. Toxicology General Toxicology A 6‐Month Toxicity Study of fedratinib Ad\"",
+          "sourceDocument": "inrebic",
+          "sourcePage": 68
+        },
+        {
+          "id": "inrebic:injury_pattern:p85",
+          "label": "injury_pattern (from the review, p85)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from inrebic p85: \"tudy but not in the 28 day fedratinib study. Hepatocellular hypertrophy was also observed in this study. After the recovery period of 4 weeks, microscopic findings were limited to minimal submucosal e\"",
+          "sourceDocument": "inrebic",
+          "sourcePage": 85
         }
       ],
       "absent": [],
@@ -117,8 +249,8 @@
           "half": "mechanism"
         },
         {
-          "field": "Human-cell hepatotoxicity result",
-          "half": "mechanism"
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
         },
         {
           "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
@@ -126,10 +258,6 @@
         },
         {
           "field": "Injury pattern: hepatocellular, cholestatic or mixed",
-          "half": "consequence"
-        },
-        {
-          "field": "Reversibility on withdrawal",
           "half": "consequence"
         }
       ],
@@ -144,54 +272,95 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
-          "id": "krazati:noael:p61",
-          "label": "noael (from the review, p61)",
+          "id": "krazati:liver:p21",
+          "label": "liver (from the review, p21)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from krazati p61: \"NOAEL) in the rat 28-day and 13-week studies was 150 mg/kg\"",
+          "detail": "Verbatim from krazati p21: \"s, gastrointestinal obstruction, hemorrhage, hepatotoxicity, hypotension, muscular weakness, pulmonary embolism, pyrexia, respiratory failure and sepsis. Fatal adverse reactions occurred in 11% of pat\"",
           "sourceDocument": "krazati",
-          "sourcePage": 61
+          "sourcePage": 21
         },
         {
-          "id": "krazati:noael:p77",
-          "label": "noael (from the review, p77)",
+          "id": "krazati:liver:p31",
+          "label": "liver (from the review, p31)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from krazati p77: \"NOAEL in rats was 90 mg/kg\"",
+          "detail": "Verbatim from krazati p31: \"nths1,4 mOS: 5.7-9.1 months1-4 Toxic deaths, hepatotoxicity, neutropenia, hypersensitivity reactions, fluid retention, secondary primary malignancies, cutaneous reactions, neurologic reactions, eye di\"",
           "sourceDocument": "krazati",
-          "sourcePage": 77
+          "sourcePage": 31
         },
         {
-          "id": "krazati:liver:p63",
-          "label": "liver (from the review, p63)",
+          "id": "krazati:liver:p57",
+          "label": "liver (from the review, p57)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from krazati p63: \"liver to body weight ratios at ≥ 150 mg/kg\"",
+          "detail": "Verbatim from krazati p57: \"RP = breast cancer resistance protein; BDC = bile duct annulated; BID = twice daily; CNS = central nervous system; CSF = cerebrospinal fluid; CYP = cytochrome P450; DDI = drug-drug interaction; HSA =\"",
           "sourceDocument": "krazati",
-          "sourcePage": 63
+          "sourcePage": 57
         },
         {
-          "id": "krazati:liver:p64",
-          "label": "liver (from the review, p64)",
+          "id": "krazati:reversibility:p18",
+          "label": "reversibility (from the review, p18)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from krazati p64: \"AST; and decreased albumin/globulin ratio. Organ Weight Increased organ weight (adrenal, kidney, liver, spleen) at 150 m\"",
+          "detail": "Verbatim from krazati p18: \"ibitor of the RAS GTPase family that binds irreversibly to Kirsten rat sarcoma proto-oncogene (KRAS) G12C, thereby locking the kinase receptor in an inactive conformation. Adagrasib is not currently a\"",
           "sourceDocument": "krazati",
-          "sourcePage": 64
+          "sourcePage": 18
+        },
+        {
+          "id": "krazati:reversibility:p28",
+          "label": "reversibility (from the review, p28)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from krazati p28: \"12C mutant variant may be feasible through irreversible targeting of the mutated cysteine with covalent small molecule inhibitors (Ostrem et al. 2013, Lito et al. 2016). This work led to the developme\"",
+          "sourceDocument": "krazati",
+          "sourcePage": 28
+        },
+        {
+          "id": "krazati:reversibility:p31",
+          "label": "reversibility (from the review, p31)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from krazati p31: \"f pre-existing hepatic impairment, posterior reversible encephalopathy syndrome, proteinuria including nephrotic syndrome, thyroid dysfunction, embryo-fetal toxicity Pemetrexed 2004 Accelerated 2008 F\"",
+          "sourceDocument": "krazati",
+          "sourcePage": 31
+        },
+        {
+          "id": "krazati:exposure_margin:p16",
+          "label": "exposure_margin (from the review, p16)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from krazati p16: \"nogram nM nanomolar NME new molecular entity NOAEL no-observed-adverse-effect-level NSCLC non-small cell lung cancer OPQ Office of Pharmaceutical Quality ORR objective response rate OS overall surviva\"",
+          "sourceDocument": "krazati",
+          "sourcePage": 16
+        },
+        {
+          "id": "krazati:exposure_margin:p41",
+          "label": "exposure_margin (from the review, p41)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from krazati p41: \"nases or enzymes at 10 μM concentration (≥81 times the human free steady-state Cmax at the recommended dose of 600 mg twice daily, referred as recommended dose in Section 5). A follow-up experiment sh\"",
+          "sourceDocument": "krazati",
+          "sourcePage": 41
+        },
+        {
+          "id": "krazati:exposure_margin:p42",
+          "label": "exposure_margin (from the review, p42)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from krazati p42: \"the 300 mg/kg daily dose (approximately 1.5 times the human AUC at the recommended dose) resulted in early termination of dosing on Day 22. Consistent with clinical experience, dogs exposed to ≥10 mg\"",
+          "sourceDocument": "krazati",
+          "sourcePage": 42
         }
       ],
-      "absent": [],
+      "absent": [
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "whatItBlocks": "The severity of a liver finding cannot be characterised without its injury pattern."
+        }
+      ],
       "present": [
         {
           "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
         },
         {
-          "field": "Human-cell hepatotoxicity result",
-          "half": "mechanism"
-        },
-        {
-          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "field": "Reversibility on withdrawal",
           "half": "consequence"
         },
         {
-          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
           "half": "consequence"
         }
       ],
@@ -206,50 +375,118 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
-          "id": "lumakras:liver:p66",
-          "label": "liver (from the review, p66)",
+          "id": "lumakras:liver:p20",
+          "label": "liver (from the review, p20)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from lumakras p66: \"hepatocellular enzyme induction. No renal toxicity was identified in the dog. The HNSTD was 1000 mg/kg\"",
+          "detail": "Verbatim from lumakras p20: \"ŽŶƐ ŝŶ ш Ϯй ŽĨ ƉĂƚŝĞŶƚƐ ǁĞƌĞ ƉŶĞƵŵŽŶŝĂ (8%), hepatotoxicity (3.4%), and diarrhea (2%). Permanent discontinuation of sotorasib due to an adverse reaction occurred in 9% of patients and was most commonl\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 20
+        },
+        {
+          "id": "lumakras:liver:p23",
+          "label": "liver (from the review, p23)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p23: \"rhea, musculoskeletal pain, nausea, fatigue, hepatotoxicity, cough, vomiting, constipation, dyspnea and abdominal pain. x Serious adverse reactions (SARs) in occurred in 50% of patients in the primary\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 23
+        },
+        {
+          "id": "lumakras:liver:p30",
+          "label": "liver (from the review, p30)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p30: \"ncluding pneumonitis, colitis, hepatitis and hepatotoxicity, endocrinopathies, nephritis, skin adverse reactions, other adverse reactions), infusion-related reactions, complications of allogeneic HSCT\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 30
+        },
+        {
+          "id": "lumakras:reversibility:p18",
+          "label": "reversibility (from the review, p18)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p18: \"ibitor of the RAS GTPase family that binds irreversibly to Kirsten rat sarcoma proto- oncogene (KRAS) G12C, thereby locking the kinase receptor in an inactive conformation. It was not approved for any\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 18
+        },
+        {
+          "id": "lumakras:reversibility:p31",
+          "label": "reversibility (from the review, p31)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p31: \"f pre-existing hepatic impairment, posterior reversible encephalopathy syndrome, proteinuria including nephrotic syndrome, thyroid dysfunction, and embryo-fetal risk Page 3 of 3 ALK = anaplastic lymph\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 31
+        },
+        {
+          "id": "lumakras:reversibility:p41",
+          "label": "reversibility (from the review, p41)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p41: \"ibitor of the RAS GTPase family that binds irreversibly to the P2 pocket in the inactive GDP- bound form of KRAS through a novel interaction with a cryptic groove at histidine 95 and a covalent intera\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 41
+        },
+        {
+          "id": "lumakras:exposure_margin:p42",
+          "label": "exposure_margin (from the review, p42)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p42: \"gh dose in rats [exposures approximately 6.4 times the human exposure (steady-state AUC0-24h) of 32.4 hour*μg/mL at the clinical dose of 960 mg once daily] and of increased bilirubin and alkaline phos\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 42
+        },
+        {
+          "id": "lumakras:exposure_margin:p43",
+          "label": "exposure_margin (from the review, p43)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p43: \"male rat at the 750 mg/kg (approximately 6.4 times the clinical AUC at the 960 mg human dose) high dose level was euthanized on Day 126 due to poor clinical condition associated with malignant nephrob\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 43
+        },
+        {
+          "id": "lumakras:exposure_margin:p44",
+          "label": "exposure_margin (from the review, p44)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p44: \"with 750 mg/kg sotorasib (approximately 6.4 times the clinical AUC at the 960 mg human dose) exhibited small testis correlating with severe seminiferous tubule degeneration in the testis; the recover\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 44
+        },
+        {
+          "id": "lumakras:injury_pattern:p42",
+          "label": "injury_pattern (from the review, p42)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p42: \"e, increased liver weight, and centrilobular hepatocellular hypertrophy in dogs at exposures approximately 0.4 times the clinical AUC at the 960 mg human dose. Elevated ALT/AST has been seen clinicall\"",
+          "sourceDocument": "lumakras",
+          "sourcePage": 42
+        },
+        {
+          "id": "lumakras:injury_pattern:p66",
+          "label": "injury_pattern (from the review, p66)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from lumakras p66: \"roscopic changes were observed in the liver (hepatocellular hypertrophy with increased liver weight), pituitary (hypertrophy of basophils with increased pituitary weight), and thyroid gland (decreased\"",
           "sourceDocument": "lumakras",
           "sourcePage": 66
         },
         {
-          "id": "lumakras:liver:p72",
-          "label": "liver (from the review, p72)",
+          "id": "lumakras:injury_pattern:p85",
+          "label": "injury_pattern (from the review, p85)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from lumakras p72: \"liver, gall bladder, and thymus GLP compliance: Yes Methods Dose and frequency of dosing: 0, 100, and 500 mg/kg\"",
+          "detail": "Verbatim from lumakras p85: \"and histologic perivascular fibroplasia and hepatocellular hypertrophy in the liver. Sotorasib induced kidney toxicity at the 750 mg/kg dose level characterized by increased blood urea nitrogen (BUN)\"",
           "sourceDocument": "lumakras",
-          "sourcePage": 72
-        },
-        {
-          "id": "lumakras:reversibility:p65",
-          "label": "reversibility (from the review, p65)",
-          "assertion": "ambiguous",
-          "detail": "Verbatim from lumakras p65: \"recovery phase, there was partial recovery of sotorasib-related kidney changes at all dose levels accompanied with inter\"",
-          "sourceDocument": "lumakras",
-          "sourcePage": 65
-        },
-        {
-          "id": "lumakras:reversibility:p66",
-          "label": "reversibility (from the review, p66)",
-          "assertion": "ambiguous",
-          "detail": "Verbatim from lumakras p66: \"Recovery Period / 150432 Key Study Findings x One high dose recovery cohort rat was euthanized on Day 126 due to poor cl\"",
-          "sourceDocument": "lumakras",
-          "sourcePage": 66
+          "sourcePage": 85
         }
       ],
       "absent": [],
       "present": [
         {
-          "field": "Human-cell hepatotoxicity result",
+          "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
         },
         {
-          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "field": "Reversibility on withdrawal",
           "half": "consequence"
         },
         {
-          "field": "Reversibility on withdrawal",
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
           "half": "consequence"
         }
       ],
@@ -264,26 +501,26 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
-          "id": "nipocalimab:noael:p36",
-          "label": "noael (from the review, p36)",
+          "id": "nipocalimab:liver:p148",
+          "label": "liver (from the review, p148)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from nipocalimab p36: \"NOAEL) was set at 306 mg/kg based on the absence of findings\"",
+          "detail": "Verbatim from nipocalimab p148: \"ve section. Lipids Please see above section. Liver enzymes In the 24-week DB phase of the Phase 3 gMG study, mean liver enzyme values were within the reference range throughout the DB and OLE phases t\"",
           "sourceDocument": "nipocalimab",
-          "sourcePage": 36
+          "sourcePage": 148
         },
         {
-          "id": "nipocalimab:noael:p37",
-          "label": "noael (from the review, p37)",
+          "id": "nipocalimab:liver:p149",
+          "label": "liver (from the review, p149)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from nipocalimab p37: \"NOAEL in the 26-week study was set by the applicant at the highest dose used in that study of 300 mg/kg/week\"",
+          "detail": "Verbatim from nipocalimab p149: \"ts with treatment-emergent markedly abnormal liver enzyme laboratory values; DB phase; safety (DB) analysis set (Study MOM-M281-011). Participants in an abnormality category are also counted in the pr\"",
           "sourceDocument": "nipocalimab",
-          "sourcePage": 37
+          "sourcePage": 149
         },
         {
           "id": "nipocalimab:reversibility:p36",
           "label": "reversibility (from the review, p36)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from nipocalimab p36: \"reversibility was evaluated for 9 and 8 weeks, respectively\"",
+          "detail": "Verbatim from nipocalimab p36: \"consisted of 4- and 26-week studies in which reversibility was evaluated for 9 and 8 weeks, respectively. Dose levels and posology were similar; 0, 20, 100, and 306/300 mg/kg weekly (QW). An additiona\"",
           "sourceDocument": "nipocalimab",
           "sourcePage": 36
         },
@@ -291,43 +528,60 @@
           "id": "nipocalimab:reversibility:p37",
           "label": "reversibility (from the review, p37)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from nipocalimab p37: \"recovery period, thus showing reversibility\"",
+          "detail": "Verbatim from nipocalimab p37: \"red in the 306 mg/kg group by the end of the recovery period, thus showing reversibility. No histopathological findings related to treatment were observed. In addition, evaluation of safety pharmacolo\"",
           "sourceDocument": "nipocalimab",
           "sourcePage": 37
         },
         {
-          "id": "nipocalimab:margins:p37",
-          "label": "margins (from the review, p37)",
+          "id": "nipocalimab:reversibility:p43",
+          "label": "reversibility (from the review, p43)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from nipocalimab p37: \"safety margins, an AUC comparison of a two-week interval period was used\"",
+          "detail": "Verbatim from nipocalimab p43: \"consisted of 4- and 26-week studies in which reversibility was evaluated for 9 and 8 weeks, respectively. Dose levels and posology were similar; 0, 20, 100, and 306/300 mg/kg QW. An additional 50 mg/k\"",
           "sourceDocument": "nipocalimab",
-          "sourcePage": 37
+          "sourcePage": 43
         },
         {
-          "id": "nipocalimab:margins:p42",
-          "label": "margins (from the review, p42)",
+          "id": "nipocalimab:exposure_margin:p5",
+          "label": "exposure_margin (from the review, p5)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from nipocalimab p42: \"Safety margins were considered adequate as exposure values in cynomolgus monkeys\"",
+          "detail": "Verbatim from nipocalimab p5: \"ders NHP non-human primate NK natural killer NOAEL no-observed-adverse-effect-level OLE open-label extension PD pharmacodynamic(s) PK pharmacokinetic(s) PLEX therapeutic plasma exchange POC proof-of-c\"",
           "sourceDocument": "nipocalimab",
-          "sourcePage": 42
+          "sourcePage": 5
+        },
+        {
+          "id": "nipocalimab:exposure_margin:p32",
+          "label": "exposure_margin (from the review, p32)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nipocalimab p32: \"he retrovirus-like particles (RVLP) per dose safety margin equals to 1 lipid-enveloped, this is acceptable. In summary, the characterisation and control of the cell substrates, the use of non-animal d\"",
+          "sourceDocument": "nipocalimab",
+          "sourcePage": 32
+        },
+        {
+          "id": "nipocalimab:exposure_margin:p36",
+          "label": "exposure_margin (from the review, p36)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nipocalimab p36: \"the 4-week study, corresponded to a 44-fold exposure margin. The method of administration was IV infusion. Pivotal GLP-compliant repeat-dose studies consisted of 4- and 26-week studies in which rever\"",
+          "sourceDocument": "nipocalimab",
+          "sourcePage": 36
         }
       ],
-      "absent": [],
+      "absent": [
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "whatItBlocks": "The severity of a liver finding cannot be characterised without its injury pattern."
+        }
+      ],
       "present": [
         {
           "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
         },
         {
-          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
-          "half": "consequence"
-        },
-        {
           "field": "Reversibility on withdrawal",
           "half": "consequence"
         },
         {
-          "field": "Projected human daily dose",
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
           "half": "consequence"
         }
       ],
@@ -342,10 +596,26 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
+          "id": "nubeqa:liver:p74",
+          "label": "liver (from the review, p74)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nubeqa p74: \"n darolutamide and statins (muscle weakness, ALT and AST elevation, and serum creatinine increase). • The risk of increased toxicity of BCRP substrates other than statins. IC50 values for uptake trans\"",
+          "sourceDocument": "nubeqa",
+          "sourcePage": 74
+        },
+        {
+          "id": "nubeqa:reversibility:p28",
+          "label": "reversibility (from the review, p28)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nubeqa p28: \"mp assay. Darolutamide and keto-darolutamide reversibly blocked GABAA-activated currents with IC50 values of 5.5 µM and 3.4 µM, respectively. In male mice, brain/plasma exposure ratios to darolutamide\"",
+          "sourceDocument": "nubeqa",
+          "sourcePage": 28
+        },
+        {
           "id": "nubeqa:reversibility:p29",
           "label": "reversibility (from the review, p29)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from nubeqa p29: \"recovery period in rats and 8-week recovery period in dogs Darolutamide was clastogenic in an in vitro chromosome aberra\"",
+          "detail": "Verbatim from nubeqa p29: \"lutamide were either completely or partially reversible following a 4­ week recovery period in rats and 8-week recovery period in dogs Darolutamide was clastogenic in an in vitro chromosome aberration\"",
           "sourceDocument": "nubeqa",
           "sourcePage": 29
         },
@@ -353,15 +623,52 @@
           "id": "nubeqa:reversibility:p30",
           "label": "reversibility (from the review, p30)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from nubeqa p30: \"recovery period but were reversible following an 8-week recovery period in dogs. Recommendations The nonclinical data su\"",
+          "detail": "Verbatim from nubeqa p30: \"still observed in male rats following 4-week recovery period but were reversible following an 8-week recovery period in dogs. Recommendations The nonclinical data submitted in this NDA support approva\"",
+          "sourceDocument": "nubeqa",
+          "sourcePage": 30
+        },
+        {
+          "id": "nubeqa:exposure_margin:p28",
+          "label": "exposure_margin (from the review, p28)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nubeqa p28: \"darolutamide at doses up to 400 mg/kg/day (2 times the human exposure based on AUC). 27\"",
+          "sourceDocument": "nubeqa",
+          "sourcePage": 28
+        },
+        {
+          "id": "nubeqa:exposure_margin:p29",
+          "label": "exposure_margin (from the review, p29)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nubeqa p29: \"4% at 24 hours. This dose is approximately 8 times the clinical recommended dose based on body surface area (BSA). Toxicokinetics were not assessed in the single dose oral gavage study. In repeat-dose\"",
+          "sourceDocument": "nubeqa",
+          "sourcePage": 29
+        },
+        {
+          "id": "nubeqa:exposure_margin:p30",
+          "label": "exposure_margin (from the review, p30)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from nubeqa p30: \"ymides at doses ≥ 100 mg/kg/day in rats (0.6 times the human exposure based on AUC) and ≥ 50 mg/kg/day in dogs (approximately 1 times the human exposure based on AUC). Effects on male reproductive org\"",
           "sourceDocument": "nubeqa",
           "sourcePage": 30
         }
       ],
-      "absent": [],
+      "absent": [
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "whatItBlocks": "The severity of a liver finding cannot be characterised without its injury pattern."
+        }
+      ],
       "present": [
         {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
           "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
           "half": "consequence"
         }
       ],
@@ -376,26 +683,18 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
-          "id": "orgovyx:noael:p54",
-          "label": "noael (from the review, p54)",
+          "id": "orgovyx:liver:p23",
+          "label": "liver (from the review, p23)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from orgovyx p54: \"NOAEL for liver toxicity is considered to be 15 mg/kg\"",
+          "detail": "Verbatim from orgovyx p23: \"Use of bicalutamide has been associated with hepatotoxicity requiring monitoring of transaminases and gynecomastia (Casodex USPI 2017). Men with prostate cancer are at higher risk of developing cardio\"",
           "sourceDocument": "orgovyx",
-          "sourcePage": 54
-        },
-        {
-          "id": "orgovyx:noael:p55",
-          "label": "noael (from the review, p55)",
-          "assertion": "ambiguous",
-          "detail": "Verbatim from orgovyx p55: \"NOAEL (15 mg/kg\"",
-          "sourceDocument": "orgovyx",
-          "sourcePage": 55
+          "sourcePage": 23
         },
         {
           "id": "orgovyx:liver:p33",
           "label": "liver (from the review, p33)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from orgovyx p33: \"liver enzymes were also reported in rats at 2000 mg/kg\"",
+          "detail": "Verbatim from orgovyx p33: \". Relugolix caused liver toxicity (increased liver enzymes with or without histopathology correlates of up to severe yellow/brown pigment deposition and up to moderate bile plug) in monkeys at ≥ 50 mg\"",
           "sourceDocument": "orgovyx",
           "sourcePage": 33
         },
@@ -403,15 +702,23 @@
           "id": "orgovyx:liver:p48",
           "label": "liver (from the review, p48)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from orgovyx p48: \"liver enzymes at 50 mg/kg\"",
+          "detail": "Verbatim from orgovyx p48: \"acuolation) at ≥ 1.5 mg/kg/day and increased liver enzymes at 50 mg/kg/day. Conducting laboratory and location: GLP compliance: Yes Methods Dose and frequency of dosing: 1.5, 5, 15, 50 mg/kg/day Justi\"",
           "sourceDocument": "orgovyx",
           "sourcePage": 48
+        },
+        {
+          "id": "orgovyx:reversibility:p32",
+          "label": "reversibility (from the review, p32)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from orgovyx p32: \"of serum testosterone levels showed variable reversibility 28 days after discontinuation. Reduction of luteinizing hormone, follicle stimulating hormone and testosterone levels were also noted clinica\"",
+          "sourceDocument": "orgovyx",
+          "sourcePage": 32
         },
         {
           "id": "orgovyx:reversibility:p33",
           "label": "reversibility (from the review, p33)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from orgovyx p33: \"recovery phase. Monkeys were the most sensitive species and possibly reflect the most toxicologically relevant species b\"",
+          "detail": "Verbatim from orgovyx p33: \"re based on AUC). This effect exhibited some reversibility. Increased liver enzymes were also reported in rats at 2000 mg/kg/day in the 4-week study. Increased ALT and AST levels were reported among t\"",
           "sourceDocument": "orgovyx",
           "sourcePage": 33
         },
@@ -419,31 +726,52 @@
           "id": "orgovyx:reversibility:p34",
           "label": "reversibility (from the review, p34)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from orgovyx p34: \"toxicities in male reproductive organs but caused reversible cessation of menses in females starting on Day 13 of treatm\"",
+          "detail": "Verbatim from orgovyx p34: \"ities in male reproductive organs but caused reversible cessation of menses in females starting on Day 13 of treatment. Based on the mechanism of action of GnRH receptor antagonists and consistent wit\"",
           "sourceDocument": "orgovyx",
           "sourcePage": 34
+        },
+        {
+          "id": "orgovyx:exposure_margin:p11",
+          "label": "exposure_margin (from the review, p11)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from orgovyx p11: \"al Cancer Institute NDA New Drug Application NOAEL no observed adverse effect level NOEL no observed effect level OAT organic anion transporter OATP organic anion-transporting polypeptide OCT organic\"",
+          "sourceDocument": "orgovyx",
+          "sourcePage": 11
+        },
+        {
+          "id": "orgovyx:exposure_margin:p32",
+          "label": "exposure_margin (from the review, p32)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from orgovyx p32: \"ongation of up to 47 msec at ≥ 100 mg/kg (90 times the human Cmax based on toxicokinetics from a 4-week repeat-dose monkey study). In the clinic, prolongation of QTc interval (> 10 msec) was not repor\"",
+          "sourceDocument": "orgovyx",
+          "sourcePage": 32
+        },
+        {
+          "id": "orgovyx:exposure_margin:p33",
+          "label": "exposure_margin (from the review, p33)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from orgovyx p33: \"n monkeys at ≥ 50 mg/kg/day (approximately 53x the clinical exposure based on AUC). This effect exhibited some reversibility. Increased liver enzymes were also reported in rats at 2000 mg/kg/day in th\"",
+          "sourceDocument": "orgovyx",
+          "sourcePage": 33
         }
       ],
-      "absent": [],
+      "absent": [
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "whatItBlocks": "The severity of a liver finding cannot be characterised without its injury pattern."
+        }
+      ],
       "present": [
         {
           "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
         },
         {
-          "field": "Human-cell hepatotoxicity result",
-          "half": "mechanism"
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
         },
         {
           "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
-          "half": "consequence"
-        },
-        {
-          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
-          "half": "consequence"
-        },
-        {
-          "field": "Reversibility on withdrawal",
           "half": "consequence"
         }
       ],
@@ -458,54 +786,95 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
-          "id": "qinlock:noael:p50",
-          "label": "noael (from the review, p50)",
+          "id": "qinlock:liver:p28",
+          "label": "liver (from the review, p28)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from qinlock p50: \"NOAELs) for ripretinib in the 4 and 13 Week studies were 300 and 100 mg/kg\"",
+          "detail": "Verbatim from qinlock p28: \"ere congestive heart failure Severe or fatal hepatotoxicity Hemorrhage Gastrointestinal perforations Cardiogenic shock/left ventricular dysfunction Bullous dermatologic reactions Hypothyroidism Fetal\"",
           "sourceDocument": "qinlock",
-          "sourcePage": 50
+          "sourcePage": 28
         },
         {
-          "id": "qinlock:noael:p53",
-          "label": "noael (from the review, p53)",
+          "id": "qinlock:liver:p29",
+          "label": "liver (from the review, p29)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from qinlock p53: \"NOAEL for ripretinib was 100 mg/kg\"",
+          "detail": "Verbatim from qinlock p29: \"R= 0.91 (95% CI: 0.65, 1.27) Severe or fatal Hepatotoxicity Infections Hemorrhage Gastrointestinal perforation or fistula Dermatological toxicity Hypertension Cardiac ischemia and infarction Reversibl\"",
           "sourceDocument": "qinlock",
-          "sourcePage": 53
+          "sourcePage": 29
         },
         {
           "id": "qinlock:liver:p55",
           "label": "liver (from the review, p55)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from qinlock p55: \"aminotransferase (ALT) activity in males administered ≥ 30 mg/kg\"",
+          "detail": "Verbatim from qinlock p55: \"and was likely unrelated to the microscopic liver findings. Minimally to mildly lower glucose concentration in animals administered ≥ 30 mg/kg/day, minimally higher urea nitrogen concentration in mal\"",
           "sourceDocument": "qinlock",
           "sourcePage": 55
         },
         {
-          "id": "qinlock:liver:p56",
-          "label": "liver (from the review, p56)",
+          "id": "qinlock:reversibility:p29",
+          "label": "reversibility (from the review, p29)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from qinlock p56: \"liver, lungs, and/or mesenteric lymph node at ≥ 100 mg/kg\"",
+          "detail": "Verbatim from qinlock p29: \"Hypertension Cardiac ischemia and infarction Reversible Posterior Leukoencephalopathy Syndrome (RPLS) Wound healing complications Embryofetal toxicity Abbreviations: CI = confidence interval; PFS = pr\"",
           "sourceDocument": "qinlock",
-          "sourcePage": 56
+          "sourcePage": 29
+        },
+        {
+          "id": "qinlock:reversibility:p38",
+          "label": "reversibility (from the review, p38)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from qinlock p38: \"ipretinib, but these decreases were mild and reversible after a recovery period. Following a single oral dose of radiolabeled ripretinib, fecal elimination was the major elimination pathway in rats. H\"",
+          "sourceDocument": "qinlock",
+          "sourcePage": 38
+        },
+        {
+          "id": "qinlock:reversibility:p39",
+          "label": "reversibility (from the review, p39)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from qinlock p39: \"all findings in rats were partially to fully reversible within the recovery period. In the 13‐week dog study, one animal dosed with ripretinib at 10 mg/kg daily (approximately 0.2 times the estimated\"",
+          "sourceDocument": "qinlock",
+          "sourcePage": 39
+        },
+        {
+          "id": "qinlock:exposure_margin:p14",
+          "label": "exposure_margin (from the review, p14)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from qinlock p14: \"on NE not estimable NME new molecular entity NOAEL no observed adverse effect level NSAIDS non steroidal anti inflammatory drugs OCS Office of Computational Science OL open‐label OPQ Office of Pharmac\"",
+          "sourceDocument": "qinlock",
+          "sourcePage": 14
+        },
+        {
+          "id": "qinlock:exposure_margin:p39",
+          "label": "exposure_margin (from the review, p39)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from qinlock p39: \"served at doses ≥30 mg/kg (approximately 0.5 times the clinical exposure at 150 mg), while clinical observations of discolored and/or scaly skin, piloerection and rough hair coat, and sores and scabs,\"",
+          "sourceDocument": "qinlock",
+          "sourcePage": 39
+        },
+        {
+          "id": "qinlock:exposure_margin:p40",
+          "label": "exposure_margin (from the review, p40)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from qinlock p40: \"ls administered ≥ 5 mg/kg (approximately 0.1 times the clinical exposure at 150 mg). Clinically, these animals were observed to have broken, scaly, or discolored skin with scabs and sores, and a thinn\"",
+          "sourceDocument": "qinlock",
+          "sourcePage": 40
         }
       ],
-      "absent": [],
+      "absent": [
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "whatItBlocks": "The severity of a liver finding cannot be characterised without its injury pattern."
+        }
+      ],
       "present": [
         {
           "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
         },
         {
-          "field": "Human-cell hepatotoxicity result",
-          "half": "mechanism"
-        },
-        {
-          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "field": "Reversibility on withdrawal",
           "half": "consequence"
         },
         {
-          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
           "half": "consequence"
         }
       ],
@@ -520,42 +889,95 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
-          "id": "retevmo:noael:p105",
-          "label": "noael (from the review, p105)",
+          "id": "retevmo:liver:p26",
+          "label": "liver (from the review, p26)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from retevmo p105: \"NOAEL for maternal toxicity was 100 mg/kg\"",
+          "detail": "Verbatim from retevmo p26: \"e primary serious risks of selpercatinib are hepatotoxicity, QT prolongation, hypertension, hemorrhagic events, and hypersensitivity reactions. These adverse reactions largely appear manageable and re\"",
           "sourceDocument": "retevmo",
-          "sourcePage": 105
+          "sourcePage": 26
+        },
+        {
+          "id": "retevmo:liver:p34",
+          "label": "liver (from the review, p34)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from retevmo p34: \"dicated dose of 160 mg orally twice daily. x Hepatotoxicity, hypertension, QT interval prolongation, hemorrhagic events, hypersensitivity are the primary safety risks with selperatcinib and While selp\"",
+          "sourceDocument": "retevmo",
+          "sourcePage": 34
+        },
+        {
+          "id": "retevmo:liver:p64",
+          "label": "liver (from the review, p64)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from retevmo p64: \"s and there were dose-dependent increases in liver enzymes. Pathology findings in the rat toxicology study included mild decreases in hematopoiesis within the bone marrow, lung inflammation, and testi\"",
+          "sourceDocument": "retevmo",
+          "sourcePage": 64
+        },
+        {
+          "id": "retevmo:reversibility:p77",
+          "label": "reversibility (from the review, p77)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from retevmo p77: \"binding for 1 μM selpercatinib Assessment of Reversible Protein was 88-98% in all 5 species examined, as determined by Binding of Array-192 in Mouse, Rat, equilibrium dialysis. Minipig, Dog and Human\"",
+          "sourceDocument": "retevmo",
+          "sourcePage": 77
         },
         {
           "id": "retevmo:reversibility:p80",
           "label": "reversibility (from the review, p80)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from retevmo p80: \"toxicities induced in rats and minipig reversed or were partially reversible; the exception was the testis. In the minip\"",
+          "detail": "Verbatim from retevmo p80: \"rats and minipig reversed or were partially reversible; the exception was the testis. In the minipig, all regions of the gastrointestinal tract were targets and gastrointestinal lesions caused moribu\"",
           "sourceDocument": "retevmo",
           "sourcePage": 80
         },
         {
-          "id": "retevmo:reversibility:p81",
-          "label": "reversibility (from the review, p81)",
+          "id": "retevmo:reversibility:p239",
+          "label": "reversibility (from the review, p239)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from retevmo p81: \"recovery phase, all other observations occurred during dosing phase Body Weights Male animals gained weight at the same \"",
+          "detail": "Verbatim from retevmo p239: \"ension. All of these AEs are monitorable and reversible. The Sponsor continues to believe the overall tolerability of selpercatinib is characterized by recognizable toxicities, which are either monito\"",
           "sourceDocument": "retevmo",
-          "sourcePage": 81
+          "sourcePage": 239
+        },
+        {
+          "id": "retevmo:exposure_margin:p17",
+          "label": "exposure_margin (from the review, p17)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from retevmo p17: \"neration sequencing NME new molecular entity NOAEL no observed adverse effect level NR not reached NSCLC non-small cell lung cancer OCS Office of Computational Science OPQ Office of Pharmaceutical Qua\"",
+          "sourceDocument": "retevmo",
+          "sourcePage": 17
+        },
+        {
+          "id": "retevmo:exposure_margin:p64",
+          "label": "exposure_margin (from the review, p64)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from retevmo p64: \"ickness at the 15 mg/kg high dose level (0.3 times the clinical AUC of 51600 ng*hr/mL at the 160 mg twice daily dose). Similarly, rats had signs of physeal hypertrophy in 4-week studies at exposures 3\"",
+          "sourceDocument": "retevmo",
+          "sourcePage": 64
+        },
+        {
+          "id": "retevmo:exposure_margin:p65",
+          "label": "exposure_margin (from the review, p65)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from retevmo p65: \"high dose (approximately 0.6 times the clinical exposure at the 160 mg twice daily dose). The label includes a warning for QTc prolongation. To assess the potential effects of selpercatinib on fertili\"",
+          "sourceDocument": "retevmo",
+          "sourcePage": 65
         }
       ],
-      "absent": [],
+      "absent": [
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "whatItBlocks": "The severity of a liver finding cannot be characterised without its injury pattern."
+        }
+      ],
       "present": [
         {
           "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
         },
         {
-          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "field": "Reversibility on withdrawal",
           "half": "consequence"
         },
         {
-          "field": "Reversibility on withdrawal",
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
           "half": "consequence"
         }
       ],
@@ -570,27 +992,48 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
-          "id": "slynd:nonclinical:p124",
-          "label": "nonclinical (from the review, p124)",
+          "id": "slynd:liver:p67",
+          "label": "liver (from the review, p67)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from slynd p124: \"no further nonclinical studies were necessary to support an NDA filing\"",
+          "detail": "Verbatim from slynd p67: \"men/gastric area. The laboratory results for liver enzymes were normal. The ultrasound examination showed a single tumor in the left part of the liver (size 1.35 cm). The GP considered that the tumor\"",
           "sourceDocument": "slynd",
-          "sourcePage": 124
+          "sourcePage": 67
         },
         {
-          "id": "slynd:nonclinical:p130",
-          "label": "nonclinical (from the review, p130)",
+          "id": "slynd:liver:p129",
+          "label": "liver (from the review, p129)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from slynd p130: \"nonclinical safety for\"",
+          "detail": "Verbatim from slynd p129: \"ally positive, dose-response relationship in hepatocellular adenoma in the liver was observed and was considered to be related to treatment with EE, as hepatocellular tumors are a well-known effect of\"",
+          "sourceDocument": "slynd",
+          "sourcePage": 129
+        },
+        {
+          "id": "slynd:exposure_margin:p130",
+          "label": "exposure_margin (from the review, p130)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from slynd p130: \"at doses of 5, 15 and 45 mg/kg/day, 6 to 50 times the human exposure based on AUC of drospirenone, resulted in an increased number of fetuses with delayed ossification of bones of the feet in the two\"",
           "sourceDocument": "slynd",
           "sourcePage": 130
         }
       ],
-      "absent": [],
+      "absent": [
+        {
+          "field": "Reversibility on withdrawal",
+          "whatItBlocks": "R3 turns on whether the damage persists, and no recovery finding was extracted."
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "whatItBlocks": "The severity of a liver finding cannot be characterised without its injury pattern."
+        }
+      ],
       "present": [
         {
           "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
         }
       ],
       "outcomeTier": "none"
@@ -604,50 +1047,95 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
+          "id": "tazverik:liver:p17",
+          "label": "liver (from the review, p17)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from tazverik p17: \"rvival (OS). Pazopanib can cause significant hepatotoxicity, prolonged QT interval, torsades de pointes and cardiac dysfunction (USPI pazopanib). There is limited data on the effectiveness of approved\"",
+          "sourceDocument": "tazverik",
+          "sourcePage": 17
+        },
+        {
+          "id": "tazverik:liver:p26",
+          "label": "liver (from the review, p26)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from tazverik p26: \"myelodysplastic syndrome, myelosuppression, hepatotoxicity Pazopanib Advanced STS who have received prior therapy 2012 800 mg orally once daily Pazopanib vs. placebo mPFS 4.6 mo vs. 1.6 mo HR: 0.35 (\"",
+          "sourceDocument": "tazverik",
+          "sourcePage": 26
+        },
+        {
           "id": "tazverik:liver:p33",
           "label": "liver (from the review, p33)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from tazverik p33: \"AST, ALT, ALP, and triglycerides occurred during the study period with changes still elevated for AST, ALT, and ALP in t\"",
+          "detail": "Verbatim from tazverik p33: \"hypertrophy and hyperplasia of the liver and bile duct. In addition, lymphoid hyperplasia occurred in the mesenteric lymph node of a single male dosed at 600 mg/kg/day. Epizyme also conducted a GLP-co\"",
           "sourceDocument": "tazverik",
           "sourcePage": 33
         },
         {
-          "id": "tazverik:liver:p49",
-          "label": "liver (from the review, p49)",
+          "id": "tazverik:reversibility:p14",
+          "label": "reversibility (from the review, p14)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from tazverik p49: \"bilirubin compared to controls Findings were reversible with no notable clinical chemistry changes in recovery animals. \"",
+          "detail": "Verbatim from tazverik p14: \"eria in Solid Tumors RO reverse osmosis RPLS reversible posterior leukoencephalopathy SAE serious adverse event SAM S-adenosyl-L-methionine SCS summary of clinical safety STS soft tissue sarcoma SWI/S\"",
           "sourceDocument": "tazverik",
-          "sourcePage": 49
+          "sourcePage": 14
+        },
+        {
+          "id": "tazverik:reversibility:p26",
+          "label": "reversibility (from the review, p26)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from tazverik p26: \"tion of response; GI: gastrointestinal RPLS: reversible posterior leukoencephalopathy 25\"",
+          "sourceDocument": "tazverik",
+          "sourcePage": 26
         },
         {
           "id": "tazverik:reversibility:p33",
           "label": "reversibility (from the review, p33)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from tazverik p33: \"recovery period and deaths occurred even at the low dose of 50 mg/kg (approximately equal to the adult human exposure at\"",
+          "detail": "Verbatim from tazverik p33: \"in reticulocytes and WBCs, all of which were reversible. Gross pathology findings were limited to enlargement and masses in multiple organs that correlated with metastasis of lymphoma in the 300 and 6\"",
           "sourceDocument": "tazverik",
           "sourcePage": 33
         },
         {
-          "id": "tazverik:reversibility:p47",
-          "label": "reversibility (from the review, p47)",
+          "id": "tazverik:exposure_margin:p34",
+          "label": "exposure_margin (from the review, p34)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from tazverik p47: \"Recovery Period in Rats Key Study Findings • 25% (5/20) main toxicology group rats and 12.5% (1/8) toxicokinetic group r\"",
+          "detail": "Verbatim from tazverik p34: \"comparisons. At 200 mg/kg (approximately 14 times the clinical tazemetostat exposure of 3340 ng*hr/mL at the 800 mg BID dose) in rats there was decreased maternal body weight gain (23% compared to co\"",
           "sourceDocument": "tazverik",
-          "sourcePage": 47
+          "sourcePage": 34
+        },
+        {
+          "id": "tazverik:exposure_margin:p90",
+          "label": "exposure_margin (from the review, p90)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from tazverik p90: \"roximately 3-fold lower than the nonclinical exposure margin associated with T-LBL risk. The safety profiles of tazemetostat at the RP2D dose of 800 mg BID were further evaluated across the developmen\"",
+          "sourceDocument": "tazverik",
+          "sourcePage": 90
+        },
+        {
+          "id": "tazverik:exposure_margin:p94",
+          "label": "exposure_margin (from the review, p94)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from tazverik p94: \"sitive E-R trend for efficacy and a ~ 2-fold exposure margin relative to the highest 1600 mg BID dose administered in humans), as well as the available dosage strength, a 50% 93\"",
+          "sourceDocument": "tazverik",
+          "sourcePage": 94
         }
       ],
-      "absent": [],
+      "absent": [
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "whatItBlocks": "The severity of a liver finding cannot be characterised without its injury pattern."
+        }
+      ],
       "present": [
         {
-          "field": "Human-cell hepatotoxicity result",
+          "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
         },
         {
-          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "field": "Reversibility on withdrawal",
           "half": "consequence"
         },
         {
-          "field": "Reversibility on withdrawal",
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
           "half": "consequence"
         }
       ],
@@ -662,36 +1150,100 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
-          "id": "trikafta:noael:p44",
-          "label": "noael (from the review, p44)",
+          "id": "trikafta:liver:p18",
+          "label": "liver (from the review, p18)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from trikafta p44: \"NOAEL) were determined to be 50 and 30 mg/kg\"",
+          "detail": "Verbatim from trikafta p18: \"nterest ALP alkaline phosphatase ALT alanine transaminase AR adverse reaction AST aspartate transaminase BA bioavailability BMI body mass index CFR Code of Federal Regulations CFTR cystic fibrosis tra\"",
           "sourceDocument": "trikafta",
-          "sourcePage": 44
+          "sourcePage": 18
         },
         {
-          "id": "trikafta:noael:p45",
-          "label": "noael (from the review, p45)",
+          "id": "trikafta:liver:p45",
+          "label": "liver (from the review, p45)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from trikafta p45: \"NOAEL was deemed to be 30 mg/kg\"",
+          "detail": "Verbatim from trikafta p45: \"changes were noted at 14 mg/kg/day including hepatocellular hypertrophy, epithelium vacuolation in gallbladder, and testicular seminiferous tubule atrophy/degeneration. The testicular changes were not\"",
           "sourceDocument": "trikafta",
           "sourcePage": 45
+        },
+        {
+          "id": "trikafta:liver:p66",
+          "label": "liver (from the review, p66)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from trikafta p66: \"e closely monitored. Graphical evaluation of liver enzyme levels (AST and ALT) on the PK for ELX did not show any trend, and no dose modification is recommended for patients with mild hepatic impairme\"",
+          "sourceDocument": "trikafta",
+          "sourcePage": 66
+        },
+        {
+          "id": "trikafta:reversibility:p23",
+          "label": "reversibility (from the review, p23)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from trikafta p23: \"secretions, recurrent pulmonary infection, irreversible lung damage, and ultimately respiratory failure. The median age of survival for a patient with CF is in the mid-to-late 30’s. • The most common\"",
+          "sourceDocument": "trikafta",
+          "sourcePage": 23
+        },
+        {
+          "id": "trikafta:reversibility:p42",
+          "label": "reversibility (from the review, p42)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from trikafta p42: \"te O354: Potential Clinical Impact of VX-445 Reversible Inhibition on CYP2C9 and CYP2C8 Based on R1 Value and Net Effect Model VX-445 has low potential to inhibit CYP2C9 or CYP2C8 in vivo 5.5 Toxicolo\"",
+          "sourceDocument": "trikafta",
+          "sourcePage": 42
         },
         {
           "id": "trikafta:reversibility:p43",
           "label": "reversibility (from the review, p43)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from trikafta p43: \"Recovery Period Doses: 0 (vehicle), 10, 25, or 50 mg/kg/day in males; and 0, 5, 15 or 30 mg/kg/day in females; 15/sex/gr\"",
+          "detail": "Verbatim from trikafta p43: \"cokinetic Study in Rats Followed by a 28-Day Recovery Period Doses: 0 (vehicle), 10, 25, or 50 mg/kg/day in males; and 0, 5, 15 or 30 mg/kg/day in females; 15/sex/group Yes VRT-1651445-TX- 006 VX-445/\"",
           "sourceDocument": "trikafta",
           "sourcePage": 43
         },
         {
-          "id": "trikafta:reversibility:p45",
-          "label": "reversibility (from the review, p45)",
+          "id": "trikafta:exposure_margin:p18",
+          "label": "exposure_margin (from the review, p18)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from trikafta p45: \"changes were not fully reversible and were adverse. In conclusion, 6 mg/kg/day was the NOAEL\"",
+          "detail": "Verbatim from trikafta p18: \"gulatory Activities NDA new drug application NOAEL no observed adverse effect levels PBPK physiologically based pharmacokinetic PD pharmacodynamics PI prescribing information\"",
+          "sourceDocument": "trikafta",
+          "sourcePage": 18
+        },
+        {
+          "id": "trikafta:exposure_margin:p44",
+          "label": "exposure_margin (from the review, p44)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from trikafta p44: \"d and the No Observed Adverse Effect Levels (NOAEL) were determined to be 50 and 30 mg/kg/day for males and females, respectively. When VX-445 was administered to rats chronically (VX-445-TX-005), it\"",
+          "sourceDocument": "trikafta",
+          "sourcePage": 44
+        },
+        {
+          "id": "trikafta:exposure_margin:p45",
+          "label": "exposure_margin (from the review, p45)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from trikafta p45: \"5-related adverse changes identified and the NOAEL was deemed to be 30 mg/kg/day. When VX-445 was administered alone chronically (up to 39-week) in dogs (VX-445-TX-006), test item-related microscopic\"",
           "sourceDocument": "trikafta",
           "sourcePage": 45
+        },
+        {
+          "id": "trikafta:injury_pattern:p137",
+          "label": "injury_pattern (from the review, p137)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from trikafta p137: \"argement 0 1 (<1) Hepatic cirrhosis 0 1 (<1) Hepatocellular injury 1 (<1) 1 (<1) Ocular icterus 0 1 (<1) Portal hypertension 0 1 (<1) Hypertransaminasemia 1 (<1) 0 Severe (Grade 3) 1 (<1) 3 (1) SAE 1\"",
+          "sourceDocument": "trikafta",
+          "sourcePage": 137
+        },
+        {
+          "id": "trikafta:injury_pattern:p145",
+          "label": "injury_pattern (from the review, p145)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from trikafta p145: \"pe and a history of CF lung disease, hepatic steatosis, and hepatomegaly randomized to ELX/TEZ/IVA. The subject had a prior history of elevated CK with exercise (3071 units/liter [U/L], normal range:\"",
+          "sourceDocument": "trikafta",
+          "sourcePage": 145
+        },
+        {
+          "id": "trikafta:injury_pattern:p155",
+          "label": "injury_pattern (from the review, p155)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from trikafta p155: \"s acute 1 (<1) Cholelithiasis 1 (<1) Hepatic steatosis 1 (<1) Hepatomegaly 1 (<1) SOC: System Organ Class, TEZ: tezacaftor, ELX: elexacaftor, n: number of subjects in subset, N: total subjects in tria\"",
+          "sourceDocument": "trikafta",
+          "sourcePage": 155
         }
       ],
       "absent": [],
@@ -701,11 +1253,15 @@
           "half": "mechanism"
         },
         {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        },
+        {
           "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
           "half": "consequence"
         },
         {
-          "field": "Reversibility on withdrawal",
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
           "half": "consequence"
         }
       ],
@@ -720,58 +1276,110 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
-          "id": "turalio:liver-findings:p40",
-          "label": "liver-findings (from the review, p40)",
+          "id": "turalio:liver:p21",
+          "label": "liver (from the review, p21)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from turalio p40: \"hemosiderin deposition and necrotizing inflammation with increased levels of aspartate aminotransferase\"",
-          "sourceDocument": "turalio",
-          "sourcePage": 40
-        },
-        {
-          "id": "turalio:liver-findings:p50",
-          "label": "liver-findings (from the review, p50)",
-          "assertion": "ambiguous",
-          "detail": "Verbatim from turalio p50: \"ALT and AST at doses ≥20 mg/kg\"",
-          "sourceDocument": "turalio",
-          "sourcePage": 50
-        },
-        {
-          "id": "turalio:noael:p67",
-          "label": "noael (from the review, p67)",
-          "assertion": "ambiguous",
-          "detail": "Verbatim from turalio p67: \"NOAEL of 10 mg/kg/day was approximately 0\"",
-          "sourceDocument": "turalio",
-          "sourcePage": 67
-        },
-        {
-          "id": "turalio:clinical-reversibility:p21",
-          "label": "clinical-reversibility (from the review, p21)",
-          "assertion": "ambiguous",
-          "detail": "Verbatim from turalio p21: \"reversible liver injury among the 768 patients in the overall development program of pexidartinib\"",
+          "detail": "Verbatim from turalio p21: \"nt) included abnormal liver tests (3.3%) and hepatotoxicity (3.3%). Permanent discontinuation of pexidartinib due to an adverse reaction occurred in 13% of patients; the most frequent adverse reaction\"",
           "sourceDocument": "turalio",
           "sourcePage": 21
         },
         {
-          "id": "turalio:clinical-reversibility:p23",
-          "label": "clinical-reversibility (from the review, p23)",
+          "id": "turalio:liver:p22",
+          "label": "liver (from the review, p22)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from turalio p23: \"reversible liver injury, and biopsies in a few patients indicating ductopenia\"",
+          "detail": "Verbatim from turalio p22: \"8 experienced serum transaminase and bilirubin elevations while receiving pexidartinib had improvement to baseline levels with dose reductions, dose interruption, and/or discontinuation of pexidartini\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 22
+        },
+        {
+          "id": "turalio:liver:p23",
+          "label": "liver (from the review, p23)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p23: \"o the pexidartinib arm who experienced serum transaminase and bilirubin elevations had improvement to baseline values with adequate monitoring of the relevant laboratory parameters and the implementat\"",
           "sourceDocument": "turalio",
           "sourcePage": 23
+        },
+        {
+          "id": "turalio:reversibility:p21",
+          "label": "reversibility (from the review, p21)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p21: \"lities was observed. There were 2 cases of irreversible liver injury among the 768 patients in the overall development program of pexidartinib; one patient subsequently underwent liver transplantation\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 21
+        },
+        {
+          "id": "turalio:reversibility:p22",
+          "label": "reversibility (from the review, p22)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p22: \"nts who experienced serious events with long recovery periods. In the post-approval setting, the risk of hepatotoxicity can be mitigated with careful selection of patients so that they reflect the ind\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 22
+        },
+        {
+          "id": "turalio:reversibility:p23",
+          "label": "reversibility (from the review, p23)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p23: \"ng was observed, including 2 patients with irreversible liver injury, and biopsies in a few patients indicating ductopenia. Additionally, there remain uncertainties regarding long-term effects of this\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 23
+        },
+        {
+          "id": "turalio:exposure_margin:p39",
+          "label": "exposure_margin (from the review, p39)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p39: \"artinib at 60 mg/kg daily (approximately 1.6 times the clinical exposure of 154930 ng·h/mL [estimated AUC24 from the 77465 AUC12 cited in the label] at the recommended human dose of 800 mg daily) resu\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 39
+        },
+        {
+          "id": "turalio:exposure_margin:p40",
+          "label": "exposure_margin (from the review, p40)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p40: \"curred at doses ≥20 mg/kg (approximately 0.6 times the clinical exposure at 800 mg). Additionally, biliary cysts and increased gamma-glutamyl transferase (GGT) levels occurred in female rats at 60 mg/\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 40
+        },
+        {
+          "id": "turalio:exposure_margin:p41",
+          "label": "exposure_margin (from the review, p41)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p41: \"gh dose level of 40 mg/kg (approximately 1.3 times the clinical exposure of pexidartinib at the 800 mg dose), rats displayed decreases in fertility. In males, lower epididymal and testicular weights w\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 41
+        },
+        {
+          "id": "turalio:injury_pattern:p124",
+          "label": "injury_pattern (from the review, p124)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p124: \"y data and identified two cases of potential cholestatic liver injury. Updated safety information. Enrollment was stopped. Patients randomized to placebo no longer allowed to crossover to pexidartinib\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 124
+        },
+        {
+          "id": "turalio:injury_pattern:p181",
+          "label": "injury_pattern (from the review, p181)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p181: \"emia c Includes the PT terms hepatotoxicity, hepatocellular injury, liver disorder\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 181
+        },
+        {
+          "id": "turalio:injury_pattern:p182",
+          "label": "injury_pattern (from the review, p182)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from turalio p182: \"s law can be used to identify a drug causing hepatocellular injury sufficient to impair bilirubin excretion. In order to meet the criteria for Hy’s laws all of the following must be met: • An AST or A\"",
+          "sourceDocument": "turalio",
+          "sourcePage": 182
         }
       ],
       "absent": [],
       "present": [
         {
-          "field": "Human-cell hepatotoxicity result",
-          "half": "mechanism"
-        },
-        {
           "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
         },
         {
-          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "field": "Reversibility on withdrawal",
           "half": "consequence"
         },
         {
@@ -779,7 +1387,7 @@
           "half": "consequence"
         },
         {
-          "field": "Reversibility on withdrawal",
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
           "half": "consequence"
         }
       ],
@@ -794,28 +1402,52 @@
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
         {
-          "id": "xpovio:noael:p40",
-          "label": "noael (from the review, p40)",
+          "id": "xpovio:liver:p30",
+          "label": "liver (from the review, p30)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from xpovio p40: \"NOAEL for maternal toxicity was 0.25 mg/kg\"",
+          "detail": "Verbatim from xpovio p30: \"n effects. Female rats also exhibited higher liver weights and/or centrilobular hepatocellular hypertrophy and/or increased mitotic figures. Monkeys exhibited gastrointestinal effects and lymphoid/hem\"",
           "sourceDocument": "xpovio",
-          "sourcePage": 40
+          "sourcePage": 30
+        },
+        {
+          "id": "xpovio:reversibility:p29",
+          "label": "reversibility (from the review, p29)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from xpovio p29: \"itor. Selinexor binds covalently, but slowly reversibly, to the NES-binding groove of XPO1. In cell- based assays, selinexor inhibits XPO1-mediated nuclear export with an IC50≈20 nM. XPO1 inhibition b\"",
+          "sourceDocument": "xpovio",
+          "sourcePage": 29
         },
         {
           "id": "xpovio:reversibility:p30",
           "label": "reversibility (from the review, p30)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from xpovio p30: \"effects on male reproductive tissues, the effects were somewhat reversible. In the definitive embryo-fetal developmental\"",
+          "detail": "Verbatim from xpovio p30: \"roductive tissues, the effects were somewhat reversible. In the definitive embryo-fetal developmental (EFD) toxicity study, pregnant rats received selinexor at 0, 0.25, 0.75, or 2 mg/kg/day throughout\"",
           "sourceDocument": "xpovio",
           "sourcePage": 30
         },
         {
-          "id": "xpovio:reversibility:p35",
-          "label": "reversibility (from the review, p35)",
+          "id": "xpovio:reversibility:p31",
+          "label": "reversibility (from the review, p31)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from xpovio p35: \"Recovery Period/ KNC-G-13-001 Key Study Findings • There were no unscheduled deaths. • Hematological changes included de\"",
+          "detail": "Verbatim from xpovio p31: \"covalent binding, selinexor acts as a slowly reversible inhibitor of XPO1. Experiments have shown preformed XPO-1­ inhibitor complexes that are dialyzed for 24-hours to remove un- or de-conjugated sel\"",
           "sourceDocument": "xpovio",
-          "sourcePage": 35
+          "sourcePage": 31
+        },
+        {
+          "id": "xpovio:exposure_margin:p40",
+          "label": "exposure_margin (from the review, p40)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from xpovio p40: \"t in Rats/ KNC-G-13-008 Key Study Findings • NOAEL for maternal toxicity was 0.25 mg/kg/day (GD 17: AUClast value of 0.121 μg•h/mL and Cmax value of 0.034 μg/mL). • Doses of ≥0.75 mg/kg (≥4.5 mg/m2) c\"",
+          "sourceDocument": "xpovio",
+          "sourcePage": 40
+        },
+        {
+          "id": "xpovio:injury_pattern:p30",
+          "label": "injury_pattern (from the review, p30)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from xpovio p30: \"ed higher liver weights and/or centrilobular hepatocellular hypertrophy and/or increased mitotic figures. Monkeys exhibited gastrointestinal effects and lymphoid/hematologic depletion. Aside from the\"",
+          "sourceDocument": "xpovio",
+          "sourcePage": 30
         }
       ],
       "absent": [],
@@ -825,11 +1457,15 @@
           "half": "mechanism"
         },
         {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        },
+        {
           "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
           "half": "consequence"
         },
         {
-          "field": "Reversibility on withdrawal",
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
           "half": "consequence"
         }
       ],
@@ -847,7 +1483,7 @@
           "id": "ponatinib:liver:p4",
           "label": "liver (from the review, p4)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from ponatinib p4: \"ncidence lipase elevation, and elevated liver enzymes (ALT and AST). Cardiovascular findings in animals included systolic heart murmurs and myocardial\"",
+          "detail": "Verbatim from ponatinib p4: \"low incidence lipase elevation, and elevated liver enzymes (ALT and AST). Cardiovascular findings in animals included systolic heart murmurs and myocardial necrosis; however, these findings were of lo\"",
           "sourceDocument": "ponatinib",
           "sourcePage": 4
         },
@@ -855,15 +1491,23 @@
           "id": "ponatinib:liver:p15",
           "label": "liver (from the review, p15)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from ponatinib p15: \"of pancreatitis is unknown. − Elevated ALT and AST values occurred in treated monkeys at the end of the 6- month dosing period at all doses that rang\"",
+          "detail": "Verbatim from ponatinib p15: \"cases of pancreatitis is unknown. − Elevated ALT and AST values occurred in treated monkeys at the end of the 6- month dosing period at all doses that ranged from 2- to 4.5-fold in ALT and 2- to 9.2-f\"",
           "sourceDocument": "ponatinib",
           "sourcePage": 15
+        },
+        {
+          "id": "ponatinib:liver:p16",
+          "label": "liver (from the review, p16)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from ponatinib p16: \"ed in the affected monkeys and elevations in transaminases were not present during the recovery period. None of these findings demonstrated a clear dose-dependent relationship that corresponded with o\"",
+          "sourceDocument": "ponatinib",
+          "sourcePage": 16
         },
         {
           "id": "ponatinib:reversibility:p16",
           "label": "reversibility (from the review, p16)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from ponatinib p16: \"ansaminases were not present during the recovery period. None of these findings demonstrated a clear dose-dependent relationship that corresponded wit\"",
+          "detail": "Verbatim from ponatinib p16: \"in transaminases were not present during the recovery period. None of these findings demonstrated a clear dose-dependent relationship that corresponded with other histopathological or serum chemistry\"",
           "sourceDocument": "ponatinib",
           "sourcePage": 16
         },
@@ -871,12 +1515,33 @@
           "id": "ponatinib:reversibility:p42",
           "label": "reversibility (from the review, p42)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from ponatinib p42: \"5 rats/sex/group assigned for a 28-days recovery period Deviation from study protocol: Initial weight of rats was outside the protocol range. This pro\"",
+          "detail": "Verbatim from ponatinib p42: \"sis; 5 rats/sex/group assigned for a 28-days recovery period Deviation from study protocol: Initial weight of rats was outside the protocol range. This protocol deviation was reported. Results Mortali\"",
           "sourceDocument": "ponatinib",
           "sourcePage": 42
+        },
+        {
+          "id": "ponatinib:reversibility:p43",
+          "label": "reversibility (from the review, p43)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from ponatinib p43: \"also present in one 6 mg/kg male during the recovery period. In surviving rats, rough hair coat, dry, flaky skin of the fore- and hind limbs were noted at 3 and 6 mg/kg/day. Body Weight Daily adminis\"",
+          "sourceDocument": "ponatinib",
+          "sourcePage": 43
+        },
+        {
+          "id": "ponatinib:exposure_margin:p120",
+          "label": "exposure_margin (from the review, p120)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from ponatinib p120: \"lium ♂. Day 28 AUClast ♂ 5660 ♀8040 ng*h/mL. NOAEL 0.25 mg/kg/day (1.5 mg/m2/day) corresponded to mean AP24534 Cmax of 5.7 and 4.3 ng/mL and AUClast of 91.9 and 23.9 ng*h/mL in male and female rats, r\"",
+          "sourceDocument": "ponatinib",
+          "sourcePage": 120
         }
       ],
-      "absent": [],
+      "absent": [
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "whatItBlocks": "The severity of a liver finding cannot be characterised without its injury pattern."
+        }
+      ],
       "present": [
         {
           "field": "Repeat-dose in vivo liver findings",
@@ -884,6 +1549,10 @@
         },
         {
           "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
           "half": "consequence"
         }
       ],
@@ -901,7 +1570,7 @@
           "id": "regorafenib:liver:p12",
           "label": "liver (from the review, p12)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from regorafenib p12: \"s in the liver along with elevations in liver enzymes noted in short and long term repeat dose toxicology studies. Hematological changes including neu\"",
+          "detail": "Verbatim from regorafenib p12: \"ndings in the liver along with elevations in liver enzymes noted in short and long term repeat dose toxicology studies. Hematological changes including neutropenia, thrombocytopenia, and lymphopenia a\"",
           "sourceDocument": "regorafenib",
           "sourcePage": 12
         },
@@ -909,15 +1578,23 @@
           "id": "regorafenib:liver:p63",
           "label": "liver (from the review, p63)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from regorafenib p63: \"L L M M Aorta wall M M M M M M L BG M M Bile ducts, contents M M M M H H L BG L M M Blood M M M M M M L L L M M Bone marrow M M M M M M L BG L M M Bro\"",
+          "detail": "Verbatim from regorafenib p63: \"M M L L M M Aorta wall M M M M M M L BG M M Bile ducts, contents M M M M H H L BG L M M Blood M M M M M M L L L M M Bone marrow M M M M M M L BG L M M Brown adipose tissue M H M M L L M M M Choroid p\"",
           "sourceDocument": "regorafenib",
           "sourcePage": 63
+        },
+        {
+          "id": "regorafenib:liver:p73",
+          "label": "liver (from the review, p73)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from regorafenib p73: \"70  After intravenous administration to bile duct-cannulated rats, biliary excretion amounted to 43% of the administered dose. Methods Study design of [14C]BAY 73-4506 administration in rats for phar\"",
+          "sourceDocument": "regorafenib",
+          "sourcePage": 73
         },
         {
           "id": "regorafenib:reversibility:p13",
           "label": "reversibility (from the review, p13)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from regorafenib p13: \"ides had not resolved by the end of the recovery period; there were also findings of tubular atrophy and degeneration in the testes and atrophy of the\"",
+          "detail": "Verbatim from regorafenib p13: \"didymides had not resolved by the end of the recovery period; there were also findings of tubular atrophy and degeneration in the testes and atrophy of the seminal vesicles noted at the end of the 4 w\"",
           "sourceDocument": "regorafenib",
           "sourcePage": 13
         },
@@ -925,15 +1602,23 @@
           "id": "regorafenib:reversibility:p19",
           "label": "reversibility (from the review, p19)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from regorafenib p19: \"in Plasma, Binding to Plasma Proteins, Reversibility of Binding, and Erythrocyte/Plasma Partitioning of [14C]BAY 73-4506 In Vitro PH-33804 Whole-body\"",
+          "detail": "Verbatim from regorafenib p19: \"ility in Plasma, Binding to Plasma Proteins, Reversibility of Binding, and Erythrocyte/Plasma Partitioning of [14C]BAY 73-4506 In Vitro PH-33804 Whole-body Autoradiography in Rats after Single Intrave\"",
           "sourceDocument": "regorafenib",
           "sourcePage": 19
+        },
+        {
+          "id": "regorafenib:reversibility:p24",
+          "label": "reversibility (from the review, p24)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from regorafenib p24: \"s Administration by Gavage with a Subsequent Recovery Period of 4 Weeks. Study No. T 4075651 The applicant provided nonclinical references (papers, abstracts and posters) which are summarized by the a\"",
+          "sourceDocument": "regorafenib",
+          "sourcePage": 24
         },
         {
           "id": "regorafenib:exposure_margin:p44",
           "label": "exposure_margin (from the review, p44)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from regorafenib p44: \"e mid-dose tested, 5 mg/kg of M-2, is a NOAEL. At the high-dose, 20 mg/kg of M-2, there was increased activity at 4 hours post-dose and slightly incre\"",
+          "detail": "Verbatim from regorafenib p44: \" The mid-dose tested, 5 mg/kg of M-2, is a NOAEL. At the high-dose, 20 mg/kg of M-2, there was increased activity at 4 hours post-dose and slightly increased body temperature at 2 and 4 hours post-d\"",
           "sourceDocument": "regorafenib",
           "sourcePage": 44
         },
@@ -941,23 +1626,59 @@
           "id": "regorafenib:exposure_margin:p103",
           "label": "exposure_margin (from the review, p103)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from regorafenib p103: \"reased more than dose proportionally.  NOAEL for BAY 75-7495 was 5 mg/kg/day in both sexes. Methods Doses: 1, 5 or 20 mg/kg/day (see table below for\"",
+          "detail": "Verbatim from regorafenib p103: \"s increased more than dose proportionally.  NOAEL for BAY 75-7495 was 5 mg/kg/day in both sexes. Methods Doses: 1, 5 or 20 mg/kg/day (see table below for details) Frequency of dosing: Daily Route of\"",
           "sourceDocument": "regorafenib",
           "sourcePage": 103
+        },
+        {
+          "id": "regorafenib:exposure_margin:p157",
+          "label": "exposure_margin (from the review, p157)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from regorafenib p157: \"# 36547, reviewed below), 0.3 mg/kg was the NOAEL for developmental toxicity, and the 1 mg/kg dose was relatively less toxic compared to the dose-tolerability study (i.e. did not cause total resorpti\"",
+          "sourceDocument": "regorafenib",
+          "sourcePage": 157
+        },
+        {
+          "id": "regorafenib:injury_pattern:p183",
+          "label": "injury_pattern (from the review, p183)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from regorafenib p183: \"e marrow hypocellularity, thymic atrophy and single cell necrosis, and atrophy of the spleen and lymph nodes in animals at the high dose level of 96 mg/m2/day. Toxicokinetic samples were collected dur\"",
+          "sourceDocument": "regorafenib",
+          "sourcePage": 183
+        },
+        {
+          "id": "regorafenib:injury_pattern:p198",
+          "label": "injury_pattern (from the review, p198)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from regorafenib p198: \"ncidence), submucosal edema • Peyer’s patch: single cell necrosis (↑incidence) • Pancreas: atrophy/degeneration (↑incidence) • Kidneys: tubular degeneration (same/persistent), glomerulopathy (↓inciden\"",
+          "sourceDocument": "regorafenib",
+          "sourcePage": 198
+        },
+        {
+          "id": "regorafenib:injury_pattern:p205",
+          "label": "injury_pattern (from the review, p205)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from regorafenib p205: \"nflammation of lymph nodes, inflammation and single cell necrosis in thymus, single cell necrosis of Peyer’s patch, thymic and spleen atrophy • Hepato-biliary toxicities: ↑ALT, AST, total bilirubin, c\"",
+          "sourceDocument": "regorafenib",
+          "sourcePage": 205
         }
       ],
       "absent": [],
       "present": [
-        {
-          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
-          "half": "consequence"
-        },
         {
           "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
         },
         {
           "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
           "half": "consequence"
         }
       ],
@@ -975,7 +1696,7 @@
           "id": "obeticholic:liver:p8",
           "label": "liver (from the review, p8)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from obeticholic p8: \"reases in ALT, AST, and ALP), increased liver weights, and bile duct hyperplasia with hepatocellular hypertrophy. Clinical signs such as yellow skin w\"",
+          "detail": "Verbatim from obeticholic p8: \", increases in ALT, AST, and ALP), increased liver weights, and bile duct hyperplasia with hepatocellular hypertrophy. Clinical signs such as yellow skin were observed in high dose animals (60 mg/kg/d\"",
           "sourceDocument": "obeticholic",
           "sourcePage": 8
         },
@@ -983,15 +1704,23 @@
           "id": "obeticholic:liver:p27",
           "label": "liver (from the review, p27)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from obeticholic p27: \"ontrols (p<0.001). Finally, while serum transaminases were similar among all groups, there was a trend toward decreased fibrotic marker mRNA (e.g., co\"",
+          "detail": "Verbatim from obeticholic p27: \"in controls (p<0.001). Finally, while serum transaminases were similar among all groups, there was a trend toward decreased fibrotic marker mRNA (e.g., collagen I) in the INT-747 treatment groups com\"",
           "sourceDocument": "obeticholic",
           "sourcePage": 27
+        },
+        {
+          "id": "obeticholic:liver:p34",
+          "label": "liver (from the review, p34)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from obeticholic p34: \"ivity, the test compound was administered to bile duct cannulated animals. To evaluate enterohepatic circulation of radioactivity, bile obtained up to 24 h after oral dosing of bile duct cannulated ra\"",
+          "sourceDocument": "obeticholic",
+          "sourcePage": 34
         },
         {
           "id": "obeticholic:reversibility:p69",
           "label": "reversibility (from the review, p69)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from obeticholic p69: \"e was sacrificed in extremis during the recovery period on Day 29. Clinical Signs Main study animals were observed for clinical signs at 1 and 2 h pos\"",
+          "detail": "Verbatim from obeticholic p69: \"female was sacrificed in extremis during the recovery period on Day 29. Clinical Signs Main study animals were observed for clinical signs at 1 and 2 h post-dosing. Detailed clinical evaluations were\"",
           "sourceDocument": "obeticholic",
           "sourcePage": 69
         },
@@ -999,15 +1728,23 @@
           "id": "obeticholic:reversibility:p70",
           "label": "reversibility (from the review, p70)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from obeticholic p70: \"males (relative to controls) during the recovery period. In females, food consumption was increased by 11% at the high dose on Day 34. Ophthalmoscopy\"",
+          "detail": "Verbatim from obeticholic p70: \"dose males (relative to controls) during the recovery period. In females, food consumption was increased by 11% at the high dose on Day 34. Ophthalmoscopy An ophthalmic examination (indirect) was cond\"",
           "sourceDocument": "obeticholic",
           "sourcePage": 70
+        },
+        {
+          "id": "obeticholic:reversibility:p71",
+          "label": "reversibility (from the review, p71)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from obeticholic p71: \"cium (+5%), albumin (+8%). At the end of the recovery period, cholesterol and triglycerides were increased by 68% and 123%, respectively, compared to controls. Urinalysis Not conducted Gross Pathology\"",
+          "sourceDocument": "obeticholic",
+          "sourcePage": 71
         },
         {
           "id": "obeticholic:exposure_margin:p8",
           "label": "exposure_margin (from the review, p8)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from obeticholic p8: \"taurine and glycine conjugates) at the NOAELs in the 26-week and 9-month toxicity studies in rats and dogs, respectively, exceed those in humans at t\"",
+          "detail": "Verbatim from obeticholic p8: \"d its taurine and glycine conjugates) at the NOAELs in the 26-week and 9-month toxicity studies in rats and dogs, respectively, exceed those in humans at the maximum recommended human dose (MRHD) of 1\"",
           "sourceDocument": "obeticholic",
           "sourcePage": 8
         },
@@ -1015,23 +1752,59 @@
           "id": "obeticholic:exposure_margin:p9",
           "label": "exposure_margin (from the review, p9)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from obeticholic p9: \"ity or early embryonic development. The NOAELs for male and female systemic toxicity in this study were 50 and 25 mg/kg/day, respectively. In an embry\"",
+          "detail": "Verbatim from obeticholic p9: \"ertility or early embryonic development. The NOAELs for male and female systemic toxicity in this study were 50 and 25 mg/kg/day, respectively. In an embryofetal development study in rats, 75 mg/kg/da\"",
           "sourceDocument": "obeticholic",
           "sourcePage": 9
+        },
+        {
+          "id": "obeticholic:exposure_margin:p10",
+          "label": "exposure_margin (from the review, p10)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from obeticholic p10: \"sk Summary Data Animal Data Obeticholic acid exposure margins were calculated using systemic exposure (AUC) values of obeticholic acid plus obeticholic acid’s active metabolite conjugates (tauro- obet\"",
+          "sourceDocument": "obeticholic",
+          "sourcePage": 10
+        },
+        {
+          "id": "obeticholic:injury_pattern:p8",
+          "label": "injury_pattern (from the review, p8)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from obeticholic p8: \"iver weights, and bile duct hyperplasia with hepatocellular hypertrophy. Clinical signs such as yellow skin were observed in high dose animals (60 mg/kg/day). In the 9-month oral toxicity study in dog\"",
+          "sourceDocument": "obeticholic",
+          "sourcePage": 8
+        },
+        {
+          "id": "obeticholic:injury_pattern:p21",
+          "label": "injury_pattern (from the review, p21)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from obeticholic p21: \"t and Selective FXR Agonist Endowed with Anticholestatic Activity Pellicciari et al. 2002 Functional Characterization of Semisynthetic Bile Acid Derivative INT-767, a Dual Farnesoid X Receptor and TGR\"",
+          "sourceDocument": "obeticholic",
+          "sourcePage": 21
+        },
+        {
+          "id": "obeticholic:injury_pattern:p26",
+          "label": "injury_pattern (from the review, p26)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from obeticholic p26: \"t and Selective FXR Agonist Endowed with Anticholestatic Activity (Pellicciari et al. J Med Chem. 2002; 45(17): 3569-3572). In this publication, a series of 6α-alkyl-substituted analogues of CDCA, inc\"",
+          "sourceDocument": "obeticholic",
+          "sourcePage": 26
         }
       ],
       "absent": [],
       "present": [
-        {
-          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
-          "half": "consequence"
-        },
         {
           "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
         },
         {
           "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
           "half": "consequence"
         }
       ],
@@ -1049,7 +1822,7 @@
           "id": "tolvaptan:liver:p7",
           "label": "liver (from the review, p7)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from tolvaptan p7: \"chanistic studies of tolvaptan- induced hepatotoxicity that were completed after the submission of previous NDA 204441. 1.2 Brief Discussion of Noncli\"",
+          "detail": "Verbatim from tolvaptan p7: \"he mechanistic studies of tolvaptan- induced hepatotoxicity that were completed after the submission of previous NDA 204441. 1.2 Brief Discussion of Nonclinical Findings [Part of it is extracted from\"",
           "sourceDocument": "tolvaptan",
           "sourcePage": 7
         },
@@ -1057,15 +1830,23 @@
           "id": "tolvaptan:liver:p8",
           "label": "liver (from the review, p8)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from tolvaptan p8: \"e toxicity section on tolvaptan-induced hepatotoxicity that were completed after the submission of previous NDA 22275 and NDA 204441. These studies in\"",
+          "detail": "Verbatim from tolvaptan p8: \"tical cells and thyroid follicular cells and centrilobular hypertrophy of hepatocytes. These changes were reversible after 4 weeks of drug discontinuation. The maximum tolerated dose in 4- and 7-day o\"",
           "sourceDocument": "tolvaptan",
           "sourcePage": 8
+        },
+        {
+          "id": "tolvaptan:liver:p9",
+          "label": "liver (from the review, p9)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from tolvaptan p9: \"his might also confer some increased risk of hepatocellular injury (apart from the also associated development of liver cysts). As John Senior states “the sponsor should be tasked to investigate wheth\"",
+          "sourceDocument": "tolvaptan",
+          "sourcePage": 9
         },
         {
           "id": "tolvaptan:reversibility:p8",
           "label": "reversibility (from the review, p8)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from tolvaptan p8: \"ophy of hepatocytes. These changes were reversible after 4 weeks of drug discontinuation. The maximum tolerated dose in 4- and 7-day old pups was 100\"",
+          "detail": "Verbatim from tolvaptan p8: \"pertrophy of hepatocytes. These changes were reversible after 4 weeks of drug discontinuation. The maximum tolerated dose in 4- and 7-day old pups was 100 mg/kg/day as all pups receiving 1000 mg/kg/da\"",
           "sourceDocument": "tolvaptan",
           "sourcePage": 8
         },
@@ -1073,15 +1854,23 @@
           "id": "tolvaptan:reversibility:p9",
           "label": "reversibility (from the review, p9)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from tolvaptan p9: \"tion in ALT (which may be transient and reversible) and total miR-122 was not observed in isolated human hepatocytes exposed to tolvaptan, exosomal re\"",
+          "detail": "Verbatim from tolvaptan p9: \"elevation in ALT (which may be transient and reversible) and total miR-122 was not observed in isolated human hepatocytes exposed to tolvaptan, exosomal release of miR-122 and declined urea release in\"",
           "sourceDocument": "tolvaptan",
           "sourcePage": 9
+        },
+        {
+          "id": "tolvaptan:reversibility:p25",
+          "label": "reversibility (from the review, p25)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from tolvaptan p25: \"imes a day for general condition. During the recovery period, all neonates were observed once daily in the morning. Dams were observed once daily for lactation condition during the lactation period. B\"",
+          "sourceDocument": "tolvaptan",
+          "sourcePage": 25
         },
         {
           "id": "tolvaptan:exposure_margin:p7",
           "label": "exposure_margin (from the review, p7)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from tolvaptan p7: \"doses up to 1000 mg/kg/day (1.9 to 5.1 times the human exposure at the 90/30 mg dose based on AUC), to male mice at doses up to 60 mg/kg/day (0.4 tim\"",
+          "detail": "Verbatim from tolvaptan p7: \"ts at doses up to 1000 mg/kg/day (1.9 to 5.1 times the human exposure at the 90/30 mg dose based on AUC), to male mice at doses up to 60 mg/kg/day (0.4 times the human exposure at the 90/30 mg dose ba\"",
           "sourceDocument": "tolvaptan",
           "sourcePage": 7
         },
@@ -1089,23 +1878,43 @@
           "id": "tolvaptan:exposure_margin:p23",
           "label": "exposure_margin (from the review, p23)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from tolvaptan p23: \"severity. According to the sponsor, the NOAEL for this study was 30 mg/kg/day. However, it is incorrect based on the observation of renal pelvic dilat\"",
+          "detail": "Verbatim from tolvaptan p23: \"and severity. According to the sponsor, the NOAEL for this study was 30 mg/kg/day. However, it is incorrect based on the observation of renal pelvic dilatation and elevated BUN at all doses. A NOAEL\"",
           "sourceDocument": "tolvaptan",
           "sourcePage": 23
+        },
+        {
+          "id": "tolvaptan:exposure_margin:p55",
+          "label": "exposure_margin (from the review, p55)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from tolvaptan p55: \"organs of toxicity were kidneys and lungs. A NOAEL could not be documented in the study. Mechanistic studies in delineating tolvaptan-induced hepatotoxicity Three nonclinical studies investigated poss\"",
+          "sourceDocument": "tolvaptan",
+          "sourcePage": 55
+        },
+        {
+          "id": "tolvaptan:injury_pattern:p9",
+          "label": "injury_pattern (from the review, p9)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from tolvaptan p9: \"aptan induced mitochondrial dysfunction. The hepatocellular injury causes some dysfunction of the whole liver with reduced ability to clear the plasma of bilirubin conjugate it and excrete it into bil\"",
+          "sourceDocument": "tolvaptan",
+          "sourcePage": 9
         }
       ],
       "absent": [],
       "present": [
-        {
-          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
-          "half": "consequence"
-        },
         {
           "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
         },
         {
           "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
           "half": "consequence"
         }
       ],
@@ -1123,23 +1932,31 @@
           "id": "teriflunomide:liver:p8",
           "label": "liver (from the review, p8)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from teriflunomide p8: \"b (high dose) and increases in relative liver weight (considered adaptive; mid and high doses), were observed. Similar doses were used in the 2-year c\"",
+          "detail": "Verbatim from teriflunomide p8: \"nd hgb (high dose) and increases in relative liver weight (considered adaptive; mid and high doses), were observed. Similar doses were used in the 2-year carcinogenicity study (0, 0, 0, 0.5, 1.5, and\"",
           "sourceDocument": "teriflunomide",
           "sourcePage": 8
         },
         {
-          "id": "teriflunomide:liver:p217",
-          "label": "liver (from the review, p217)",
+          "id": "teriflunomide:liver:p80",
+          "label": "liver (from the review, p80)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from teriflunomide p217: \"creased when normalized to body weight; liver weight was significantly increased relative to body weight. Consistent with the hemolytic anemia observe\"",
+          "detail": "Verbatim from teriflunomide p80: \"femur and sternum). The remaining HDM had no liver findings; however, several focal hemorrhages were noted in the medulla oblongata and spinal cord as well as marked bone marrow suppression. • HD—Fema\"",
           "sourceDocument": "teriflunomide",
-          "sourcePage": 217
+          "sourcePage": 80
+        },
+        {
+          "id": "teriflunomide:liver:p82",
+          "label": "liver (from the review, p82)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from teriflunomide p82: \"lung and mild to moderate necrosis in liver (centrilobular, single cell and/or focal) • Intestinal tract: Moderate to marked mucosal atrophy characterized by loss of glandular (crypt) epithelium and v\"",
+          "sourceDocument": "teriflunomide",
+          "sourcePage": 82
         },
         {
           "id": "teriflunomide:reversibility:p82",
           "label": "reversibility (from the review, p82)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from teriflunomide p82: \"appeared to resolve following a 28-day recovery period; however, the increase in pigment in the spleen did not resolve. Methods Doses: 0 (C), 0.3 (LD\"",
+          "detail": "Verbatim from teriflunomide p82: \"dings appeared to resolve following a 28-day recovery period; however, the increase in pigment in the spleen did not resolve. Methods Doses: 0 (C), 0.3 (LD), 1.5/9.0* (HD), 3.0 (MD1), 6.0 (MD2) mg/kg/\"",
           "sourceDocument": "teriflunomide",
           "sourcePage": 82
         },
@@ -1147,15 +1964,23 @@
           "id": "teriflunomide:reversibility:p228",
           "label": "reversibility (from the review, p228)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from teriflunomide p228: \"returned to baseline following a 28-day recovery period. Likewise, there was a significant reduction in absolute and relative thymic weight at the MD1\"",
+          "detail": "Verbatim from teriflunomide p228: \"nges returned to baseline following a 28-day recovery period. Likewise, there was a significant reduction in absolute and relative thymic weight at the MD1, MD2, and HD that correlated with lymphoid a\"",
           "sourceDocument": "teriflunomide",
           "sourcePage": 228
+        },
+        {
+          "id": "teriflunomide:reversibility:p229",
+          "label": "reversibility (from the review, p229)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from teriflunomide p229: \"c anemia and immunosuppressive findings were recoverable following a 28-day drug-free period. The NOAEL identified in this study was 0.3 mg/kg/day. On a mg/m2 basis, the hemolytic anemia and immunosup\"",
+          "sourceDocument": "teriflunomide",
+          "sourcePage": 229
         },
         {
           "id": "teriflunomide:exposure_margin:p8",
           "label": "exposure_margin (from the review, p8)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from teriflunomide p8: \"day. The low dose was identified as the NOAEL. Dog: In the 3-month study (+4-week recovery), teriflunomide was administered at oral doses of 0, 0.8, 2\"",
+          "detail": "Verbatim from teriflunomide p8: \"g/kg/day. The low dose was identified as the NOAEL. Dog: In the 3-month study (+4-week recovery), teriflunomide was administered at oral doses of 0, 0.8, 2.5, and 8.0 mg/kg/day. The high dose exceeded\"",
           "sourceDocument": "teriflunomide",
           "sourcePage": 8
         },
@@ -1163,23 +1988,36 @@
           "id": "teriflunomide:exposure_margin:p9",
           "label": "exposure_margin (from the review, p9)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from teriflunomide p9: \"sponsor identified the low dose as the NOAEL, although a slight increase in alkaline phosphatase detected at this dose (and at the mid and high doses\"",
+          "detail": "Verbatim from teriflunomide p9: \"5 sponsor identified the low dose as the NOAEL, although a slight increase in alkaline phosphatase detected at this dose (and at the mid and high doses) was considered possibly drug-related. Due to th\"",
           "sourceDocument": "teriflunomide",
           "sourcePage": 9
+        },
+        {
+          "id": "teriflunomide:exposure_margin:p11",
+          "label": "exposure_margin (from the review, p11)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from teriflunomide p11: \"ed at all doses in both males and females. A NOAEL was not identified in this study. Embryofetal development: Embryofetal development (EFD) studies were conducted in Sprague-Dawley rat and Himalayan r\"",
+          "sourceDocument": "teriflunomide",
+          "sourcePage": 11
         }
       ],
-      "absent": [],
-      "present": [
+      "absent": [
         {
-          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
-          "half": "consequence"
-        },
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "whatItBlocks": "The severity of a liver finding cannot be characterised without its injury pattern."
+        }
+      ],
+      "present": [
         {
           "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
         },
         {
           "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
           "half": "consequence"
         }
       ],
@@ -1197,23 +2035,31 @@
           "id": "mipomersen:liver:p2",
           "label": "liver (from the review, p2)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from mipomersen p2: \"adequate. The Committee concluded that hepatocellular adenomas and combined hepatocellular adenomas or carcinomas were drug-related in female mice ad\"",
+          "detail": "Verbatim from mipomersen p2: \"udies adequate. The Committee concluded that hepatocellular adenomas and combined hepatocellular adenomas or carcinomas were drug-related in female mice administered 60 mg/kg/week mipomersen. In addit\"",
           "sourceDocument": "mipomersen",
           "sourcePage": 2
         },
         {
-          "id": "mipomersen:liver:p6",
-          "label": "liver (from the review, p6)",
+          "id": "mipomersen:liver:p9",
+          "label": "liver (from the review, p9)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from mipomersen p6: \"iver, spleen, heart (up to 1.5X) 75 4 X ↑ ALT, AST, ALKP (2-3X) ↓ Protein, A/G Bone marrow granulocyte hyperplasia Thymus lymphoid depletion ↓ Liver a\"",
+          "detail": "Verbatim from mipomersen p9: \"gs including hepatocytes necrosis, increased transaminases, Kupffer cell hypertrophy/hyperplasia and decreased serum albumin were observed at exposures >3-times exposures at the MRHD. Fortunately, com\"",
           "sourceDocument": "mipomersen",
-          "sourcePage": 6
+          "sourcePage": 9
+        },
+        {
+          "id": "mipomersen:liver:p10",
+          "label": "liver (from the review, p10)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from mipomersen p10: \"llowing mouse neoplasms were drug related: • Hepatocellular adenomas and combined hepatocellular adenomas or carcinomas in females given 60 mg/kg/w (1.5X MRHD) mipomersen. The mouse surrogate (ISIS 14\"",
+          "sourceDocument": "mipomersen",
+          "sourcePage": 10
         },
         {
           "id": "mipomersen:reversibility:p11",
           "label": "reversibility (from the review, p11)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from mipomersen p11: \"initiation) was performed with a 4-week recovery period. There were decreases in food consumption and body weight gain which did not reverse in the re\"",
+          "detail": "Verbatim from mipomersen p11: \"2 at initiation) was performed with a 4-week recovery period. There were decreases in food consumption and body weight gain which did not reverse in the recovery period. Findings seen in the juvenile\"",
           "sourceDocument": "mipomersen",
           "sourcePage": 11
         },
@@ -1221,33 +2067,69 @@
           "id": "mipomersen:reversibility:p25",
           "label": "reversibility (from the review, p25)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from mipomersen p25: \"on serum lipid parameters. There was a reversible decline in albumin levels at 30 mg/kg/week, possibly related to an acute phase response. Steatosis\"",
+          "detail": "Verbatim from mipomersen p25: \"ffect on serum lipid parameters. There was a reversible decline in albumin levels at 30 mg/kg/week, possibly related to an acute phase response. Steatosis was not apparent with mipomersen or species-s\"",
           "sourceDocument": "mipomersen",
           "sourcePage": 25
         },
         {
-          "id": "mipomersen:exposure_margin:p11",
-          "label": "exposure_margin (from the review, p11)",
+          "id": "mipomersen:reversibility:p27",
+          "label": "reversibility (from the review, p27)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from mipomersen p11: \"cuolation which was not reversible. The NOAEL in this study approximates systemic exposures at the MRHD. A pediatric development plan has not been pro\"",
+          "detail": "Verbatim from mipomersen p27: \"ned lower throughout a 4-week treatment-free recovery period. 1.3 Recommendations 1.3.1 Approvability The nonclinical data submitted in this application support the marketing approval of mipomersen fo\"",
           "sourceDocument": "mipomersen",
-          "sourcePage": 11
+          "sourcePage": 27
+        },
+        {
+          "id": "mipomersen:exposure_margin:p9",
+          "label": "exposure_margin (from the review, p9)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from mipomersen p9: \"the 2-year rat carcinogenicity study with a safety margin up to 3-times Reference ID: 3225697\"",
+          "sourceDocument": "mipomersen",
+          "sourcePage": 9
         },
         {
           "id": "mipomersen:exposure_margin:p13",
           "label": "exposure_margin (from the review, p13)",
           "assertion": "ambiguous",
-          "detail": "Verbatim from mipomersen p13: \"ith a no-observed-adverse-effect-level (NOAEL) of 10 mg/kg/week (clinical exposures anticipated from a 200 mg/wk dose based on body surface area compa\"",
+          "detail": "Verbatim from mipomersen p13: \"eek with a no-observed-adverse-effect-level (NOAEL) of 10 mg/kg/week (clinical exposures anticipated from a 200 mg/wk dose based on body surface area comparisons across species). Reference ID: 3225697\"",
           "sourceDocument": "mipomersen",
           "sourcePage": 13
+        },
+        {
+          "id": "mipomersen:exposure_margin:p24",
+          "label": "exposure_margin (from the review, p24)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from mipomersen p24: \"g/kg/week of mipomersen by SC injection, the NOAEL is considered to be 3 mg/kg/week SC (<1x clinical exposure) for kidney toxicity. Liver Effects The liver is generally the organ with the second highe\"",
+          "sourceDocument": "mipomersen",
+          "sourcePage": 24
+        },
+        {
+          "id": "mipomersen:injury_pattern:p7",
+          "label": "injury_pattern (from the review, p7)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from mipomersen p7: \"of the drug class. There was no evidence of steatosis in mice treated with either mipomersen or the mouse surrogate. Minimal to mild “foreign material” is seen in the skin of males given ≥ 10 mg/kg/d\"",
+          "sourceDocument": "mipomersen",
+          "sourcePage": 7
+        },
+        {
+          "id": "mipomersen:injury_pattern:p9",
+          "label": "injury_pattern (from the review, p9)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from mipomersen p9: \"dary to complement activation. Similarly, no steatosis was observed in any animal species including a hyper cholesterolemic mouse treated for 22 weeks with a mouse surrogate (ISIS 147764) on a high fa\"",
+          "sourceDocument": "mipomersen",
+          "sourcePage": 9
+        },
+        {
+          "id": "mipomersen:injury_pattern:p19",
+          "label": "injury_pattern (from the review, p19)",
+          "assertion": "ambiguous",
+          "detail": "Verbatim from mipomersen p19: \"se inhibitors to cause or exacerbate hepatic steatosis, it is notable that studies in the models that have the greatest degree of hypercholesterolemia (the LDLr- Deficient Mouse, the Human ApoB transg\"",
+          "sourceDocument": "mipomersen",
+          "sourcePage": 19
         }
       ],
       "absent": [],
       "present": [
-        {
-          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
-          "half": "consequence"
-        },
         {
           "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
@@ -1255,10 +2137,19 @@
         {
           "field": "Reversibility on withdrawal",
           "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "half": "consequence"
         }
       ],
       "outcomeTier": "boxed"
     }
   ],
-  "_rejectedCandidates": "Three candidates were searched and rejected, and orgovyx is why every hit had to be read rather than counted: its only hepatotoxicity sentences are about BICALUTAMIDE, a comparator drug named in the review, plus a generic reference to FDA DILI monitoring guidance. A regex that counted hits would have labelled relugolix hepatotoxic on another drug's evidence."
+  "_rejectedCandidates": "Three candidates were searched and rejected, and orgovyx is why every hit had to be read rather than counted: its only hepatotoxicity sentences are about BICALUTAMIDE, a comparator drug named in the review, plus a generic reference to FDA DILI monitoring guidance. A regex that counted hits would have labelled relugolix hepatotoxic on another drug's evidence.",
+  "_findingsAreBuiltByScript": "Findings, present and absent are regenerated by tools/build_verdict_real.py so every drug is assembled identically. Building the positives one way and the negatives another would let any separation the adjudicator found be an artefact of the assembly. expectFlag, labelEvidence and outcomeTier are the human-verified answer key and are never touched by the script."
 }

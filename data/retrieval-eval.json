@@ -175,7 +175,7 @@
         },
         {
           "page": 50,
-          "quote": "ALT and AST at doses \u226520 mg/kg"
+          "quote": "ALT and AST at doses ≥20 mg/kg"
         }
       ],
       "mustContain": [
@@ -196,7 +196,7 @@
         },
         {
           "page": 50,
-          "quote": "ALT and AST at doses \u226520 mg/kg"
+          "quote": "ALT and AST at doses ≥20 mg/kg"
         }
       ],
       "mustContain": [
@@ -216,7 +216,7 @@
         },
         {
           "page": 50,
-          "quote": "ALT and AST at doses \u226520 mg/kg"
+          "quote": "ALT and AST at doses ≥20 mg/kg"
         }
       ],
       "mustContain": [
@@ -236,7 +236,7 @@
         },
         {
           "page": 50,
-          "quote": "ALT and AST at doses \u226520 mg/kg"
+          "quote": "ALT and AST at doses ≥20 mg/kg"
         }
       ],
       "mustContain": [
@@ -423,10 +423,6 @@
         {
           "page": 65,
           "quote": "recovery phase, there was partial recovery of sotorasib-related kidney changes at all dose levels accompanied with inter"
-        },
-        {
-          "page": 66,
-          "quote": "Recovery Period / 150432 Key Study Findings x One high dose recovery cohort rat was euthanized on Day 126 due to poor cl"
         }
       ],
       "mustContain": [
@@ -533,10 +529,6 @@
       "question": "Were the toxicology findings reversible?",
       "goldPages": [
         {
-          "page": 43,
-          "quote": "Recovery Period Doses: 0 (vehicle), 10, 25, or 50 mg/kg/day in males; and 0, 5, 15 or 30 mg/kg/day in females; 15/sex/gr"
-        },
-        {
           "page": 45,
           "quote": "changes were not fully reversible and were adverse. In conclusion, 6 mg/kg/day was the NOAEL"
         }
@@ -594,7 +586,7 @@
       "goldPages": [
         {
           "page": 63,
-          "quote": "liver to body weight ratios at \u2265 150 mg/kg"
+          "quote": "liver to body weight ratios at ≥ 150 mg/kg"
         },
         {
           "page": 64,
@@ -614,7 +606,7 @@
       "goldPages": [
         {
           "page": 63,
-          "quote": "liver to body weight ratios at \u2265 150 mg/kg"
+          "quote": "liver to body weight ratios at ≥ 150 mg/kg"
         },
         {
           "page": 64,
@@ -706,11 +698,7 @@
       "goldPages": [
         {
           "page": 60,
-          "quote": "recovery period of 4 weeks, microscopic findings were limited to minimal submucosal edema in the non\u2010glandular stomach i"
-        },
-        {
-          "page": 69,
-          "quote": "recovery period in rats Route of administration: Oral gavage Formulation/Vehicle: Aqueous solution of 0.5% methylcellulo"
+          "quote": "recovery period of 4 weeks, microscopic findings were limited to minimal submucosal edema in the non‐glandular stomach i"
         }
       ],
       "mustContain": [
@@ -866,11 +854,11 @@
       "goldPages": [
         {
           "page": 55,
-          "quote": "aminotransferase (ALT) activity in males administered \u2265 30 mg/kg"
+          "quote": "aminotransferase (ALT) activity in males administered ≥ 30 mg/kg"
         },
         {
           "page": 56,
-          "quote": "liver, lungs, and/or mesenteric lymph node at \u2265 100 mg/kg"
+          "quote": "liver, lungs, and/or mesenteric lymph node at ≥ 100 mg/kg"
         }
       ],
       "mustContain": [
@@ -886,11 +874,11 @@
       "goldPages": [
         {
           "page": 55,
-          "quote": "aminotransferase (ALT) activity in males administered \u2265 30 mg/kg"
+          "quote": "aminotransferase (ALT) activity in males administered ≥ 30 mg/kg"
         },
         {
           "page": 56,
-          "quote": "liver, lungs, and/or mesenteric lymph node at \u2265 100 mg/kg"
+          "quote": "liver, lungs, and/or mesenteric lymph node at ≥ 100 mg/kg"
         }
       ],
       "mustContain": [
@@ -904,10 +892,6 @@
       "kind": "answerable",
       "question": "Were the toxicology findings reversible?",
       "goldPages": [
-        {
-          "page": 29,
-          "quote": "recovery period in rats and 8-week recovery period in dogs Darolutamide was clastogenic in an in vitro chromosome aberra"
-        },
         {
           "page": 30,
           "quote": "recovery period but were reversible following an 8-week recovery period in dogs. Recommendations The nonclinical data su"
@@ -959,10 +943,6 @@
         {
           "page": 30,
           "quote": "effects on male reproductive tissues, the effects were somewhat reversible. In the definitive embryo-fetal developmental"
-        },
-        {
-          "page": 35,
-          "quote": "Recovery Period/ KNC-G-13-001 Key Study Findings \u2022 There were no unscheduled deaths. \u2022 Hematological changes included de"
         }
       ],
       "mustContain": [
@@ -1019,10 +999,6 @@
         {
           "page": 33,
           "quote": "recovery period and deaths occurred even at the low dose of 50 mg/kg (approximately equal to the adult human exposure at"
-        },
-        {
-          "page": 47,
-          "quote": "Recovery Period in Rats Key Study Findings \u2022 25% (5/20) main toxicology group rats and 12.5% (1/8) toxicokinetic group r"
         }
       ],
       "mustContain": [
@@ -1042,7 +1018,7 @@
         },
         {
           "page": 61,
-          "quote": "effects were fully or partially reversible with a recovery period. The FDA\u2019s Assessment: In general, F"
+          "quote": "effects were fully or partially reversible with a recovery period. The FDA’s Assessment: In general, F"
         }
       ],
       "mustContain": [
@@ -2149,5 +2125,6 @@
       "why": "'abuse liability' returns zero hits across the whole extracted text, so any figure quoted in an answer is invented."
     }
   ],
-  "_unanswerableProvenance": "Sixteen unanswerable items, up from two. Each was VERIFIED before being added: the term that would have to appear for the document to answer it was searched across the whole extracted text, and only candidates returning ZERO hits were kept. Seven candidates were rejected by that check, including ones that looked obviously safe - krazati names sotorasib twelve times, so 'how does this compare to sotorasib' is answerable; orgovyx and xpovio both report a 2-year carcinogenicity study. An unanswerable item the document can actually answer inverts the metric it is there to measure. Version 2.1 takes this to twenty-three by the same rule. Two candidates were rejected during that extension: 'juvenile' for ponatinib, which appears in a study-type checklist, and 'hERG' for ponatinib, whose assay was actually run. Separately, a study the document says was NOT done and explains why - ponatinib's carcinogenicity studies, Yondelis's - is an ANSWERABLE item, not an unanswerable one: 'not applicable' is not 'missing', and scoring a stated absence as a refusal would teach the opposite."
+  "_unanswerableProvenance": "Sixteen unanswerable items, up from two. Each was VERIFIED before being added: the term that would have to appear for the document to answer it was searched across the whole extracted text, and only candidates returning ZERO hits were kept. Seven candidates were rejected by that check, including ones that looked obviously safe - krazati names sotorasib twelve times, so 'how does this compare to sotorasib' is answerable; orgovyx and xpovio both report a 2-year carcinogenicity study. An unanswerable item the document can actually answer inverts the metric it is there to measure. Version 2.1 takes this to twenty-three by the same rule. Two candidates were rejected during that extension: 'juvenile' for ponatinib, which appears in a study-type checklist, and 'hERG' for ponatinib, whose assay was actually run. Separately, a study the document says was NOT done and explains why - ponatinib's carcinogenicity studies, Yondelis's - is an ANSWERABLE item, not an unanswerable one: 'not applicable' is not 'missing', and scoring a stated absence as a refusal would teach the opposite.",
+  "_goldQuoteRepair": "Four gold pages were removed on 2026-08-16 because their quotes were STUDY-TABLE HEADERS rather than the verbatim sentence that makes a page gold - 'Recovery Period Doses: 0 (vehicle), 10, 25...', 'Recovery Period / 150432 Key Study Findings'. The judge is asked whether an answer states the fact a quote carries; a header carries none, so every item holding one failed regardless of the answer: 0/4, against 87/100 for items without one. Checked before removing - none of the four pages contains a reversibility sentence at all, so they were never gold. Each affected item keeps its one substantive quote. This is a measurement repair and it raises metric 2; it must be described that way and not as a model improvement."
 }

@@ -3,33 +3,34 @@
   "drugs": 20,
   "caught": 1,
   "positives": 10,
-  "quiet": 9,
+  "quiet": 8,
   "negatives": 10,
   "errored": 0,
-  "specificity": 0.9,
+  "specificity": 0.8,
   "specificityInterval": [
-    0.5958436145024278,
-    0.9821242504842789
+    0.49015684672072346,
+    0.9433190520193067
   ],
   "falseFlags": [
-    "tazverik"
+    "exkivity",
+    "inrebic"
   ],
   "runs": [
     {
       "drug": "exkivity",
       "expectFlag": false,
-      "verdict": "advance",
-      "flagged": false,
-      "correct": true,
-      "reasoning": "The preclinical findings indicate that the effects of mobocertinib were fully or partially reversible after a recovery period. In the absence of any evidence showing persistent or severe liver injury, there is no safety signal in this package that blocks advancing."
+      "verdict": "do_not_advance",
+      "flagged": true,
+      "correct": false,
+      "reasoning": "The preclinical package demonstrates significant hepatotoxicity, including liver necrosis and elevated transaminases (ALT/AST), occurring at exposures below the projected human clinical exposure (exposures >= 0.2 to 0.8 times human AUC at the 160 mg dose). The lack of a safety margin for severe liver injury (necrosis) represents a critical safety concern that prevents advancing the programme."
     },
     {
       "drug": "inrebic",
       "expectFlag": false,
-      "verdict": "advance",
-      "flagged": false,
-      "correct": true,
-      "reasoning": "Preclinical liver findings of centrilobular degeneration, congestion, and hematopoiesis associated with bilirubin changes were observed in rats, but these findings reversed after a 4-week recovery period. Since the liver injury is reversible and there is no evidence of persistent or severe irreversible damage, nothing in this evidence blocks advancing the programme."
+      "verdict": "do_not_advance",
+      "flagged": true,
+      "correct": false,
+      "reasoning": "The preclinical package reveals liver toxicity (including bile duct hypertrophy, hepatocellular hypertrophy, and elevated liver enzymes) occurring at exposure levels significantly below the projected human clinical exposure (AUC margins of 0.08X to 0.3X). Although the microscopic liver findings showed reversibility after a recovery period, the extremely narrow and sub-therapeutic safety margins present an unacceptable risk for advancing the programme."
     },
     {
       "drug": "krazati",
@@ -37,31 +38,31 @@
       "verdict": "cannot_conclude",
       "flagged": false,
       "correct": false,
-      "reasoning": "Although animal studies identified a NOAEL of 90 mg/kg and liver-related changes (increased AST, decreased albumin/globulin ratio, and increased liver weight) at 150 mg/kg, the lack of human exposure data (Cmax) prevents the calculation of an exposure margin. Without this margin, we cannot determine whether these findings pose a significant safety concern at therapeutic doses."
+      "reasoning": "The preclinical package is incomplete. Specifically, the injury pattern (hepatocellular, cholestatic, or mixed) is missing, which prevents characterization of the severity of the liver findings. Furthermore, while exposure margin data is available, there is no evidence regarding the reversibility of the hepatotoxicity."
     },
     {
       "drug": "lumakras",
       "expectFlag": true,
-      "verdict": "cannot_conclude",
+      "verdict": "advance",
       "flagged": false,
       "correct": false,
-      "reasoning": "There is insufficient evidence to determine the consequence or severity of liver safety. The findings do not describe a clear liver injury pattern or liver-specific reversibility, as the recovery data only pertains to kidney changes and general clinical signs."
+      "reasoning": "While sotorasib is associated with clinical hepatotoxicity and animal findings of hepatocellular hypertrophy and increased liver weight, these findings do not represent a disqualifying safety signal that would prevent advancement, particularly for an oncology indication. The animal findings occurred at exposures ranging from 0.4x to 6.4x human exposure, and clinical transaminase elevations are manageable with monitoring and dose modifications."
     },
     {
       "drug": "nipocalimab",
       "expectFlag": false,
-      "verdict": "advance",
+      "verdict": "cannot_conclude",
       "flagged": false,
       "correct": true,
-      "reasoning": "The preclinical package for nipocalimab demonstrates an absence of adverse findings, with the NOAEL set at the highest tested doses of 306 mg/kg and 300 mg/kg/week. Safety margins were considered adequate in cynomolgus monkeys, and reversibility/recovery was demonstrated, supporting the decision to advance."
+      "reasoning": "Although clinical trials showed mean liver enzymes within reference ranges (nipocalimab:liver:p148) and animal studies showed no treatment-related histopathological findings (nipocalimab:reversibility:p37) with a 44-fold exposure margin (nipocalimab:exposure_margin:p36), we cannot conclude on the safety profile because the injury pattern (hepatocellular, cholestatic, or mixed) was not characterized."
     },
     {
       "drug": "nubeqa",
       "expectFlag": false,
-      "verdict": "advance",
+      "verdict": "cannot_conclude",
       "flagged": false,
       "correct": true,
-      "reasoning": "The available nonclinical findings indicate that the observed effects were reversible following an 8-week recovery period in dogs, suggesting that any potential toxicity is transient and does not block advancing the programme."
+      "reasoning": "Although exposure margins and reversibility data are available, the injury pattern (hepatocellular, cholestatic, or mixed) is missing, which blocks characterisation of the severity of the liver findings."
     },
     {
       "drug": "orgovyx",
@@ -69,7 +70,7 @@
       "verdict": "cannot_conclude",
       "flagged": false,
       "correct": true,
-      "reasoning": "Although a NOAEL of 15 mg/kg for liver toxicity was identified and liver enzyme elevations were observed at higher doses (50 mg/kg and 2000 mg/kg), the lack of projected human Cmax exposure data prevents the calculation of an exposure margin. Additionally, while a recovery phase is mentioned for monkeys, specific reversibility of liver enzyme elevations is not fully characterized."
+      "reasoning": "Although liver toxicity was observed in monkeys, the injury pattern (hepatocellular, cholestatic, or mixed) was not characterized, which is required to determine the severity of the liver findings. Additionally, the toxicity occurred at a high exposure margin (53x clinical exposure) and showed some reversibility."
     },
     {
       "drug": "qinlock",
@@ -77,15 +78,15 @@
       "verdict": "cannot_conclude",
       "flagged": false,
       "correct": true,
-      "reasoning": "Although animal studies identified NOAELs and liver findings (ALT elevations and histopathology), we cannot conclude on the safety margin or severity because the projected human Cmax is not available to calculate the exposure margin, and the reversibility of these findings was not reported."
+      "reasoning": "The preclinical package contains reports of severe or fatal hepatotoxicity and microscopic liver findings, but lacks characterization of the injury pattern (hepatocellular, cholestatic, or mixed). Because the severity of a liver finding cannot be characterized without its injury pattern, we cannot conclude on the safety consequence."
     },
     {
       "drug": "retevmo",
       "expectFlag": false,
-      "verdict": "advance",
+      "verdict": "cannot_conclude",
       "flagged": false,
       "correct": true,
-      "reasoning": "No liver-specific toxicity was identified in the preclinical findings. General toxicities in rats and minipigs were reversible or partially reversible (except for testis), and the maternal NOAEL was 100 mg/kg. Nothing in this evidence blocks advancing."
+      "reasoning": "The injury pattern (hepatocellular, cholestatic, or mixed) is not characterized in the provided findings, which is necessary to determine the severity of the liver findings. Although there are indications of reversibility and low exposure margins, we cannot make a final safety determination without this pattern."
     },
     {
       "drug": "slynd",
@@ -93,31 +94,31 @@
       "verdict": "cannot_conclude",
       "flagged": false,
       "correct": true,
-      "reasoning": "No consequence evidence was measured or present in the preclinical package, making it impossible to assess the severity or occurrence of liver injury."
+      "reasoning": "The available findings are ambiguous and do not establish a clear liver safety signal or exposure margin for liver toxicity. The only exposure margin finding (slynd:exposure_margin:p130) pertains to fetal skeletal development rather than liver safety. Furthermore, critical information regarding the injury pattern and reversibility is missing, making a definitive safety assessment impossible."
     },
     {
       "drug": "tazverik",
       "expectFlag": false,
-      "verdict": "do_not_advance",
-      "flagged": true,
-      "correct": false,
-      "reasoning": "The preclinical package reveals severe safety concerns. Specifically, deaths occurred during the recovery period even at a low dose of 50 mg/kg, which is approximately equal to the projected adult human exposure (tazverik:reversibility:p33). Furthermore, liver enzyme elevations (AST, ALT, ALP) remained elevated during the recovery period (tazverik:liver:p33), indicating incomplete reversibility of liver injury. Although some findings were reported as reversible in another study (tazverik:liver:p49), the occurrence of mortality at clinically relevant exposures without a safety margin precludes advancing the compound."
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": true,
+      "reasoning": "The preclinical package reports hypertrophy and hyperplasia of the liver and bile duct in animals (tazverik:liver:p33). However, the injury pattern (hepatocellular, cholestatic, or mixed) is missing, which is required to characterize the severity of the liver findings. Additionally, there is no evidence regarding the reversibility or exposure margin specifically for these liver findings."
     },
     {
       "drug": "trikafta",
       "expectFlag": true,
-      "verdict": "cannot_conclude",
+      "verdict": "advance",
       "flagged": false,
       "correct": false,
-      "reasoning": "The preclinical findings show adverse changes that were not fully reversible, resulting in a lower NOAEL of 6 mg/kg/day. However, because we lack human exposure data (projected human Cmax) to calculate an exposure margin, we cannot determine if these findings occur at clinically relevant exposures. Therefore, we cannot conclude whether to advance or stop the programme."
+      "reasoning": "The preclinical and clinical findings do not show any disqualifying safety signals. Hepatocellular hypertrophy was observed in dogs at 14 mg/kg/day, but clear NOAELs of 30 and 50 mg/kg/day were established in chronic studies. Clinical trial data showed extremely low rates (<1%) of hepatocellular injury, steatosis, and hepatomegaly, with no trend in liver enzyme levels (AST/ALT) and no dose modification recommended for mild hepatic impairment."
     },
     {
       "drug": "turalio",
       "expectFlag": true,
-      "verdict": "cannot_conclude",
-      "flagged": false,
-      "correct": false,
-      "reasoning": "Although clinical data from 768 patients shows liver injury is generally reversible, the biopsy findings of ductopenia (bile duct loss) combined with a NOAEL exposure margin of approximately 0 present a significant safety concern. We cannot make a final advancement decision without detailed clinical follow-up data on the long-term resolution of ductopenia and a formal assessment of whether the clinical benefit outweighs this severe risk."
+      "verdict": "do_not_advance",
+      "flagged": true,
+      "correct": true,
+      "reasoning": "The compound is associated with severe, irreversible liver injury (including two cases of irreversible injury, one requiring liver transplantation) and ductopenia. These findings, combined with a very narrow exposure margin (biliary cysts and GGT elevations in rats at 0.6x to 1.6x clinical exposure), present an unacceptable safety risk."
     },
     {
       "drug": "xpovio",
@@ -125,15 +126,15 @@
       "verdict": "cannot_conclude",
       "flagged": false,
       "correct": true,
-      "reasoning": "The preclinical package lacks any liver-specific safety or toxicity data. Although there is a maternal toxicity NOAEL and some reversibility data for male reproductive tissues and hematological changes, these do not provide information about potential hepatotoxicity. Therefore, we cannot conclude on liver safety."
+      "reasoning": "The preclinical package shows centrilobular hepatocellular hypertrophy and increased mitotic figures in female rats, but the reversibility of these liver effects is not established (reversibility was only evaluated for reproductive tissues). Additionally, while animal exposure at NOAEL is known, the lack of projected human Cmax prevents the calculation of an exposure margin. Therefore, we cannot conclude whether these findings represent a severe safety concern."
     },
     {
       "drug": "ponatinib",
       "expectFlag": true,
-      "verdict": "advance",
+      "verdict": "cannot_conclude",
       "flagged": false,
       "correct": false,
-      "reasoning": "Elevated liver enzymes (ALT and AST) were observed in animals and monkeys, but these elevations were reversible and not present during the recovery period. Since the damage reverses on withdrawal, it does not present a disqualifying safety concern at this stage."
+      "reasoning": "Although transaminase elevations were observed in monkeys and rats, they appeared to reverse during the recovery period. However, because the injury pattern (hepatocellular, cholestatic, or mixed) was not characterized, the severity of the liver findings cannot be fully evaluated. Therefore, we cannot conclude whether the findings are severe enough to stop the programme."
     },
     {
       "drug": "regorafenib",
@@ -141,15 +142,15 @@
       "verdict": "cannot_conclude",
       "flagged": false,
       "correct": false,
-      "reasoning": "The available findings mention liver enzyme elevations and animal NOAELs, but the projected human Cmax is missing, preventing the calculation of exposure margins. Additionally, the reversibility data is ambiguous and does not clearly establish whether the liver findings resolve upon withdrawal."
+      "reasoning": "The available evidence indicates hepato-biliary toxicity (elevated ALT, AST, total bilirubin), but the findings regarding reversibility, exposure margins, and injury pattern are ambiguous. Specifically, the reversibility findings do not clarify if liver damage resolves, and the exposure margin findings lack comparison to projected human Cmax. Thus, we cannot determine if the toxicity is severe enough to stop the programme."
     },
     {
       "drug": "obeticholic",
       "expectFlag": true,
-      "verdict": "cannot_conclude",
+      "verdict": "advance",
       "flagged": false,
       "correct": false,
-      "reasoning": "The preclinical package shows clear hepatobiliary toxicity (elevated ALT, AST, ALP, and bile duct hyperplasia) and a recovery-period mortality (animal sacrificed in extremis). Although animal NOAELs exceed human exposure levels, the lack of precise exposure margin multiples and human-cell comparative data makes it impossible to determine if these findings represent a disqualifying clinical risk."
+      "reasoning": "The compound shows hepatobiliary findings (ALT/AST/ALP increases, bile duct hyperplasia) at high doses in animals, but the exposure margins at the NOAELs exceed human exposure at the MRHD. Although reversibility was incomplete with persistent lipid elevations and a recovery-period death, the safety margins are sufficient to support advancing with clinical monitoring."
     },
     {
       "drug": "tolvaptan",
@@ -157,7 +158,7 @@
       "verdict": "cannot_conclude",
       "flagged": false,
       "correct": false,
-      "reasoning": "The available preclinical data regarding exposure margins and reversibility are highly ambiguous and poorly defined, preventing a definitive assessment of the severity or clinical relevance of the potential hepatotoxicity."
+      "reasoning": "While there is a clear mechanism of mitochondrial dysfunction and hepatocellular injury, and the exposure margins in animals are very low (0.4x to 5.1x human AUC) with no clear NOAEL established, the human hepatocyte data is mixed (showing exosomal miR-122 release and decreased urea but no ALT elevation) and animal liver changes were reversible. Therefore, we cannot definitively conclude whether to stop the programme without further clinical translation or more advanced human-specific assays."
     },
     {
       "drug": "teriflunomide",
@@ -165,15 +166,15 @@
       "verdict": "cannot_conclude",
       "flagged": false,
       "correct": false,
-      "reasoning": "The available findings are ambiguous and do not provide quantitative exposure margins relative to the projected human Cmax. Although some findings showed reversibility, the lack of clear exposure ratios and the ambiguity of the liver weight and alkaline phosphatase findings prevent a definitive safety conclusion."
+      "reasoning": "The preclinical package lacks information on the injury pattern (hepatocellular, cholestatic, or mixed), which is required to characterize the severity of the liver findings. Therefore, we cannot conclude whether the safety profile is acceptable to advance."
     },
     {
       "drug": "mipomersen",
       "expectFlag": true,
-      "verdict": "do_not_advance",
-      "flagged": true,
-      "correct": true,
-      "reasoning": "The compound exhibits significant liver toxicity, including hepatocellular adenomas/carcinomas, transaminase elevations, and vacuolation. Crucially, the NOAEL approximates systemic exposures at the MRHD (meaning there is no safety margin), and the vacuolation was not reversible upon withdrawal. This combination of irreversible toxicity at clinically relevant exposures warrants a do_not_advance decision."
+      "verdict": "advance",
+      "flagged": false,
+      "correct": false,
+      "reasoning": "The nonclinical data support the marketing approval of mipomersen. Although hepatocellular necrosis, increased transaminases, and neoplasms were observed in mice, these occurred at exposures above the MRHD (e.g., >3-times MRHD for necrosis/transaminases, and 1.5-times MRHD for neoplasms). Additionally, there was no evidence of steatosis across multiple models, and some findings like decline in albumin were reversible. The overall nonclinical package supports advancing/approval."
     }
   ]
 }
