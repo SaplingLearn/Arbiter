@@ -50,9 +50,13 @@ matters structurally: four checklist items (transporter inhibition, reactive met
 and others) are *not applicable* to a biologic. That case exercises the
 "not applicable ≠ missing" distinction, which a small-molecule-only corpus never touches.
 
-**Era and format.** 1997–1998 documents (troglitazone, tolcapone) alongside 2019–2023
-approvals. This is not decoration: the older ones predate the multidiscipline review
-format entirely, so the section headings, the vocabulary and the scan quality all differ.
+**Era and format — two clusters, not a spread.** Read from the documents themselves:
+**two** are late-1990s (troglitazone 1997; tolcapone 1998, taken from catalogue metadata
+because the document is scanned and nothing is extractable) and **fourteen** are 2018–2025,
+mostly 2019–2022 approvals. There is a twenty-year hole between them. An earlier draft of
+this file described the range as "1997–2023", which implied a continuous spread and was
+wrong. The two old documents are still valuable — they predate the multidiscipline format,
+so headings, vocabulary and scan quality all differ — but they are two documents, not an era.
 
 **Regulator.** FDA plus one EMA EPAR, which uses different section names and a different
 report structure.
@@ -138,6 +142,30 @@ the answer in the input and score the model for reading it back.
 ## 6. Where the variety runs out
 
 The honest section, and the reason this file exists.
+
+**Three of the five headline rates are 100%, and none of them means what it looks like.**
+
+*States the fact* is a `mustContain` regex drawn from the gold quote. The harness says so
+in its own docstring: it "catches an answer that missed the number, not one that
+misdescribed it". An answer carrying the right figure inside a wrong sentence passes. It
+is a presence check, not a correctness check.
+
+*Same answer twice* is measured at temperature 0 with a deterministic retriever. Zero
+flips is the expected result; the row is a plumbing check that would be alarming if it
+failed and proves little when it passes.
+
+*Verdict correct* is 100% on nine cases whose answer key was written by the same person
+who wrote the cases. It is the most suspect number here and the first that should be
+discarded.
+
+**And the verdict n is inflated.** Three repeats of nine cases at temperature 0 are not
+twenty-seven independent observations - they measure stability, not breadth. The honest
+denominator is 9, which moves the Wilson lower bound from 88% to roughly 70%. Figures
+reporting n=27 overstate the sample.
+
+**The informative numbers are the ones below 100%**: MRR 0.529 (the first correct page
+lands around rank 2 of 16), paraphrase stability 33.7%, citation recall 81.1%, and
+real-drug specificity 12/13. Those describe the system; the 100%s describe the metrics.
 
 **Only one drug has a hepatotoxicity outcome.** Turalio carries the boxed warning; the
 other thirteen do not. This is **survivorship bias by construction** — approval packages
