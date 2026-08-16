@@ -1,0 +1,179 @@
+{
+  "model": "gemini-3.5-flash",
+  "drugs": 20,
+  "caught": 1,
+  "positives": 10,
+  "quiet": 9,
+  "negatives": 10,
+  "errored": 0,
+  "specificity": 0.9,
+  "specificityInterval": [
+    0.5958436145024278,
+    0.9821242504842789
+  ],
+  "falseFlags": [
+    "tazverik"
+  ],
+  "runs": [
+    {
+      "drug": "exkivity",
+      "expectFlag": false,
+      "verdict": "advance",
+      "flagged": false,
+      "correct": true,
+      "reasoning": "The preclinical findings indicate that the effects of mobocertinib were fully or partially reversible after a recovery period. In the absence of any evidence showing persistent or severe liver injury, there is no safety signal in this package that blocks advancing."
+    },
+    {
+      "drug": "inrebic",
+      "expectFlag": false,
+      "verdict": "advance",
+      "flagged": false,
+      "correct": true,
+      "reasoning": "Preclinical liver findings of centrilobular degeneration, congestion, and hematopoiesis associated with bilirubin changes were observed in rats, but these findings reversed after a 4-week recovery period. Since the liver injury is reversible and there is no evidence of persistent or severe irreversible damage, nothing in this evidence blocks advancing the programme."
+    },
+    {
+      "drug": "krazati",
+      "expectFlag": true,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": false,
+      "reasoning": "Although animal studies identified a NOAEL of 90 mg/kg and liver-related changes (increased AST, decreased albumin/globulin ratio, and increased liver weight) at 150 mg/kg, the lack of human exposure data (Cmax) prevents the calculation of an exposure margin. Without this margin, we cannot determine whether these findings pose a significant safety concern at therapeutic doses."
+    },
+    {
+      "drug": "lumakras",
+      "expectFlag": true,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": false,
+      "reasoning": "There is insufficient evidence to determine the consequence or severity of liver safety. The findings do not describe a clear liver injury pattern or liver-specific reversibility, as the recovery data only pertains to kidney changes and general clinical signs."
+    },
+    {
+      "drug": "nipocalimab",
+      "expectFlag": false,
+      "verdict": "advance",
+      "flagged": false,
+      "correct": true,
+      "reasoning": "The preclinical package for nipocalimab demonstrates an absence of adverse findings, with the NOAEL set at the highest tested doses of 306 mg/kg and 300 mg/kg/week. Safety margins were considered adequate in cynomolgus monkeys, and reversibility/recovery was demonstrated, supporting the decision to advance."
+    },
+    {
+      "drug": "nubeqa",
+      "expectFlag": false,
+      "verdict": "advance",
+      "flagged": false,
+      "correct": true,
+      "reasoning": "The available nonclinical findings indicate that the observed effects were reversible following an 8-week recovery period in dogs, suggesting that any potential toxicity is transient and does not block advancing the programme."
+    },
+    {
+      "drug": "orgovyx",
+      "expectFlag": false,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": true,
+      "reasoning": "Although a NOAEL of 15 mg/kg for liver toxicity was identified and liver enzyme elevations were observed at higher doses (50 mg/kg and 2000 mg/kg), the lack of projected human Cmax exposure data prevents the calculation of an exposure margin. Additionally, while a recovery phase is mentioned for monkeys, specific reversibility of liver enzyme elevations is not fully characterized."
+    },
+    {
+      "drug": "qinlock",
+      "expectFlag": false,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": true,
+      "reasoning": "Although animal studies identified NOAELs and liver findings (ALT elevations and histopathology), we cannot conclude on the safety margin or severity because the projected human Cmax is not available to calculate the exposure margin, and the reversibility of these findings was not reported."
+    },
+    {
+      "drug": "retevmo",
+      "expectFlag": false,
+      "verdict": "advance",
+      "flagged": false,
+      "correct": true,
+      "reasoning": "No liver-specific toxicity was identified in the preclinical findings. General toxicities in rats and minipigs were reversible or partially reversible (except for testis), and the maternal NOAEL was 100 mg/kg. Nothing in this evidence blocks advancing."
+    },
+    {
+      "drug": "slynd",
+      "expectFlag": false,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": true,
+      "reasoning": "No consequence evidence was measured or present in the preclinical package, making it impossible to assess the severity or occurrence of liver injury."
+    },
+    {
+      "drug": "tazverik",
+      "expectFlag": false,
+      "verdict": "do_not_advance",
+      "flagged": true,
+      "correct": false,
+      "reasoning": "The preclinical package reveals severe safety concerns. Specifically, deaths occurred during the recovery period even at a low dose of 50 mg/kg, which is approximately equal to the projected adult human exposure (tazverik:reversibility:p33). Furthermore, liver enzyme elevations (AST, ALT, ALP) remained elevated during the recovery period (tazverik:liver:p33), indicating incomplete reversibility of liver injury. Although some findings were reported as reversible in another study (tazverik:liver:p49), the occurrence of mortality at clinically relevant exposures without a safety margin precludes advancing the compound."
+    },
+    {
+      "drug": "trikafta",
+      "expectFlag": true,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": false,
+      "reasoning": "The preclinical findings show adverse changes that were not fully reversible, resulting in a lower NOAEL of 6 mg/kg/day. However, because we lack human exposure data (projected human Cmax) to calculate an exposure margin, we cannot determine if these findings occur at clinically relevant exposures. Therefore, we cannot conclude whether to advance or stop the programme."
+    },
+    {
+      "drug": "turalio",
+      "expectFlag": true,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": false,
+      "reasoning": "Although clinical data from 768 patients shows liver injury is generally reversible, the biopsy findings of ductopenia (bile duct loss) combined with a NOAEL exposure margin of approximately 0 present a significant safety concern. We cannot make a final advancement decision without detailed clinical follow-up data on the long-term resolution of ductopenia and a formal assessment of whether the clinical benefit outweighs this severe risk."
+    },
+    {
+      "drug": "xpovio",
+      "expectFlag": false,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": true,
+      "reasoning": "The preclinical package lacks any liver-specific safety or toxicity data. Although there is a maternal toxicity NOAEL and some reversibility data for male reproductive tissues and hematological changes, these do not provide information about potential hepatotoxicity. Therefore, we cannot conclude on liver safety."
+    },
+    {
+      "drug": "ponatinib",
+      "expectFlag": true,
+      "verdict": "advance",
+      "flagged": false,
+      "correct": false,
+      "reasoning": "Elevated liver enzymes (ALT and AST) were observed in animals and monkeys, but these elevations were reversible and not present during the recovery period. Since the damage reverses on withdrawal, it does not present a disqualifying safety concern at this stage."
+    },
+    {
+      "drug": "regorafenib",
+      "expectFlag": true,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": false,
+      "reasoning": "The available findings mention liver enzyme elevations and animal NOAELs, but the projected human Cmax is missing, preventing the calculation of exposure margins. Additionally, the reversibility data is ambiguous and does not clearly establish whether the liver findings resolve upon withdrawal."
+    },
+    {
+      "drug": "obeticholic",
+      "expectFlag": true,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": false,
+      "reasoning": "The preclinical package shows clear hepatobiliary toxicity (elevated ALT, AST, ALP, and bile duct hyperplasia) and a recovery-period mortality (animal sacrificed in extremis). Although animal NOAELs exceed human exposure levels, the lack of precise exposure margin multiples and human-cell comparative data makes it impossible to determine if these findings represent a disqualifying clinical risk."
+    },
+    {
+      "drug": "tolvaptan",
+      "expectFlag": true,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": false,
+      "reasoning": "The available preclinical data regarding exposure margins and reversibility are highly ambiguous and poorly defined, preventing a definitive assessment of the severity or clinical relevance of the potential hepatotoxicity."
+    },
+    {
+      "drug": "teriflunomide",
+      "expectFlag": true,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": false,
+      "reasoning": "The available findings are ambiguous and do not provide quantitative exposure margins relative to the projected human Cmax. Although some findings showed reversibility, the lack of clear exposure ratios and the ambiguity of the liver weight and alkaline phosphatase findings prevent a definitive safety conclusion."
+    },
+    {
+      "drug": "mipomersen",
+      "expectFlag": true,
+      "verdict": "do_not_advance",
+      "flagged": true,
+      "correct": true,
+      "reasoning": "The compound exhibits significant liver toxicity, including hepatocellular adenomas/carcinomas, transaminase elevations, and vacuolation. Crucially, the NOAEL approximates systemic exposures at the MRHD (meaning there is no safety margin), and the vacuolation was not reversible upon withdrawal. This combination of irreversible toxicity at clinically relevant exposures warrants a do_not_advance decision."
+    }
+  ]
+}
