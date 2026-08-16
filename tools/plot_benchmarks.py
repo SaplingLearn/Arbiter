@@ -83,8 +83,16 @@ def gather() -> tuple[list[tuple[str, int, int]], list[tuple[str, int, int]], di
     n_ans = retrieval["answerable"]
     hit = round(retrieval["hitRate"] * n_ans)
 
-    answerable = [i for i in ask["items"] if i.get("answerable") is True]
-    unanswerable = [i for i in ask["items"] if i.get("answerable") is False]
+    # KEY OFF `kind`, NEVER `answerable`. They look interchangeable and are not:
+    # ask-eval.ts line 186 sets `answerable` to whether the model PRODUCED AN ANSWER,
+    # and `refused` to `kind === "unanswerable" ? !answerable : null`. So an
+    # unanswerable item the model wrongly answered carries `answerable: true` - and
+    # filtering on that field moves the failure out of the refusal denominator and into
+    # the answerable one, inflating both rates at once. Exactly one item in this run
+    # does that (reg-abuse-unanswerable), which is enough to turn 22/23 into 22/22 and
+    # report a bare 100% refusal rate that is not true.
+    answerable = [i for i in ask["items"] if i.get("kind") == "answerable"]
+    unanswerable = [i for i in ask["items"] if i.get("kind") == "unanswerable"]
     judged = [i for i in answerable if i.get("judged") is not None]
     judged_ok = sum(1 for i in judged if i.get("judged") is True)
     cited = sum(1 for i in answerable if (i.get("citationRecall") or 0) > 0)
@@ -154,12 +162,17 @@ def fig_ten(out: Path) -> None:
     # kind of claim.
     split = len(ask_rows) - 0.5
     ax.axhline(split, color=GRID, lw=1.2, zorder=1)
-    ax.text(-0.012, (len(rows) - 1 + len(verdict_rows)) / 2 + 0.1, "ASK",
-            transform=ax.get_yaxis_transform(), ha="right", va="center",
-            fontsize=11, color=CYAN, weight="bold", rotation=90)
-    ax.text(-0.012, (len(verdict_rows) - 1) / 2, "VERDICT",
-            transform=ax.get_yaxis_transform(), ha="right", va="center",
-            fontsize=11, color=VIOLET, weight="bold", rotation=90)
+    # In FIGURE coordinates, outside the tick labels. Placed in axes coordinates they
+    # sit on top of the metric names, which are long and left-extending here.
+    top, bottom = 0.90, 0.13
+    span = top - bottom
+    n = len(rows)
+    ask_mid = top - (len(ask_rows) / 2) / n * span
+    verdict_mid = top - (len(ask_rows) + len(verdict_rows) / 2) / n * span
+    fig.text(0.022, ask_mid, "ASK", ha="center", va="center", rotation=90,
+             fontsize=11.5, color=CYAN, weight="bold")
+    fig.text(0.022, verdict_mid, "VERDICT", ha="center", va="center", rotation=90,
+             fontsize=11.5, color=VIOLET, weight="bold")
     fig.suptitle("Arbiter — the ten benchmarks", x=0.012, ha="left", fontsize=16,
                  color=INK, weight="bold", y=0.985)
     fig.text(0.012, 0.935,
@@ -194,7 +207,7 @@ def fig_topics(out: Path) -> None:
         buckets.setdefault(topic, []).append(bool(it["judged"]))
 
     rows = sorted(((t, sum(v), len(v)) for t, v in buckets.items()), key=lambda r: r[1] / r[2])
-    fig, ax = plt.subplots(figsize=(10.5, 0.62 * len(rows) + 2.6))
+    fig, ax = plt.subplots(figsize=(10.5, 0.42 * len(rows) + 2.2))
     ys = list(range(len(rows)))
     vals = [k / n for _, k, n in rows]
     los, his = zip(*[wilson(k, n) for _, k, n in rows])
@@ -223,7 +236,7 @@ def fig_topics(out: Path) -> None:
              "Locating a single stated value is near-solved. Synthesising a qualitative judgement across studies is not.\n"
              "Retrieval reaches the page 95% of the time, so the gap is the synthesis step and not the search.",
              ha="left", fontsize=8.6, color=MUTED, linespacing=1.6)
-    fig.subplots_adjust(left=0.24, right=0.82, top=0.85, bottom=0.20)
+    fig.subplots_adjust(left=0.24, right=0.82, top=0.86, bottom=0.14)
     fig.savefig(out, dpi=200, facecolor="white")
     plt.close(fig)
     print(f"  wrote {out}")

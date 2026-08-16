@@ -4,13 +4,17 @@ Written 2026-08-16, mid-task, on branch `feat/product-in-the-atmosphere` (PR #22
 Everything in this document was verified against the repository on the day it was
 written, not recalled. Where a number appears, the file it came from is named.
 
-> **SUPERSEDED IN PART — read `docs/EVALUATION-SCOREBOARD.md` first.** §5's task, the
-> `ask:eval` re-run, was completed and committed in `44754a6`, the same commit that wrote
-> this document, so the prose below never caught up. `results/ask-eval.json` is the new
-> 69-item run: `judgedCorrectRate` 71.7%, `refusalRate` 100% at n=16. **Do not re-run it** —
-> it costs forty minutes and real money to reproduce a number already on disk. §0 item 2,
-> §4 and §5 are stale in that one respect. Everything else in this document stands, and §7
-> and §8 remain required reading.
+> **SUPERSEDED IN PART — read `docs/EVALUATION-SCOREBOARD.md` first.** **All ten benchmarks
+> are now measured**, on `gemini-3.5-flash` via Vertex/ADC, over 21 documents and a
+> 104-item fixture. Ask: 95.1%, 81.5%, 95.1%, 95.7%, 86.7% — **no Ask metric is 100% any
+> more**, because the corpus got harder rather than because anything was re-rolled. Verdict:
+> 8/8 on all five at n=8, which is the one remaining weak spot and is a sample-size problem.
+> Counterfactual sensitivity 83.3% (5/6), 0 stuck.
+>
+> §5's task was already complete when this document was written — the run landed in
+> `44754a6`, the same commit — so §0 item 2, §4 and §5 never caught up. They have since been
+> superseded again by the larger run above. §7 and §8 remain required reading and are
+> unaffected.
 
 **Read §0, then §1, then §5. Everything else is reference for when you need it.**
 
@@ -234,11 +238,11 @@ a system that ignores the evidence cannot fake.
 
 | # | Metric | Result | State |
 |---|---|---|---|
-| 1 | Finds the passage (hit@16) | **96.2%** · n=53 | done — pure retrieval, no model |
-| 2 | Gets the fact right | **71.7%** (38/53), CI 58.4–82.0% | done — see scoreboard §2 |
-| 3 | Points you to a correct page | **96.2%** cited ≥1 gold page · n=53 | done |
-| 4 | Says when the document is silent | **100%** (16/16), CI 80.6–100% | done — never quote bare |
-| 5 | Same answer however you ask | **90.0%** (18/20 groups) | done |
+| 1 | Finds the passage (hit@16) | **95.1%** (77/81), CI 88.0-98.1% | done — pure retrieval, no model |
+| 2 | Gets the fact right | **81.5%** (66/81), CI 71.7-88.4% | done — see scoreboard §2 |
+| 3 | Points you to a correct page | **95.1%** (77/81), CI 88.0-98.1% | done |
+| 4 | Says when the document is silent | **95.7%** (22/23), CI 79.0-99.2% | done — no longer 100% |
+| 5 | Same answer however you ask | **86.7%** (26/30 groups), CI 70.3-94.7% | done |
 
 Also on file: mean recall 91.5%, MRR 0.529, mean set-overlap stability 33.7%.
 
