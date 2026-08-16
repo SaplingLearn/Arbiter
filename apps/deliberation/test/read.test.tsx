@@ -19,21 +19,32 @@ import type { Finding, StoredDocument } from "../src/api.js";
  * the tree by then, which is what these tests read.
  */
 // The arguments are echoed back into the fakes rather than ignored: naming them is
-// what makes `toHaveBeenCalledWith(11)` and `toHaveBeenCalledWith(".../raw")` typed
-// against the real call signatures instead of against `any`.
+// what makes `toHaveBeenCalledWith(11)` and the `{ url, httpHeaders }` assertions
+// typed against the real call signatures instead of against `any`.
 const getPage = vi.fn((n: number) => Promise.resolve({
   pageNumber: n,
   getViewport: () => ({ width: 800, height: 1000 }),
   render: () => ({ promise: Promise.resolve() }),
 }));
 
-const getDocument = vi.fn((src: string) => ({
-  promise: Promise.resolve({ numPages: 300, getPage, fingerprint: src }),
+/**
+ * The source is the OBJECT FORM, `{ url, httpHeaders }`, and the shape is the point.
+ *
+ * It was a bare URL string, which is how pdf.js was left to make its own unauthenticated
+ * request for the bytes - and `/raw` sits behind the same `can(..., "read")` guard as
+ * every other case route, so it answered 401 and the viewer never opened a document in
+ * the product. This mock takes what the real `getDocument` takes, so the assertions
+ * below can read the header off it.
+ */
+interface PdfSource { url: string; httpHeaders?: Record<string, string> }
+
+const getDocument = vi.fn((src: PdfSource) => ({
+  promise: Promise.resolve({ numPages: 300, getPage, fingerprint: src.url }),
   destroy: () => Promise.resolve(),
 }));
 
 vi.mock("pdfjs-dist", () => ({
-  getDocument: (src: string) => getDocument(src),
+  getDocument: (src: PdfSource) => getDocument(src),
   GlobalWorkerOptions: {},
 }));
 
@@ -183,13 +194,13 @@ describe("unresolvedCitations", () => {
 
 describe("read screen", () => {
   it("lists every document on the case", () => {
-    render(<Read caseId="c1" documents={DOCS} findings={SEED_FINDINGS} />);
+    render(<Read caseId="c1" token="tok_test" documents={DOCS} findings={SEED_FINDINGS} />);
     expect(screen.getByText("turalio-211810-multidiscipline.pdf")).toBeInTheDocument();
     expect(screen.getByText("ema-epar-sample-imaavy.pdf")).toBeInTheDocument();
   });
 
   it("says so plainly when the case has no documents", () => {
-    render(<Read caseId="c1" documents={[]} findings={[]} />);
+    render(<Read caseId="c1" token="tok_test" documents={[]} findings={[]} />);
     expect(screen.getByText(/no documents/i)).toBeInTheDocument();
   });
 
@@ -198,13 +209,13 @@ describe("read screen", () => {
   // route's documentId picks which document is open, and there is no useState
   // seeded once from a prop that a later navigation could leave stale.
   it("opens the document named by the documentId prop, not always the first one", () => {
-    render(<Read caseId="c1" documentId="doc_2" documents={DOCS} findings={SEED_FINDINGS} />);
+    render(<Read caseId="c1" token="tok_test" documentId="doc_2" documents={DOCS} findings={SEED_FINDINGS} />);
     expect(screen.getByText("ema-epar-sample-imaavy.pdf").closest("a")).toHaveAttribute("aria-current", "true");
     expect(screen.getByText("turalio-211810-multidiscipline.pdf").closest("a")).not.toHaveAttribute("aria-current");
   });
 
   it("links every document in the strip through href(), not a click handler", () => {
-    render(<Read caseId="c1" documents={DOCS} findings={SEED_FINDINGS} />);
+    render(<Read caseId="c1" token="tok_test" documents={DOCS} findings={SEED_FINDINGS} />);
     expect(screen.getByText("turalio-211810-multidiscipline.pdf").closest("a")).toHaveAttribute(
       "href", "#/case/c1/read/doc_1",
     );
@@ -220,7 +231,7 @@ describe("read screen", () => {
    * disagreed with no signal at all - and the server answers this exact id with a 404.
    */
   it("refuses a documentId that is not on this case instead of opening another one", () => {
-    render(<Read caseId="c1" documentId="doc_from_another_case" documents={DOCS} findings={SEED_FINDINGS} />);
+    render(<Read caseId="c1" token="tok_test" documentId="doc_from_another_case" documents={DOCS} findings={SEED_FINDINGS} />);
     expect(screen.getByRole("alert")).toHaveTextContent(/not on this case/i);
     expect(screen.getByText("turalio-211810-multidiscipline.pdf").closest("a")).not.toHaveAttribute("aria-current");
     expect(screen.getByText("ema-epar-sample-imaavy.pdf").closest("a")).not.toHaveAttribute("aria-current");
@@ -231,7 +242,7 @@ describe("read screen", () => {
   });
 
   it("still opens the first document for the bare read route", () => {
-    render(<Read caseId="c1" documents={DOCS} findings={SEED_FINDINGS} />);
+    render(<Read caseId="c1" token="tok_test" documents={DOCS} findings={SEED_FINDINGS} />);
     expect(screen.getByText("turalio-211810-multidiscipline.pdf").closest("a")).toHaveAttribute("aria-current", "true");
     expect(screen.queryByRole("alert")).toBeNull();
   });
@@ -246,7 +257,7 @@ describe("the findings rail", () => {
    * tests, mutation evidence and eight reviews.
    */
   it("renders a row per finding on the open document, linking to its page", () => {
-    render(<Read caseId="c1" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
     const rows = within(aside()).getAllByRole("link");
     expect(rows.map((r) => r.textContent)).toEqual([
       "p.88 ALT elevation at week 4",
@@ -257,7 +268,7 @@ describe("the findings rail", () => {
   });
 
   it("shows only the open document's findings when the case has two", () => {
-    render(<Read caseId="c1" documentId="doc_2" documents={DOCS} findings={LINKED_FINDINGS} />);
+    render(<Read caseId="c1" token="tok_test" documentId="doc_2" documents={DOCS} findings={LINKED_FINDINGS} />);
     expect(aside()).toHaveTextContent("on the other document");
     expect(aside()).not.toHaveTextContent("ALT elevation at week 4");
   });
@@ -268,19 +279,19 @@ describe("the findings rail", () => {
    * case is FALSE, and teaches a reviewer that extraction found nothing here.
    */
   it("says findings exist but are not linked, rather than claiming nobody cited it", () => {
-    render(<Read caseId="c1" documentId="doc_1" documents={DOCS} findings={SEED_FINDINGS} />);
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={SEED_FINDINGS} />);
     expect(aside()).toHaveTextContent(/2 findings on this case cite a page/i);
     expect(aside()).toHaveTextContent(/not linked to any upload/i);
     expect(aside()).not.toHaveTextContent(/No finding on this case cites this document/i);
   });
 
   it("counts one finding in the singular", () => {
-    render(<Read caseId="c1" documentId="doc_1" documents={DOCS} findings={[SEED_FINDINGS[0]!]} />);
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={[SEED_FINDINGS[0]!]} />);
     expect(aside()).toHaveTextContent(/One finding on this case cites a page/i);
   });
 
   it("keeps the plain message when genuinely nobody cited anything", () => {
-    render(<Read caseId="c1" documentId="doc_1" documents={DOCS} findings={[SEED_FINDINGS[2]!]} />);
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={[SEED_FINDINGS[2]!]} />);
     expect(aside()).toHaveTextContent(/No finding on this case cites this document/i);
   });
 });
@@ -291,7 +302,7 @@ describe("the viewer", () => {
   // broke" - the area must say so instead of staying silent.
   it("surfaces a message when the PDF fails to load, instead of leaving the canvas blank", async () => {
     rejectOnce("simulated load failure");
-    render(<Read caseId="c1" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(/could not open turalio-211810-multidiscipline\.pdf/i);
     expect(alert).toHaveTextContent(/simulated load failure/i);
@@ -299,7 +310,7 @@ describe("the viewer", () => {
 
   it("keeps the findings rail up even when the document will not load", async () => {
     rejectOnce("simulated load failure");
-    render(<Read caseId="c1" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
     await screen.findByRole("alert");
     expect(screen.getByRole("complementary", { name: /findings sourced/i }))
       .toHaveTextContent("ALT elevation at week 4");
@@ -312,12 +323,12 @@ describe("the viewer", () => {
    */
   it("loads the document once across a page change", async () => {
     const { rerender } = render(
-      <Read caseId="c1" documentId="doc_1" page={10} documents={DOCS} findings={LINKED_FINDINGS} />,
+      <Read caseId="c1" token="tok_test" documentId="doc_1" page={10} documents={DOCS} findings={LINKED_FINDINGS} />,
     );
     await waitFor(() => { expect(getPage).toHaveBeenCalledWith(10); });
     expect(getDocument).toHaveBeenCalledTimes(1);
 
-    rerender(<Read caseId="c1" documentId="doc_1" page={11} documents={DOCS} findings={LINKED_FINDINGS} />);
+    rerender(<Read caseId="c1" token="tok_test" documentId="doc_1" page={11} documents={DOCS} findings={LINKED_FINDINGS} />);
     // Waiting on getPage rather than on a timer: page 11 having been RENDERED is
     // proof the render effect ran, so the load count below is read after the moment
     // a refetch would have happened.
@@ -328,19 +339,55 @@ describe("the viewer", () => {
   // Clamped, not thrown: a stale deep link to page 400 of a 300-page document lands
   // on the last page rather than on an error screen.
   it("clamps a page past the end of the document", async () => {
-    render(<Read caseId="c1" documentId="doc_1" page={400} documents={DOCS} findings={LINKED_FINDINGS} />);
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" page={400} documents={DOCS} findings={LINKED_FINDINGS} />);
     await waitFor(() => { expect(getPage).toHaveBeenCalledWith(300); });
   });
 
   it("does refetch when the document itself changes", async () => {
     const { rerender } = render(
-      <Read caseId="c1" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />,
+      <Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />,
     );
     await waitFor(() => { expect(getDocument).toHaveBeenCalledTimes(1); });
-    expect(getDocument).toHaveBeenCalledWith("/api/cases/c1/documents/doc_1/raw");
+    expect(getDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ url: "/api/cases/c1/documents/doc_1/raw" }),
+    );
 
-    rerender(<Read caseId="c1" documentId="doc_2" documents={DOCS} findings={LINKED_FINDINGS} />);
+    rerender(<Read caseId="c1" token="tok_test" documentId="doc_2" documents={DOCS} findings={LINKED_FINDINGS} />);
     await waitFor(() => { expect(getDocument).toHaveBeenCalledTimes(2); });
-    expect(getDocument).toHaveBeenCalledWith("/api/cases/c1/documents/doc_2/raw");
+    expect(getDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ url: "/api/cases/c1/documents/doc_2/raw" }),
+    );
+  });
+
+  /**
+   * THE 401. `/raw` is behind the same `can(kase, user.id, "read")` guard as every
+   * other case route, and pdf.js does not go through `api.ts` - handed a bare URL it
+   * makes its own request, which carried no credentials. The strip, the deep link and
+   * the findings rail all worked; the document never loaded, in the product, ever.
+   *
+   * Neither existing layer could see it: this file mocks pdf.js so no request is made,
+   * and server.test.ts calls `/raw` WITH a header, proving the route works for a caller
+   * that sends one. This asserts the client is such a caller.
+   */
+  it("sends the bearer token with the request for the bytes", async () => {
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
+    await waitFor(() => { expect(getDocument).toHaveBeenCalledTimes(1); });
+    expect(getDocument).toHaveBeenCalledWith({
+      url: "/api/cases/c1/documents/doc_1/raw",
+      httpHeaders: { Authorization: "Bearer tok_test" },
+    });
+  });
+
+  it("asks again with the new token when the session changes under it", async () => {
+    const { rerender } = render(
+      <Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />,
+    );
+    await waitFor(() => { expect(getDocument).toHaveBeenCalledTimes(1); });
+
+    rerender(<Read caseId="c1" token="tok_fresh" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
+    await waitFor(() => { expect(getDocument).toHaveBeenCalledTimes(2); });
+    expect(getDocument).toHaveBeenLastCalledWith(
+      expect.objectContaining({ httpHeaders: { Authorization: "Bearer tok_fresh" } }),
+    );
   });
 });

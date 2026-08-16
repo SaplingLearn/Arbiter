@@ -11,7 +11,7 @@ import {
   Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
   Refused, Reveal, RosterPanel, Verdict, Waiting,
 } from "./screens.js";
-import { Read } from "./read.js";
+import { Read, ReadingRoom } from "./read.js";
 import { caseIdOf, href, navigate, parseHash, type Route } from "./router.js";
 import "./app.css";
 
@@ -314,6 +314,14 @@ export function App(): ReactElement {
     case "ask":
       return shell(<AskPage token={token} library={library} />);
 
+    /* The reading room, and it sits with the other top-level routes rather than below
+       with the case screens. It has no caseId, so none of the case machinery under
+       this switch applies to it: nothing to poll, no stage strip, no blind view to
+       wait for. Reaching it through `caseShell` would have needed a case it does not
+       have. */
+    case "reading":
+      return shell(<ReadingRoom token={token} mine={mine} />);
+
     /**
      * A REFUSAL IS THE LIBRARY'S, and it is rendered here rather than above this switch.
      *
@@ -473,7 +481,7 @@ export function App(): ReactElement {
 
   if (route.name === "read") {
     return caseShell(
-      <Read caseId={caseId} documents={docs} findings={findings}
+      <Read caseId={caseId} token={token} documents={docs} findings={findings}
         {...(route.documentId === undefined ? {} : { documentId: route.documentId })}
         {...(route.page === undefined ? {} : { page: route.page })} />,
     );

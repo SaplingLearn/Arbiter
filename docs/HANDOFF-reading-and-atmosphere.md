@@ -107,26 +107,64 @@ case among its neighbours.
 
 ---
 
-## 3. The one piece of the design that is not built
+## 3. The reading room — BUILT, and what it turned up
 
-**There is no top-level "Read" entry in the rail after Dashboard.** The user asked for
-it and approved the "launcher" shape for it; it is not done.
+**Done.** There is a top-level Read entry in the rail, second, between Dashboard and
+New case, and a launcher behind it.
 
-It is blocked on nothing technical any more — the scene exists, which was the previous
-blocker — but it needs a decision made in code:
+| Piece | File |
+|---|---|
+| Route `{ name: "reading" }` at `#/read` | `apps/deliberation/src/router.ts` |
+| The page | `ReadingRoom` in `apps/deliberation/src/read.tsx` |
+| `NAV` entry (`Read` / `Section` / `read`) | `apps/deliberation/src/shell/nav.ts` |
+| Document row styling | `app.css`, `a.inv-row` |
 
-- `NAV` entries bind to a `Route` (`shell/nav.ts:22`), and `read` requires a `caseId`.
-  A menu entry has none.
-- So it needs a **launcher route** — a `read` landing page with no case, listing cases
-  and their documents, that jumps into `{ name: "read", caseId, documentId }`.
-- Then a `NAV` entry between Dashboard and New case, and `currentNav` updated: today
-  `read` lights the Library (`shell/nav.ts:126`) precisely because it has no entry of
-  its own. That comment is the marker for this work.
+It lists **documents, not cases** — each is its own link straight to
+`{ name: "read", caseId, documentId }`. A launcher that stopped at the case would land
+everyone on `documents[0]` and make them pick again, which is what the case reader
+already does. Only cases whose `CaseListing.documents` count is non-zero are fetched,
+and the ones skipped are counted at the foot rather than dropped.
+
+`read` is a **separate route name from `reading`** on purpose: `read` carries a `caseId`
+in its type and a lot of this app narrows on that fact. See the comment in `router.ts`.
 
 **Do not do this by index.** `currentNav` used `NAV[2]` and `NAV[0]` until an entry was
 inserted second; that moved Library from 2 to 3 and would have lit the wrong rail entry
 on every case route, silently, because an index that still resolves does not throw. It
-is `navByScene(...)` now. Keep it that way.
+is `navByScene(...)` now. Keep it that way. An entry HAS now been inserted second and
+nothing moved, which is the lookup doing its job.
+
+### Three bugs this uncovered, all pre-existing, all invisible to the suite
+
+Every one was found by running the product and looking at it, which is what §5's last
+bullet has been saying.
+
+1. **The product could not draw its own reading scene.** `Backdrop.tsx` registered
+   scenes with five hand-written `atmo.register(...)` lines and `createSection` was
+   never among them, so `transitionTo("read")` threw `unknown scene "read"`. The throw
+   was in an effect *outside* the mount try/catch, so React unmounted the whole tree:
+   opening Read & mark blanked the product. It now registers from `STATES`, so the
+   copy is gone rather than corrected.
+
+2. **The viewer had never loaded a PDF.** pdf.js does not go through `api.ts`; handed a
+   bare URL it makes its own request, which carried no `Authorization` header, and
+   `/raw` is behind the same `can(..., "read")` guard as everything else — so it
+   answered **401** every time. `getDocument` now takes `{ url, httpHeaders }`. The
+   tests could not see this: `read.test.tsx` mocks pdf.js so no request is made, and
+   `server.test.ts` calls `/raw` *with* a header. Neither covered the only thing the
+   product actually does.
+
+3. **The record lit the wrong rail entry.** `record` was not in `currentNav`'s
+   case-route branch, so it fell to the `dashboard` fallback and the rail read CULTURE
+   over the Helix. Nothing threw, because a fallback is a legitimate answer.
+
+`apps/deliberation/test/nav.test.ts` is new and exists for this class: it checks the
+rail against the real scene registry, and asserts every route names a scene that
+exists — which is exactly the condition for the backdrop not throwing.
+
+**`apps/deliberation/shot.mjs` had its own copy of the route list too**, and did not
+include `read`. Same trap as its sibling, one level up. Fixed; keep it in step with
+`NAV`.
 
 ---
 
@@ -191,7 +229,20 @@ two are equal. Option 2 keeps that test; option 3 changes it deliberately.
   what is actually mounted before trusting anything under `sections/`.
 - **Run the scene and look at it.** The previous handoff said this and it earned its
   place three times over in one session: typecheck, lint and the full suite all passed
-  on a scene that rendered nothing at all.
+  on a scene that rendered nothing at all. It then earned it three more times — see
+  §3. A blanked product, a viewer that had never once loaded a PDF, and a rail naming
+  the wrong world were all sitting behind a green suite, and all three were obvious
+  within a minute of opening the page.
+- **`npm run dev` binds 8787, 5274 and 5173 with `--strictPort`.** A stale API from an
+  earlier session holds 8787 and the whole stack refuses to start; `ARBITER_PORT` moves
+  only the public port, so it does not help. Find the owner
+  (`Get-NetTCPConnection -LocalPort 8787`) before assuming it is yours.
+- **Seeding accounts is not seeding cases.** `npm run seed:demo` creates the five
+  people and nothing else, so the reading room correctly says "No cases yet" on a fresh
+  checkout. To see it with data, open a case and upload through the real routes — the
+  upload gate measures every file, so the PDF has to be four-plus pages of genuine
+  toxicology vocabulary. `readablePdfBytes` in `services/api/test/server.test.ts`
+  builds one that passes.
 
 ---
 
@@ -212,8 +263,14 @@ ATMOSPHERE_URL=http://127.0.0.1:5187/ node apps/atmosphere/shot.mjs shots
 
 ## 7. State at handoff
 
-- 821 tests / 58 files, typecheck clean, lint clean locally, on `652adf5` + this
-  document. (829 / 59 on PR #24, which adds eight tests of its own.)
+- **863 tests / 60 files**, typecheck clean, lint clean, `deliberate:build` clean, and
+  `apps/deliberation/shot.mjs` reports no console errors on all five surfaces. This is
+  after the reading room (§3), which adds `nav.test.ts` and `readingRoom.test.tsx`.
+  (Was 821 / 58 before it; PR #24 adds eight more of its own on top.)
+- **Local `npx vitest run` needs PyMuPDF**, or two `beforeAll` hooks in
+  `server.test.ts` fail with `fixture: 422` and take nine tests down with them — the
+  §5 bullet about Python, seen from a laptop rather than from CI. `pip install
+  pymupdf==1.28.2`, the same pin `ci.yml` uses.
 - **CI is green on this branch, for the first time.** It had been red since Read & mark
   landed, and it took four separate causes, none of them visible from a local run:
   no Python on the runner (so every upload 422'd); no `seed:demo` (so the product could

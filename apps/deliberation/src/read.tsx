@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import type { Finding, StoredDocument } from "./api.js";
+import { api, type CaseListing, type Finding, type StoredDocument } from "./api.js";
+import { PageHead, Section } from "./Layout.js";
 import { href } from "./router.js";
 
 /**
@@ -55,8 +56,10 @@ export function unresolvedCitations(findings: Finding[], documents: StoredDocume
   ).length;
 }
 
-export function Read({ caseId, documentId, page, documents, findings }: {
+export function Read({ caseId, token, documentId, page, documents, findings }: {
   caseId: string;
+  /** Sent to pdf.js for the `/raw` fetch. See `PdfView` - it is not decoration. */
+  token: string;
   documentId?: string;
   page?: number;
   documents: StoredDocument[];
@@ -109,7 +112,7 @@ export function Read({ caseId, documentId, page, documents, findings }: {
           </p>
         )
         : (
-          <PdfView caseId={caseId} document={open} highlights={highlights}
+          <PdfView caseId={caseId} token={token} document={open} highlights={highlights}
             unresolved={unresolvedCitations(findings, documents)}
             {...(page === undefined ? {} : { page })} />
         )}
@@ -128,9 +131,9 @@ export function Read({ caseId, documentId, page, documents, findings }: {
  * The `import type` at the top of this file is erased at compile time and pulls in
  * nothing at runtime, so holding a typed PDFDocumentProxy in state costs no load.
  */
-function PdfView({ caseId, document: doc, page, highlights, unresolved }: {
-  caseId: string; document: StoredDocument; page?: number; highlights: Finding[];
-  unresolved: number;
+function PdfView({ caseId, token, document: doc, page, highlights, unresolved }: {
+  caseId: string; token: string; document: StoredDocument; page?: number;
+  highlights: Finding[]; unresolved: number;
 }): ReactElement {
   const canvas = useRef<HTMLCanvasElement>(null);
   const shown = page ?? 1;
@@ -167,7 +170,32 @@ function PdfView({ caseId, document: doc, page, highlights, unresolved }: {
         GlobalWorkerOptions.workerSrc = workerUrl;
 
         if (cancelled) return;
-        const loadingTask = getDocument(`/api/cases/${caseId}/documents/${doc.id}/raw`);
+        /**
+         * THE TOKEN GOES WITH THIS REQUEST, and until it did the viewer could not open
+         * a single document.
+         *
+         * pdf.js does not use `api.ts`. Handed a bare URL it makes its OWN request for
+         * the bytes, and that request carried no `Authorization` header - so `/raw`,
+         * which sits behind the same `can(kase, user.id, "read")` guard as every other
+         * case route, answered 401 every time. Everything around it worked: the strip
+         * listed documents, the findings rail filled, the deep link resolved. The
+         * document itself never arrived.
+         *
+         * Nothing caught it. The tests in read.test.tsx mock `pdfjs-dist` wholesale, so
+         * `getDocument` there never performs a request at all; server.test.ts calls
+         * `/raw` directly WITH a header, proving the route works for a caller that
+         * sends one. The one thing neither covers is the only thing the product does.
+         *
+         * `httpHeaders` rather than fetching the bytes here and passing `data`: the
+         * server sets an etag and `must-revalidate` specifically so page turns in a
+         * 264-page review do not re-download it, and pulling the whole file into an
+         * ArrayBuffer ourselves would throw that away along with pdf.js's own
+         * incremental loading.
+         */
+        const loadingTask = getDocument({
+          url: `/api/cases/${caseId}/documents/${doc.id}/raw`,
+          httpHeaders: { Authorization: `Bearer ${token}` },
+        });
         task = loadingTask;
         const loaded = await loadingTask.promise;
         if (cancelled) return;
@@ -185,7 +213,7 @@ function PdfView({ caseId, document: doc, page, highlights, unresolved }: {
     })();
 
     return () => { cancelled = true; void task?.destroy(); };
-  }, [caseId, doc.id]);
+  }, [caseId, doc.id, token]);
 
   useEffect(() => {
     if (pdf === null) return undefined;
@@ -254,5 +282,218 @@ function PdfView({ caseId, document: doc, page, highlights, unresolved }: {
             : <p className="small muted">No finding on this case cites this document.</p>}
       </aside>
     </div>
+  );
+}
+
+/** ------------------------------------------------------- the reading room */
+
+/**
+ * WHAT A DOCUMENT ROW SAYS ABOUT ITSELF, and why it is a page count rather than a
+ * verdict badge.
+ *
+ * `measure_pdf.py` runs on every upload and its numbers are already on the record, so
+ * the honest thing to put beside a filename is what it measured. Page count is the one
+ * figure that changes what a reader does next - a 288-page review and a four-page
+ * summary are different afternoons - and it is the figure the reader is about to be
+ * dropped into the middle of.
+ *
+ * NOT a `.state` chip. Those are the safety vocabulary (present / absent /
+ * inconclusive) and they are green, red and amber; Layout's note that one heavy colour
+ * is spent only on a safety call is exactly what a green "4 pages" would break. An
+ * unmeasured document says so rather than showing a zero, because a zero here is a
+ * claim that the file has no pages.
+ */
+function extent(d: StoredDocument): string {
+  const pages = d.measurement.pages;
+  if (pages === undefined) return "unmeasured";
+  return pages === 1 ? "1 page" : `${pages} pages`;
+}
+
+/**
+ * THE READING ROOM — every document this account can open, across every case it is
+ * named on.
+ *
+ * WHY THIS EXISTS AT ALL. `read` is a case route: it needs a caseId, and a menu entry
+ * has none. Reading was therefore reachable only by opening a case and taking the
+ * second stage tab, which puts the product's most-used verb three clicks behind a
+ * case list - and made the rail claim, silently, that a reader looking at a stained
+ * section was standing in the Archive. This page is the top-level route that entry
+ * needed; `{ name: "reading" }` in router.ts records why it is a separate route name.
+ *
+ * IT LISTS DOCUMENTS, NOT CASES, and that is the whole difference between this and the
+ * dashboard. A launcher that stopped at "Turalio — 3 documents" would land every
+ * reader on whichever document happens to be first and make them pick again; the
+ * dashboard already lists cases, and a second list of the same cases is not a feature.
+ * So each case's documents are fetched and each one is its own link, straight to
+ * `{ name: "read", caseId, documentId }`.
+ *
+ * ONLY CASES THAT HOLD DOCUMENTS ARE FETCHED. `CaseListing.documents` is a count the
+ * server already computed, so a case with none costs no request - and the ones skipped
+ * are stated at the foot rather than silently dropped, because a reader who cannot
+ * find a case they know they are on should be told why it is not here.
+ */
+export function ReadingRoom({ token, mine }: {
+  token: string;
+  mine: CaseListing[];
+}): ReactElement {
+  const stocked = mine.filter((c) => c.documents > 0);
+  const empty = mine.length - stocked.length;
+
+  /**
+   * `null` while the lists are in flight; a case id maps to "unavailable" when its own
+   * request failed.
+   *
+   * PER CASE, NOT ONE FLAG FOR THE PAGE. One failed request out of four should cost
+   * the reader that one shelf, not the three that loaded - and it must not be drawn as
+   * an empty case, which would say that a case with documents has none.
+   */
+  const [shelves, setShelves] = useState<Record<string, StoredDocument[] | "unavailable"> | null>(null);
+
+  /**
+   * Keyed on WHAT THIS PAGE ACTUALLY READS - the cases and how many documents each
+   * holds - rather than on `mine` itself. `mine` is refetched after every action in
+   * the app and arrives as a new array each time, so depending on it would re-request
+   * every document list whenever an unrelated position count moved. When this key is
+   * unchanged there is nothing new to fetch, and when it changes the effect closes
+   * over a fresh `stocked` because it re-runs during that render.
+   */
+  const key = stocked.map((c) => `${c.caseId}:${c.documents}`).join(",");
+
+  useEffect(() => {
+    if (stocked.length === 0) {
+      setShelves({});
+      return undefined;
+    }
+    let cancelled = false;
+    setShelves(null);
+
+    void (async () => {
+      const entries = await Promise.all(stocked.map(async (c) => {
+        try {
+          return [c.caseId, await api.documents(token, c.caseId)] as const;
+        } catch {
+          // Swallowed per case ON PURPOSE. This page is a way in to reading, and one
+          // unreachable case is not a reason to replace the other three with an error
+          // screen. The row says it could not be listed and still links to the case's
+          // own reader, which is the one place that can report the real failure.
+          return [c.caseId, "unavailable"] as const;
+        }
+      }));
+      if (cancelled) return;
+      setShelves(Object.fromEntries(entries));
+    })();
+
+    return () => { cancelled = true; };
+  }, [token, key]);
+
+  const head = (
+    <PageHead
+      eyebrow="Read"
+      title="Read the evidence"
+      lede="Every document on the cases you are named on. Opening one draws what extraction already found on top of its pages."
+    />
+  );
+
+  if (mine.length === 0) {
+    return (
+      <>
+        {head}
+        <div className="empty">
+          <h3>No cases yet</h3>
+          <p className="muted">
+            Documents belong to a case. Open one for a compound you are deciding about,
+            or start from a prepared case in the library.
+          </p>
+          <div className="btn-row" style={{ marginTop: 0, justifyContent: "center" }}>
+            <a href={href({ name: "new" })}><button className="primary">Create a case</button></a>
+            <a href={href({ name: "cases" })}><button className="ghost">Browse the library</button></a>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (stocked.length === 0) {
+    return (
+      <>
+        {head}
+        <div className="empty">
+          <h3>Nothing to read yet</h3>
+          <p className="muted">
+            {mine.length === 1
+              ? "The case you are on holds no documents."
+              : `None of the ${mine.length} cases you are on holds a document.`}
+            {" "}Study PDFs are uploaded on a case's Evidence stage, and every one is
+            measured before it is accepted.
+          </p>
+          <a href={href({ name: "dashboard" })}><button className="primary">Go to your cases</button></a>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {head}
+      {shelves === null
+        ? <p className="muted">Looking for documents…</p>
+        : (
+          <div className="stack-l">
+            {stocked.map((c) => {
+              const docs = shelves[c.caseId];
+              return (
+                <Section key={c.caseId} title={c.compoundLabel}
+                  count={c.documents === 1 ? "1 document" : `${c.documents} documents`}>
+                  {docs === undefined || docs === "unavailable"
+                    ? (
+                      <p className="small muted">
+                        This case's documents could not be listed just now.{" "}
+                        <a href={href({ name: "read", caseId: c.caseId })}>Open it in the reader</a>{" "}
+                        to see the failure in full.
+                      </p>
+                    )
+                    : docs.length === 0
+                      ? (
+                        // The count said there were documents and the list came back
+                        // empty. Said plainly rather than drawn as a tidy empty
+                        // section, because the two numbers disagreeing is the fact.
+                        <p className="small muted">
+                          This case reported {c.documents} document{c.documents === 1 ? "" : "s"} and
+                          returned none. Open it in the reader to see what is actually there.
+                        </p>
+                      )
+                      : (
+                        <div className="inv">
+                          {docs.map((d) => (
+                            <a className="inv-row" key={d.id}
+                              href={href({ name: "read", caseId: c.caseId, documentId: d.id })}>
+                              <div className="tiny muted mono">{extent(d)}</div>
+                              <div>
+                                {d.filename}
+                                {/* The refusal reason, when the store kept a document
+                                    it could not read. It is the measurement's own
+                                    sentence and nothing here paraphrases it. */}
+                                {!d.measurement.ok && (
+                                  <div className="ref">{d.measurement.reason}</div>
+                                )}
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                </Section>
+              );
+            })}
+
+            {empty > 0 && (
+              <p className="small muted">
+                {empty === 1
+                  ? "One other case you are on holds no documents yet."
+                  : `${empty} other cases you are on hold no documents yet.`}
+              </p>
+            )}
+          </div>
+        )}
+    </>
   );
 }
