@@ -127,12 +127,18 @@ def gather() -> tuple[list[tuple[str, int, int]], list[tuple[str, int, int]], di
     # exactly that list so an invented gap is impossible, and a dropped one fails the
     # whole adjudication rather than that metric. Drawn as a bar it reads as a fifth
     # success and flatters the four beside it.
+    # Counterfactual sensitivity is the FIFTH verdict benchmark, not a footnote. It was
+    # relegated to one while gap recall occupied the slot, which had it exactly backwards:
+    # gap recall cannot fail, and this is the only verdict result a system that ignores
+    # the evidence cannot score well on - each pair edits one fact and requires the
+    # verdict to move with it.
     t5 = five.get("tested", {"prose": n5, "rule": n5})
     verdict_rows = [
         ("1  Verdict is right", s["verdict"], n5),
         ("2  Prose stays in evidence", s["prose"], t5["prose"]),
         ("3  Names the deciding rule", s["rule"], t5["rule"]),
         ("4  Runs agree\n     consensus of 3", s["stable"], n5),
+        ("5  Tracks a changed fact\n     counterfactual pairs", cf["passed"], len(cf["rows"])),
     ]
     return ask_rows, verdict_rows, cf
 
@@ -187,7 +193,7 @@ def fig_ten(out: Path) -> None:
              fontsize=11.5, color=VIOLET, weight="bold")
     # Counted, not typed. The board was "ten" until gap recall was removed for being
     # unfailable, and a hardcoded title would have gone on asserting it.
-    fig.suptitle(f"Arbiter — {len(rows)} scored benchmarks", x=0.012, ha="left", fontsize=16,
+    fig.suptitle(f"Arbiter — the {len(rows)} benchmarks", x=0.012, ha="left", fontsize=16,
                  color=INK, weight="bold", y=0.985)
     fig.text(0.012, 0.935,
              f"{MODEL} · bars are point estimates, whiskers are 95% Wilson score intervals · "
@@ -202,9 +208,8 @@ def fig_ten(out: Path) -> None:
     fig.text(0.012, 0.022,
              f"Every rate carries its n. {v_k}/{v_n} and {a_k}/{a_n} are both 'high' and only one is a "
              f"measurement: the first has a lower bound of {v_lo:.0f}%, the second {a_lo:.0f}%.\n"
-             f"Counterfactual sensitivity (the verdict result a system ignoring the evidence cannot fake): "
-             f"{cf['sensitivity'] * 100:.1f}%  {cf['passed']}/{len(cf['rows'])}  "
-             f"CI {cf['interval'][0] * 100:.0f}–{cf['interval'][1] * 100:.0f}%, {cf['stuck']} stuck.",
+             f"Verdict 5 is the one a system ignoring the evidence cannot fake: each pair edits exactly one fact "
+             f"and the verdict must move with it. {cf['stuck']} stuck — it never anchored on its first read.",
              ha="left", fontsize=8.6, color=MUTED, linespacing=1.6)
 
     fig.subplots_adjust(left=0.28, right=0.80, top=0.90, bottom=0.13)
