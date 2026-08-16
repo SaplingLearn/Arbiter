@@ -185,7 +185,9 @@ One command, one origin. The landing page is at `/`, the product at `/deliberati
 
 The demo team is five accounts whose shared password is printed in `services/api/seed-demo.ts`, because the fixture is the secrecy, not the check. A fresh clone has none of them - the account store is gitignored - so create them with `npm run seed:demo`, or set `ARBITER_DEMO_SEED=1` and let the first boot do it. The banner prints the account count either way, so a forgotten demo team is visible rather than silent.
 
-Configuration is read from `.env`, or from `.env.share` if there is no `.env`. The second name exists so a file prepared for somebody else works where it lands: an unread share file and no credentials at all look identical from the outside, and that ambiguity was worth a line of code to remove. The banner names the file it read.
+Configuration is read from `.env`, or from `.env.share` if there is no `.env`. The second name exists so a file prepared for somebody else works where it lands: an unread share file and no credentials at all look identical from the outside, and that ambiguity was worth a line of code to remove. The banner names the file it read, **and the directory it read it from** - a server started in a second checkout reads that checkout's configuration while you are looking at this one.
+
+The thirty-five regulatory reviews the Library searches are committed, 363 MB of them, so Ask works in a fresh clone. They were excluded until 2026-08-16 on the grounds that they were retrievable by URL; no URL was recorded anywhere, so in practice a clone showed "cannot be searched" on every entry. Fourteen of the sixteen library documents are askable - `tak994` has no source document, `tolcapone` is a scan with no extractable text, and `troglitazone` has no nonclinical chapter heading. Those are refusals the product makes on purpose, and they read differently from a missing file.
 
 ### It runs with no credentials, and says so
 
