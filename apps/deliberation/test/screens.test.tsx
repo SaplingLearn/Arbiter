@@ -1,8 +1,8 @@
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { Documents, InventoryPanel, Refused, Reveal, Verdict, Waiting, basisOf } from "../src/screens.js";
-import type { Adjudication, BlindView, Inventory, Position } from "../src/api.js";
+import { Documents, InventoryPanel, Refused, Reveal, RosterPanel, Verdict, Waiting, basisOf } from "../src/screens.js";
+import type { Adjudication, BlindView, Inventory, Position, Roster } from "../src/api.js";
 
 const inv: Inventory = {
   checklistVersion: "1.0",
@@ -229,6 +229,7 @@ describe("basisOf", () => {
 });
 
 describe("Reveal", () => {
+  const SEATS: Record<string, number> = { ann: 0, bea: 1, cal: 2 };
   const view: BlindView = {
     status: "locked", own: null, others: [],
     revealed: [
@@ -239,7 +240,7 @@ describe("Reveal", () => {
   };
 
   it("labels each position with what it rests on", () => {
-    render(<Reveal nameOf={(id) => id} view={view} unanimity={null} />);
+    render(<Reveal nameOf={(id) => id} seats={SEATS} view={view} unanimity={null} />);
     expect(screen.getByText("cited")).toBeInTheDocument();
     expect(screen.getByText("external")).toBeInTheDocument();
     expect(screen.getByText("unsupported")).toBeInTheDocument();
@@ -248,19 +249,80 @@ describe("Reveal", () => {
   it("shows an unsupported position rather than hiding it", () => {
     // Dissent is preserved permanently - that is the record's purpose. What changes
     // is that its basis is visible.
-    render(<Reveal nameOf={(id) => id} view={view} unanimity={null} />);
+    render(<Reveal nameOf={(id) => id} seats={SEATS} view={view} unanimity={null} />);
     expect(screen.getByText("cal")).toBeInTheDocument();
   });
 
   it("renders the unanimity concerns and says no model produced them", () => {
-    render(<Reveal nameOf={(id) => id} view={view} unanimity={{ unanimous: true, call: "advance", concerns: ["nobody tested the exposure margin"] }} />);
+    render(<Reveal nameOf={(id) => id} seats={SEATS} view={view} unanimity={{ unanimous: true, call: "advance", concerns: ["nobody tested the exposure margin"] }} />);
     expect(screen.getByText(/nobody tested the exposure margin/)).toBeInTheDocument();
     expect(screen.getByText(/Nothing below came from a model/)).toBeInTheDocument();
   });
 
   it("says nothing about unanimity when the room disagreed", () => {
-    const { container } = render(<Reveal nameOf={(id) => id} view={view} unanimity={{ unanimous: false, call: null, concerns: [] }} />);
+    const { container } = render(<Reveal nameOf={(id) => id} seats={SEATS} view={view} unanimity={{ unanimous: false, call: null, concerns: [] }} />);
     expect(container.textContent).not.toContain("Everyone agreed");
+  });
+
+  // The seat colour has to be the same object on this screen as on the roster, or it
+  // is not learnable. This is also the test that keeps <Reviewer> reachable: before
+  // the roster carried seats, nothing in the app rendered the badge at all.
+  it("badges every revealed position with its author's seat", () => {
+    const { container } = render(
+      <Reveal nameOf={(id) => ({ ann: "Andres Lopez", bea: "Bea Nolan", cal: "Cal Ruiz" })[id] ?? id}
+        seats={SEATS} view={view} unanimity={null} />,
+    );
+    expect(container.querySelector(".avatar.seat-0")).not.toBeNull();
+    expect(container.querySelector(".avatar.seat-1")).not.toBeNull();
+    expect(container.querySelector(".avatar.seat-2")).not.toBeNull();
+    expect(screen.getByLabelText("Andres Lopez")).toBeInTheDocument();
+  });
+
+  it("falls back to a neutral badge for a participant with no seat", () => {
+    const { container } = render(<Reveal nameOf={(id) => id} seats={{ ann: 0 }} view={view} unanimity={null} />);
+    expect(container.querySelectorAll(".avatar.seat-none")).toHaveLength(2);
+  });
+});
+
+describe("RosterPanel seats", () => {
+  const roster = (seats: Record<string, number>, names: [string, string][]): Roster => ({
+    ownerId: "own",
+    members: names.map(([id, displayName]) => ({
+      id, displayName, email: `${id}@example.com`, signatureMethod: "typed",
+    })),
+    pending: [],
+    seats,
+  });
+
+  const panel = (r: Roster): ReturnType<typeof render> => render(
+    <RosterPanel roster={r} canEdit={false} isOwner={false} ownerName="Owner"
+      onInvite={() => {}} onRemove={() => {}} notice={null} error={null} />,
+  );
+
+  it("gives every member their allocated seat colour", () => {
+    const { container } = panel(roster({ u1: 0, u2: 3 }, [["u1", "Andres Lopez"], ["u2", "Jack He"]]));
+    expect(container.querySelector(".avatar.seat-0")).not.toBeNull();
+    expect(container.querySelector(".avatar.seat-3")).not.toBeNull();
+  });
+
+  // Colour is never the only channel, and initials are not unique. Two Js and Hs on
+  // one panel get the seat numeral appended so the badges stay tellable apart for a
+  // reader who cannot use the colour.
+  it("disambiguates two members who share initials", () => {
+    panel(roster({ u1: 0, u2: 1 }, [["u1", "Jack He"], ["u2", "Jane Hart"]]));
+    expect(screen.getByText("JH·0")).toBeInTheDocument();
+    expect(screen.getByText("JH·1")).toBeInTheDocument();
+  });
+
+  it("leaves a unique pair of initials alone", () => {
+    panel(roster({ u1: 0, u2: 1 }, [["u1", "Jack He"], ["u2", "Andres Lopez"]]));
+    expect(screen.getByText("JH")).toBeInTheDocument();
+    expect(screen.getByText("AL")).toBeInTheDocument();
+  });
+
+  it("renders a neutral badge for a member past the last seat", () => {
+    const { container } = panel(roster({ u1: 0 }, [["u1", "Andres Lopez"], ["u2", "Jack He"]]));
+    expect(container.querySelectorAll(".avatar.seat-none")).toHaveLength(1);
   });
 });
 

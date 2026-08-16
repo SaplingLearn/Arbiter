@@ -1,5 +1,7 @@
 import { useState, type ReactElement } from "react";
 import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
+import { Reviewer, collidingInitials } from "./Reviewer.js";
+import { initials } from "./Layout.js";
 
 /**
  * The screens of the deliberation, in the order §3.5 fixes them:
@@ -60,6 +62,10 @@ export function RosterPanel({ roster, canEdit, isOwner, ownerName, onInvite, onR
   error: string | null;
 }): ReactElement {
   const [email, setEmail] = useState("");
+  // Computed ONCE for the whole panel, not per row: whether two people share initials
+  // is a property of the roster, and a per-row computation would ask the question
+  // against a list of one and always answer no.
+  const collisions = collidingInitials(roster.members.map((m) => m.displayName));
 
   return (
     <div className="stack">
@@ -79,6 +85,12 @@ export function RosterPanel({ roster, canEdit, isOwner, ownerName, onInvite, onR
           <div className="inv-row" key={m.id}>
             <div className="state present">on panel</div>
             <div>
+              {/* The seat colour, shown wherever the person is named. A colour is only
+                  learnable if it is the same on the roster as on every later screen -
+                  a reviewer who looks different in two places is two people as far as
+                  the reader is concerned. */}
+              <Reviewer name={m.displayName} seat={roster.seats[m.id] ?? null}
+                disambiguate={collisions.has(initials(m.displayName))} />{" "}
               <strong>{m.displayName}</strong>
               <div className="tiny muted mono">{m.email}</div>
               {canEdit && roster.members.length > 1 && (
@@ -563,15 +575,25 @@ export function Waiting({ view, isOwner, nameOf, onReveal }: {
 }
 
 /** -------------------------------------------------------------------- reveal */
-export function Reveal({ view, unanimity, nameOf }: {
+export function Reveal({ view, unanimity, nameOf, seats }: {
   view: BlindView; unanimity: UnanimityReport | null; nameOf: (id: string) => string;
+  /** Participant id -> seat, from the roster. Same allocation the panel above shows. */
+  seats: Record<string, number>;
 }): ReactElement {
+  const revealed = view.revealed ?? [];
+  // Over the people actually on this screen. This is the screen where "who said
+  // what" carries the most weight, so two reviewers sharing initials have to be
+  // told apart here even if the roster panel is not open beside it.
+  const collisions = collidingInitials(revealed.map((p) => nameOf(p.participantId)));
+
   return (
     <section>
       <h2>Every position, at once</h2>
-      {(view.revealed ?? []).map((p) => (
+      {revealed.map((p) => (
         <div className="pos" key={p.participantId}>
           <div className="pos-head">
+            <Reviewer name={nameOf(p.participantId)} seat={seats[p.participantId] ?? null}
+              disambiguate={collisions.has(initials(nameOf(p.participantId)))} />
             <strong>{nameOf(p.participantId)}</strong>
             <span>{CALL_LABEL[p.call]}</span>
             <span className={`basis ${basisOf(p)}`}>{basisOf(p)}</span>

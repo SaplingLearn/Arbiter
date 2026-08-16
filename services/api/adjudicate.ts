@@ -49,6 +49,20 @@ export interface Finding {
   assertion: FindingAssertion;
   detail: string;
   sourceDocument?: string;
+  /**
+   * The uploaded document this finding was written against.
+   *
+   * Carried so the reader's viewer can join a finding to a document EXACTLY, by the
+   * id the server already validated against the case, rather than by string-matching
+   * `sourceDocument` - which on the seed cases holds a dossier identifier and matches
+   * no filename at all.
+   *
+   * Deliberately NOT rendered into the adjudicator prompt (see `buildPrompt` below,
+   * which names the fields it prints one at a time). A document id is provenance for
+   * the UI, not evidence for the model, and an opaque `doc_...` in the prompt is
+   * noise the model would be free to reason about.
+   */
+  sourceDocumentId?: string;
   sourcePage?: number;
 }
 

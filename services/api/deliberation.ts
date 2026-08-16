@@ -1,4 +1,5 @@
 import type { Inventory } from "./inventory.js";
+import { withParticipant, type SeatMap } from "./seats.js";
 
 /**
  * Blind deliberation. Spec §6.
@@ -93,6 +94,10 @@ export interface DeliberationCase {
   context: string;
   ownerId: string;
   participantIds: string[];
+  /** Participant -> seat index, which picks their colour everywhere they appear.
+   *  Allocated rather than derived: see seats.ts. Entries for removed
+   *  participants are RETAINED so their seat is never reissued. */
+  seats: SeatMap;
   status: CaseStatus;
   positions: Position[];
   closedEarly: { by: string; at: string; nonResponders: string[] } | null;
@@ -142,14 +147,21 @@ export function openCase(init: {
   // spread, and the case silently carried fields its own type does not declare -
   // out over the API and into the persisted snapshot. A type that disagrees with the
   // value it describes is worse than no type.
+  //
+  // Deduplicated and sorted: a participant listed twice would make "all have
+  // submitted" unreachable, and the case would never lock.
+  const participantIds = [...new Set(init.participantIds)].sort();
+  // Seated in the same (sorted) order the case opens with, so the very first
+  // seat assignment matches reading order. Every later add or remove holds
+  // these seats fixed - see the `seats` field's own comment for why.
+  const seats = participantIds.reduce<SeatMap>((acc, id) => withParticipant(acc, id), {});
   return {
     caseId: init.caseId,
     compoundLabel: init.compoundLabel,
     context: init.context,
     ownerId: init.ownerId,
-    // Deduplicated and sorted: a participant listed twice would make "all have
-    // submitted" unreachable, and the case would never lock.
-    participantIds: [...new Set(init.participantIds)].sort(),
+    participantIds,
+    seats,
     status: "open",
     positions: [],
     closedEarly: null,
@@ -176,7 +188,14 @@ export function addParticipant(c: DeliberationCase, userId: string): Result<Deli
   if (c.participantIds.includes(userId)) {
     return fail("already_a_participant", "They are already on this case.");
   }
-  return { ok: true, value: { ...c, participantIds: [...c.participantIds, userId].sort() } };
+  return {
+    ok: true,
+    value: {
+      ...c,
+      participantIds: [...c.participantIds, userId].sort(),
+      seats: withParticipant(c.seats, userId),
+    },
+  };
 }
 
 export function removeParticipant(c: DeliberationCase, userId: string): Result<DeliberationCase> {

@@ -82,6 +82,45 @@
   --open-wash: rgba(213, 224, 255, 0.06);
   --open-line: rgba(213, 224, 255, 0.15);
 
+  /* Reviewer seats — the colour a person's marks and badge wear, everywhere they
+     appear. Six, not eight: the hues that already carry meaning here are spoken
+     for, and what is left does not hold eight slots that stay apart. A reviewer
+     rendered in --go would read as a call rather than as a person, so the palette
+     misses it and every other reserved hue. A seventh participant renders
+     .seat-none rather than repeating a colour, because distinctness inside one
+     case is the only property a seat has.
+
+     INSIDE THE BLUE WEDGE, which is this branch's rule and not main's. These
+     arrived from main as six distinct hues - orange, amber, olive, teal, violet,
+     magenta - picked when the only reserved colours were red, green, indigo and
+     grey. That is not the rule here. This file's own header states it: red and
+     green "are the only hues on the surface that are not in the blue wedge",
+     because they carry verdict meaning. Six more non-blue hues would make the
+     seat palette a second, larger exception than the one the design system
+     actually grants, so the seats separate by LIGHTNESS along the wedge instead
+     of by hue.
+
+     WHAT THAT COSTS, stated rather than buried: lightness alone does not hold six
+     values as far apart as six hues did. Seats 3-5 are close, and at badge size a
+     reader will not reliably tell them apart by colour. The other two identity
+     channels carry the weight instead - initials, and the seat order every list
+     sorts by - which §3.3 already requires to be sufficient without colour. A room
+     of three or four reads cleanly; six leans on the initials.
+
+     Widening back to distinct hues is a design-system decision, not this feature's
+     to take. If the wedge is relaxed for identity the way it already is for
+     verdicts, the six-hue set is in git history at 2fe8303.
+
+     None of these is --accent (#4fc3ff), --accent-hover (#8ad8ff) or --ink
+     (#d5e0ff): a seat wearing the system-highlight colour would read as evidence
+     rather than as a person. */
+  --seat-0: #2B4FD8;  --seat-0-wash: rgba(43, 79, 216, 0.18);   --seat-0-line: rgba(43, 79, 216, 0.46);
+  --seat-1: #4A72E8;  --seat-1-wash: rgba(74, 114, 232, 0.16);  --seat-1-line: rgba(74, 114, 232, 0.42);
+  --seat-2: #6E93F0;  --seat-2-wash: rgba(110, 147, 240, 0.15); --seat-2-line: rgba(110, 147, 240, 0.40);
+  --seat-3: #93B2F5;  --seat-3-wash: rgba(147, 178, 245, 0.14); --seat-3-line: rgba(147, 178, 245, 0.38);
+  --seat-4: #B3CBF9;  --seat-4-wash: rgba(179, 203, 249, 0.13); --seat-4-line: rgba(179, 203, 249, 0.36);
+  --seat-5: #CFE0FB;  --seat-5-wash: rgba(207, 224, 251, 0.12); --seat-5-line: rgba(207, 224, 251, 0.34);
+
   /* THE SPECULAR RIM - the edge of a sheet of glass, not a shadow under a box.
 
      Glass catches light on the faces turned toward it and goes nearly dark
@@ -463,6 +502,20 @@ a { color: var(--accent); text-underline-offset: 3px; }
   box-shadow: 0 0 24px -6px var(--accent);
 }
 
+/* A reviewer badge is .avatar plus a seat. The bare .avatar keeps its accent tint
+   for the signed-in user in the header chrome, where no attribution is in play;
+   --accent is spoken for by system highlights, so a REVIEWER is never accent.
+
+   No `main` rule came across with these. Main's Layout styled `main` directly;
+   this branch's shell owns that box, and re-adding the rule would fight it. */
+.avatar.seat-0 { background: var(--seat-0-wash); color: var(--seat-0); border-color: var(--seat-0-line); }
+.avatar.seat-1 { background: var(--seat-1-wash); color: var(--seat-1); border-color: var(--seat-1-line); }
+.avatar.seat-2 { background: var(--seat-2-wash); color: var(--seat-2); border-color: var(--seat-2-line); }
+.avatar.seat-3 { background: var(--seat-3-wash); color: var(--seat-3); border-color: var(--seat-3-line); }
+.avatar.seat-4 { background: var(--seat-4-wash); color: var(--seat-4); border-color: var(--seat-4-line); }
+.avatar.seat-5 { background: var(--seat-5-wash); color: var(--seat-5); border-color: var(--seat-5-line); }
+.avatar.seat-none { background: var(--open-wash); color: var(--open); border-color: var(--open-line); }
+
 
 /* ---- page header --------------------------------------------------------- */
 .pagehead { display: flex; flex-wrap: wrap; gap: var(--s4); align-items: flex-end; margin-bottom: var(--s6); }
@@ -638,12 +691,20 @@ button.primary:hover {
 /* The press is an instant invert, as everywhere else in the system. */
 button.primary:active { background: var(--ink); color: var(--app); transition: none; }
 button.primary:disabled { background: transparent; border-color: var(--line); color: var(--ink-3); cursor: not-allowed; box-shadow: none; }
-button.ghost {
+/* `a.ghost` rides along because the document strip in the reading tab navigates by
+   real anchors rather than buttons - the URL is the source of truth there, so the
+   control has to be a link and still has to look like the system's ghost button. */
+button.ghost, a.ghost {
   font: 550 14px/1 var(--sans); padding: 10px var(--s4); background: var(--paper);
   color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-sm); cursor: pointer;
 }
-button.ghost:hover { border-color: var(--accent-line); color: var(--accent); }
+/* a.ghost exists for navigation that is styled like a button - the document strip in
+   read.tsx, for one. Anchors are inline by default and carry an underline; neither is
+   part of the button look the rest of the app already has for this class. */
+a.ghost { display: inline-block; text-decoration: none; }
+button.ghost:hover, a.ghost:hover { border-color: var(--accent-line); color: var(--accent); }
 button.ghost[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-wash); font-weight: 650; }
+a.ghost[aria-current="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-wash); font-weight: 650; }
 button.link {
   background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer;
   font: 550 13.5px/1 var(--sans); text-decoration: underline; text-underline-offset: 3px;
@@ -797,6 +858,33 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
 
 .pagehead .actions .field { min-width: 268px; }
 
+/* ---- read & mark ----------------------------------------------------------- */
+/* The document strip and the open page sit in one section; the page itself splits
+   into the rendered PDF and the findings rail beside it. Page-level only in this
+   phase - the rail links to a page, it does not draw a box on it. */
+.read { display: flex; flex-direction: column; gap: var(--s4); }
+.read nav[aria-label="Case documents"] { display: flex; flex-wrap: wrap; gap: var(--s2); }
+
+.pdfview { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s5); align-items: start; }
+.pdfview canvas { max-width: 100%; border: 1px solid var(--line); background: var(--paper); }
+.pdfview aside { display: flex; flex-direction: column; gap: var(--s2); position: sticky; top: var(--s4); }
+
+/* System highlights, never a reviewer's: accent is reserved for what extraction
+   found, so no participant can ever wear it (see the seat palette above). */
+.finding-row {
+  display: flex; align-items: baseline; gap: var(--s2);
+  border: 1px solid var(--accent-line); background: var(--accent-wash);
+  border-radius: var(--r); padding: var(--s3) var(--s4);
+  color: var(--ink); text-decoration: none; font-size: 13.5px;
+}
+.finding-row:hover { border-color: var(--accent); }
+.finding-row .pip { font: 600 11px/1 var(--mono); color: var(--accent); flex: none; }
+
+@media (max-width: 780px) {
+  .pdfview { grid-template-columns: 1fr; }
+  .pdfview aside { position: static; }
+}
+
 /* Labelled for a screen reader, silent for everybody else: the composer's purpose is
    obvious from its position, and a visible "Your question" label above a chat box is
    the sort of form furniture a thread is meant to lose. */
@@ -811,7 +899,7 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  a.card, button.card, button.ghost, button.primary, .nav a { transition: border-color .15s, background .15s, color .15s, box-shadow .15s, transform .15s; }
+  a.card, button.card, button.ghost, a.ghost, button.primary, .nav a { transition: border-color .15s, background .15s, color .15s, box-shadow .15s, transform .15s; }
 }
 @media (prefers-reduced-motion: reduce) {
   a.card:hover, button.card:hover { transform: none; }

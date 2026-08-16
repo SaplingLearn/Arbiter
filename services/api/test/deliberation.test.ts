@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  allSubmitted, closeEarly, disagreementReport, externalClaimsAsGaps, lock, openCase, positionBasis, sign,
-  submitPosition, unanimityCheck, visibleTo,
+  addParticipant, allSubmitted, closeEarly, disagreementReport, externalClaimsAsGaps, lock, openCase,
+  positionBasis, removeParticipant, sign, submitPosition, unanimityCheck, visibleTo,
   type Call, type DeliberationCase, type Position,
 } from "../deliberation.js";
 import { buildInventory, type CoveringFinding, type EvidenceChecklist } from "../inventory.js";
@@ -56,7 +56,7 @@ describe("openCase", () => {
     const c = openCase(wide);
     expect(Object.keys(c).sort()).toEqual([
       "adjudication", "caseId", "closedEarly", "compoundLabel", "context",
-      "ownerId", "participantIds", "positions", "signature", "status",
+      "ownerId", "participantIds", "positions", "seats", "signature", "status",
     ]);
   });
 
@@ -428,5 +428,50 @@ describe("externalClaimsAsGaps", () => {
 
   it("returns nothing when nobody claimed anything external", () => {
     expect(externalClaimsAsGaps(CASE)).toEqual([]);
+  });
+});
+
+describe("seats", () => {
+  it("seats every participant when the case opens", () => {
+    const c = openCase({
+      caseId: "case-seats", compoundLabel: "X", context: "ctx",
+      ownerId: "u_owner", participantIds: ["u_b", "u_a"],
+    });
+    // participantIds is sorted on create, so u_a takes seat 0.
+    expect(c.seats).toEqual({ u_a: 0, u_b: 1 });
+  });
+
+  // THE regression test for this design. An id that sorts before every existing
+  // participant must not move anybody's colour.
+  it("does not move existing seats when a low-sorting id joins", () => {
+    const c = openCase({
+      caseId: "case-seats", compoundLabel: "X", context: "ctx",
+      ownerId: "u_owner", participantIds: ["u_b", "u_c"],
+    });
+    const before = { ...c.seats };
+    const r = addParticipant(c, "u_a");
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.participantIds).toEqual(["u_a", "u_b", "u_c"]);
+    expect(r.value.seats["u_b"]).toBe(before["u_b"]);
+    expect(r.value.seats["u_c"]).toBe(before["u_c"]);
+    expect(r.value.seats["u_a"]).toBe(2);
+  });
+
+  it("keeps a removed participant's seat taken", () => {
+    const c = openCase({
+      caseId: "case-seats", compoundLabel: "X", context: "ctx",
+      ownerId: "u_owner", participantIds: ["u_a", "u_b"],
+    });
+    const gone = removeParticipant(c, "u_a");
+    expect(gone.ok).toBe(true);
+    if (!gone.ok) return;
+    expect(gone.value.participantIds).toEqual(["u_b"]);
+    expect(gone.value.seats["u_a"]).toBe(0);
+
+    const added = addParticipant(gone.value, "u_z");
+    expect(added.ok).toBe(true);
+    if (!added.ok) return;
+    expect(added.value.seats["u_z"]).toBe(2);
   });
 });
