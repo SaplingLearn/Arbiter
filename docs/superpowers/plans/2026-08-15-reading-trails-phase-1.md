@@ -517,6 +517,7 @@ git commit -m "One badge component for an account, on three channels"
 
 **Files:**
 - Modify: `apps/deliberation/src/router.ts` — the `Route` union (~line 18-28), `parseHash` (~line 32-58), `href`
+- Modify: `apps/deliberation/src/App.tsx` — add the placeholder `read` branch (Step 4) so the switch stays exhaustive until Task 8
 - Test: `apps/deliberation/test/router.test.ts`
 
 **Interfaces:**
@@ -606,7 +607,17 @@ In `href`, add the matching case:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run apps/deliberation/test/router.test.ts`
-Expected: PASS, 5 tests. Run `npm run typecheck` — `App.tsx`'s route switch must gain a `read` branch to stay exhaustive; render the Task 8 screen there once it exists, and until then a placeholder `<Read />` stub is acceptable within this task only if the next task follows immediately.
+Expected: PASS, 5 tests.
+
+Then run `npm run typecheck`. `App.tsx`'s route switch must gain a `read` branch to stay exhaustive, and **Task 8 is two tasks away**, so add a real placeholder now rather than leaving the build red across Tasks 6 and 7:
+
+```tsx
+    case "read":
+      // Replaced by the Read screen in Task 8.
+      return <p className="small muted">Loading documents…</p>;
+```
+
+Task 8 replaces this branch. Do not skip it: leaving the switch non-exhaustive breaks `npm run typecheck` for every task in between, and a red build is where real failures go unnoticed.
 
 - [ ] **Step 5: Commit**
 
@@ -834,7 +845,22 @@ git commit -m "Serve document bytes through the case, never by bare id"
 
 **Files:**
 - Create: `apps/deliberation/src/read.tsx`
-- Modify: `apps/deliberation/src/api.ts` (add `documentUrl` and `findingsFor` helpers), `apps/deliberation/src/App.tsx` (render the `read` route)
+- Modify: `apps/deliberation/src/api.ts` — the client `Finding` interface at line 156 **lacks `sourceDocument` and `sourcePage`**; it is a narrower mirror of the server's type in `services/api/adjudicate.ts`. Add both as optional fields, or nothing in this task typechecks:
+
+```ts
+export interface Finding {
+  id: string;
+  label: string;
+  assertion: "toxic" | "safe" | "ambiguous";
+  detail: string;
+  /** Where extraction found this. Optional because a finding need not be sourced
+   *  to a document at all; highlightsFor drops the ones that are not. */
+  sourceDocument?: string;
+  sourcePage?: number;
+}
+```
+
+- Modify: `apps/deliberation/src/App.tsx` (replace the Task 5 placeholder with the real `read` route)
 - Modify: `apps/deliberation/package.json` (add `pdfjs-dist`)
 - Test: `apps/deliberation/test/read.test.tsx`
 
@@ -853,12 +879,16 @@ import "@testing-library/jest-dom/vitest";
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Read, highlightsFor } from "../src/read.js";
-import type { Finding } from "../src/api.js";
+import type { Finding, StoredDocument } from "../src/api.js";
 
-const DOCS = [
-  { id: "doc_1", caseId: "c1", filename: "turalio.pdf", bytes: 10, sha256: "a", uploadedBy: "u_a", uploadedAt: "2026-08-15T00:00:00.000Z" },
-  { id: "doc_2", caseId: "c1", filename: "krazati.pdf", bytes: 10, sha256: "b", uploadedBy: "u_a", uploadedAt: "2026-08-15T00:00:00.000Z" },
-];
+// The CLIENT StoredDocument (api.ts:91) has no caseId and REQUIRES measurement -
+// it is not the server's StoredDocument. Scoping is enforced server-side by the
+// endpoint, so the client type carries no caseId and does not need one.
+const doc = (id: string, filename: string): StoredDocument => ({
+  id, filename, bytes: 10, uploadedBy: "u_a", uploadedAt: "2026-08-15T00:00:00.000Z",
+  measurement: { ok: true, reason: "fixture" },
+});
+const DOCS: StoredDocument[] = [doc("doc_1", "turalio.pdf"), doc("doc_2", "krazati.pdf")];
 
 const FINDINGS: Finding[] = [
   { id: "f1", label: "hepatocellular necrosis", assertion: "toxic", detail: "d", sourceDocument: "turalio.pdf", sourcePage: 112 },
