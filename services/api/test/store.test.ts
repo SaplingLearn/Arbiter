@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -8,7 +8,7 @@ import {
 } from "../store.js";
 import { canonicalJson } from "../canonical.js";
 import { canonicalJson as harnessCanonicalJson } from "../../../apps/harness/src/preregistration.js";
-import type { Position } from "../deliberation.js";
+import { addParticipant, type Position } from "../deliberation.js";
 
 const pos = (participantId: string, over: Partial<Position> = {}): Position => ({
   participantId, call: "advance", reasoning: "Because.",
@@ -206,10 +206,45 @@ describe("FileStore", () => {
     const path = tmp();
     const a = new FileStore(path);
     a.putCase({
-      caseId: "c", compoundLabel: "X", context: "", ownerId: "o", participantIds: ["ann"], seats: {},
+      caseId: "c", compoundLabel: "X", context: "", ownerId: "o", participantIds: ["ann"],
+      seats: { ann: 0 },
       status: "open", positions: [pos("ann")], closedEarly: null, adjudication: null, signature: null,
     });
-    expect(new FileStore(path).getCase("c")?.positions).toHaveLength(1);
+    const reloaded = new FileStore(path).getCase("c");
+    expect(reloaded?.positions).toHaveLength(1);
+    // The seat map survives the round trip too. The hand-written `seats: {}` this
+    // fixture used to carry made every reload look migrated, which is exactly what
+    // hid the missing-seats case below.
+    expect(reloaded?.seats).toEqual({ ann: 0 });
     expect(new FileStore(path).getCase("nope")).toBeNull();
+  });
+
+  /**
+   * THE MIGRATION. `.cases.json` outlives the schema that wrote it, and every case
+   * written before this branch has no `seats` key at all.
+   *
+   * Rehydrating those as-is left `seats` undefined, and the seat transitions read it
+   * unguarded - `withParticipant(undefined, id)` throws on `'userId' in undefined`,
+   * which the request handler's outer catch turns into an opaque 500. So adding
+   * anybody to any pre-existing case failed, with a message that named nothing. A
+   * missing map is an EMPTY map.
+   */
+  it("gives a case written before seats existed an empty seat map", () => {
+    const path = tmp();
+    // Written by hand, WITHOUT the field - a putCase() fixture would write the
+    // current schema and could never reproduce the file this is about.
+    writeFileSync(`${path}.cases.json`, JSON.stringify([{
+      caseId: "legacy", compoundLabel: "X", context: "", ownerId: "o",
+      participantIds: ["ann"], status: "open", positions: [],
+      closedEarly: null, adjudication: null, signature: null,
+    }]), "utf8");
+
+    const loaded = new FileStore(path).getCase("legacy");
+    expect(loaded?.seats).toEqual({});
+    // And the transition that used to throw now runs, handing out seat 0.
+    expect(addParticipant(loaded!, "bea")).toEqual({
+      ok: true,
+      value: expect.objectContaining({ seats: { bea: 0 } }) as unknown,
+    });
   });
 });

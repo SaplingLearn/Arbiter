@@ -11,6 +11,20 @@ import { initials } from "./Layout.js";
  * and seat order - which every list of reviewers in the app sorts by - carries it
  * at sizes where two letters of type do not fit.
  */
+
+/**
+ * How many seats app.css actually paints: `.avatar.seat-0` through `.avatar.seat-5`.
+ *
+ * Held HERE, in the client, rather than imported from services/api/seats.ts. It is
+ * not the same fact: the server's SEAT_COUNT is how many seats it will ALLOCATE, and
+ * this is how many the stylesheet has colours for. They agree today at six, and if
+ * they ever disagree the honest outcome is the badge below - neutral, still legible,
+ * still labelled - rather than a class with no rule behind it, which is what a seat
+ * outside the palette used to render: an unstyled span with no border and no colour,
+ * indistinguishable from a layout bug.
+ */
+const PALETTE_SEATS = 6;
+
 export function Reviewer({ name, seat, disambiguate = false }: {
   name: string;
   /** Null when the case has more participants than seats; renders neutral. */
@@ -18,12 +32,16 @@ export function Reviewer({ name, seat, disambiguate = false }: {
   /** Set when another participant on this case has the same initials. */
   disambiguate?: boolean;
 }): ReactElement {
+  const painted = seat !== null && Number.isInteger(seat) && seat >= 0 && seat < PALETTE_SEATS;
   const label = disambiguate && seat !== null
     ? `${initials(name)}·${seat}`
     : initials(name);
   return (
-    <span className={`avatar ${seat === null ? "seat-none" : `seat-${seat}`}`}
-      title={name} aria-label={name}>
+    // No `title`. It duplicated `aria-label` exactly, and several screen readers
+    // announce both - "Andres Lopez, Andres Lopez" - for a tooltip that adds nothing
+    // the label does not already carry.
+    <span className={`avatar ${painted ? `seat-${seat}` : "seat-none"}`}
+      aria-label={name}>
       {label}
     </span>
   );

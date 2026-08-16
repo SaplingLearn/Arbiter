@@ -348,7 +348,7 @@ export function App(): ReactElement {
     }
     return caseShell(
       <div className="stack-l">
-        <Reveal view={view} unanimity={unanimity} nameOf={nameOf} />
+        <Reveal view={view} unanimity={unanimity} nameOf={nameOf} seats={roster?.seats ?? {}} />
         {adjudication === null && view.status !== "signed" && isOwner && (
           <button className="primary" style={{ alignSelf: "flex-start" }}
             onClick={() => act(async () => { setAdjudication(await api.adjudicate(token, caseId, new Date().toISOString())); })}>

@@ -308,10 +308,25 @@ no endpoint to anyone else, enforced server-side.
 
 What the reviewer does see besides their own marks: the existing findings, rendered as
 **system highlights** in `--accent` — visually a different class of object from any
-person's mark. These come from `sourceDocument` and `sourcePage`, which are already populated
-on every finding in all three cases in `data/cases/`. So the document arrives pre-annotated
-with what extraction already found, and the reviewer's task reads as *what did this miss,
-and what did it read wrongly* rather than as an unaided pass over 288 pages.
+person's mark. A finding becomes a highlight when it names both a page (`sourcePage`) and
+the document it was written against (`sourceDocumentId`, validated against the case when
+the finding was created).
+
+**The seed cases do not, today, produce any highlights, and this is stated rather than
+wished away.** `sourceDocument` in all three cases in `data/cases/` holds a *dossier*
+identifier — `"FDA NDA 211810"`, `"EMA/CHMP/290491/2025"` — beside a separate
+`_source.localFile` naming the actual PDF. That is not a link to an upload, and nothing
+infers one: guessing that `"FDA NDA 211810"` means `turalio-211810-multidiscipline.pdf`
+is the inference `services/api/inventory.ts` refuses by name ("Coverage is DECLARED, never
+inferred"), and it fails in the direction that fails silently — a highlight on the wrong
+288-page review is worse than no highlight. The viewer says so instead: the rail names how
+many findings cite a page of a source not linked to any upload here. Findings written
+in-app carry `sourceDocumentId` and resolve exactly. Backfilling the seed cases with real
+document links is a data task, not a matcher.
+
+So a document with linked findings arrives pre-annotated with what extraction already
+found, and the reviewer's task reads as *what did this miss, and what did it read wrongly*
+rather than as an unaided pass over 288 pages.
 
 ### Stage 2 — Your position
 
@@ -481,10 +496,14 @@ this page."** It never says "no reviewer read this page," which the system does 
 | 3 | Reveal aggregates: rail, stacked page, `contestedSpans`, `unreadByCamp` | none |
 | 4 | Promote-to-finding; `question`/`challenge` → inventory; post-reveal threads | `mark_replied` |
 
-Phase 1 is demonstrable on its own: every finding in all three cases in `data/cases/` already
-carries `sourceDocument` and `sourcePage`, so the viewer has real highlights to render before
-a single mark exists. Its one schema change is the seat map, which §3.1 shows cannot be
-deferred without shipping unstable colours.
+Phase 1 is demonstrable on its own: the viewer opens a case's real uploads, and a finding
+written against one of them renders as a highlight on its page before a single mark exists.
+What it does **not** do is auto-annotate the three seed cases in `data/cases/`. Their
+findings carry `sourceDocument` as a dossier identifier rather than a document link (§5,
+Stage 1), so they do not resolve to any upload, and the rail says exactly that instead of
+guessing. Giving those cases real document links is a data task for Phase 2. Phase 1's one
+schema change is the seat map, which §3.1 shows cannot be deferred without shipping
+unstable colours.
 
 ## 10. Known risks
 

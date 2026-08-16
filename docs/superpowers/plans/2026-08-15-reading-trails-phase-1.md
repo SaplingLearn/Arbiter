@@ -4,7 +4,7 @@
 
 **Goal:** Ship the "Read & mark" case tab — a PDF viewer scoped to one case's documents, showing existing findings as system highlights, with every participant carrying a stable seat colour and attributed badge.
 
-**Architecture:** Seats are allocated server-side and stored on the case, because `participantIds` is a sorted set whose indices shift under roster changes. The client gains one hash route (`#/case/:id/read/:documentId/:page`), one tab in the existing `Steps` sequence, one `<Reviewer>` badge component reusing the existing `initials()` and `.avatar` rule, and a `pdfjs-dist` viewer that renders only documents returned by `documents.forCase(caseId)`. No `Mark` type exists yet — Phase 1 renders system highlights from `Finding.sourcePage`, which is already populated on every finding in all three cases.
+**Architecture:** Seats are allocated server-side and stored on the case, because `participantIds` is a sorted set whose indices shift under roster changes. The client gains one hash route (`#/case/:id/read/:documentId/:page`), one tab in the existing `Steps` sequence, one `<Reviewer>` badge component reusing the existing `initials()` and `.avatar` rule, and a `pdfjs-dist` viewer that renders only documents returned by `documents.forCase(caseId)`. No `Mark` type exists yet — Phase 1 renders system highlights from `Finding.sourcePage` joined to the open document by `Finding.sourceDocumentId`. Note that the findings in `data/cases/` do **not** carry that id: their `sourceDocument` is a dossier identifier, not a filename or a document link, so the seed cases render no highlights and the rail says so rather than inferring a match.
 
 **Tech Stack:** TypeScript (ESM, `.js` import specifiers), React 18, Vitest + @testing-library/react (jsdom for `apps/**`, node for `services/**`), hand-rolled hash router, `pdfjs-dist` (the one new dependency).
 
@@ -1086,7 +1086,7 @@ git commit -m "Open a case document, pre-annotated with what extraction found"
 - `npm test`, `npm run typecheck` and `npm run lint` are clean.
 - A case with documents shows a "Read & mark" tab second in the strip, enabled at every status.
 - Opening it lists only that case's documents; a document id from another case 404s.
-- Findings sourced to the open document appear as highlights with their page.
+- A finding carrying `sourceDocumentId` for the open document appears as a highlight with its page. The three seed cases in `data/cases/` produce none, because their `sourceDocument` is a dossier identifier ("FDA NDA 211810") rather than a document link — the rail says how many findings cite a source not linked to any upload here, and nothing guesses which file was meant.
 - `#/case/:id/read/:docId/:page` deep-links, and round-trips through `href`.
 - Every participant renders as a `<Reviewer>` badge with a stable seat colour that survives a theme toggle and a roster change.
 

@@ -57,6 +57,11 @@ export class DeliberationService {
       payload: {
         compoundLabel: c.compoundLabel, context: c.context,
         participantIds: c.participantIds, findings: init.findings,
+        // The opening seat allocation, for the same reason participant_added carries
+        // one: §3.1 promises the colours are recoverable from the chain alone. The
+        // founding participants get their seats here and nowhere else, so a chain
+        // without this can only reconstruct the seats of people who joined LATER.
+        seats: c.seats,
         modality: init.modality ?? "small_molecule",
       },
     });
@@ -174,7 +179,7 @@ export class DeliberationService {
     // break the chain, which is the point of the chain.
     this.store.append({
       at: new Date(0).toISOString(), kind: "case_opened", caseId, actorId: c.ownerId,
-      payload: { compoundLabel: c.compoundLabel, context: c.context, participantIds: c.participantIds, findings, modality },
+      payload: { compoundLabel: c.compoundLabel, context: c.context, participantIds: c.participantIds, seats: c.seats, findings, modality },
     });
     this.store.append({
       at: new Date(0).toISOString(), kind: "inventory_published", caseId, actorId: c.ownerId,
@@ -248,31 +253,45 @@ export class DeliberationService {
    * which made precisely that move invisible in the record the product exists to
    * produce.
    */
+  /**
+   * The payload is built FROM THE RESULTING CASE, not from the arguments. A seat is
+   * allocated inside the transition, so an argument-shaped payload could not name it
+   * without reimplementing the allocation - the duplicated definition this project
+   * keeps refusing.
+   */
   private mutate(
-    caseId: string, actorId: string, at: string, kind: LogKind, payload: unknown,
+    caseId: string, actorId: string, at: string, kind: LogKind,
+    payload: (next: DeliberationCase) => unknown,
     f: (c: DeliberationCase) => Result<DeliberationCase>,
   ): Result<DeliberationCase> {
     const c = this.store.getCase(caseId);
     if (c === null) return { ok: false, error: { kind: "not_open", detail: `No case ${caseId}.` } };
     const next = f(c);
     if (!next.ok) return next;
-    this.store.append({ at, kind, caseId, actorId, payload });
+    this.store.append({ at, kind, caseId, actorId, payload: payload(next.value) });
     this.store.putCase(next.value);
     return next;
   }
 
   addParticipant(caseId: string, userId: string, actorId: string, at: string): Result<DeliberationCase> {
-    return this.mutate(caseId, actorId, at, "participant_added", { participantId: userId },
+    // The SEAT goes in the entry, not just the participant id. Spec §3.1: "the
+    // colours are recoverable from the audit chain alone, without needing the
+    // database" - which is only true if the chain records which seat was handed out.
+    // Without it the log says somebody joined and the projection says what colour
+    // they wear, and store.ts is explicit that the projection is a convenience and
+    // the LOG is the record. `seat` is null when the case is already full.
+    return this.mutate(caseId, actorId, at, "participant_added",
+      (next) => ({ participantId: userId, seat: next.seats[userId] ?? null }),
       (c) => addParticipant(c, userId));
   }
 
   removeParticipant(caseId: string, userId: string, actorId: string, at: string): Result<DeliberationCase> {
-    return this.mutate(caseId, actorId, at, "participant_removed", { participantId: userId },
+    return this.mutate(caseId, actorId, at, "participant_removed", () => ({ participantId: userId }),
       (c) => removeParticipant(c, userId));
   }
 
   describe(caseId: string, compoundLabel: string, context: string, actorId: string, at: string): Result<DeliberationCase> {
-    return this.mutate(caseId, actorId, at, "case_described", { compoundLabel, context },
+    return this.mutate(caseId, actorId, at, "case_described", () => ({ compoundLabel, context }),
       (c) => describeCase(c, compoundLabel, context));
   }
 
@@ -317,6 +336,11 @@ export class DeliberationService {
       findings: this.findingsOf(caseId).map((f) => ({
         id: f.id, label: f.label, assertion: f.assertion, detail: f.detail,
         ...(f.sourceDocument === undefined ? {} : { sourceDocument: f.sourceDocument }),
+        // The exact document join, and the client's ONLY reliable one. This route is
+        // where the web app reads its findings from, so dropping the id here left the
+        // reader's viewer matching a dossier identifier against a filename - a join
+        // that never succeeded on any real case.
+        ...(f.sourceDocumentId === undefined ? {} : { sourceDocumentId: f.sourceDocumentId }),
         ...(f.sourcePage === undefined ? {} : { sourcePage: f.sourcePage }),
       })),
       absent: [...absentForAdjudication(inv), ...externalClaimsAsGaps(c)],

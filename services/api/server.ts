@@ -345,7 +345,29 @@ export function makeHandler(deps: ServerDeps) {
                 });
               }
 
-              res.writeHead(200, { "content-type": "application/pdf", "content-length": doc.bytes });
+              // REVALIDATABLE, and that is not a micro-optimisation. The reader turns
+              // pages in a 264-page review; without a validator the browser has no way
+              // to ask "still the same file?" and re-downloads every byte on every
+              // navigation back to a document. The sha256 is already computed at
+              // upload and the store is content-addressed, so it is an exact strong
+              // validator - a re-upload of different bytes gets a different id anyway.
+              //
+              // `private`, never `public`: this is unpublished safety data, and a
+              // shared cache holding it is precisely the disclosure the case-scoping
+              // above exists to prevent.
+              const etag = `"${doc.sha256}"`;
+              if (req.headers["if-none-match"] === etag) {
+                res.writeHead(304, { etag, "cache-control": "private, max-age=0, must-revalidate" });
+                res.end();
+                return;
+              }
+
+              res.writeHead(200, {
+                "content-type": "application/pdf",
+                "content-length": doc.bytes,
+                etag,
+                "cache-control": "private, max-age=0, must-revalidate",
+              });
               const stream = createReadStream(path);
               // A failure here is asynchronous and fires AFTER this handler's own
               // try/catch has already returned, so that catch cannot see it. Left
@@ -363,6 +385,14 @@ export function makeHandler(deps: ServerDeps) {
               ownerId: kase.ownerId,
               members: kase.participantIds.map((id) => deps.auth.get(id)).filter((p) => p !== null),
               pending: deps.invites.forCase(caseId),
+              // Seats, BEFORE the reveal, and that is safe: §3.4 - a seat is identity,
+              // not position. It decides which colour a person wears and says nothing
+              // about whether they have answered or what they answered. This is the
+              // only route that returns the allocation, so without it the seat map
+              // never leaves the server and every badge on the client is uncoloured.
+              // Nothing count-shaped goes with it; mark counts and per-person activity
+              // would leak progress and are deliberately absent.
+              seats: kase.seats,
             });
           case "adjudication-request": {
             const r = deps.service.adjudicationRequest(caseId, deps.rules);
