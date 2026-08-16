@@ -11,7 +11,7 @@ import { handleAsk } from "./ask.js";
 import { handleSummarise } from "./summarise.js";
 import { buildIndex, search } from "./retrieval.js";
 import { completeFromEnv, providerFor, resolveModel } from "./interpret.js";
-import { geminiEndpointLabel } from "./gemini.js";
+import { geminiCredentialAdvice, geminiEndpointLabel } from "./gemini.js";
 import { stubComplete } from "./probe.js";
 import { adjudicateConsensus, runsFrom } from "./consensus.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
@@ -826,12 +826,23 @@ if (invokedDirectly) {
       // different catalogues, so "Vertex AI" alone would be a guess dressed as a fact.
       return `${model} (${providerFor(model) === "vertex" ? geminiEndpointLabel(process.env) : "Anthropic"})`;
     };
-    console.log(`Adjudication: ${completeFromEnv(process.env, "adjudication") === null ? `STUB (no credentials for ${adjudicationModel}) - responses are labelled source:stub` : `LIVE ${named("adjudication")}`}`);
+    // The STUB line carries the FIX, not just the diagnosis. A developer handed a
+    // configuration file has no way to know which of four credential mechanisms this
+    // service wanted, and `{"error":"no_key"}` on the wire cannot tell them either -
+    // spec §10 pins that body. So the actionable half is printed here.
+    const advice = providerFor(adjudicationModel) === "vertex"
+      ? geminiCredentialAdvice(process.env)
+      : "set ANTHROPIC_API_KEY";
+    console.log(`Adjudication: ${completeFromEnv(process.env, "adjudication") === null ? `STUB (no credentials for ${adjudicationModel}) - responses are labelled source:stub${advice === "" ? "" : `\n              To fix: ${advice}`}` : `LIVE ${named("adjudication")}`}`);
     console.log(`Ask & summary: ${named("ask")}`);
     console.log(`Short calls:  ${named("short")}`);
     // Which file the configuration came from. A shared `.env.share` that was never
     // renamed used to be indistinguishable from no configuration at all.
-    console.log(`Config: ${envFile ?? "no .env or .env.share found - defaults only"}`);
+    // The DIRECTORY as well as the file. Configuration is resolved relative to the
+    // working directory, so a service started from a second checkout reads that
+    // checkout's `.env` - or none - while the person reading the banner is looking at
+    // the first. Both halves are needed to tell those apart.
+    console.log(`Config: ${envFile ?? "no .env or .env.share found - defaults only"}  (in ${process.cwd()})`);
     console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token.`);
     console.log(HOST === "127.0.0.1"
       ? "Bound to loopback. This process terminates no TLS; set ARBITER_HOST only behind a proxy that does."
