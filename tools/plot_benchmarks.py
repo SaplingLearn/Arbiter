@@ -118,12 +118,21 @@ def gather() -> tuple[list[tuple[str, int, int]], list[tuple[str, int, int]], di
     ]
 
     s, n5 = five["score"], len(five["rows"])
+    # Denominators come from `tested`, not the case count: metrics 2 and 3 pass vacuously
+    # on cases with nothing for them to check, and counting those inflates the SAMPLE
+    # rather than the rate - the more misleading of the two.
+    #
+    # GAP RECALL IS DELIBERATELY ABSENT. It cannot fail: the absent fields and their
+    # justifications are supplied in the prompt, `missing.field` is enum-constrained to
+    # exactly that list so an invented gap is impossible, and a dropped one fails the
+    # whole adjudication rather than that metric. Drawn as a bar it reads as a fifth
+    # success and flatters the four beside it.
+    t5 = five.get("tested", {"prose": n5, "rule": n5})
     verdict_rows = [
         ("1  Verdict is right", s["verdict"], n5),
-        ("2  Prose stays in evidence", s["prose"], n5),
-        ("3  Names the deciding rule", s["rule"], n5),
-        ("4  Names every gap", s["gaps"], n5),
-        ("5  Runs agree\n     consensus of 3", s["stable"], n5),
+        ("2  Prose stays in evidence", s["prose"], t5["prose"]),
+        ("3  Names the deciding rule", s["rule"], t5["rule"]),
+        ("4  Runs agree\n     consensus of 3", s["stable"], n5),
     ]
     return ask_rows, verdict_rows, cf
 
@@ -160,7 +169,10 @@ def fig_ten(out: Path) -> None:
     # different fixtures, and a reader who reads straight down ten bars without seeing
     # the break will compare an n=81 rate with an n=8 one as though they were the same
     # kind of claim.
-    split = len(ask_rows) - 0.5
+    # y positions run HIGH to LOW, so the boundary sits above the last verdict row -
+    # not at len(ask_rows), which put the line inside the Ask block once the counts
+    # stopped being equal.
+    split = len(verdict_rows) - 0.5
     ax.axhline(split, color=GRID, lw=1.2, zorder=1)
     # In FIGURE coordinates, outside the tick labels. Placed in axes coordinates they
     # sit on top of the metric names, which are long and left-extending here.
@@ -173,11 +185,13 @@ def fig_ten(out: Path) -> None:
              fontsize=11.5, color=CYAN, weight="bold")
     fig.text(0.022, verdict_mid, "VERDICT", ha="center", va="center", rotation=90,
              fontsize=11.5, color=VIOLET, weight="bold")
-    fig.suptitle("Arbiter — the ten benchmarks", x=0.012, ha="left", fontsize=16,
+    # Counted, not typed. The board was "ten" until gap recall was removed for being
+    # unfailable, and a hardcoded title would have gone on asserting it.
+    fig.suptitle(f"Arbiter — {len(rows)} scored benchmarks", x=0.012, ha="left", fontsize=16,
                  color=INK, weight="bold", y=0.985)
     fig.text(0.012, 0.935,
              f"{MODEL} · bars are point estimates, whiskers are 95% Wilson score intervals · "
-             f"blue = Ask, violet = Verdict",
+             f"blue = Ask, violet = Verdict · gap recall excluded, it cannot fail",
              ha="left", fontsize=9.5, color=MUTED)
     # Computed, not typed. This sentence names two specific rates, and a hardcoded
     # pair goes stale the first time the fixture grows - which it did.
@@ -316,6 +330,6 @@ def fig_coverage(out: Path) -> None:
 if __name__ == "__main__":
     outdir = Path(sys.argv[1] if len(sys.argv) > 1 else "results/figures")
     outdir.mkdir(parents=True, exist_ok=True)
-    fig_ten(outdir / "benchmarks-ten.png")
+    fig_ten(outdir / "benchmarks-scoreboard.png")
     fig_topics(outdir / "benchmarks-ask-topics.png")
     fig_coverage(outdir / "benchmarks-coverage.png")
