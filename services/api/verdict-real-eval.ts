@@ -98,8 +98,8 @@ if (invokedDirectly) {
   const pct = (a: number, b: number): string => (b === 0 ? "n/a" : `${(a / b * 100).toFixed(1)}%`);
 
   console.log(`\nverdict vs real outcome - ${model}, ${fixture.cases.length} drugs`);
-  console.log(`  SENSITIVITY   ${caught}/${pos.length}   caught the drug whose label carries a hepatotoxicity boxed warning`);
-  console.log(`                      (n=1 - a single observation, deliberately not reported as a rate)`);
+  console.log(`  SENSITIVITY   ${caught}/${pos.length}   caught the drugs whose label carries a hepatotoxicity action`);
+  console.log(`                      (4 positives: boxed warning or Warnings-and-Precautions hepatotoxicity)`);
   console.log(`  SPECIFICITY   ${quiet}/${neg.length}   = ${pct(quiet, neg.length)}   (95% CI ${(slo * 100).toFixed(1)}%-${(shi * 100).toFixed(1)}%)`);
   console.log(`                      did not invent a concern the regulator never found`);
   const wrong = neg.filter((r) => r.flagged).map((r) => r.drug);

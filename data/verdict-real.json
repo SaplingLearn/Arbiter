@@ -1,6 +1,6 @@
 {
   "_note": "REAL drugs, real quotes, real regulatory outcome. Companion to verdict-eval.json, which uses constructed cases to isolate one rule each. This one asks the opposite question: over packages nobody designed for a test, does the adjudicator flag hepatotoxicity where the label ultimately did?",
-  "_groundTruth": "The outcome is read from each drug's own review: a recommended BOXED WARNING for hepatotoxicity. One of thirteen has one (turalio), quoted under labelEvidence.",
+  "_groundTruth": "GRADED, and read from each drug's own review rather than from memory or an uncited web page. A drug counts as a positive when its review records a LIVER-RELATED REGULATORY ACTION: a boxed warning (turalio) or hepatotoxicity carried into Warnings and Precautions / product labelling (lumakras, krazati, trikafta). Four positives, ten negatives. An earlier version counted only boxed warnings and had ONE positive out of fourteen, which no accuracy figure could survive.",
   "_theImbalance": "1 positive, 12 negatives, and it is structural rather than bad luck. These are APPROVAL packages, so every drug in them cleared the bar - survivorship bias by construction. An always-advance classifier scores 12/13 = 92.3% here, which is why this file reports sensitivity (n=1, a single observation, NOT a rate) and specificity separately and never averages them. Genuine negative outcomes exist - troglitazone was withdrawn for hepatotoxicity, tolcapone restricted - but the upload gate refuses both documents, so they cannot supply cases.",
   "_findingsAreNotPreLabelled": "Every finding is asserted `ambiguous` and its detail is the verbatim quote with its page. Marking turalio's findings `toxic` would encode the answer in the input and score the model for reading my label back. `ambiguous` is a real value in the schema and means exactly this: here is what the document says, you decide what follows.",
   "rules": [
@@ -31,7 +31,7 @@
       "id": "exkivity",
       "drug": "exkivity",
       "expectFlag": false,
-      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in exkivity's review.",
+      "labelEvidence": "Searched: no hepatotoxicity in a labelling or monitoring context.",
       "compoundLabel": "exkivity",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -58,13 +58,14 @@
           "field": "Reversibility on withdrawal",
           "half": "consequence"
         }
-      ]
+      ],
+      "outcomeTier": "none"
     },
     {
       "id": "inrebic",
       "drug": "inrebic",
       "expectFlag": false,
-      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in inrebic's review.",
+      "labelEvidence": "No hepatotoxicity labelling or monitoring action found anywhere in inrebic's review.",
       "compoundLabel": "inrebic",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -131,13 +132,14 @@
           "field": "Reversibility on withdrawal",
           "half": "consequence"
         }
-      ]
+      ],
+      "outcomeTier": "none"
     },
     {
       "id": "krazati",
       "drug": "krazati",
-      "expectFlag": false,
-      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in krazati's review.",
+      "expectFlag": true,
+      "labelEvidence": "krazati p172: hepatotoxicity among the most common adverse events leading to dose interruption or reduction (12-17% of patients); carried in Warnings and Precautions.",
       "compoundLabel": "krazati",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -192,13 +194,14 @@
           "field": "Injury pattern: hepatocellular, cholestatic or mixed",
           "half": "consequence"
         }
-      ]
+      ],
+      "outcomeTier": "labelled"
     },
     {
       "id": "lumakras",
       "drug": "lumakras",
-      "expectFlag": false,
-      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in lumakras's review.",
+      "expectFlag": true,
+      "labelEvidence": "lumakras p23: 'Adverse reactions that were included in the Warnings and Precautions section of the USPI for sotorasib are hepatotoxicity and ILD/pneumonitis.'",
       "compoundLabel": "lumakras",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -249,13 +252,14 @@
           "field": "Reversibility on withdrawal",
           "half": "consequence"
         }
-      ]
+      ],
+      "outcomeTier": "labelled"
     },
     {
       "id": "nipocalimab",
       "drug": "nipocalimab",
       "expectFlag": false,
-      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in nipocalimab's review.",
+      "labelEvidence": "No hepatotoxicity labelling or monitoring action found anywhere in nipocalimab's review.",
       "compoundLabel": "nipocalimab",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -326,13 +330,14 @@
           "field": "Projected human daily dose",
           "half": "consequence"
         }
-      ]
+      ],
+      "outcomeTier": "none"
     },
     {
       "id": "nubeqa",
       "drug": "nubeqa",
       "expectFlag": false,
-      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in nubeqa's review.",
+      "labelEvidence": "No hepatotoxicity labelling or monitoring action found anywhere in nubeqa's review.",
       "compoundLabel": "nubeqa",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -359,13 +364,14 @@
           "field": "Reversibility on withdrawal",
           "half": "consequence"
         }
-      ]
+      ],
+      "outcomeTier": "none"
     },
     {
       "id": "orgovyx",
       "drug": "orgovyx",
       "expectFlag": false,
-      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in orgovyx's review.",
+      "labelEvidence": "Searched and REJECTED: the only hepatotoxicity sentences concern bicalutamide, a comparator drug, and generic monitoring per FDA DILI guidance - neither is a finding about relugolix.",
       "compoundLabel": "orgovyx",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -440,13 +446,14 @@
           "field": "Reversibility on withdrawal",
           "half": "consequence"
         }
-      ]
+      ],
+      "outcomeTier": "none"
     },
     {
       "id": "qinlock",
       "drug": "qinlock",
       "expectFlag": false,
-      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in qinlock's review.",
+      "labelEvidence": "No hepatotoxicity labelling or monitoring action found anywhere in qinlock's review.",
       "compoundLabel": "qinlock",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -501,13 +508,14 @@
           "field": "Injury pattern: hepatocellular, cholestatic or mixed",
           "half": "consequence"
         }
-      ]
+      ],
+      "outcomeTier": "none"
     },
     {
       "id": "retevmo",
       "drug": "retevmo",
       "expectFlag": false,
-      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in retevmo's review.",
+      "labelEvidence": "No hepatotoxicity labelling or monitoring action found anywhere in retevmo's review.",
       "compoundLabel": "retevmo",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -550,13 +558,14 @@
           "field": "Reversibility on withdrawal",
           "half": "consequence"
         }
-      ]
+      ],
+      "outcomeTier": "none"
     },
     {
       "id": "slynd",
       "drug": "slynd",
       "expectFlag": false,
-      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in slynd's review.",
+      "labelEvidence": "No hepatotoxicity labelling or monitoring action found anywhere in slynd's review.",
       "compoundLabel": "slynd",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -583,13 +592,14 @@
           "field": "Repeat-dose in vivo liver findings",
           "half": "mechanism"
         }
-      ]
+      ],
+      "outcomeTier": "none"
     },
     {
       "id": "tazverik",
       "drug": "tazverik",
       "expectFlag": false,
-      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in tazverik's review.",
+      "labelEvidence": "No hepatotoxicity labelling or monitoring action found anywhere in tazverik's review.",
       "compoundLabel": "tazverik",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -640,13 +650,14 @@
           "field": "Reversibility on withdrawal",
           "half": "consequence"
         }
-      ]
+      ],
+      "outcomeTier": "none"
     },
     {
       "id": "trikafta",
       "drug": "trikafta",
-      "expectFlag": false,
-      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in trikafta's review.",
+      "expectFlag": true,
+      "labelEvidence": "trikafta p174: 'safety signals ... including rash and hepatotoxicity, which will be described in the product labeling.'",
       "compoundLabel": "trikafta",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -697,13 +708,14 @@
           "field": "Reversibility on withdrawal",
           "half": "consequence"
         }
-      ]
+      ],
+      "outcomeTier": "labelled"
     },
     {
       "id": "turalio",
       "drug": "turalio",
       "expectFlag": true,
-      "labelEvidence": "turalio-211810-multidiscipline.pdf p22, p25: 'The review team recommends a boxed warning for hepatotoxicity and distribution through a restricted program under a Risk Evaluation and Mitigation Strategy (REMS)'.",
+      "labelEvidence": "turalio p22/p25: 'The review team recommends a boxed warning for hepatotoxicity and distribution through a restricted program under a REMS'.",
       "compoundLabel": "turalio",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -770,13 +782,14 @@
           "field": "Reversibility on withdrawal",
           "half": "consequence"
         }
-      ]
+      ],
+      "outcomeTier": "boxed"
     },
     {
       "id": "xpovio",
       "drug": "xpovio",
       "expectFlag": false,
-      "labelEvidence": "No hepatotoxicity boxed warning found anywhere in xpovio's review.",
+      "labelEvidence": "Searched: no hepatotoxicity in a labelling or monitoring context.",
       "compoundLabel": "xpovio",
       "context": "Nonclinical package as transcribed from the FDA/EMA review. Findings are verbatim quotes with page numbers.",
       "findings": [
@@ -819,7 +832,9 @@
           "field": "Reversibility on withdrawal",
           "half": "consequence"
         }
-      ]
+      ],
+      "outcomeTier": "none"
     }
-  ]
+  ],
+  "_rejectedCandidates": "Three candidates were searched and rejected, and orgovyx is why every hit had to be read rather than counted: its only hepatotoxicity sentences are about BICALUTAMIDE, a comparator drug named in the review, plus a generic reference to FDA DILI monitoring guidance. A regex that counted hits would have labelled relugolix hepatotoxic on another drug's evidence."
 }
