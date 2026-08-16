@@ -20,10 +20,25 @@ describe("read route", () => {
     });
   });
 
+  it("ignores pages with numeric prefixes and garbage suffixes", () => {
+    expect(parseHash("#/case/c1/read/doc_9/112xyz")).toEqual({
+      name: "read", caseId: "c1", documentId: "doc_9",
+    });
+    expect(parseHash("#/case/c1/read/doc_9/12,000")).toEqual({
+      name: "read", caseId: "c1", documentId: "doc_9",
+    });
+  });
+
   it("round-trips through href", () => {
     const r = { name: "read" as const, caseId: "c1", documentId: "doc_9", page: 112 };
     expect(parseHash(href(r))).toEqual(r);
     expect(href({ name: "read", caseId: "c1" })).toBe("#/case/c1/read");
+  });
+
+  it("round-trips documentId without page", () => {
+    const r = { name: "read" as const, caseId: "c1", documentId: "doc_9" };
+    expect(parseHash(href(r))).toEqual(r);
+    expect(href(r)).toBe("#/case/c1/read/doc_9");
   });
 
   it("still falls back to the case overview for an unknown sub-route", () => {

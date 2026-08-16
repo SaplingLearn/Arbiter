@@ -51,11 +51,13 @@ export function parseHash(hash: string): Route {
         // page that is not a number is dropped rather than defaulted - a deep link
         // that silently lands on page 1 is worse than one that lands on the document.
         const documentId = parts[3] === undefined ? undefined : decodeURIComponent(parts[3]);
-        const page = parts[4] === undefined ? undefined : Number.parseInt(parts[4], 10);
+        const page = parts[4] === undefined || !/^\d+$/.test(parts[4])
+          ? undefined
+          : Number.parseInt(parts[4], 10);
         return {
           name: "read", caseId,
           ...(documentId === undefined ? {} : { documentId }),
-          ...(page === undefined || Number.isNaN(page) ? {} : { page }),
+          ...(page === undefined ? {} : { page }),
         };
       }
       // An unknown sub-route falls back to the case overview rather than to a 404
