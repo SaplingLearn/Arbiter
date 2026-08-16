@@ -1689,6 +1689,464 @@
       "question": "What NOAEL was set in the repeat-dose toxicity study?",
       "goldPages": [],
       "why": "'NOAEL' and 'no observed adverse effect' both return zero hits across the whole extracted text - this document is a concurrence memorandum over reviews conducted elsewhere - so any dose quoted in an answer is invented."
+    },
+    {
+      "id": "ivo-target-a",
+      "document": "ivosidenib",
+      "group": "ivosidenib:target-organs",
+      "kind": "answerable",
+      "question": "What were the target organs of toxicity?",
+      "goldPages": [
+        {
+          "page": 42,
+          "quote": "The target organs of toxicity included liver, thyroid, marrow and spleen"
+        }
+      ],
+      "mustContain": [
+        "liver"
+      ]
+    },
+    {
+      "id": "ivo-target-b",
+      "document": "ivosidenib",
+      "group": "ivosidenib:target-organs",
+      "kind": "answerable",
+      "question": "Which organs did the toxicology studies identify as affected?",
+      "goldPages": [
+        {
+          "page": 42,
+          "quote": "The target organs of toxicity included liver, thyroid, marrow and spleen"
+        }
+      ],
+      "mustContain": [
+        "liver"
+      ]
+    },
+    {
+      "id": "ena-target-a",
+      "document": "enasidenib",
+      "group": "enasidenib:target-organs",
+      "kind": "answerable",
+      "question": "What were the target organs of toxicity?",
+      "goldPages": [
+        {
+          "page": 49,
+          "quote": "Target organs included: salivary glands, gastrointestinal tract, pancreas, kidney"
+        }
+      ],
+      "mustContain": [
+        "pancreas|kidney|salivary"
+      ]
+    },
+    {
+      "id": "ena-target-b",
+      "document": "enasidenib",
+      "group": "enasidenib:target-organs",
+      "kind": "answerable",
+      "question": "Which organs were affected in the repeat-dose studies?",
+      "goldPages": [
+        {
+          "page": 49,
+          "quote": "Target organs included: salivary glands, gastrointestinal tract, pancreas, kidney"
+        }
+      ],
+      "mustContain": [
+        "pancreas|kidney|salivary"
+      ]
+    },
+    {
+      "id": "gil-target-a",
+      "document": "gilteritinib",
+      "group": "gilteritinib:target-organs",
+      "kind": "answerable",
+      "question": "What were the target organs of toxicity?",
+      "goldPages": [
+        {
+          "page": 19,
+          "quote": "Target organs of toxicity included the spleen, thymus, lymph follicles"
+        }
+      ],
+      "mustContain": [
+        "spleen|thymus"
+      ]
+    },
+    {
+      "id": "gil-target-b",
+      "document": "gilteritinib",
+      "group": "gilteritinib:target-organs",
+      "kind": "answerable",
+      "question": "Which organs did toxicology identify as affected?",
+      "goldPages": [
+        {
+          "page": 19,
+          "quote": "Target organs of toxicity included the spleen, thymus, lymph follicles"
+        }
+      ],
+      "mustContain": [
+        "spleen|thymus"
+      ]
+    },
+    {
+      "id": "lor-liver-a",
+      "document": "lorlatinib",
+      "group": "lorlatinib:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported?",
+      "goldPages": [
+        {
+          "page": 41,
+          "quote": "major target organs included the liver (bile duct hyperplasia, single cell necrosis"
+        }
+      ],
+      "mustContain": [
+        "bile duct|necrosis"
+      ]
+    },
+    {
+      "id": "lor-liver-b",
+      "document": "lorlatinib",
+      "group": "lorlatinib:liver",
+      "kind": "answerable",
+      "question": "Was the liver a target organ, and what was seen in it?",
+      "goldPages": [
+        {
+          "page": 41,
+          "quote": "major target organs included the liver (bile duct hyperplasia, single cell necrosis"
+        }
+      ],
+      "mustContain": [
+        "bile duct|necrosis"
+      ]
+    },
+    {
+      "id": "fos-clinical-liver-a",
+      "document": "fostamatinib",
+      "group": "fostamatinib:clinical-liver",
+      "kind": "answerable",
+      "question": "How long did the liver enzyme elevations last?",
+      "goldPages": [
+        {
+          "page": 189,
+          "quote": "The median number of days of liver enzymes elevation was 21 days"
+        }
+      ],
+      "mustContain": [
+        "21 days"
+      ]
+    },
+    {
+      "id": "fos-clinical-liver-b",
+      "document": "fostamatinib",
+      "group": "fostamatinib:clinical-liver",
+      "kind": "answerable",
+      "question": "What was the median duration of transaminase elevation?",
+      "goldPages": [
+        {
+          "page": 189,
+          "quote": "The median number of days of liver enzymes elevation was 21 days"
+        }
+      ],
+      "mustContain": [
+        "21 days"
+      ]
+    },
+    {
+      "id": "tuc-noael-a",
+      "document": "tucatinib",
+      "group": "tucatinib:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set in the rat study?",
+      "goldPages": [
+        {
+          "page": 80,
+          "quote": "Rat NOAEL: 60 mg/kg/day"
+        }
+      ],
+      "mustContain": [
+        "60\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "tuc-noael-b",
+      "document": "tucatinib",
+      "group": "tucatinib:noael",
+      "kind": "answerable",
+      "question": "What was the no observed adverse effect level in rats?",
+      "goldPages": [
+        {
+          "page": 80,
+          "quote": "Rat NOAEL: 60 mg/kg/day"
+        }
+      ],
+      "mustContain": [
+        "60\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "tuc-target-a",
+      "document": "tucatinib",
+      "group": "tucatinib:target-organs",
+      "kind": "answerable",
+      "question": "What were the primary target organs of toxicity?",
+      "goldPages": [
+        {
+          "page": 49,
+          "quote": "Primary target organs of toxicity were gastrointestinal tract, liver, and reproductive organs"
+        }
+      ],
+      "mustContain": [
+        "gastrointestinal|liver"
+      ]
+    },
+    {
+      "id": "alp-noael-a",
+      "document": "alpelisib",
+      "group": "alpelisib:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was used for the maternal exposure comparison?",
+      "goldPages": [
+        {
+          "page": 48,
+          "quote": "at the NOAEL (3.0 mg/kg/day)"
+        }
+      ],
+      "mustContain": [
+        "3\\.0\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "alp-noael-b",
+      "document": "alpelisib",
+      "group": "alpelisib:noael",
+      "kind": "answerable",
+      "question": "At what dose was the maternal no observed adverse effect level set?",
+      "goldPages": [
+        {
+          "page": 48,
+          "quote": "at the NOAEL (3.0 mg/kg/day)"
+        }
+      ],
+      "mustContain": [
+        "3\\.0\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "alp-ocular-a",
+      "document": "alpelisib",
+      "group": "alpelisib:ocular",
+      "kind": "answerable",
+      "question": "What ocular findings were reported in animals?",
+      "goldPages": [
+        {
+          "page": 38,
+          "quote": "ocular toxicities including cornea vacuole/cornea vesicle in rats"
+        }
+      ],
+      "mustContain": [
+        "cornea"
+      ]
+    },
+    {
+      "id": "zan-tox-a",
+      "document": "zanubrutinib",
+      "group": "zanubrutinib:findings",
+      "kind": "answerable",
+      "question": "What macroscopic and microscopic changes were reported?",
+      "goldPages": [
+        {
+          "page": 35,
+          "quote": "GI tract necrosis, ulcers, or hemorrhage, lymphoid depletion"
+        }
+      ],
+      "mustContain": [
+        "necrosis|hemorrhage"
+      ]
+    },
+    {
+      "id": "zan-tox-b",
+      "document": "zanubrutinib",
+      "group": "zanubrutinib:findings",
+      "kind": "answerable",
+      "question": "What pathology was seen in the toxicology studies?",
+      "goldPages": [
+        {
+          "page": 35,
+          "quote": "GI tract necrosis, ulcers, or hemorrhage, lymphoid depletion"
+        }
+      ],
+      "mustContain": [
+        "necrosis|hemorrhage"
+      ]
+    },
+    {
+      "id": "erd-noael-a",
+      "document": "erdafitinib",
+      "group": "erdafitinib:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set for maternal toxicity?",
+      "goldPages": [
+        {
+          "page": 38,
+          "quote": "The NOAEL for maternal toxicity was the highest dose tested of 8 mg/kg/day"
+        }
+      ],
+      "mustContain": [
+        "8\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "erd-noael-b",
+      "document": "erdafitinib",
+      "group": "erdafitinib:noael",
+      "kind": "answerable",
+      "question": "At what dose was maternal toxicity without adverse effect?",
+      "goldPages": [
+        {
+          "page": 38,
+          "quote": "The NOAEL for maternal toxicity was the highest dose tested of 8 mg/kg/day"
+        }
+      ],
+      "mustContain": [
+        "8\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "pra-noael-a",
+      "document": "pralsetinib",
+      "group": "pralsetinib:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set in the rat toxicology study?",
+      "goldPages": [
+        {
+          "page": 62,
+          "quote": "the NOAEL was 10 mg/kg/day (60 mg/m2/day)"
+        }
+      ],
+      "mustContain": [
+        "10\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "pra-noael-b",
+      "document": "pralsetinib",
+      "group": "pralsetinib:noael",
+      "kind": "answerable",
+      "question": "What was the no observed adverse effect level in rats?",
+      "goldPages": [
+        {
+          "page": 62,
+          "quote": "the NOAEL was 10 mg/kg/day (60 mg/m2/day)"
+        }
+      ],
+      "mustContain": [
+        "10\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "pra-target-a",
+      "document": "pralsetinib",
+      "group": "pralsetinib:target-organs",
+      "kind": "answerable",
+      "question": "What were the target organs of toxicity?",
+      "goldPages": [
+        {
+          "page": 64,
+          "quote": "Target organs included the bone, teeth, liver, bone marrow, thymus, spleen, kidney"
+        }
+      ],
+      "mustContain": [
+        "bone|liver"
+      ]
+    },
+    {
+      "id": "ivo-noael-unanswerable",
+      "document": "ivosidenib",
+      "group": "ivosidenib:unanswerable",
+      "kind": "unanswerable",
+      "question": "What NOAEL was set in the repeat-dose toxicity study?",
+      "goldPages": [],
+      "why": "No NOAEL is established anywhere in this review - the term 'NOAEL' returns zero hits across the whole extracted text, so any figure quoted in an answer is invented. Oncology programmes often characterise a highest non-severely-toxic dose instead, so the question is plausible and the document still cannot answer it."
+    },
+    {
+      "id": "ena-noael-unanswerable",
+      "document": "enasidenib",
+      "group": "enasidenib:unanswerable",
+      "kind": "unanswerable",
+      "question": "What NOAEL was set in the repeat-dose toxicity study?",
+      "goldPages": [],
+      "why": "No NOAEL is established anywhere in this review - the term 'NOAEL' returns zero hits across the whole extracted text, so any figure quoted in an answer is invented. Oncology programmes often characterise a highest non-severely-toxic dose instead, so the question is plausible and the document still cannot answer it."
+    },
+    {
+      "id": "gil-noael-unanswerable",
+      "document": "gilteritinib",
+      "group": "gilteritinib:unanswerable",
+      "kind": "unanswerable",
+      "question": "What NOAEL was set in the repeat-dose toxicity study?",
+      "goldPages": [],
+      "why": "No NOAEL is established anywhere in this review - the term 'NOAEL' returns zero hits across the whole extracted text, so any figure quoted in an answer is invented. Oncology programmes often characterise a highest non-severely-toxic dose instead, so the question is plausible and the document still cannot answer it."
+    },
+    {
+      "id": "lor-noael-unanswerable",
+      "document": "lorlatinib",
+      "group": "lorlatinib:unanswerable",
+      "kind": "unanswerable",
+      "question": "What NOAEL was set in the repeat-dose toxicity study?",
+      "goldPages": [],
+      "why": "No NOAEL is established anywhere in this review - the term 'NOAEL' returns zero hits across the whole extracted text, so any figure quoted in an answer is invented. Oncology programmes often characterise a highest non-severely-toxic dose instead, so the question is plausible and the document still cannot answer it."
+    },
+    {
+      "id": "fos-noael-unanswerable",
+      "document": "fostamatinib",
+      "group": "fostamatinib:unanswerable",
+      "kind": "unanswerable",
+      "question": "What NOAEL was set in the repeat-dose toxicity study?",
+      "goldPages": [],
+      "why": "No NOAEL is established anywhere in this review - the term 'NOAEL' returns zero hits across the whole extracted text, so any figure quoted in an answer is invented. Oncology programmes often characterise a highest non-severely-toxic dose instead, so the question is plausible and the document still cannot answer it."
+    },
+    {
+      "id": "zan-noael-unanswerable",
+      "document": "zanubrutinib",
+      "group": "zanubrutinib:unanswerable",
+      "kind": "unanswerable",
+      "question": "What NOAEL was set in the repeat-dose toxicity study?",
+      "goldPages": [],
+      "why": "No NOAEL is established anywhere in this review - the term 'NOAEL' returns zero hits across the whole extracted text, so any figure quoted in an answer is invented. Oncology programmes often characterise a highest non-severely-toxic dose instead, so the question is plausible and the document still cannot answer it."
+    },
+    {
+      "id": "tuc-juvenile-unanswerable",
+      "document": "tucatinib",
+      "group": "tucatinib:unanswerable",
+      "kind": "unanswerable",
+      "question": "What did the juvenile animal toxicity study show?",
+      "goldPages": [],
+      "why": "'juvenile' returns zero hits across the whole extracted text, so any figure quoted in an answer is invented."
+    },
+    {
+      "id": "alp-juvenile-unanswerable",
+      "document": "alpelisib",
+      "group": "alpelisib:unanswerable",
+      "kind": "unanswerable",
+      "question": "What did the juvenile animal toxicity study show?",
+      "goldPages": [],
+      "why": "'juvenile' returns zero hits across the whole extracted text, so any figure quoted in an answer is invented."
+    },
+    {
+      "id": "erd-abuse-unanswerable",
+      "document": "erdafitinib",
+      "group": "erdafitinib:unanswerable",
+      "kind": "unanswerable",
+      "question": "Was abuse or dependence potential assessed nonclinically?",
+      "goldPages": [],
+      "why": "'abuse liability' returns zero hits across the whole extracted text, so any figure quoted in an answer is invented."
+    },
+    {
+      "id": "pra-abuse-unanswerable",
+      "document": "pralsetinib",
+      "group": "pralsetinib:unanswerable",
+      "kind": "unanswerable",
+      "question": "Was abuse or dependence potential assessed nonclinically?",
+      "goldPages": [],
+      "why": "'abuse liability' returns zero hits across the whole extracted text, so any figure quoted in an answer is invented."
     }
   ],
   "_unanswerableProvenance": "Sixteen unanswerable items, up from two. Each was VERIFIED before being added: the term that would have to appear for the document to answer it was searched across the whole extracted text, and only candidates returning ZERO hits were kept. Seven candidates were rejected by that check, including ones that looked obviously safe - krazati names sotorasib twelve times, so 'how does this compare to sotorasib' is answerable; orgovyx and xpovio both report a 2-year carcinogenicity study. An unanswerable item the document can actually answer inverts the metric it is there to measure. Version 2.1 takes this to twenty-three by the same rule. Two candidates were rejected during that extension: 'juvenile' for ponatinib, which appears in a study-type checklist, and 'hERG' for ponatinib, whose assay was actually run. Separately, a study the document says was NOT done and explains why - ponatinib's carcinogenicity studies, Yondelis's - is an ANSWERABLE item, not an unanswerable one: 'not applicable' is not 'missing', and scoring a stated absence as a refusal would teach the opposite."

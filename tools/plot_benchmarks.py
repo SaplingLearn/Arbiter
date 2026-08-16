@@ -247,14 +247,21 @@ def fig_coverage(out: Path) -> None:
     fixture = json.loads(Path("data/retrieval-eval.json").read_text(encoding="utf-8"))
     sources = json.loads(Path("data/library-sources.json").read_text(encoding="utf-8"))["sources"]
 
-    toxic = {"turalio", "ponatinib", "regorafenib", "obeticholic", "tolvaptan",
-             "teriflunomide", "trabectedin", "mipomersen"}
+    # The ladder, most severe last. A drug appears in exactly one rung - the worst one
+    # that applies - so the bars sum to the document count. Obeticholic and mipomersen
+    # carry boxed hepatic warnings too, but "withdrawn" is the outcome that matters.
     withdrawn = {"obeticholic", "mipomersen"}
+    boxed_hepatic = {"turalio", "ponatinib", "regorafenib", "tolvaptan", "teriflunomide"}
+    boxed_other = {"ivosidenib", "enasidenib", "gilteritinib"}
+    warned = {"trabectedin", "lorlatinib", "fostamatinib", "tucatinib", "alpelisib",
+              "zanubrutinib", "erdafitinib", "pralsetinib"}
     docs = {i["document"] for i in fixture["items"]}
 
     n_withdrawn = len(docs & withdrawn)
-    n_boxed = len(docs & toxic) - n_withdrawn
-    n_clean = len(docs) - len(docs & toxic)
+    n_boxed_hep = len(docs & boxed_hepatic)
+    n_boxed_oth = len(docs & boxed_other)
+    n_warned = len(docs & warned)
+    n_clean = len(docs) - n_withdrawn - n_boxed_hep - n_boxed_oth - n_warned
 
     answerable = sum(1 for i in fixture["items"] if i["kind"] == "answerable")
     unanswerable = sum(1 for i in fixture["items"] if i["kind"] == "unanswerable")
@@ -263,14 +270,16 @@ def fig_coverage(out: Path) -> None:
 
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(11.5, 4.2))
 
-    a1.bar([0, 1, 2], [n_clean, n_boxed, n_withdrawn],
-           color=[CYAN, AMBER, "#C0392B"], width=0.6, zorder=2)
-    a1.set_xticks([0, 1, 2])
-    a1.set_xticklabels(["No liver warning", "Boxed hepatic\nwarning", "Withdrawn for\nliver injury"], fontsize=9.5)
+    rungs = [n_clean, n_warned, n_boxed_oth, n_boxed_hep, n_withdrawn]
+    xs5 = list(range(5))
+    a1.bar(xs5, rungs, color=[CYAN, "#4A9BD1", AMBER, "#B4531C", "#C0392B"], width=0.68, zorder=2)
+    a1.set_xticks(xs5)
+    a1.set_xticklabels(["No warning", "Warning,\nnot boxed", "Boxed,\nnon-hepatic",
+                        "Boxed\nhepatic", "Withdrawn for\nliver injury"], fontsize=8.6)
     a1.set_ylabel("documents", fontsize=9.5, color=MUTED)
-    a1.set_title("Toxicity outcome of the drug", fontsize=11.5, color=INK, loc="left")
-    for x, v in zip([0, 1, 2], [n_clean, n_boxed, n_withdrawn]):
-        a1.text(x, v + 0.15, str(v), ha="center", fontsize=11, color=INK, weight="bold")
+    a1.set_title("Toxicity outcome of the drug — increasing severity", fontsize=11.5, color=INK, loc="left")
+    for x, v in zip(xs5, rungs):
+        a1.text(x, v + 0.2, str(v), ha="center", fontsize=11, color=INK, weight="bold")
     a1.grid(axis="y", color=GRID, lw=0.8)
     style(a1)
 
