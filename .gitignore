@@ -93,6 +93,11 @@ dist/
 *.tsbuildinfo
 .env
 .env.local
+# The hand-out copy. `.env.example` is the tracked template and holds no secret;
+# this one carries a live service-account key once section 1 is filled in, which
+# is the whole reason it exists as a separate file rather than as an edit to the
+# template.
+.env.share
 
 # Python
 __pycache__/

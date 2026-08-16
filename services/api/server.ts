@@ -11,6 +11,7 @@ import { handleAsk } from "./ask.js";
 import { handleSummarise } from "./summarise.js";
 import { buildIndex, search } from "./retrieval.js";
 import { completeFromEnv, providerFor, resolveModel } from "./interpret.js";
+import { geminiEndpointLabel } from "./gemini.js";
 import { stubComplete } from "./probe.js";
 import { adjudicateConsensus, runsFrom } from "./consensus.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
@@ -799,7 +800,10 @@ if (invokedDirectly) {
     // measured. A model name alone made the reader infer it.
     const named = (kind: Parameters<typeof resolveModel>[0]): string => {
       const model = resolveModel(kind);
-      return `${model} (${providerFor(model) === "vertex" ? "Vertex AI" : "Anthropic"})`;
+      // The Gemini side names its ENDPOINT, not just the provider: an API key can send
+      // a `gemini-` model to either Vertex or the Developer API, and those serve
+      // different catalogues, so "Vertex AI" alone would be a guess dressed as a fact.
+      return `${model} (${providerFor(model) === "vertex" ? geminiEndpointLabel(process.env) : "Anthropic"})`;
     };
     console.log(`Adjudication: ${completeFromEnv(process.env, "adjudication") === null ? `STUB (no credentials for ${adjudicationModel}) - responses are labelled source:stub` : `LIVE ${named("adjudication")}`}`);
     console.log(`Ask & summary: ${named("ask")}`);

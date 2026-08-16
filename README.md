@@ -203,12 +203,25 @@ second switch to disagree with it:
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-...  ARBITER_MODEL=claude-sonnet-5   # a key, and nothing else
-ARBITER_GCP_PROJECT=your-project                              # Vertex: ADC, no key exists
+ARBITER_GCP_PROJECT=your-project                              # Gemini on ADC
+GEMINI_API_KEY=AQ....                                         # Gemini on a key
 ```
 
-The Vertex path has **no API key by design** - it is Application Default Credentials, so
-each person runs `gcloud auth application-default login` against their own project.
-Nothing secret belongs in `.env`.
+**On Gemini, choose by who is running it.** Application Default Credentials
+(`gcloud auth application-default login` against your own project) authenticate a
+*person*, so nothing secret belongs in `.env` - and equally, nothing can be handed to a
+teammate. `GEMINI_API_KEY` is the shareable form: one line, sufficient on its own, and
+still a cloud credential that bills the project it belongs to.
+
+A key also picks a **host**, and the two are not interchangeable:
+`ARBITER_GEMINI_HOST=vertex` (the default, `aiplatform.googleapis.com`, the catalogue
+every committed number was measured on) or `=developer`
+(`generativelanguage.googleapis.com`, no project setup, a different and smaller
+catalogue - `gemini-2.5-flash-lite` is a 404 there). The startup banner prints which one
+is in use, so a misconfiguration cannot hide behind the word "Vertex".
+
+One key shared across a team is one budget shared across a team. See
+`ARBITER_MODEL_BUDGET` below.
 
 ### Deploying it
 

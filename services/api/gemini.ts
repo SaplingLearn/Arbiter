@@ -33,6 +33,63 @@ function projectId(env: NodeJS.ProcessEnv): string {
   return env["ARBITER_GCP_PROJECT"] ?? env["GOOGLE_CLOUD_PROJECT"] ?? "";
 }
 
+/**
+ * THE SHAREABLE CREDENTIAL, and the reason this file no longer says "NO API key".
+ *
+ * ADC is the right default for a laptop and the wrong shape for handing the model to
+ * a team: `gcloud auth application-default login` authenticates a PERSON, so every
+ * developer needs their own Google account with access to the project and there is
+ * nothing to pass around. A service-account JSON is passable but has to be minted,
+ * distributed and revoked. An API key is one line of env, which is what a person
+ * asking to "share the key" is actually asking for.
+ *
+ * It is still a CLOUD credential, not a personal one: an `AQ.`-prefixed key is bound
+ * to a Google Cloud project, and calls made with it bill that project exactly as an
+ * ADC session would. Sharing it shares the project's spend, which is why the budget
+ * in spend.ts matters more, not less, once this path is in use.
+ */
+function apiKeyFrom(env: NodeJS.ProcessEnv): string {
+  return env["GEMINI_API_KEY"] ?? env["ARBITER_GEMINI_API_KEY"] ?? "";
+}
+
+/**
+ * Which host serves an API key. TWO EXIST AND THEY ARE NOT INTERCHANGEABLE, so this
+ * is a named variable rather than a fallback chain - a silent hop from one to the
+ * other would change which models answer without changing anything a reader can see.
+ *
+ *   vertex     aiplatform.googleapis.com, Vertex AI express mode. The same service the
+ *              ADC path calls, so the model line-up is the one this project measured -
+ *              including gemini-2.5-flash-lite at thinkingBudget 0, which the short
+ *              shapes require. Needs `aiplatform.googleapis.com` enabled on the key's
+ *              project; until it is, every call returns 403 and names the fix.
+ *
+ *   developer  generativelanguage.googleapis.com, the Gemini Developer API. Reachable
+ *              with no project configuration at all, which makes it the one that works
+ *              the moment a key exists. It serves a DIFFERENT catalogue: verified
+ *              against this key, gemini-3.5-flash answers schema-constrained calls at
+ *              thinkingBudget 0, gemini-2.5-flash-lite returns 404 ("no longer
+ *              available to new users"), and gemini-3.5-flash-lite rejects
+ *              thinkingBudget 0 with a 400 the way gemini-2.5-pro does on Vertex.
+ *              So a deployment on this host must set ARBITER_MODEL to a model that
+ *              can take every shape; gemini-3.5-flash is the one that can.
+ *
+ * Default is vertex, because it is the service the committed numbers came from and the
+ * one an ADC deployment already uses - a key should not quietly move the deployment
+ * onto a different catalogue.
+ */
+function apiHost(env: NodeJS.ProcessEnv): "vertex" | "developer" {
+  return env["ARBITER_GEMINI_HOST"] === "developer" ? "developer" : "vertex";
+}
+
+function keyUrl(model: string, env: NodeJS.ProcessEnv): string {
+  return apiHost(env) === "developer"
+    ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
+    // Express mode takes no project in the path: the key names the project, which is
+    // why a key from the wrong project fails with that project's id in the message
+    // rather than with a 404 on a URL nobody can check.
+    : `https://aiplatform.googleapis.com/v1/publishers/google/models/${model}:generateContent`;
+}
+
 /** The well-known ADC location, which differs by platform. */
 function adcPath(env: NodeJS.ProcessEnv): string {
   const appData = env["APPDATA"];
@@ -51,6 +108,13 @@ function adcPath(env: NodeJS.ProcessEnv): string {
  * surfaces on the first call as a 502, the same as an expired Anthropic key would.
  */
 export function geminiCredentialsPresent(env: NodeJS.ProcessEnv = process.env): boolean {
+  // Checked BEFORE the project, and deliberately without requiring one. On the
+  // developer host there is no project to name, and on express mode the key names it -
+  // so demanding ARBITER_GCP_PROJECT alongside a key would reject a configuration that
+  // works, which is the same class of bug as the ADC path silently ignoring the
+  // project id (env.ts). A key is sufficient on its own.
+  if (apiKeyFrom(env) !== "") return true;
+
   if (projectId(env) === "") return false;
   const inline = env["GOOGLE_APPLICATION_CREDENTIALS_JSON"];
   if (inline !== undefined && inline !== "") return true;
@@ -60,30 +124,62 @@ export function geminiCredentialsPresent(env: NodeJS.ProcessEnv = process.env): 
   return adc !== "" && existsSync(adc);
 }
 
+/**
+ * What the banner prints beside a Gemini model name.
+ *
+ * `providerFor()` answers "Vertex or Anthropic" from the model name, and once a key
+ * can send a `gemini-` model to generativelanguage.googleapis.com that answer is no
+ * longer the whole truth - a banner reading "Vertex AI" while the deployment talks to
+ * the Developer API is exactly the misconfiguration the banner's own comment says it
+ * exists to prevent. The catalogues differ, so this distinction decides which models
+ * can answer at all.
+ */
+export function geminiEndpointLabel(env: NodeJS.ProcessEnv = process.env): string {
+  if (apiKeyFrom(env) === "") return "Vertex AI, ADC";
+  return apiHost(env) === "developer"
+    ? "Gemini Developer API, API key"
+    : "Vertex AI express, API key";
+}
+
 export function geminiComplete(
   model: string,
   shape: CallShape,
   env: NodeJS.ProcessEnv = process.env,
 ): Complete {
   const project = projectId(env);
+  const key = apiKeyFrom(env);
   const inline = env["GOOGLE_APPLICATION_CREDENTIALS_JSON"];
+
   // Built once, not per call: GoogleAuth caches the access token and refreshes it
   // when it expires. Constructing per call would mint a token per adjudication.
-  const auth = new GoogleAuth(
-    inline !== undefined && inline !== ""
-      ? { scopes: SCOPES, credentials: JSON.parse(inline) as Record<string, unknown> }
-      : { scopes: SCOPES },
-  );
+  //
+  // Skipped entirely when a key is in play. GoogleAuth with no discoverable
+  // credentials does not fail at construction, it fails on the first getAccessToken()
+  // - so building it anyway would turn a perfectly configured key deployment into a
+  // runtime error on the first adjudication.
+  const auth = key !== ""
+    ? null
+    : new GoogleAuth(
+      inline !== undefined && inline !== ""
+        ? { scopes: SCOPES, credentials: JSON.parse(inline) as Record<string, unknown> }
+        : { scopes: SCOPES },
+    );
 
-  const url =
-    `https://aiplatform.googleapis.com/v1/projects/${project}` +
-    `/locations/${LOCATION}/publishers/google/models/${model}:generateContent`;
+  const url = key !== ""
+    ? keyUrl(model, env)
+    : `https://aiplatform.googleapis.com/v1/projects/${project}` +
+      `/locations/${LOCATION}/publishers/google/models/${model}:generateContent`;
 
   return async (system, user, schema) => {
-    const token = await auth.getAccessToken();
+    // `x-goog-api-key` rather than a `?key=` query parameter. Both authenticate; only
+    // one keeps the credential out of URLs, and URLs are what end up in proxy logs and
+    // in the error strings this file deliberately propagates.
+    const authHeader = auth === null
+      ? { "x-goog-api-key": key }
+      : { Authorization: `Bearer ${String(await auth.getAccessToken())}` };
     const res = await fetch(url, {
       method: "POST",
-      headers: { Authorization: `Bearer ${String(token)}`, "Content-Type": "application/json" },
+      headers: { ...authHeader, "Content-Type": "application/json" },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: "user", parts: [{ text: user }] }],
