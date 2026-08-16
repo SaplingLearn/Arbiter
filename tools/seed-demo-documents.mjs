@@ -35,13 +35,12 @@
  * ---------------------------------------------------------------------------------
  * WHY EVERY SOURCE HERE IS EMA AND NOT FDA, which is not a preference.
  *
- * accessdata.fda.gov sits behind an Akamai abuse-detection layer that answers any
- * scripted client with a 420-byte apology page - for EVERY path, not just large ones.
- * The FDA reviews this project is built on are still public and still correct; they
- * just cannot be fetched without pretending to be a browser, which is not a thing this
- * script is going to do. They are listed at the bottom as MANUAL, with their URLs, and
- * data/prep/README.md already sets that precedent for the DILIrank workbook: "asking a
- * human to click once" beats a script that silently saves an error page as a PDF.
+ * accessdata.fda.gov sometimes answers a scripted client with a 420-byte Akamai
+ * abuse-detection page instead of the file, for every path rather than just the large
+ * ones. That is a TRANSIENT state and not a standing block: the same URL refused for
+ * an hour later served 6MB to plain `fetch` with no change of client and no disguise.
+ * `npm run library:fetch` retries rather than pretending to be a browser, and the FDA
+ * reviews are fetched there.
  *
  * The EMA sources are not a consolation prize. data/cases/turalio-pexidartinib.json
  * records why in its own note: an FDA multi-disciplinary review is ONE document written
@@ -190,11 +189,15 @@ const SOURCES = {
   "ema-epar-sample-imaavy.pdf": "https://www.ema.europa.eu/en/documents/assessment-report/imaavy-epar-public-assessment-report_en.pdf",
 };
 
-/** The ones a person has to fetch by hand, and exactly where from. */
-const MANUAL = [
-  ["turalio-211810-multidiscipline.pdf", "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2019/211810Orig1s000MultidisciplineR.pdf"],
-  ["modern-fda-multidiscipline-211367.pdf", "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2019/211367Orig1s000MultidisciplineR.pdf"],
-];
+/**
+ * The rest of the corpus - the FDA reviews the LIBRARY searches, as opposed to the
+ * three EMA reports the demo cases are built on - is fetched by
+ * `npm run library:fetch`. It used to be listed here as manual-only, on the basis
+ * that accessdata.fda.gov refuses scripted clients; that turned out to be a
+ * TRANSIENT abuse-detection state rather than a standing block, and the same URLs
+ * later served all sixteen files to plain `fetch` with no disguise of any kind.
+ */
+const ALSO = "npm run library:fetch";
 
 const STORE = [
   "results/deliberation-log.jsonl",
@@ -266,7 +269,7 @@ if (bad > 0) { console.log(`\n${bad} quote(s) would never draw. Refusing to seed
 
 if (FETCH_ONLY) {
   console.log("");
-  for (const [file, url] of MANUAL) console.log(`manual   ${file}\n         ${url}`);
+  console.log(`Run \`${ALSO}\` for the FDA reviews the library searches.`);
   process.exit(0);
 }
 
@@ -385,4 +388,4 @@ for (const c of CASES) {
 }
 
 console.log("");
-for (const [file, url] of MANUAL) console.log(`manual   ${file}\n         ${url}`);
+console.log(`Run \`${ALSO}\` for the FDA reviews the library searches.`);

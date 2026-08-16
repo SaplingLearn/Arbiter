@@ -222,15 +222,26 @@ two are equal. Option 2 keeps that test; option 3 changes it deliberately.
   and puts each one through `measure_pdf.py` before uploading it. **If the reader ever
   shows a page reading "Page N of the nonclinical toxicology review", the fixture is
   back.**
-- **`accessdata.fda.gov` refuses scripted clients.** Every path — not just the large
-  ones — is answered with a 420-byte Akamai abuse-detection page, which will happily
-  save itself as a `.pdf` and fail much later as a corrupt document. The FDA reviews
-  this project is built on therefore cannot be fetched by any script here that is not
-  pretending to be a browser; they are listed as `manual` at the end of
-  `seed-demo-documents.mjs` with their URLs. That script checks for the `%PDF-` magic
-  bytes on every download for exactly this reason. `data/prep/README.md` set the
-  precedent for the DILIrank workbook: asking a human to click once beats a script that
-  saves an error page.
+- **`accessdata.fda.gov` refuses scripted clients INTERMITTENTLY — wait, do not
+  disguise the request.** It answers with a 420-byte Akamai abuse-detection page on
+  every path, not just the large ones, and that page will happily save itself as a
+  `.pdf` and fail much later as a corrupt document. It looks like a standing block and
+  is not one: the same URL that was refused for an hour afterwards served 6MB to plain
+  `fetch`, with no change of client. `npm run library:fetch` restores the whole
+  `data/raw/approval-packages/` corpus — 16 files, addressed by the application number
+  already in each filename — retrying on refusal and checking `%PDF-` magic bytes on
+  every download. **If a run comes back mostly empty, run it again later.** Reaching
+  for a browser user-agent is bypassing bot detection, and it is also unnecessary.
+- **The library is 17 sources and the dashboard is the cases you are on.** They are
+  different lists and it is not a bug: `library.ts` explains at length why library
+  documents are read in place instead of being copied into the upload store ("a public
+  FDA review indistinguishable from unpublished safety data a team uploaded"). On a
+  fresh clone every library entry answers *not in this checkout*, because the PDFs are
+  gitignored — that is what `library:fetch` is for. Three entries stay unaskable
+  afterwards and should: TAK-994 never had a source document, tolcapone is 48 scanned
+  pages with no extractable text, and troglitazone is a labelling supplement with no
+  nonclinical chapter. A prepared case still shows full findings with its document
+  absent, because the findings are hand-transcribed into `data/cases/` and committed.
 - **`apps/atmosphere/shot.mjs` carries its own copy of the scene list.** It silently
   skipped `read` when that scene was added and reported "no console errors" about a
   scene it had never mounted. Add new scenes to that list too.
@@ -295,6 +306,7 @@ npm run check:deps             # after PR #24 — says what npm install would fi
 npm run dev                    # http://localhost:5173/deliberation/
 npm run seed:demo              # the five accounts. NOT the cases, and not the documents
 npm run seed:documents         # the real EMA reports, gate-checked, onto the demo cases
+npm run library:fetch          # the 16-document library corpus into data/raw/approval-packages
 npx vitest run                 # 821 tests / 58 files here; 829 / 59 once #24 lands
 npm run typecheck
 npm run lint

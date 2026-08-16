@@ -28,6 +28,7 @@
     "api": "tsx services/api/server.ts",
     "seed:demo": "tsx services/api/seed-demo.ts",
     "seed:documents": "node tools/seed-demo-documents.mjs",
+    "library:fetch": "node tools/fetch-library.mjs",
     "deliberate:dev": "npm run dev -w @arbiter/deliberation",
     "deliberate:build": "npm run build -w @arbiter/deliberation",
     "landing:dev": "npm run dev -w @arbiter/landing",
