@@ -60,4 +60,12 @@ jobs:
       # fail on a fresh runner image with a missing shared library.
       - if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
+      # THE PRODUCT CANNOT BOOT WITHOUT AN IDENTITY. apps/deliberation no longer asks
+      # anyone to sign in (App.tsx: "NO SIGN-IN. The landing page opens straight into
+      # the product") - it signs itself in as r.okafor@arbiter.demo, and that account
+      # only exists once this has run. Without it the app renders "Cannot open the
+      # record" and every e2e assertion about the product is really an assertion about
+      # a failed login. Writes results/deliberation-log.jsonl.users.json, which is the
+      # same store server.ts reads, so it has to happen before the servers start.
+      - run: npm run seed:demo
       - run: npm run e2e
