@@ -207,12 +207,85 @@ endpoints do not return the data while the case is open. Not by hiding it in the
 
 ---
 
-## 4. Per member, stage by stage
+## 4. Where it lives: a case tab of its own
 
-### Stage 1 — Evidence (case `open`)
+### 4.1 The tab
 
-The reviewer opens a case document in the viewer and marks it freely. **Every mark is
-private to its author**, returned by no endpoint to anyone else, enforced server-side.
+`Steps` in `Layout.tsx` renders the case stages, and its comment is emphatic that "the order
+IS the product". A new tab therefore has to earn a position in that sequence rather than be
+appended to the end of it.
+
+**"Read & mark" is inserted second, between Evidence and Your position.**
+
+| # | Tab | What it is for |
+|---|---|---|
+| 1 | Evidence | what is on this case: findings, documents, what is absent |
+| 2 | **Read & mark** | **the documents themselves, and your passage through them** |
+| 3 | Your position | your call, written before you can see anyone else's |
+| 4 | Reveal & verdict | the split, the disagreement, the adjudication |
+| 5 | Record | sign-off and the hash-chained log |
+
+That position is the argument for the tab. Evidence lists what exists; Read & mark is where
+you engage with it; Your position is where you commit. Read-then-decide is the order the work
+already has, and the strip currently skips it — today a reviewer goes from a list of documents
+straight to a verdict form, and the reading happens off-system. Inserting the stage makes the
+sequence describe the actual job rather than the parts of it the software happened to hold.
+
+`enabled: true` at every case status. Unlike Reveal, this tab is never gated: reading is
+legitimate before you seal, and after the reveal it becomes the screen where the room's trails
+are compared. What changes with status is what it *shows*, never whether it opens.
+
+Its pip carries the viewer's **own** mark count. Own activity is not an aggregate over other
+people, so this does not violate §3.4 — you already know how much you have marked. No pip
+renders another reviewer's count while the case is open.
+
+### 4.2 The route
+
+`Route` gains one member, and deep-linking is not optional:
+
+```ts
+| { name: "read"; caseId: string; documentId?: string; page?: number }
+```
+
+`#/case/:caseId/read` → `#/case/:caseId/read/:documentId/:page`
+
+Deep links are what make the collective views usable at all. A `contestedSpans` row on the
+reveal screen is a claim about one specific sentence, and it has to be one click from that
+sentence — otherwise the reader is hunting page 112 of a 288-page review by hand, and will not
+bother. The same applies to a `question` mark surfaced on the missing-evidence list, and to a
+citation read back out of the audit record.
+
+`parseHash` extends the existing `case`/`:id` switch. A malformed or unknown sub-route keeps
+falling through to the case overview, which the router already does deliberately rather than
+404ing.
+
+### 4.3 A document belongs to a case
+
+The viewer reads `documents.forCase(caseId)` — already present at
+`services/api/documents.ts:155` — and nothing else. Documents are stamped with `caseId` at
+upload, so this enforces a binding the store already has rather than inventing one.
+
+The consequence worth stating plainly: **the shared library under `results/library/` is not
+readable in this tab.** A mark means "this reviewer, reading the evidence for this case,
+stopped here." A mark against a document that is not on the case cannot mean that. Every
+aggregate in §6 counts reviewers across one case's documents, and admitting a library PDF
+would quietly mix a document nobody on the case was asked to read into a rail that claims to
+describe how this case was read.
+
+A `Mark` therefore carries both `caseId` and `documentId`, and the server rejects any mark
+whose `documentId` does not resolve through `forCase(caseId)`. The same PDF uploaded to two
+cases is two `StoredDocument` rows with two ids, so its marks stay separate — which is
+correct. Those are two different rooms reading it for two different questions.
+
+---
+
+## 5. Per member, stage by stage
+
+### Stage 1 — Read & mark (case `open`)
+
+The reviewer opens a case document — one of `documents.forCase(caseId)`, never a library
+document (§4.3) — and marks it freely. **Every mark is private to its author**, returned by
+no endpoint to anyone else, enforced server-side.
 
 What the reviewer does see besides their own marks: the existing findings, rendered as
 **system highlights** in `--accent` cyan — visually a different class of object from any
@@ -253,7 +326,7 @@ without breaking its hash. The reading trail becomes as tamper-evident as the po
 supports, which is the property that makes it evidence rather than decoration.
 
 After sealing, a reviewer's own marks are frozen. New marks made post-reveal are a separate,
-clearly-labelled class (§6).
+clearly-labelled class (§7).
 
 ### Stage 3 — Reveal
 
@@ -263,9 +336,9 @@ makes `visibleTo` sort `revealed` by participant id rather than by submission ti
 
 ---
 
-## 5. What the room sees collectively
+## 6. What the room sees collectively
 
-### 5.1 The attention rail
+### 6.1 The attention rail
 
 A strip representing the whole document, one band per page, each band divided into segments
 coloured by the seats of the reviewers who marked that page. Three readings, all currently
@@ -286,7 +359,7 @@ invisible:
 The rail is attributed, not anonymous heat: hovering a band names the reviewers, and the
 legend is the same `<Reviewer>` badge used everywhere else.
 
-### 5.2 The stacked page
+### 6.2 The stacked page
 
 Any page renders every reviewer's marks layered, each in its author's seat colour, with a
 badge in the margin per mark. Spans that overlap collapse into a single band annotated with
@@ -298,7 +371,7 @@ With trails it says: F3 is contested, here is the exact sentence both camps high
 here is what each of them wrote about it, over their name. For a safety lead about to sign,
 that is the most useful single view in the product.
 
-### 5.3 Extending `disagreementReport`
+### 6.3 Extending `disagreementReport`
 
 `DisagreementReport` today distinguishes `contested` (a finding cited by more than one camp —
 common ground read two ways) from `oneSided` (cited by exactly one camp — evidence the others
@@ -324,7 +397,7 @@ differs completely, and today the two are indistinguishable.
 Both are plain arithmetic over sealed marks — no model, consistent with
 `disagreementReport`'s existing refusal to judge who is right.
 
-### 5.4 Open questions, and the experiment planner
+### 6.4 Open questions, and the experiment planner
 
 Every `question` and `challenge` mark aggregates onto the missing-evidence list, page-anchored
 and attributed, routed exactly as `externalClaimsAsGaps` routes external claims today.
@@ -338,7 +411,7 @@ structure.
 
 ---
 
-## 6. After the reveal: threads
+## 7. After the reveal: threads
 
 Once positions are sealed and revealed, marks become collaborative. Any reviewer may reply
 to any mark; replies are attributed with the same badge and appended to the chain as
@@ -354,13 +427,13 @@ sequence exists to break. After the reveal there is nothing left to anchor, beca
 independent reading is already on the record.
 
 Post-reveal marks and replies render in the author's seat colour with a visible
-`after reveal` tag, and never merge into the sealed trail or into any §5 aggregate. The
-§5 views describe how the room read the document *independently*; letting post-reveal
+`after reveal` tag, and never merge into the sealed trail or into any §6 aggregate. The
+§6 views describe how the room read the document *independently*; letting post-reveal
 activity into them would quietly destroy the only reason those views mean anything.
 
 ---
 
-## 7. Deliberate marks only — no page-view telemetry
+## 8. Deliberate marks only — no page-view telemetry
 
 The system records marks. It does **not** record which pages an account opened, how long it
 dwelled, or how far it scrolled.
@@ -380,11 +453,11 @@ this page."** It never says "no reviewer read this page," which the system does 
 
 ---
 
-## 8. Build order
+## 9. Build order
 
 | Phase | Contents | Data model change |
 |---|---|---|
-| 1 | Viewer; system highlights from existing `sourcePage`; `<Reviewer>` badge, seats, palette | none |
+| 1 | `read` route + "Read & mark" tab; viewer over `forCase(caseId)`; system highlights from existing `sourcePage`; `<Reviewer>` badge, seats, palette | none |
 | 2 | Private marks; seal-with-position; `marks_sealed` chain entry | `Mark`, seat on roster |
 | 3 | Reveal aggregates: rail, stacked page, `contestedSpans`, `unreadByCamp` | none |
 | 4 | Promote-to-finding; `question`/`challenge` → inventory; post-reveal threads | `mark_replied` |
@@ -392,7 +465,7 @@ this page."** It never says "no reviewer read this page," which the system does 
 Phase 1 is demonstrable on its own and touches no schema — every finding in all three cases
 in `data/cases/` already carries `sourceDocument` and `sourcePage`.
 
-## 9. Known risks
+## 10. Known risks
 
 - **Span anchoring.** The extracted page text in `results/**/*.pages.json` carries hard
   newlines mid-sentence (`"CENTER FOR DRUG EVALUATION AND \nRESEARCH"`). Mapping a mark back
