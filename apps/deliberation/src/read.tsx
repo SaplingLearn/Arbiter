@@ -25,8 +25,14 @@ export function Read({ caseId, documentId, page, documents, findings }: {
   documents: StoredDocument[];
   findings: Finding[];
 }): ReactElement {
-  const [openId, setOpenId] = useState<string | undefined>(documentId ?? documents[0]?.id);
-  const open = documents.find((d) => d.id === openId) ?? null;
+  // Derived from props on every render, NEVER held in local state. The route's
+  // documentId is the single source of truth for which document is open: a
+  // `useState` seeded once from it goes stale the moment the prop changes after
+  // mount, and - worse - it lets the document strip below switch documents without
+  // ever touching the hash. That breaks the back button, copy-paste-the-URL, and
+  // "share this document at this page" all at once, which defeats the entire reason
+  // the read route carries a documentId and a page in the first place.
+  const open = documents.find((d) => d.id === documentId) ?? documents[0] ?? null;
   const marks = open === null ? [] : highlightsFor(findings, open.id, open.filename);
 
   if (documents.length === 0) {
@@ -44,10 +50,10 @@ export function Read({ caseId, documentId, page, documents, findings }: {
     <section className="read">
       <nav aria-label="Case documents">
         {documents.map((d) => (
-          <button key={d.id} className="ghost" aria-current={d.id === openId ? "true" : undefined}
-            onClick={() => setOpenId(d.id)}>
+          <a key={d.id} className="ghost" aria-current={d.id === open?.id ? "true" : undefined}
+            href={href({ name: "read", caseId, documentId: d.id })}>
             {d.filename}
-          </button>
+          </a>
         ))}
       </nav>
       {open !== null && (
@@ -70,35 +76,48 @@ function PdfView({ caseId, document: doc, page, highlights }: {
 }): ReactElement {
   const canvas = useRef<HTMLCanvasElement>(null);
   const shown = page ?? 1;
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     let task: { destroy: () => Promise<void> } | undefined;
+    setError(null);
 
     void (async () => {
-      const [{ getDocument, GlobalWorkerOptions }, { default: workerUrl }] = await Promise.all([
-        import("pdfjs-dist"),
-        import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
-      ]);
-      // Bundled from node_modules by Vite, never fetched from a CDN. This app holds
-      // unpublished safety data; a third-party origin in the critical path of
-      // rendering it is not a trade this project makes.
-      GlobalWorkerOptions.workerSrc = workerUrl;
+      try {
+        const [{ getDocument, GlobalWorkerOptions }, { default: workerUrl }] = await Promise.all([
+          import("pdfjs-dist"),
+          import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
+        ]);
+        // Bundled from node_modules by Vite, never fetched from a CDN. This app holds
+        // unpublished safety data; a third-party origin in the critical path of
+        // rendering it is not a trade this project makes.
+        GlobalWorkerOptions.workerSrc = workerUrl;
 
-      if (cancelled) return;
-      const loadingTask = getDocument(`/api/cases/${caseId}/documents/${doc.id}/raw`);
-      task = loadingTask;
-      const pdf = await loadingTask.promise;
-      // Clamp rather than throw: a stale deep link to page 400 of a 288-page review
-      // should land on the last page, not on an error screen.
-      const p = await pdf.getPage(Math.min(Math.max(shown, 1), pdf.numPages));
-      if (cancelled || canvas.current === null) return;
-      const viewport = p.getViewport({ scale: 1.4 });
-      const ctx = canvas.current.getContext("2d");
-      if (ctx === null) return;
-      canvas.current.width = viewport.width;
-      canvas.current.height = viewport.height;
-      await p.render({ canvasContext: ctx, viewport }).promise;
+        if (cancelled) return;
+        const loadingTask = getDocument(`/api/cases/${caseId}/documents/${doc.id}/raw`);
+        task = loadingTask;
+        const pdf = await loadingTask.promise;
+        // Clamp rather than throw: a stale deep link to page 400 of a 288-page review
+        // should land on the last page, not on an error screen.
+        const p = await pdf.getPage(Math.min(Math.max(shown, 1), pdf.numPages));
+        if (cancelled || canvas.current === null) return;
+        const viewport = p.getViewport({ scale: 1.4 });
+        const ctx = canvas.current.getContext("2d");
+        if (ctx === null) return;
+        canvas.current.width = viewport.width;
+        canvas.current.height = viewport.height;
+        await p.render({ canvasContext: ctx, viewport }).promise;
+      } catch (e) {
+        // A load that was cancelled - the effect cleaned up before it settled,
+        // because the document or page changed again, or the screen was left - is
+        // not an error a reader should ever see. Anything else (a wrong-case 404, a
+        // corrupted PDF, the network dropping mid-fetch) IS one: a blank canvas with
+        // no explanation leaves a reviewer unable to tell "nothing here" from
+        // "something broke," with no way to tell which.
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : String(e));
+      }
     })();
 
     return () => { cancelled = true; void task?.destroy(); };
@@ -106,7 +125,13 @@ function PdfView({ caseId, document: doc, page, highlights }: {
 
   return (
     <div className="pdfview">
-      <canvas ref={canvas} aria-label={`${doc.filename} page ${shown}`} />
+      {error === null
+        ? <canvas ref={canvas} aria-label={`${doc.filename} page ${shown}`} />
+        : (
+          <p className="err" role="alert">
+            Could not open {doc.filename}: {error}
+          </p>
+        )}
       <aside aria-label="Findings sourced to this document">
         {highlights.length === 0
           ? <p className="small muted">No finding on this case cites this document.</p>

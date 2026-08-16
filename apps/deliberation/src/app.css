@@ -417,12 +417,17 @@ button.primary {
 }
 button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 button.primary:disabled { background: var(--sunken); border-color: var(--line); color: var(--ink-3); cursor: not-allowed; box-shadow: none; }
-button.ghost {
+button.ghost, a.ghost {
   font: 550 14px/1 var(--sans); padding: 10px var(--s4); background: var(--paper);
   color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-sm); cursor: pointer;
 }
-button.ghost:hover { border-color: var(--accent-line); color: var(--accent); }
+/* a.ghost exists for navigation that is styled like a button - the document strip in
+   read.tsx, for one. Anchors are inline by default and carry an underline; neither is
+   part of the button look the rest of the app already has for this class. */
+a.ghost { display: inline-block; text-decoration: none; }
+button.ghost:hover, a.ghost:hover { border-color: var(--accent-line); color: var(--accent); }
 button.ghost[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-wash); font-weight: 650; }
+a.ghost[aria-current="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-wash); font-weight: 650; }
 button.link {
   background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer;
   font: 550 13.5px/1 var(--sans); text-decoration: underline; text-underline-offset: 3px;
@@ -611,7 +616,7 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  a.card, button.card, button.ghost, button.primary, .nav a { transition: border-color .15s, background .15s, color .15s, box-shadow .15s, transform .15s; }
+  a.card, button.card, button.ghost, a.ghost, button.primary, .nav a { transition: border-color .15s, background .15s, color .15s, box-shadow .15s, transform .15s; }
 }
 @media (prefers-reduced-motion: reduce) {
   a.card:hover, button.card:hover { transform: none; }
