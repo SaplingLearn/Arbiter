@@ -1,5 +1,20 @@
 # ARBITER Phase 2 - the web app
 
+> **SUPERSEDED, 2026-08-09. This designs the predecessor app.**
+>
+> Everything here describes `apps/web` - the seven-tab browser app that runs the
+> engine client-side and ships as one inlined `index.html`. It was built, it works,
+> and it is still the artifact submitted for judging, so it must keep working.
+>
+> **It is not where product work goes.**
+> `2026-08-09-arbiter-ai-redesign-design.md` §3.5 replaces the web application with
+> "a new app, not a conversion": **`apps/deliberation`**, four case stages
+> (Evidence, Your position, Reveal & verdict, Record) against `services/api`.
+>
+> Read this for the reasoning behind decisions `apps/deliberation` inherited - hash
+> routing, the record model, the language discipline. Do not extend the app it
+> designs.
+
 **Date:** 27 July 2026 · **Submission due:** 16 August 2026 · **Data freeze:** 2 August 2026
 
 Companion to `2026-07-26-arbiter-design.md` (the master spec). This document decides what the master spec

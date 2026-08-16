@@ -12,6 +12,7 @@ import { DocumentStore } from "../documents.js";
 import { LibraryStore } from "../library.js";
 import { InviteStore } from "../invites.js";
 import { LoginThrottle } from "../throttle.js";
+import { ModelBudget } from "../spend.js";
 import { seedDemoTeam, DEMO_PASSWORD } from "../seed-demo.js";
 import type { EvidenceChecklist, CoveringFinding } from "../inventory.js";
 import { ADJUDICATOR_PROMPT_PATH, type AdjudicateRequest } from "../adjudicate.js";
@@ -64,6 +65,9 @@ beforeAll(async () => {
     library: new LibraryStore({ cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib-")) }),
     invites: new InviteStore(null),
     throttle: new LoginThrottle(),
+    // Deliberately generous: this suite drives many model-calling routes in one run and
+    // the cap is not what any of these cases are measuring. `spend.test.ts` measures it.
+    budget: new ModelBudget(10_000),
     rules: RULES,
     prompt: PROMPT,
   };
@@ -407,7 +411,20 @@ describe("the roster is on the record", () => {
   });
 });
 
-describe("document upload", () => {
+// TIMEOUT RAISED, and only here. Every other block in this file is an HTTP round trip
+// against an in-process server and comfortably fits the 5s default. Upload does not:
+// the server runs data/prep/measure_pdf.py in a child process on every PDF, so each of
+// these tests pays a Python interpreter start plus a PyMuPDF import.
+//
+// In isolation that costs ~360ms. Under `npm test`, which runs 89 files in parallel,
+// the same call has been measured past 5s purely from CPU contention - and because the
+// measurement is a SYNCHRONOUS execFileSync, a starved child also blocks the server's
+// event loop, which is why the timeout used to take the following test down with it as
+// an ECONNRESET rather than failing alone.
+//
+// 20s is not a guess about how long the work takes; it is enough headroom that the
+// figure being measured is the upload path rather than the machine's load average.
+describe("document upload", { timeout: 20_000 }, () => {
   const upload = async (who: string, filename: string, bytes: Buffer): Promise<{ status: number; body: any }> => {
     const res = await fetch(`${base}/api/cases/c1/documents`, {
       method: "POST",
@@ -461,16 +478,50 @@ describe("document upload", () => {
  * stored document (still attributed to whichever case uploaded it first), which would
  * make it impossible to get a real document id that genuinely belongs to a second case.
  */
+/*
+ * TUNED TO THE REAL GATE, which this branch tightened. The single-page, single-line
+ * version this started as was refused with 422 `not_a_review`, and the refusal was
+ * correct - it was not a review. measure_pdf.py wants, and these values come from
+ * reading it rather than from guessing:
+ *
+ *   MIN_CHARS_PER_PAGE  40    a page under it counts as sparse
+ *   REVIEW_TERMS        toxicolog >= 10, OR nonclinical + non-clinical >= 5
+ *   MIN_TOX_DENSITY     0.25  toxicolog hits per page, when the nonclinical span
+ *                             is shorter than MIN_CHAPTER_PAGES (12)
+ *   liver terms         at least one
+ *
+ * Four pages of dense vocabulary clear all four with room to spare, and clearing them
+ * honestly is the point: these tests now go through the same door a real upload does.
+ */
+const PAGE_LINES = [
+  "Nonclinical toxicology review: toxicology summary of hepatic findings.",
+  "Toxicology assessment, toxicology endpoints, and nonclinical toxicology data.",
+  "Liver: ALT and AST elevations, transaminase changes, hepatic necrosis noted.",
+  "Non-clinical toxicology NOAEL derivation; toxicology margins are stated.",
+];
+const PAGES = 4;
+
 function readablePdfBytes(variant = ""): Buffer {
-  const text = `Toxicology review: nonclinical NOAEL assessment of hepatic findings. ${variant}`.trim();
-  const content = `BT /F1 18 Tf 50 700 Td (${text}) Tj ET`;
-  const objects = [
+  const objects: string[] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 4 0 R >> >> /MediaBox [0 0 612 792] /Contents 5 0 R >>",
+    "", // Pages, filled once the kid ids are known
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    `<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`,
   ];
+
+  const kids: string[] = [];
+  for (let p = 0; p < PAGES; p++) {
+    const lines = [...PAGE_LINES, `Page ${p + 1} of the nonclinical toxicology review. ${variant}`.trim()];
+    const content = `BT /F1 11 Tf 50 720 Td 14 TL ${lines.map((l) => `(${l}) Tj T*`).join(" ")} ET`;
+    const pageId = objects.length + 1;
+    const contentId = pageId + 1;
+    kids.push(`${pageId} 0 R`);
+    objects.push(
+      `<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 3 0 R >> >> /MediaBox [0 0 612 792] /Contents ${contentId} 0 R >>`,
+      `<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`,
+    );
+  }
+  objects[1] = `<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${PAGES} >>`;
+
   let pdf = "%PDF-1.4\n";
   const offsets: number[] = [];
   objects.forEach((obj, i) => {

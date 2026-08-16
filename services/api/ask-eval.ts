@@ -48,6 +48,8 @@ export interface AskItemResult {
   goldPages: number[];
   /** Answerable items only: did the answer state the fact the gold quote carries? */
   statedFact: boolean | null;
+  /** The same question asked of a JUDGE rather than a regex. See `judgeCorrect`. */
+  judged: boolean | null;
   citationPrecision: number | null;
   citationRecall: number | null;
   /** Unanswerable items only: did it correctly decline? */
@@ -63,6 +65,8 @@ export interface AskReport {
   unanswerable: number;
   statedFactRate: number;
   statedFactInterval: [number, number];
+  judgedCorrectRate: number;
+  judgedCorrectInterval: [number, number];
   answeredRate: number;
   meanCitationPrecision: number;
   meanCitationRecall: number;
@@ -88,6 +92,59 @@ export function wilson(successes: number, n: number, z = 1.96): [number, number]
 
 const matchesAll = (answer: string, patterns: string[]): boolean =>
   patterns.every((p) => new RegExp(p, "i").test(answer));
+
+/**
+ * Correctness, judged against the verified quote instead of pattern-matched.
+ *
+ * WHY, MEASURED. `mustContain` is a regular expression drawn from the gold quote, and
+ * across this fixture 34 of 54 patterns are a single WORD - `reversib|recover`, `margin`,
+ * and one used by twelve items that fires on the word `liver`. An answer stating the
+ * opposite of the truth passes them: "the findings were NOT reversible" matches
+ * `reversib`, and "no exposure margin was established" matches `margin`. The metric was
+ * saturated at 100% and could not tell two models apart, which is the tell that it was
+ * measuring vocabulary rather than correctness.
+ *
+ * So the judge is asked the narrow question the regex was standing in for: does the
+ * answer state what the reference quote states? Narrow enough that a human can audit it
+ * by reading the disagreements, which is the only condition under which one model
+ * grading another is admissible.
+ *
+ * BOTH ARE REPORTED. The regex is deterministic, free, and a useful floor; the judge is
+ * the real measurement. Where they disagree, the disagreement is the interesting object
+ * and it is kept per item rather than averaged away.
+ *
+ * SELF-GRADING IS THE CAVEAT and it travels with the number: the same model family
+ * answers and grades.
+ */
+const JUDGE_SYSTEM = [
+  "You check whether an ANSWER states the fact carried by a REFERENCE QUOTE taken verbatim from the source document.",
+  "correct   - the answer states the same fact. Extra correct detail is fine. Different wording is fine.",
+  "incorrect - the answer contradicts the quote, states a different value, or omits the fact the quote carries.",
+  "Judge only the fact in the quote. Do not reward fluency and do not penalise brevity.",
+].join("\n");
+
+const JUDGE_SCHEMA = {
+  type: "object", additionalProperties: false, required: ["call"],
+  properties: { call: { type: "string", enum: ["correct", "incorrect"] } },
+};
+
+export async function judgeCorrect(answer: string, quotes: string[]): Promise<boolean | null> {
+  const judge = completeFromEnv(process.env, "ask");
+  if (judge === null || quotes.length === 0 || answer === "") return null;
+  const user = [
+    "REFERENCE QUOTE(S) from the document:",
+    ...quotes.map((q) => `- "${q}"`),
+    "",
+    `ANSWER:
+${answer}`,
+  ].join("\n");
+  try {
+    const r = await judge(JUDGE_SYSTEM, user, JUDGE_SCHEMA) as { call?: string };
+    return r.call === "correct";
+  } catch {
+    return null;
+  }
+}
 
 export async function scoreOne(item: EvalItem, k = DEFAULT_K): Promise<AskItemResult> {
   const pages = pagesFor(item.document);
@@ -119,6 +176,8 @@ export async function scoreOne(item: EvalItem, k = DEFAULT_K): Promise<AskItemRe
     goldPages: gold,
     statedFact: item.kind === "unanswerable" ? null
       : answerable && matchesAll(answer, item.mustContain ?? []),
+    judged: item.kind === "unanswerable" ? null
+      : await judgeCorrect(answer, item.goldPages.map((g) => g.quote)),
     // Precision over an empty citation list is not zero, it is undefined - there was
     // no claim to be wrong about. Scoring it as zero would punish a correct refusal.
     citationPrecision: item.kind === "unanswerable" || cited.length === 0 ? null : hit.length / cited.length,
@@ -132,6 +191,8 @@ const mean = (xs: number[]): number => (xs.length === 0 ? 0 : xs.reduce((n, x) =
 
 export function summarise(items: AskItemResult[], model: string): AskReport {
   const answerable = items.filter((i) => i.kind === "answerable");
+  /* A judge that could not run is an absence of measurement, not a wrong answer. */
+  const judged = answerable.map((i) => i.judged).filter((v): v is boolean => v !== null);
   const unanswerable = items.filter((i) => i.kind === "unanswerable");
   const stated = answerable.filter((i) => i.statedFact === true).length;
 
@@ -142,6 +203,8 @@ export function summarise(items: AskItemResult[], model: string): AskReport {
     unanswerable: unanswerable.length,
     statedFactRate: answerable.length === 0 ? 0 : stated / answerable.length,
     statedFactInterval: wilson(stated, answerable.length),
+    judgedCorrectRate: judged.length === 0 ? 0 : judged.filter(Boolean).length / judged.length,
+    judgedCorrectInterval: wilson(judged.filter(Boolean).length, judged.length),
     answeredRate: answerable.length === 0 ? 0 : answerable.filter((i) => i.answerable).length / answerable.length,
     meanCitationPrecision: mean(answerable.flatMap((i) => (i.citationPrecision === null ? [] : [i.citationPrecision]))),
     meanCitationRecall: mean(answerable.flatMap((i) => (i.citationRecall === null ? [] : [i.citationRecall]))),
@@ -167,7 +230,8 @@ export function formatAskReport(r: AskReport): string[] {
   const pct = (x: number): string => `${(x * 100).toFixed(1)}%`;
   return [
     `ask - ${r.model} on ${r.provider === "vertex" ? "Vertex AI" : "Anthropic"}, ${r.answerable} answerable + ${r.unanswerable} unanswerable`,
-    `  states the fact      ${pct(r.statedFactRate)}   (95% CI ${pct(r.statedFactInterval[0])}-${pct(r.statedFactInterval[1])})`,
+    `  states the fact      ${pct(r.statedFactRate)}   (95% CI ${pct(r.statedFactInterval[0])}-${pct(r.statedFactInterval[1])})  KEYWORD screen`,
+    `  judged correct       ${pct(r.judgedCorrectRate)}   (95% CI ${pct(r.judgedCorrectInterval[0])}-${pct(r.judgedCorrectInterval[1])})  JUDGE, self-graded`,
     `  answered at all      ${pct(r.answeredRate)}   (the rest said the documents do not say)`,
     `  citation recall      ${pct(r.meanCitationRecall)}   (nominated pages that were cited)`,
     // NOT reported as precision, because it is not precision. The fixture nominates
@@ -263,7 +327,7 @@ if (invokedDirectly) {
       console.log(`ERROR ${e instanceof Error ? e.message : String(e)}`);
       results.push({
         id: item.id, document: item.document, kind: item.kind, question: item.question, answerable: false, answer: "",
-        citedPages: [], goldPages: item.goldPages.map((g) => g.page), statedFact: false,
+        citedPages: [], goldPages: item.goldPages.map((g) => g.page), statedFact: false, judged: null,
         citationPrecision: null, citationRecall: null, refused: null,
         error: e instanceof Error ? e.message : String(e),
       });

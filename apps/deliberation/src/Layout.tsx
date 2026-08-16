@@ -1,91 +1,69 @@
 import type { ReactElement, ReactNode } from "react";
 import { href, type Route } from "./router.js";
-import type { Person } from "./api.js";
+import { SITE_URL } from "./links.js";
+import { Backdrop } from "./shell/Backdrop.js";
+import { CornerReadout, Frame, Header } from "./shell/Chrome.js";
+import type { CaseSummary, Person } from "./api.js";
 
 /**
- * App chrome: a light sticky top bar, a single strong brand mark, and a quiet
- * footer. The one heavy colour in the product is the mark itself, so the palette
- * stays available for the evidence states - red, green and amber mean something
- * specific here and must never be spent on decoration.
+ * The page: a heads-up display over a live scene.
+ *
+ * The chrome itself is in `shell/Chrome.tsx`. This file composes it, and holds the
+ * three pieces of furniture every working screen shares - a page head, a section, and
+ * the case stage strip.
+ *
+ * ONE HEAVY COLOUR, still. Red, green and amber mean something specific on a safety
+ * call and must never be spent on decoration; the accent is light, never a fill. The
+ * palette moved to a dark ground and that discipline did not change.
  */
 
-export function initials(name: string): string {
-  const parts = name.replace(/\(.*?\)/g, "").trim().split(/[\s.]+/).filter((p) => p !== "");
-  const letters = parts.slice(0, 2).map((p) => p[0]!.toUpperCase()).join("");
-  return letters === "" ? "?" : letters;
-}
+export { initials } from "./shell/Chrome.js";
 
-export function Layout({ route, me, onSignOut, children }: {
+export function Layout({ route, me, catalogue, focusKey, onSignOut, children }: {
   route: Route;
   me: Person | null;
+  /** Passed straight through to the backdrop: the Archive draws one body per case. */
+  catalogue: CaseSummary[];
+  /** Also straight through — which case the environment singles out. See `Backdrop`. */
+  focusKey: string | null;
   onSignOut: () => void;
   children: ReactNode;
 }): ReactElement {
-  const nav: { label: string; to: Route }[] = [
-    { label: "Dashboard", to: { name: "dashboard" } },
-    { label: "New case", to: { name: "new" } },
-    { label: "Library", to: { name: "cases" } },
-    // Top-level, not a case tab. The tab strip is a SEQUENCE - 3.5: "the workflow is
-    // the information architecture" - and asking what a document says is not a step in
-    // it. The same question is often asked across cases.
-    { label: "Ask", to: { name: "ask" } },
-    { label: "Method", to: { name: "method" } },
-  ];
-
   return (
-    <div className="page">
-      <header className="topbar">
-        <div className="col">
-          <a className="brand" href={href({ name: "dashboard" })}>
-            <span className="mark" aria-hidden="true"><i /><i /><i /><i /></span>
+    <>
+      {/* THE CANVAS IS A SIBLING OF THE SHELL, NOT A CHILD, and that is load-bearing
+          rather than tidy. Inside the shell it was a positioned element at z-index 0,
+          which CSS paints in the same step as positioned descendants - ABOVE the
+          inline text of everything non-positioned around it. The symptom was very
+          specific and very confusing: every panel rendered perfectly and every bare
+          line of type vanished, because a panel carries backdrop-filter, which makes
+          a stacking context, and a page title carries nothing. Out here the order is
+          the whole argument: canvas at 0, shell at 1. */}
+      <Backdrop route={route} catalogue={catalogue} focusKey={focusKey} />
+
+      <div className="shell">
+      <Frame />
+      <Header route={route} me={me} onSignOut={onSignOut} />
+      {me !== null && <CornerReadout route={route} />}
+
+      <main className="work">
+        <div className="work-col">
+          {children}
+
+          {/* A real footer at the end of the work, not a fixed bar. Fixed, it would
+              cover the last row of a table on a short page; here it arrives when the
+              reading does. */}
+          <footer className="work-foot">
             <span>
-              <b>Arbiter</b>
-              <span>Preclinical safety review</span>
+              Positions are sealed on submission and the record is hash-chained.{" "}
+              <a href={SITE_URL}>What that proves, and what it does not</a>.
             </span>
-          </a>
-
-          {me !== null && (
-            <>
-              <nav className="nav" aria-label="Main">
-                {nav.map((n) => (
-                  <a key={n.label} href={href(n.to)}
-                    {...(route.name === n.to.name ? { "aria-current": "page" as const } : {})}>
-                    {n.label}
-                  </a>
-                ))}
-              </nav>
-              <div className="spacer" />
-              <div className="account">
-                <span className="avatar" aria-hidden="true">{initials(me.displayName)}</span>
-                <span className="small muted" style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {me.displayName}
-                </span>
-                <button className="ghost" onClick={onSignOut}>Sign out</button>
-              </div>
-            </>
-          )}
+            <span>Running locally · no transport encryption</span>
+          </footer>
         </div>
-      </header>
-
-      {/* BLUEPRINT's hatched band, used once: the boundary between the app chrome
-          and the work. On the landing page the device is the rest between major
-          sections, which a working screen has no room for. */}
-      <div className="hatch-band" aria-hidden="true" />
-
-      <main>
-        <div className="col">{children}</div>
       </main>
-
-      <footer className="foot">
-        <div className="col">
-          <span>
-            Positions are sealed on submission and the record is hash-chained.{" "}
-            <a href={href({ name: "method" })}>What that proves, and what it does not</a>.
-          </span>
-          <span>Running locally · no transport encryption</span>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -110,7 +88,7 @@ export function Section({ title, count, children }: {
   title?: string; count?: string; children: ReactNode;
 }): ReactElement {
   return (
-    <section className="section">
+    <section className="section glass">
       {title !== undefined && (
         <header>
           <h2>{title}</h2>
@@ -127,6 +105,11 @@ export function Section({ title, count, children }: {
  * else's call before writing your own is the failure blind submission exists to
  * prevent, so the reveal stage is genuinely unreachable until the case locks
  * rather than merely styled as unavailable.
+ *
+ * STILL A HORIZONTAL STRIP, and not folded into the rail beside it. The rail is
+ * navigation - four places that exist at all times, in no order. This is a sequence
+ * with a gate in it, and the two must not look alike or the gate reads as a broken
+ * link.
  */
 export function Steps({ caseId, route, revealed, answered, of, marks }: {
   caseId: string; route: Route; revealed: boolean; answered?: number; of?: number;

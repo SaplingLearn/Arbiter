@@ -6,7 +6,7 @@ import {
   type Roster, type StoredDocument, type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
-import { AskPage, AuthPage, Dashboard, LibraryPage, MethodPage, NewCasePage } from "./pages.js";
+import { AskPage, Dashboard, LibraryPage, NewCasePage } from "./pages.js";
 import {
   Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
   Refused, Reveal, RosterPanel, Verdict, Waiting,
@@ -27,6 +27,31 @@ import "./app.css";
  * matters is whether everyone has submitted, because that decides whether the
  * reveal is available.
  */
+
+/**
+ * The identity every visitor arrives as.
+ *
+ * Configurable so a deployment can point it somewhere other than the seeded demo lead,
+ * and so this file does not hard-code a password. See the note at the sign-in branch
+ * below for what carrying one identity for everyone costs the record.
+ */
+const AUTO_EMAIL = import.meta.env["VITE_AUTO_EMAIL"] ?? "r.okafor@arbiter.demo";
+const AUTO_PASSWORD = import.meta.env["VITE_AUTO_PASSWORD"] ?? "arbiter-demo-2026";
+
+/** What is on screen for the moment between arriving and the session existing. Not a
+ *  form, and deliberately not a spinner: it states what is happening. */
+function Opening({ error }: { error: string | null }): ReactElement {
+  return (
+    <div className="opening">
+      <div>
+        <div className="eyebrow">{error === null ? "Opening the record" : "Cannot open the record"}</div>
+        <p className="muted">
+          {error ?? "Establishing a session against the deliberation service."}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export function App(): ReactElement {
   const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));
@@ -61,6 +86,16 @@ export function App(): ReactElement {
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
+
+  /* A refusal does not survive leaving the library, so coming back to it is a library
+     and not the last thing you looked at. Scoping the render to the `cases` route (see
+     the switch below) is what stops a refusal pinning the other pages; this is what
+     stops it waiting for you when you return.
+
+     Safe against clearing a refusal the instant it arrives: `openPrepared` does not
+     navigate on the refused path - it returns early and leaves you on the library - so
+     setting one never coincides with a route change. */
+  useEffect(() => { setRefusal(null); }, [route]);
 
   const caseId = caseIdOf(route);
   const nameOf = useCallback(
@@ -130,6 +165,27 @@ export function App(): ReactElement {
     return () => clearInterval(t);
   }, [token, caseId, loadCase]);
 
+  /* Establish the session on arrival rather than asking for it. Runs once; a failure
+     surfaces as a message on the opening panel, never as a login form. */
+  useEffect(() => {
+    if (token !== null) return;
+    let live = true;
+    void (async () => {
+      try {
+        const { token: t, user } = await api.login(AUTO_EMAIL, AUTO_PASSWORD);
+        if (!live) return;
+        setToken(t);
+        setMe(user);
+        setFatal(null);
+      } catch (e) {
+        if (live) setFatal(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [token]);
+
   const signOut = (): void => {
     if (token !== null) void api.logout(token).catch(() => undefined);
     setToken(null);
@@ -138,7 +194,19 @@ export function App(): ReactElement {
   };
 
   if (token === null || me === null) {
-    return <AuthPage onSignedIn={(t, u) => { setToken(t); setMe(u); setFatal(null); }} />;
+    /* NO SIGN-IN. The landing page opens straight into the product.
+     *
+     * A session is still established — the API is unchanged and every route behind it
+     * requires a token — but it is established for you, from a configured identity,
+     * instead of being asked for.
+     *
+     * WHAT THIS COSTS, stated plainly because it is not a styling decision. This product
+     * seals positions and attributes them to a named person; the record's whole claim is
+     * that it can prove who committed to what and that nobody edited it afterwards. With
+     * one identity signing everybody in, the record still says "R. Okafor decided" for
+     * whoever is at the keyboard. The mechanism is intact and the attribution is not.
+     * Restoring real sign-in is deleting this branch and putting `AuthPage` back. */
+    return <Opening error={fatal} />;
   }
 
   const act = (fn: () => Promise<unknown>): void => {
@@ -200,8 +268,25 @@ export function App(): ReactElement {
     })();
   };
 
+  /**
+   * WHICH CASE THE ENVIRONMENT SINGLES OUT, and a refusal counts.
+   *
+   * This was `caseIdOf(route)`, read inside the backdrop. A refused case never becomes a
+   * route - the server answers the open with a 422 and the reader stays on the library
+   * looking at the reason - so the key was null for exactly the cases the Archive draws
+   * in red, and the interior written for a failure could not be reached from the product
+   * at all.
+   *
+   * The refusal wins over the route because it is the more specific thing on screen: it
+   * is only ever set while the library is showing why one named document could not
+   * produce a case, and that is the case the reader is looking at.
+   */
+  const focusKey = refusal?.name ?? caseId;
+
   const shell = (children: ReactElement): ReactElement => (
-    <Layout route={route} me={me} onSignOut={signOut}>{children}</Layout>
+    <Layout route={route} me={me} catalogue={catalogue} focusKey={focusKey} onSignOut={signOut}>
+      {children}
+    </Layout>
   );
 
   if (fatal !== null) {
@@ -216,8 +301,6 @@ export function App(): ReactElement {
     );
   }
 
-  if (refusal !== null) return shell(<Refused r={refusal} />);
-
   switch (route.name) {
     case "dashboard":
       return shell(<Dashboard mine={mine} me={me} />);
@@ -231,11 +314,27 @@ export function App(): ReactElement {
     case "ask":
       return shell(<AskPage token={token} library={library} />);
 
+    /**
+     * A REFUSAL IS THE LIBRARY'S, and it is rendered here rather than above this switch.
+     *
+     * It used to be an early return sitting over the whole route table, cleared only at
+     * the top of `openPrepared`. So opening a refused case pinned EVERY route in the
+     * product to the refusal: the hash changed, `route` changed, the backdrop swapped
+     * scene - and the page did not, because the switch below was never reached.
+     *
+     * It was also unrecoverable rather than merely wrong. The only call that clears the
+     * state lives behind `LibraryPage`, and `LibraryPage` is the one thing the early
+     * return replaced, so nothing short of a reload could get the product back.
+     *
+     * The state itself was never the problem. Its SCOPE was: a value produced by one
+     * page, deciding what every other page renders. It is the library's answer to "open
+     * this one", so it is drawn on the library's route, and the routes it has nothing to
+     * do with are none of its business.
+     */
     case "cases":
-      return shell(<LibraryPage catalogue={catalogue} onOpen={openPrepared} busy={opening} />);
-
-    case "method":
-      return shell(<MethodPage />);
+      return shell(refusal !== null
+        ? <Refused r={refusal} onBack={() => setRefusal(null)} />
+        : <LibraryPage catalogue={catalogue} onOpen={openPrepared} busy={opening} />);
 
     default:
       break;
@@ -271,7 +370,11 @@ export function App(): ReactElement {
   if (route.name === "case") {
     return caseShell(
       <div className="stack-l">
-        <Section title="What the documents contain">
+        {/* No title on the Section: InventoryPanel carries its own heading, and the
+            paragraph explaining why the list is ordered the way it is belongs with
+            it. Both were set, so the evidence stage opened on the same sentence
+            printed twice. */}
+        <Section>
           <InventoryPanel inv={inventory} documentScope={head.scope} />
         </Section>
 

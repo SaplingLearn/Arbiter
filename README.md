@@ -35,7 +35,8 @@ Not Dempster–Shafer fusion in toxicology (precedented - Park, Ogunseitan & Lej
 
 ## How it works
 
-Two pieces in one repo.
+Three pieces in one repo, and it matters which one is current. The engine is kept; the
+deliberation app is the product; the seven-tab web app is its predecessor.
 
 ### 1. A pure reasoning engine (`packages/engine`)
 
@@ -55,6 +56,22 @@ Each rule works twice: as a **defeat rule** in the argumentation graph, and as a
 The ruleset lives in `rules/ruleset-v1.0.json` and is hashed to `ed073a8a7f6d9a46572e6d10016c621f0e31f169bf2b7e9676c485630b5db136`. **The harness refuses to run if the computed hash differs.** That is the whole methodological claim: no rule was tuned after seeing a result.
 
 ### 2. The deliberation client (`apps/deliberation`)
+
+**This is where the work happens, and where new work goes.** Four case stages, in a
+fixed order, because the order is the point:
+
+| Stage | What it is for |
+|---|---|
+| **Evidence** | The compound in front of you: findings, documents, what is absent |
+| **Your position** | Your call, written **before** you can see anyone else's |
+| **Reveal & verdict** | Unreachable until everyone has answered. Then the split, the disagreement analysis, and the AI adjudication |
+| **Record** | Sign-off and the hash-chained audit log |
+
+Blind submission is enforced server-side by not returning the data, not by asking the
+client to hide it - reading someone else's call before writing your own is the exact
+failure the sequence exists to prevent. The decider is an AI adjudicator behind
+`services/api`, disclosing a position on every rule; the engine measures it rather
+than being it. See `docs/superpowers/specs/2026-08-09-arbiter-ai-redesign-design.md`.
 
 A multi-user client for `services/api`, and the product surface. Its point is that **each reviewer answers privately before anyone sees anyone else's answer**, so a room produces independent readings rather than one confident one.
 
@@ -166,7 +183,65 @@ npm run dev                # http://localhost:5173
 
 One command, one origin. The landing page is at `/`, the product at `/deliberation/`, the API at `/api`. `ARBITER_PORT=4173 npm run dev` moves the whole group if something already holds 5173.
 
-The demo team is already seeded - five accounts, whose shared password is printed in `services/api/seed-demo.ts` because the fixture is the secrecy, not the check.
+The demo team is five accounts whose shared password is printed in `services/api/seed-demo.ts`, because the fixture is the secrecy, not the check. A fresh clone has none of them - the account store is gitignored - so create them with `npm run seed:demo`, or set `ARBITER_DEMO_SEED=1` and let the first boot do it. The banner prints the account count either way, so a forgotten demo team is visible rather than silent.
+
+Configuration is read from `.env`, or from `.env.share` if there is no `.env`. The second name exists so a file prepared for somebody else works where it lands: an unread share file and no credentials at all look identical from the outside, and that ambiguity was worth a line of code to remove. The banner names the file it read.
+
+### It runs with no credentials, and says so
+
+There is nothing to obtain and nothing to paste. `cp .env.example .env` if you want to
+configure anything; an empty file, or no file, is a valid configuration.
+
+| | Without credentials |
+|---|---|
+| Cases, positions, blind reveal, unanimity, audit, the hash-chained record | Work. Pure code, no model. |
+| Adjudication | Runs against a stub. Every response carries `source: "stub"`, so it can never be read as a model's answer. |
+| Ask & summary | `503 {"error":"no_key"}`. The only surfaces that genuinely need a model. |
+
+The startup banner names which of the two you are in.
+
+**For live AI, pick one provider.** It is inferred from the model name, so there is no
+second switch to disagree with it:
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-...  ARBITER_MODEL=claude-sonnet-5   # a key, and nothing else
+ARBITER_GCP_PROJECT=your-project                              # Gemini on ADC
+GEMINI_API_KEY=AQ....                                         # Gemini on a key
+```
+
+**On Gemini, choose by who is running it.** Application Default Credentials
+(`gcloud auth application-default login` against your own project) authenticate a
+*person*, so nothing secret belongs in `.env` - and equally, nothing can be handed to a
+teammate. `GEMINI_API_KEY` is the shareable form: one line, sufficient on its own, and
+still a cloud credential that bills the project it belongs to.
+
+A key also picks a **host**, and the two are not interchangeable:
+`ARBITER_GEMINI_HOST=vertex` (the default, `aiplatform.googleapis.com`, the catalogue
+every committed number was measured on) or `=developer`
+(`generativelanguage.googleapis.com`, no project setup, a different and smaller
+catalogue - `gemini-2.5-flash-lite` is a 404 there). The startup banner prints which one
+is in use, so a misconfiguration cannot hide behind the word "Vertex".
+
+One key shared across a team is one budget shared across a team. See
+`ARBITER_MODEL_BUDGET` below.
+
+### Deploying it
+
+The code is deployable; the hosting decision is not made here.
+
+- **`ARBITER_HOST=0.0.0.0`** to accept outside traffic. It is loopback otherwise, because
+  this process terminates no TLS - set it only behind a proxy that does. The banner warns
+  when it is not loopback.
+- **`ARBITER_MODEL_BUDGET`** (default 30 per account per 10 minutes, 6x that per source)
+  caps the four endpoints that cost money. This is what makes them safe to expose: without
+  it, a public deployment is an open proxy to whoever's model quota it holds.
+- **On Google Cloud, attach a service account** rather than shipping a key. The auth
+  library finds it as ADC, so no key material exists on disk, in git, or in an env var.
+  Off Google Cloud, `GOOGLE_APPLICATION_CREDENTIALS_JSON` takes the JSON as a secret.
+- **State is local files** - `results/deliberation-log.jsonl` (the record itself),
+  `results/documents/`, and the account store. On an ephemeral container all three are
+  wiped on redeploy. Fine for a demo; if the record must persist, it needs a volume, and
+  that is the largest single piece of work in deploying this.
 
 ### Verify everything
 
@@ -230,17 +305,29 @@ apps/harness/             Benchmark runner. Node only.
   src/metrics.ts          The five metrics, with their honesty caveats in comments
   src/coverage-report.ts  The working behind the coverage finding
 
-apps/deliberation/        The product. A client for services/api.
-  src/router.ts           The route table. Hash-routed, no router dependency.
+apps/deliberation/        THE PRODUCT. Four stages, real backend, AI decider.
+  src/Layout.tsx          Steps() - the four stages. The order IS the product.
+  src/router.ts           Route union; reveal is gated on the server, not here.
   src/screens.tsx         Position, reveal, verdict, audit - the working screens
   src/pages.tsx           Auth, dashboard, case creation, method
 
+services/api/             The backend. Accounts, cases, adjudication. Node only.
+  server.ts               Routes. /api/auth/* is the only unauthenticated surface.
+  adjudicate.ts           ADJUDICATOR_PROMPT_PATH - the in-force prompt version
+  deliberation.ts         Blind submission + unanimity. Read the contracts.
+  gemini.ts               Vertex AI. Falls back to a labelled stub without creds.
+
 apps/landing/             The public entry page, and the one-origin front door.
   vite.config.ts          server.proxy mounts /deliberation and /api behind it
-  src/ui/InteractiveGrid.tsx  three.js decoration. Guarded - see the comment.
+  src/overture/           The six-chapter WebGL overture. One canvas, six scenes.
+  src/overture/registry.ts  The chapters. Same list the rail renders from.
+  src/shell/              HUD chrome: rail, preloader, menu, cursor, controls.
 
-services/api/             Auth, documents, retrieval, adjudication. Node only.
-  gemini.ts               Vertex AI. Falls back to a labelled stub without creds.
+packages/design/          The design system both frontends dress in.
+
+apps/atmosphere/          Scene R&D. Standalone, not wired into the product.
+  src/core/palette.ts     ALL colour. Deep goes violet, emissive goes cyan.
+  src/core/Atmosphere.ts  Renderer, render targets, the tear between scenes.
 
 tools/dev-all.mjs         `npm run dev`: every surface behind one port
 e2e/                      Playwright. Drives the unified server, not one app.
@@ -248,7 +335,10 @@ e2e/                      Playwright. Drives the unified server, not one app.
 data/prep/*.py            DILIrank ingestion, splits, QSAR/Tox21 streams
 rules/ruleset-v1.0.json   PRE-REGISTERED AND HASHED. Do not edit.
 results/                  metrics.json, golden/, verdict-manifest.json (golden-filed)
-docs/superpowers/         Specs and task-by-task plans
+docs/superpowers/         Specs and task-by-task plans. The 2026-08-09 AI redesign
+                          spec is IN FORCE; every earlier doc carries a banner
+                          saying what superseded it. The plans are all
+                          already executed - history, not a queue.
 ```
 
 ---
@@ -278,8 +368,9 @@ Note that `.superpowers/` is gitignored, so the SDD ledger and per-task review r
 | | |
 |---|---|
 | Endpoint | Hepatotoxicity (DILI) only |
-| Engine | Complete; deterministic; ruleset hash `ed073a8a…` unchanged |
-| Web app | Seven tabs, eight demo beats, two hero cases; ships as one self-contained `index.html` |
+| Engine | Complete; deterministic; ruleset hash `ed073a8a…` unchanged. **Kept as the instrument, no longer the decider** (redesign §2) |
+| Deliberation app | **The product.** Four stages, real accounts, blind submission, AI adjudication behind `services/api` |
+| Web app (`apps/web`) | Predecessor. Seven tabs, eight demo beats, two hero cases; ships as one self-contained `index.html`. Kept working, closed to new surface |
 | Phases | 1 complete · 2 complete · 3 built except Surface 2 (specified, deliberately not built) · multi-case complete |
 | Intake | Custom compounds - validation, advisor, and form built; CSV upload and AI extraction not (HANDOVER §12) |
 | Ablation | Aggregation, prompt and resume built and tested; no live run - needs a key and a provider decision |

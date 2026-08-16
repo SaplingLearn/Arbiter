@@ -1,5 +1,15 @@
 # ARBITER - custom compound intake
 
+> **SUPERSEDED, 2026-08-09. This designs a tab on the predecessor app.**
+>
+> Intake is a surface of `apps/web` - HANDOVER §0 calls it "the most cuttable
+> surface in the app and it is meant to be". Getting a compound into the system is
+> now the service's job: `apps/deliberation` creates cases against `services/api`,
+> with documents uploaded and screened server-side.
+>
+> See `2026-08-09-arbiter-ai-redesign-design.md` §3.5 and §4. Do not extend the tab
+> this designs.
+
 **Date:** 6 August 2026 · **Submission due:** 16 August 2026
 
 Companion to `2026-07-26-arbiter-design.md` (the master spec) and

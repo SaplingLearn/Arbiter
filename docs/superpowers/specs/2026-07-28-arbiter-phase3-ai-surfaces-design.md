@@ -1,5 +1,20 @@
 # ARBITER Phase 3 - the three AI surfaces
 
+> **SUPERSEDED, 2026-08-09. The AI's whole role changed after this was written.**
+>
+> This designs three AI surfaces bolted onto `apps/web`, called from the browser
+> through a five-rung fallback ladder (`apps/web/src/ai/resolve.ts`), with the
+> engine still deciding.
+>
+> The redesign inverts that. **The AI is the decider**, not an assistant to one:
+> `2026-08-09-arbiter-ai-redesign-design.md` §3.3 builds "the backend - the first
+> real one in this project" (`services/api`), and §3.5 puts the interface in a new
+> app, `apps/deliberation`.
+>
+> **The fallback ladder is also now against policy.** A missing credential is a
+> stated failure, not a quiet descent to a worse answer - `services/api` answers
+> 503 and says which provider it wanted. Do not copy the ladder pattern forward.
+
 **Date:** 28 July 2026 · **Submission due:** 16 August 2026 · **Data freeze:** 2 August 2026
 
 Companion to `2026-07-26-arbiter-design.md` (the master spec) and `2026-07-27-arbiter-phase2-web-app-design.md`.

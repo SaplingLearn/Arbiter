@@ -13,7 +13,7 @@ import { prefersReducedMotion } from "../motion/reducedMotion.js";
 const InteractiveGrid = lazy(() =>
   import("../ui/InteractiveGrid.js").then((m) => ({ default: m.InteractiveGrid })),
 );
-import { HANDOVER_URL, REPO_URL } from "../links.js";
+import { APP_URL, HANDOVER_URL, REPO_URL } from "../links.js";
 
 /**
  * The library rows the mockup shows.
@@ -103,8 +103,21 @@ export function Hero({ accent, dither }: { accent: string; dither: boolean }) {
             </div>
           </div>
 
+          {/* THE PRODUCT GOES FIRST. The hero used to offer the handover and the
+              repository and nothing else, so the page's most prominent pair of
+              actions sent a first-time reader to two documents and never to the
+              thing they document. The figure immediately to the right of this row
+              is a picture OF the app drawn in divs - offering a mockup while the
+              running app sat one link away in the header was the gap.
+
+              The other two are kept, not replaced: "Read The Method" is still how
+              someone who wants the argument before the artifact gets it, and
+              landing.test.tsx pins both by name. */}
           <div data-reveal className="cta-row">
-            <Cta href={HANDOVER_URL} variant="primary">
+            <Cta href={APP_URL} variant="primary">
+              Open The App
+            </Cta>
+            <Cta href={HANDOVER_URL} variant="secondary">
               Read The Method
             </Cta>
             <Cta href={REPO_URL} variant="secondary">

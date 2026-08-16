@@ -24,8 +24,7 @@ export type Route =
   | { name: "reveal"; caseId: string }
   | { name: "record"; caseId: string }
   | { name: "read"; caseId: string; documentId?: string; page?: number }
-  | { name: "ask" }
-  | { name: "method" };
+  | { name: "ask" };
 
 export const DEFAULT_ROUTE: Route = { name: "dashboard" };
 
@@ -33,7 +32,6 @@ export function parseHash(hash: string): Route {
   const parts = hash.replace(/^#\/?/, "").split("/").filter((p) => p !== "");
   if (parts.length === 0) return DEFAULT_ROUTE;
 
-  if (parts[0] === "method") return { name: "method" };
   if (parts[0] === "ask") return { name: "ask" };
   if (parts[0] === "new") return { name: "new" };
   if (parts[0] === "library") return { name: "cases" };
@@ -76,7 +74,6 @@ export function href(route: Route): string {
     case "dashboard": return "#/dashboard";
     case "new": return "#/new";
     case "cases": return "#/library";
-    case "method": return "#/method";
     case "case": return `#/case/${encodeURIComponent(route.caseId)}`;
     case "position": return `#/case/${encodeURIComponent(route.caseId)}/position`;
     case "reveal": return `#/case/${encodeURIComponent(route.caseId)}/reveal`;

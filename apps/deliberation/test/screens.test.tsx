@@ -130,14 +130,24 @@ describe("Refused", () => {
   };
 
   it("shows the splitter's own reason and the measurement behind it", () => {
-    render(<Refused r={refusal} />);
+    render(<Refused r={refusal} onBack={() => undefined} />);
     expect(screen.getByText(/needs OCR before anything can read it/)).toBeInTheDocument();
     expect(screen.getByText(/0 extractable characters/)).toBeInTheDocument();
   });
 
   it("says plainly that nothing will build a case anyway", () => {
-    render(<Refused r={refusal} />);
+    render(<Refused r={refusal} onBack={() => undefined} />);
     expect(screen.getByText(/nothing here\s+will quietly build one anyway/)).toBeInTheDocument();
+  });
+
+  it("offers a way back to the list", () => {
+    // This is drawn on the library's OWN route, so the header's Library link is the tab
+    // the reader is already on and clicking it fires no hashchange. Without a control
+    // here the one obvious gesture for going back does nothing.
+    const onBack = vi.fn();
+    render(<Refused r={refusal} onBack={onBack} />);
+    fireEvent.click(screen.getByRole("button", { name: "Back to the library" }));
+    expect(onBack).toHaveBeenCalledOnce();
   });
 });
 

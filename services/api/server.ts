@@ -6,20 +6,24 @@ import { DeliberationService } from "./deliberation-service.js";
 import { FileStore } from "./store.js";
 import type { Position } from "./deliberation.js";
 import type { CoveringFinding, EvidenceChecklist, Modality } from "./inventory.js";
-import { ADJUDICATOR_PROMPT_PATH, handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
+import { ADJUDICATOR_PROMPT_PATH, type AdjudicateRequest } from "./adjudicate.js";
 import { handleAsk } from "./ask.js";
 import { handleSummarise } from "./summarise.js";
 import { buildIndex, search } from "./retrieval.js";
 import { completeFromEnv, providerFor, resolveModel } from "./interpret.js";
+import { geminiEndpointLabel } from "./gemini.js";
 import { stubComplete } from "./probe.js";
+import { adjudicateConsensus, runsFrom } from "./consensus.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
 import { AuthStore, normaliseEmail, type PublicUser } from "./auth.js";
-import { DEMO_TEAM } from "./seed-demo.js";
+import { DEMO_PASSWORD, DEMO_TEAM, seedDemoTeam } from "./seed-demo.js";
 import { DocumentStore, MAX_BYTES } from "./documents.js";
 import { LibraryStore } from "./library.js";
 import { can, denial, type CaseAction } from "./access.js";
 import { InviteStore } from "./invites.js";
 import { LoginThrottle } from "./throttle.js";
+import { ModelBudget, budgetFrom } from "./spend.js";
+import { envFileInUse, loadEnv } from "./env.js";
 
 /**
  * The deliberation API.
@@ -40,7 +44,30 @@ import { LoginThrottle } from "./throttle.js";
  * in the case, are things a correct client does occasionally and a user must see.
  */
 
-const HOST = "127.0.0.1";
+/**
+ * A base for parsing `req.url`, which arrives as a path and needs an origin to become a
+ * `URL`. Nothing is dialled and no header is trusted here - the authority is discarded
+ * the moment the pathname is read. It is NOT the bind address; see `bindHost` below,
+ * which the two used to share as one constant and should not.
+ */
+const PARSE_ORIGIN = "http://localhost";
+
+/**
+ * LOOPBACK BY DEFAULT, AND ONLY BY DEFAULT.
+ *
+ * The bind address was a hardcoded `127.0.0.1`, which made the service impossible to
+ * deploy: it physically could not accept a connection from anywhere else. It stays
+ * loopback unless something says otherwise, because this process terminates no TLS and
+ * binding a plaintext service to every interface is not a thing anyone should get by
+ * accident. So exposure is always something a person typed - `ARBITER_HOST=0.0.0.0`,
+ * behind a proxy that terminates TLS, which is the only arrangement it belongs in.
+ *
+ * Read at startup rather than at import, because `.env` is loaded by the entry point and
+ * a module-level read would happen first and miss it.
+ */
+function bindHost(env: NodeJS.ProcessEnv = process.env): string {
+  return env["ARBITER_HOST"] ?? "127.0.0.1";
+}
 
 export interface ServerDeps {
   service: DeliberationService;
@@ -49,6 +76,8 @@ export interface ServerDeps {
   library: LibraryStore;
   invites: InviteStore;
   throttle: LoginThrottle;
+  /** Caps the endpoints that cost money. See `spend.ts`. */
+  budget: ModelBudget;
   rules: AdjudicateRequest["rules"];
   prompt: { system: string[]; userTemplate: string[] };
   now?: () => number;
@@ -106,9 +135,10 @@ export function makeHandler(deps: ServerDeps) {
   const now = deps.now ?? ((): number => Date.now());
 
   return async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const url = new URL(req.url ?? "/", `http://${HOST}`);
+    const url = new URL(req.url ?? "/", PARSE_ORIGIN);
     const parts = url.pathname.split("/").filter((p) => p !== "");
     const method = req.method ?? "GET";
+    const remote = req.socket.remoteAddress ?? "unknown";
 
     if (parts[0] !== "api") return json(res, 404, { error: "not_found" });
 
@@ -147,6 +177,40 @@ export function makeHandler(deps: ServerDeps) {
       }
       const user = session.value;
 
+      /**
+       * Charge a model call, or refuse it.
+       *
+       * Called at each of the four endpoints that spend money rather than once up here,
+       * because most requests through this handler are free and a budget that counted
+       * them would run out reading a case list. Returns true when the caller has been
+       * answered with a 429 and the endpoint must stop.
+       *
+       * Charged on ADMISSION rather than on success: a call that fails upstream has
+       * still been paid for in latency and usually in tokens. See `spend.ts`.
+       *
+       * But NOT charged when there is no model to call. This cap exists to bound a bill,
+       * and a deployment holding no credentials has no bill - measured by running it:
+       * with a budget of three, the first three Asks were counted and answered 503
+       * `no_key`, and the fourth was refused 429. Rate-limiting a surface that is
+       * unavailable anyway punishes the reader for the deployment's configuration. So
+       * every caller passes `complete` and a null one is free.
+       */
+      const overBudget = (complete: unknown): boolean => {
+        if (complete === null) return false;
+        const wait = deps.budget.retryAfter(user.id, remote, now());
+        if (wait <= 0) {
+          deps.budget.record(user.id, remote, now());
+          return false;
+        }
+        res.setHeader("retry-after", String(Math.ceil(wait / 1000)));
+        json(res, 429, {
+          error: "rate_limited",
+          detail: "This deployment caps how many model calls one account may make. Try again shortly.",
+          retryAfterSeconds: Math.ceil(wait / 1000),
+        });
+        return true;
+      };
+
       if (parts[1] === "cases-catalogue" && method === "GET") return json(res, 200, CATALOGUE);
 
       // Display names for rendering. Ids are what the record stores; a screen full of
@@ -182,10 +246,12 @@ export function makeHandler(deps: ServerDeps) {
         // all - see summarise.ts for why a document-level question cannot be served by
         // a passage-level one.
         if (parts[3] === "summary") {
+          const complete = completeFromEnv(process.env, "summary");
+          if (overBudget(complete)) return;
           const out = await handleSummarise(
             deps.library.textFor(source.name),
             deps.library.filenameFor(source.name),
-            completeFromEnv(process.env, "summary"),
+            complete,
           );
           return json(res, out.status, out.body);
         }
@@ -198,7 +264,9 @@ export function makeHandler(deps: ServerDeps) {
           }]),
           String((body as { question?: unknown }).question ?? ""),
         );
-        const out = await handleAsk(body, passages, completeFromEnv(process.env, "ask"));
+        const complete = completeFromEnv(process.env, "ask");
+        if (overBudget(complete)) return;
+        const out = await handleAsk(body, passages, complete);
         return json(res, out.status, out.body);
       }
 
@@ -475,7 +543,9 @@ export function makeHandler(deps: ServerDeps) {
               pages: deps.documents.textFor(d.id),
             }));
             const passages = search(buildIndex(corpus), String((body as { question?: unknown }).question ?? ""));
-            const out = await handleAsk(body, passages, completeFromEnv(process.env, "ask"));
+            const complete = completeFromEnv(process.env, "ask");
+            if (overBudget(complete)) return;
+            const out = await handleAsk(body, passages, complete);
             return json(res, out.status, out.body);
           }
           case "reveal": {
@@ -491,13 +561,28 @@ export function makeHandler(deps: ServerDeps) {
             // closure to handleAdjudicate, which produces prose, citations and one
             // disclosure per registered rule.
             const live = completeFromEnv(process.env, "adjudication");
-            const out = await handleAdjudicate(request, live ?? stubComplete(request), deps.prompt);
+            // The stub is free, so it is not charged. `live` is null exactly when the
+            // answer will be stubbed and labelled `source: "stub"`.
+            if (overBudget(live)) return;
+
+            /* ADJUDICATED MORE THAN ONCE, because it is not deterministic. Measured:
+               turalio's package returned do_not_advance three times and cannot_conclude
+               twice on byte-identical input at temperature 0. A single call there is a
+               coin, and it returns the same confident prose whichever way it lands.
+               The stub is deterministic by construction, so it runs once - three
+               identical stub answers would report a unanimity that means nothing. */
+            const runs = live === null ? 1 : runsFrom(process.env);
+            const { response: out, consensus } = await adjudicateConsensus(
+              request, live ?? stubComplete(request), deps.prompt, runs);
             if (out.status !== 200) return json(res, out.status, out.body);
             const r = deps.service.adjudicate(caseId, out.body, (body as { at: string }).at, live === null ? "stub" : "model");
-            // `source` travels with the adjudication so a stub can never be read as
-            // a result downstream, the same discipline probe.ts applies.
+            /* `source` travels with the adjudication so a stub can never be read as
+               a result downstream, the same discipline probe.ts applies - and
+               `consensus` travels with it for the same reason. A 2-of-3 verdict and a
+               3-of-3 verdict are different objects and the reader of a safety record is
+               exactly who should be told which one they have. */
             return r.ok
-              ? json(res, 200, { adjudication: out.body, source: live === null ? "stub" : "live" })
+              ? json(res, 200, { adjudication: out.body, source: live === null ? "stub" : "live", consensus })
               : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
           }
           case "sign": {
@@ -681,6 +766,7 @@ export function buildDeps(logPath: string): ServerDeps {
     library: new LibraryStore(),
     invites: new InviteStore(`${logPath}.invites.json`),
     throttle: new LoginThrottle(),
+    budget: new ModelBudget(budgetFrom(process.env)),
     rules: probe.rules,
     prompt,
   };
@@ -699,8 +785,33 @@ const invokedDirectly = process.argv[1] !== undefined
   && resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1]);
 
 if (invokedDirectly) {
+  // Before anything reads configuration. A missing .env is not an error - every value
+  // has a working default and the product runs with none of them set.
+  loadEnv();
+  const envFile = envFileInUse();
+  const HOST = bindHost();
   const port = Number(process.env["PORT"] ?? 8787);
   const deps = buildDeps("results/deliberation-log.jsonl");
+
+  /**
+   * Seed the demonstration team on boot, when asked to and only into an EMPTY store.
+   *
+   * `npm run seed:demo` still exists and does the same thing. This exists because a
+   * shared configuration file is handed to someone who has not read the README, and a
+   * product that boots to a sign-in screen with no accounts looks broken rather than
+   * unseeded. The variable lives in the shared file, so opting in is something the
+   * person distributing it did deliberately.
+   *
+   * TWO GUARDS, because this creates real accounts with a published password. It runs
+   * only when the variable is set, and only when there are no accounts at all - so it
+   * can never add a demo team beside real users, and never resurrects one that was
+   * deliberately deleted while the flag was off.
+   */
+  if ((process.env["ARBITER_DEMO_SEED"] ?? "") === "1" && deps.auth.list().length === 0) {
+    const report = seedDemoTeam(deps.auth, Date.now());
+    console.log(`Seeded ${String(report.created.length)} demonstration accounts (ARBITER_DEMO_SEED=1). Shared password: ${DEMO_PASSWORD}`);
+    console.log("Real accounts on the real authentication path. Delete results/deliberation-log.jsonl.users.json before this holds anything that matters.");
+  }
   createServer((req, res) => { void makeHandler(deps)(req, res); }).listen(port, HOST, () => {
     console.log(`ARBITER deliberation API on http://${HOST}:${port}`);
     const adjudicationModel = resolveModel("adjudication");
@@ -710,12 +821,21 @@ if (invokedDirectly) {
     // measured. A model name alone made the reader infer it.
     const named = (kind: Parameters<typeof resolveModel>[0]): string => {
       const model = resolveModel(kind);
-      return `${model} (${providerFor(model) === "vertex" ? "Vertex AI" : "Anthropic"})`;
+      // The Gemini side names its ENDPOINT, not just the provider: an API key can send
+      // a `gemini-` model to either Vertex or the Developer API, and those serve
+      // different catalogues, so "Vertex AI" alone would be a guess dressed as a fact.
+      return `${model} (${providerFor(model) === "vertex" ? geminiEndpointLabel(process.env) : "Anthropic"})`;
     };
     console.log(`Adjudication: ${completeFromEnv(process.env, "adjudication") === null ? `STUB (no credentials for ${adjudicationModel}) - responses are labelled source:stub` : `LIVE ${named("adjudication")}`}`);
     console.log(`Ask & summary: ${named("ask")}`);
     console.log(`Short calls:  ${named("short")}`);
-    console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token; there is no TLS here, which is why this binds to loopback only.`);
-    if (deps.auth.list().length === 0) console.log("No accounts yet. Run `npm run seed:demo` to create the demonstration team.");
+    // Which file the configuration came from. A shared `.env.share` that was never
+    // renamed used to be indistinguishable from no configuration at all.
+    console.log(`Config: ${envFile ?? "no .env or .env.share found - defaults only"}`);
+    console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token.`);
+    console.log(HOST === "127.0.0.1"
+      ? "Bound to loopback. This process terminates no TLS; set ARBITER_HOST only behind a proxy that does."
+      : `WARNING: bound to ${HOST}, not loopback. This process terminates no TLS - it must sit behind a proxy that does. Model calls are capped at ${budgetFrom(process.env)} per account per 10 minutes.`);
+    if (deps.auth.list().length === 0) console.log("No accounts yet. Run `npm run seed:demo`, or set ARBITER_DEMO_SEED=1, to create the demonstration team.");
   });
 }

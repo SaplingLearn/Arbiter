@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 /**
  * This app is the PUBLIC ENTRY for the whole product, and the only surface a
@@ -12,11 +13,21 @@ import react from "@vitejs/plugin-react";
  * Port 5175 is the STANDALONE port, for `npm run landing:dev` when you want this
  * page on its own. Under `npm run dev` (tools/dev-all.mjs) the same app is started
  * on the public port instead, with the flag overriding this value.
+ *
+ * TAILWIND IS v4, so there is no `tailwind.config.js` and no PostCSS entry to look for.
+ * v4 configures itself from CSS — the tokens live in an `@theme` block in `shell.css`
+ * — and the Vite plugin below is the whole build integration. Anyone arriving from a v3
+ * project will go looking for a config file that is deliberately not there.
  */
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     port: 5175,
+    // Bound to the IPv4 loopback explicitly. Left to itself Vite binds ::1 only, and
+    // both Playwright and Chrome resolve 127.0.0.1 first — the failure looks like a
+    // dead server while curl on `localhost` happily succeeds. `apps/atmosphere` hit
+    // this first and carries the same pin for the same reason.
+    host: "127.0.0.1",
     /**
      * `npm run dev` (tools/dev-all.mjs) runs this app as the single public entry
      * and mounts every other surface behind it, so the whole product is one

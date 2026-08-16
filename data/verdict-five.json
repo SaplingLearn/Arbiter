@@ -1,0 +1,516 @@
+{
+  "_note": "The five things the verdict surface claims to do, one fixture. Derived from the README's own definition rather than from what happened to be measurable: ARBITER 'takes the conflicting evidence for a compound and produces a POSITION - advance, do not advance, or abstain - together with THE ARGUMENT THAT LED THERE, THE EVIDENCE THAT WOULD CHANGE IT, and a hash-chained audit log'. Each case is annotated for all five, so one adjudication scores every metric and the run costs one call per case.",
+  "_whatEachCaseCarries": {
+    "expectVerdict": "1. THE POSITION. advance / do_not_advance / cannot_conclude.",
+    "decidingRule": "2. RESOLVES THE CONFLICT - the differentiator. Which registered rule settles this case, and what ruleDisclosure should say about it. `applies` means the rule fired and decided; `does_not_apply` means it was correctly set aside; `cannot_determine` means the evidence cannot tell. Null where no single rule decides.",
+    "mustNotRestOn": "3. THE ARGUMENT HOLDS UP. Consequence-half dimensions that are ABSENT here, so a severity call resting on one is unsupported. consequenceBasis is enum-constrained against these, but the check is kept because the guarantee is worth verifying rather than assuming.",
+    "expectMissing": "4. NAMES WHAT WOULD CHANGE IT - the absent dimensions the reader needs told about. Scored as recall: naming all of them is the job, naming extras is not an error.",
+    "expectExperiment": "4. Also the planner. true where a next experiment should be proposed, because something is missing that evidence could settle; false where the case is complete and nothing further is needed to reach this position."
+  },
+  "_groundTruth": "Every expectation follows from the registered ruleset applied to the findings, and each case names its reason under `why` so a reader can disagree with the label rather than take it on trust. No case asks the model to be a toxicologist about a real compound.",
+  "rules": [
+    {
+      "id": "R1",
+      "name": "Human relevance",
+      "statement": "Human-cell evidence defeats animal in vivo evidence when the question is human hepatotoxicity.",
+      "enabled": true,
+      "strength": 0.9
+    },
+    {
+      "id": "R2",
+      "name": "Exposure relevance",
+      "statement": "A finding at an exposure far above the projected human Cmax carries less weight than one at or near it.",
+      "enabled": true,
+      "strength": 0.8
+    },
+    {
+      "id": "R3",
+      "name": "Reversibility",
+      "statement": "Damage that reverses on withdrawal is weaker evidence of a safety concern than damage that persists.",
+      "enabled": true,
+      "strength": 0.7
+    }
+  ],
+  "cases": [
+    {
+      "id": "conflict-human-beats-animal",
+      "why": "The differentiator case. Animal in vivo says safe, human cell says toxic, both live and both good quality. R1 exists precisely to settle this, so it must fire and be disclosed as applying.",
+      "expectVerdict": "do_not_advance",
+      "decidingRule": {
+        "ruleId": "R1",
+        "position": "applies"
+      },
+      "mustNotRestOn": [],
+      "expectMissing": [],
+      "expectExperiment": false,
+      "compoundLabel": "Compound A (oncology)",
+      "context": "Chronic daily dosing in otherwise healthy adults. Deciding whether to advance toward first-in-human.",
+      "findings": [
+        {
+          "id": "A:invivo_rodent",
+          "label": "invivo_rodent (rat)",
+          "assertion": "safe",
+          "detail": "stream invivo_rodent; system rat; 28-day repeat dose; no hepatotoxicity at 3x projected human Cmax; measures a key event; Klimisch 1; stated confidence 0.85"
+        },
+        {
+          "id": "A:human_hep",
+          "label": "human_hepatocyte (human)",
+          "assertion": "toxic",
+          "detail": "stream human_hepatocyte; system human primary hepatocytes; measures a key event; TOXIC at 1.0x projected clinical Cmax; within the model's stated applicability domain; Klimisch 1; stated confidence 0.9"
+        },
+        {
+          "id": "A:margin",
+          "label": "exposure_margin (human)",
+          "assertion": "toxic",
+          "detail": "stream exposure_margin; projected human Cmax established; the human finding sits at 1.0x that value; Klimisch 1; stated confidence 0.9"
+        },
+        {
+          "id": "A:reversibility",
+          "label": "recovery (rat)",
+          "assertion": "toxic",
+          "detail": "stream recovery; changes did NOT reverse over a 28-day recovery period; Klimisch 1; stated confidence 0.85"
+        }
+      ],
+      "present": [
+        {
+          "field": "Human-cell hepatotoxicity result",
+          "half": "mechanism"
+        },
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Projected human daily dose",
+          "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "half": "consequence"
+        },
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        },
+        {
+          "field": "Intended dosing duration",
+          "half": "consequence"
+        }
+      ],
+      "absent": []
+    },
+    {
+      "id": "conflict-exposure-defuses-it",
+      "why": "The same shape of conflict, settled the other way. The toxic finding sits at 60x clinical exposure and reversed, so R2 and R3 both discount it and R1 has no live human finding to prefer. R1 should be disclosed as NOT applying - correctly set aside, not silently ignored.",
+      "expectVerdict": "advance",
+      "decidingRule": {
+        "ruleId": "R2",
+        "position": "applies"
+      },
+      "mustNotRestOn": [],
+      "expectMissing": [],
+      "expectExperiment": false,
+      "compoundLabel": "Compound B (respiratory)",
+      "context": "Chronic daily dosing in otherwise healthy adults. Deciding whether to advance toward first-in-human.",
+      "findings": [
+        {
+          "id": "B:invivo_rodent",
+          "label": "invivo_rodent (rat)",
+          "assertion": "toxic",
+          "detail": "stream invivo_rodent; system rat; transaminase elevation at 60x projected human Cmax; fully reversed within 14 days of withdrawal; measures a key event; Klimisch 1; stated confidence 0.85"
+        },
+        {
+          "id": "B:human_hep",
+          "label": "human_hepatocyte (human)",
+          "assertion": "safe",
+          "detail": "stream human_hepatocyte; system human primary hepatocytes; no key event at 20x projected clinical Cmax; within the model's stated applicability domain; Klimisch 1; stated confidence 0.9"
+        },
+        {
+          "id": "B:margin",
+          "label": "exposure_margin (human)",
+          "assertion": "safe",
+          "detail": "stream exposure_margin; projected human Cmax established; NOAEL 60x that value; Klimisch 1; stated confidence 0.9"
+        },
+        {
+          "id": "B:reversibility",
+          "label": "recovery (rat)",
+          "assertion": "safe",
+          "detail": "stream recovery; fully reversed within 14 days of withdrawal; Klimisch 1; stated confidence 0.85"
+        }
+      ],
+      "present": [
+        {
+          "field": "Human-cell hepatotoxicity result",
+          "half": "mechanism"
+        },
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Projected human daily dose",
+          "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        },
+        {
+          "field": "Intended dosing duration",
+          "half": "consequence"
+        }
+      ],
+      "absent": []
+    },
+    {
+      "id": "conflict-unresolvable",
+      "why": "CORRECTED 2026-08-16. Labelled R1 cannot_determine. That was wrong: R1 says human evidence defeats ANIMAL IN VIVO evidence, and this case has two human findings and no animal finding at all - so R1 has nothing to resolve and does not apply. The abstention comes from the tie between two equal human findings, not from R1 being undecidable.",
+      "expectVerdict": "cannot_conclude",
+      "decidingRule": {
+        "ruleId": "R1",
+        "position": "does_not_apply"
+      },
+      "mustNotRestOn": [],
+      "expectMissing": [],
+      "expectExperiment": true,
+      "compoundLabel": "Compound C (immunology)",
+      "context": "Chronic dosing. Two independent laboratories, contradictory results.",
+      "findings": [
+        {
+          "id": "C:lab_a",
+          "label": "human_hepatocyte (human, lab A)",
+          "assertion": "toxic",
+          "detail": "stream human_hepatocyte; system human primary hepatocytes; measures a key event; TOXIC at 1.0x projected clinical Cmax; within the model's stated applicability domain; Klimisch 1; stated confidence 0.9"
+        },
+        {
+          "id": "C:lab_b",
+          "label": "human_hepatocyte (human, lab B)",
+          "assertion": "safe",
+          "detail": "stream human_hepatocyte; system human primary hepatocytes; NO key event at 1.0x projected clinical Cmax; within the model's stated applicability domain; Klimisch 1; stated confidence 0.9"
+        },
+        {
+          "id": "C:margin",
+          "label": "exposure_margin (human)",
+          "assertion": "ambiguous",
+          "detail": "stream exposure_margin; projected human Cmax established; both findings sit at 1.0x that value; Klimisch 1; stated confidence 0.9"
+        }
+      ],
+      "present": [
+        {
+          "field": "Human-cell hepatotoxicity result",
+          "half": "mechanism"
+        },
+        {
+          "field": "Projected human daily dose",
+          "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Intended dosing duration",
+          "half": "consequence"
+        }
+      ],
+      "absent": []
+    },
+    {
+      "id": "gap-no-margin",
+      "why": "Findings assert safe, but nothing relates the tested concentrations to clinical exposure. 'Safe at a concentration nobody has related to human exposure' is not evidence of safety. Two absent dimensions must be NAMED, and an experiment proposed, because the gap is one somebody could go and close.",
+      "expectVerdict": "cannot_conclude",
+      "decidingRule": {
+        "ruleId": "R2",
+        "position": "cannot_determine"
+      },
+      "mustNotRestOn": [
+        "Projected human daily dose",
+        "Exposure margin: tested concentration or NOAEL against projected human Cmax"
+      ],
+      "expectMissing": [
+        "Projected human daily dose",
+        "Exposure margin: tested concentration or NOAEL against projected human Cmax"
+      ],
+      "expectExperiment": true,
+      "compoundLabel": "Compound D (neurology)",
+      "context": "Chronic daily dosing in otherwise healthy adults. Exposure work outstanding.",
+      "findings": [
+        {
+          "id": "D:invivo_rodent",
+          "label": "invivo_rodent (rat)",
+          "assertion": "safe",
+          "detail": "stream invivo_rodent; system rat; no hepatotoxicity observed; exposure relevance UNSTATED; measures a key event; Klimisch 1; stated confidence 0.85"
+        },
+        {
+          "id": "D:cytotox",
+          "label": "cytotoxicity (human)",
+          "assertion": "safe",
+          "detail": "stream cytotox; system HepG2; no key event; exposure relevance UNSTATED; within the model's stated applicability domain; Klimisch 2; stated confidence 0.7"
+        }
+      ],
+      "present": [
+        {
+          "field": "Human-cell hepatotoxicity result",
+          "half": "mechanism"
+        },
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Intended dosing duration",
+          "half": "consequence"
+        }
+      ],
+      "absent": [
+        {
+          "field": "Projected human daily dose",
+          "whatItBlocks": "No severity call can be scaled without it."
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "whatItBlocks": "Nothing relates the tested concentrations to clinical exposure."
+        }
+      ]
+    },
+    {
+      "id": "gap-reversibility-unknown",
+      "why": "CORRECTED 2026-08-16. Labelled cannot_conclude on the reasoning that R3 cannot be applied. That was wrong: dose, margin and injury pattern are all PRESENT, so a severity call is supportable, and unknown reversibility could only have MITIGATED it - absence of a mitigating study is not absence of evidence. The adjudicator said do_not_advance with R3 cannot_determine, which is the correct pair. Recorded rather than quietly changed.",
+      "expectVerdict": "do_not_advance",
+      "decidingRule": {
+        "ruleId": "R3",
+        "position": "cannot_determine"
+      },
+      "mustNotRestOn": [
+        "Reversibility on withdrawal"
+      ],
+      "expectMissing": [
+        "Reversibility on withdrawal"
+      ],
+      "expectExperiment": true,
+      "compoundLabel": "Compound E (antiviral)",
+      "context": "Chronic dosing indication. No recovery arm was run.",
+      "findings": [
+        {
+          "id": "E:invivo_nonrodent",
+          "label": "invivo_nonrodent (dog)",
+          "assertion": "toxic",
+          "detail": "stream invivo_nonrodent; system dog; single-cell hepatocellular necrosis at 1.2x projected human Cmax; measures a key event; NO recovery arm was included in the study; Klimisch 1; stated confidence 0.9"
+        },
+        {
+          "id": "E:margin",
+          "label": "exposure_margin (human)",
+          "assertion": "toxic",
+          "detail": "stream exposure_margin; projected human Cmax established; the finding sits at 1.2x that value; Klimisch 1; stated confidence 0.9"
+        }
+      ],
+      "present": [
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Projected human daily dose",
+          "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "half": "consequence"
+        },
+        {
+          "field": "Intended dosing duration",
+          "half": "consequence"
+        }
+      ],
+      "absent": [
+        {
+          "field": "Reversibility on withdrawal",
+          "whatItBlocks": "R3 turns on whether the damage persists, and no recovery arm was run."
+        }
+      ]
+    },
+    {
+      "id": "gap-consequence-half-empty",
+      "why": "A mechanism signal and nothing on the consequence half at all. True by construction: there is no evidence a severity call could rest on, so any committed verdict is unsupported whichever way it points. Three dimensions to name.",
+      "expectVerdict": "cannot_conclude",
+      "decidingRule": null,
+      "mustNotRestOn": [
+        "Projected human daily dose",
+        "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+        "Injury pattern: hepatocellular, cholestatic or mixed"
+      ],
+      "expectMissing": [
+        "Projected human daily dose",
+        "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+        "Injury pattern: hepatocellular, cholestatic or mixed"
+      ],
+      "expectExperiment": true,
+      "compoundLabel": "Compound F (oncology)",
+      "context": "Early package. Consequence-half studies not yet run.",
+      "findings": [
+        {
+          "id": "F:alert",
+          "label": "structural alert (in silico)",
+          "assertion": "toxic",
+          "detail": "stream in_silico; structural alert for reactive metabolite formation; measures no key event; exposure relevance unstated; applicability domain UNKNOWN; stated confidence 0.5"
+        }
+      ],
+      "present": [
+        {
+          "field": "Structural alert or QSAR assessment, with applicability domain stated",
+          "half": "mechanism"
+        }
+      ],
+      "absent": [
+        {
+          "field": "Projected human daily dose",
+          "whatItBlocks": "No severity call can be scaled without it."
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "whatItBlocks": "Every finding's relevance to clinical exposure is unknown."
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "whatItBlocks": "The consequence half is empty."
+        }
+      ]
+    },
+    {
+      "id": "clean-complete-package",
+      "why": "Everything measured, everything clean, an established margin and a recovery arm. Nothing in the ruleset turns this into a concern, nothing is missing, and no further experiment is needed to reach this position. The case that checks the system can say yes.",
+      "expectVerdict": "advance",
+      "decidingRule": {
+        "ruleId": "R1",
+        "position": "does_not_apply"
+      },
+      "mustNotRestOn": [],
+      "expectMissing": [],
+      "expectExperiment": false,
+      "compoundLabel": "Compound G (metabolic)",
+      "context": "Chronic daily dosing in otherwise healthy adults. Complete nonclinical package.",
+      "findings": [
+        {
+          "id": "G:invivo_rodent",
+          "label": "invivo_rodent (rat)",
+          "assertion": "safe",
+          "detail": "stream invivo_rodent; system rat; 90-day repeat dose; no hepatotoxicity at 25x projected human Cmax; measures a key event; Klimisch 1; stated confidence 0.9"
+        },
+        {
+          "id": "G:invivo_nonrodent",
+          "label": "invivo_nonrodent (dog)",
+          "assertion": "safe",
+          "detail": "stream invivo_nonrodent; system dog; 90-day repeat dose; no hepatotoxicity at 18x projected human Cmax; measures a key event; Klimisch 1; stated confidence 0.9"
+        },
+        {
+          "id": "G:human_hep",
+          "label": "human_hepatocyte (human)",
+          "assertion": "safe",
+          "detail": "stream human_hepatocyte; system human primary hepatocytes; no key event at 30x projected clinical Cmax; within the model's stated applicability domain; Klimisch 1; stated confidence 0.88"
+        },
+        {
+          "id": "G:margin",
+          "label": "exposure_margin (human)",
+          "assertion": "safe",
+          "detail": "stream exposure_margin; projected human Cmax established; NOAEL 25x that value; Klimisch 1; stated confidence 0.9"
+        },
+        {
+          "id": "G:reversibility",
+          "label": "recovery (rat)",
+          "assertion": "safe",
+          "detail": "stream recovery; no findings to reverse; recovery arm clean; Klimisch 1; stated confidence 0.9"
+        }
+      ],
+      "present": [
+        {
+          "field": "Human-cell hepatotoxicity result",
+          "half": "mechanism"
+        },
+        {
+          "field": "Repeat-dose in vivo liver findings",
+          "half": "mechanism"
+        },
+        {
+          "field": "Projected human daily dose",
+          "half": "consequence"
+        },
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "half": "consequence"
+        },
+        {
+          "field": "Reversibility on withdrawal",
+          "half": "consequence"
+        },
+        {
+          "field": "Intended dosing duration",
+          "half": "consequence"
+        }
+      ],
+      "absent": []
+    },
+    {
+      "id": "out-of-domain-prediction",
+      "why": "The only findings come from a QSAR explicitly outside its own stated applicability domain. A prediction the tool disclaims cannot carry a verdict, and the disclaimer is the thing a hurried reader misses. Two consequence dimensions absent as well.",
+      "expectVerdict": "cannot_conclude",
+      "decidingRule": null,
+      "mustNotRestOn": [
+        "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+        "Injury pattern: hepatocellular, cholestatic or mixed"
+      ],
+      "expectMissing": [
+        "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+        "Injury pattern: hepatocellular, cholestatic or mixed"
+      ],
+      "expectExperiment": true,
+      "compoundLabel": "Compound H (dermatology)",
+      "context": "Chronic topical dosing. QSAR-only package.",
+      "findings": [
+        {
+          "id": "H:qsar",
+          "label": "qsar (in silico)",
+          "assertion": "toxic",
+          "detail": "stream qsar; measures no key event; exposure relevance unstated; OUTSIDE the model's stated applicability domain; stated confidence 0.4"
+        },
+        {
+          "id": "H:qsar2",
+          "label": "qsar_secondary (in silico)",
+          "assertion": "toxic",
+          "detail": "stream qsar; measures no key event; exposure relevance unstated; OUTSIDE the model's stated applicability domain; stated confidence 0.35"
+        }
+      ],
+      "present": [
+        {
+          "field": "Structural alert or QSAR assessment, with applicability domain stated",
+          "half": "mechanism"
+        },
+        {
+          "field": "Intended dosing duration",
+          "half": "consequence"
+        }
+      ],
+      "absent": [
+        {
+          "field": "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+          "whatItBlocks": "No measured exposure anywhere in the package."
+        },
+        {
+          "field": "Injury pattern: hepatocellular, cholestatic or mixed",
+          "whatItBlocks": "No observed injury to characterise."
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { isCaseName, refusalFor } from "./cases.js";
+import { lastJsonObject } from "./documents.js";
 import { stripBoilerplate } from "./pages.js";
 
 /**
@@ -161,7 +162,11 @@ export class LibraryStore {
         encoding: "utf8",
         maxBuffer: 64 * 1024 * 1024,
       });
-      const parsed = JSON.parse(out) as { ok: boolean; pages?: { page: number; text: string }[]; reason?: string };
+      // See `lastJsonObject`. A library document is extracted once and cached, so a
+      // banner on stdout would have poisoned the cache with an empty page list and every
+      // later Ask over it would answer "nothing matches" from a file full of text.
+      const parsed = lastJsonObject(out) as { ok: boolean; pages?: { page: number; text: string }[]; reason?: string } | null;
+      if (parsed === null) throw new Error("the extractor printed no JSON");
       if (!parsed.ok) console.error(`library: ${name} could not be extracted - ${parsed.reason ?? "no reason given"}`);
       // Furniture removed once, here, so every reader downstream is spared it: the
       // retriever, the passages a question is answered from, and the whole document a

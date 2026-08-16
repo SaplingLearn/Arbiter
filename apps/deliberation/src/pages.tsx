@@ -4,11 +4,15 @@ import { href } from "./router.js";
 import { api, ApiError, uploadDocument, type AskAnswer, type CaseListing, type CaseSummary, type LibrarySource, type Person } from "./api.js";
 
 /**
- * The composition pages: authentication, the dashboard, case creation, and the
- * method explainer. The working screens - inventory, position form, reveal,
- * verdict, audit, documents - stay in screens.tsx, where they carry behaviour and
- * tests. Moving them for the sake of a folder layout would churn a passing suite
- * for nothing.
+ * The composition pages: authentication, the dashboard, case creation, the library
+ * and ask. The working screens - inventory, position form, reveal, verdict, audit,
+ * documents - stay in screens.tsx, where they carry behaviour and tests. Moving them
+ * for the sake of a folder layout would churn a passing suite for nothing.
+ *
+ * THE METHOD PAGE USED TO BE HERE. It explained what the record proves and what it
+ * does not; the landing page now makes that argument at length and in the same
+ * palette, so the product links out to it rather than keeping a second copy that
+ * would have to be corrected twice.
  */
 
 /** ---------------------------------------------------------- authentication */
@@ -196,10 +200,7 @@ export function Dashboard({ mine, me }: { mine: CaseListing[]; me: Person }): Re
         eyebrow="Dashboard"
         title={`Good to see you, ${firstName}`}
         lede="Cases you are named on, ordered by what they need from you."
-        actions={<a className="primary" href={href({ name: "new" })}
-          style={{ textDecoration: "none", display: "inline-block", padding: "12px 24px", borderRadius: 6, background: "var(--accent)", color: "#fff", fontWeight: 650, fontSize: 14.5 }}>
-          New case
-        </a>}
+        actions={<a className="cta" href={href({ name: "new" })}>New case</a>}
       />
 
       <div className="tiles" style={{ marginBottom: 32 }}>
@@ -331,89 +332,96 @@ export function NewCasePage({ token, people, onCreated }: {
         lede="Name the compound, the people who will answer, and the study documents. You can add more evidence afterwards."
       />
 
-      <form onSubmit={(e) => { void submit(e); }} style={{ maxWidth: 720 }}>
-        <div className="panel">
-          <div className="field">
-            <label htmlFor="compound">Compound</label>
-            <input id="compound" type="text" required value={compoundLabel}
-              onChange={(e) => setLabel(e.target.value)} placeholder="TAK-994, or your internal code" />
-          </div>
+      <form onSubmit={(e) => { void submit(e); }}>
+        {/* NOT STACKED. Opening a case is one decision made of three independent parts -
+            what the compound is, who answers, and what they read - and none of them is a
+            step that waits on the one above it. The first two share the top row and the
+            documents panel runs full width beneath; `.case-open` in app.css carries the
+            track sizing and the single breakpoint where the pair unstacks. */}
+        <div className="case-open">
+          <div className="panel">
+            <div className="field">
+              <label htmlFor="compound">Compound</label>
+              <input id="compound" type="text" required value={compoundLabel}
+                onChange={(e) => setLabel(e.target.value)} placeholder="TAK-994, or your internal code" />
+            </div>
 
-          <div className="field">
-            <label htmlFor="context">The decision in front of you</label>
-            <textarea id="context" value={context} onChange={(e) => setContext(e.target.value)}
-              placeholder="Indication, how long patients take it, and what you are deciding. For example: chronic daily dosing in otherwise healthy adults; whether to advance toward first-in-human." />
-            <span className="hint">
-              Everyone reads this before answering. Dosing duration and how sick the
-              patients are decide what counts as an acceptable signal, so say them.
-            </span>
-          </div>
+            <div className="field">
+              <label htmlFor="context">The decision in front of you</label>
+              <textarea id="context" value={context} onChange={(e) => setContext(e.target.value)}
+                placeholder="Indication, how long patients take it, and what you are deciding. For example: chronic daily dosing in otherwise healthy adults; whether to advance toward first-in-human." />
+              <span className="hint">
+                Everyone reads this before answering. Dosing duration and how sick the
+                patients are decide what counts as an acceptable signal, so say them.
+              </span>
+            </div>
 
-          <div className="field">
-            <label>Modality</label>
-            <span className="hint" style={{ marginTop: 0 }}>
-              Four of the twelve questions do not apply to an antibody - it has no
-              reactive metabolite and no structure a QSAR model can score - so this
-              decides which questions get asked at all.
-            </span>
-            <div className="choice">
-              <button type="button" className="ghost" aria-pressed={modality === "small_molecule"}
-                onClick={() => setModality("small_molecule")}>Small molecule</button>
-              <button type="button" className="ghost" aria-pressed={modality === "biologic"}
-                onClick={() => setModality("biologic")}>Biologic</button>
+            <div className="field">
+              <label>Modality</label>
+              <span className="hint" style={{ marginTop: 0 }}>
+                Four of the twelve questions do not apply to an antibody - it has no
+                reactive metabolite and no structure a QSAR model can score - so this
+                decides which questions get asked at all.
+              </span>
+              <div className="choice">
+                <button type="button" className="ghost" aria-pressed={modality === "small_molecule"}
+                  onClick={() => setModality("small_molecule")}>Small molecule</button>
+                <button type="button" className="ghost" aria-pressed={modality === "biologic"}
+                  onClick={() => setModality("biologic")}>Biologic</button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="panel" style={{ marginTop: 24 }}>
-          <div>
-            <h3>Who answers</h3>
-            <p className="hint">
-              They need an account already. Nobody can see anyone else's answer until
-              all of them are in - including you.
-            </p>
-          </div>
+          <div className="panel">
+            <div>
+              <h3>Who answers</h3>
+              <p className="hint">
+                They need an account already. Nobody can see anyone else's answer until
+                all of them are in - including you.
+              </p>
+            </div>
 
-          {people.length === 0
-            ? <p className="small muted">No other accounts yet. Ask a colleague to register first.</p>
-            : people.map((p) => (
-              <div className="cite" key={p.id}>
-                <input type="checkbox" id={`p-${p.id}`} checked={selected.includes(p.email)}
-                  onChange={() => toggle(p.email)} />
-                <label htmlFor={`p-${p.id}`}>
-                  <strong>{p.displayName}</strong>
-                  <div className="tiny muted mono">{p.email}</div>
-                </label>
-              </div>
-            ))}
-        </div>
-
-        {/* Documents, uploaded once the case exists - see `submit`. Optional here
-            because a case can be opened before the package arrives, and forcing a PDF
-            at this step would push people to open the case elsewhere and never come
-            back. */}
-        <div className="panel" style={{ marginTop: 24 }}>
-          <div className="field">
-            <label htmlFor="new-docs">Study documents (PDF)</label>
-            <input id="new-docs" type="file" accept="application/pdf,.pdf" multiple disabled={busy}
-              onChange={(e) => setFiles([...(e.target.files ?? [])])} />
-            <span className="hint">
-              Every document is measured before it is accepted. A scanned file with no
-              extractable text is refused rather than stored as though it were readable.
-              You can add more later.
-            </span>
-          </div>
-          {files.length > 0 && (
-            <div className="inv">
-              {files.map((f) => (
-                <div className="inv-row" key={f.name}>
-                  <div className="state present">{Math.round(f.size / 1024 / 1024 * 10) / 10} MB</div>
-                  <div className="tiny mono">{f.name}</div>
+            {people.length === 0
+              ? <p className="small muted">No other accounts yet. Ask a colleague to register first.</p>
+              : people.map((p) => (
+                <div className="cite" key={p.id}>
+                  <input type="checkbox" id={`p-${p.id}`} checked={selected.includes(p.email)}
+                    onChange={() => toggle(p.email)} />
+                  <label htmlFor={`p-${p.id}`}>
+                    <strong>{p.displayName}</strong>
+                    <div className="tiny muted mono">{p.email}</div>
+                  </label>
                 </div>
               ))}
+          </div>
+
+          {/* Documents, uploaded once the case exists - see `submit`. Optional here
+              because a case can be opened before the package arrives, and forcing a PDF
+              at this step would push people to open the case elsewhere and never come
+              back. */}
+          <div className="panel case-docs">
+            <div className="field">
+              <label htmlFor="new-docs">Study documents (PDF)</label>
+              <input id="new-docs" type="file" accept="application/pdf,.pdf" multiple disabled={busy}
+                onChange={(e) => setFiles([...(e.target.files ?? [])])} />
+              <span className="hint">
+                Every document is measured before it is accepted. A scanned file with no
+                extractable text is refused rather than stored as though it were readable.
+                You can add more later.
+              </span>
             </div>
-          )}
-          {uploading !== null && <div className="note">Uploading and measuring {uploading}…</div>}
+            {files.length > 0 && (
+              <div className="inv">
+                {files.map((f) => (
+                  <div className="inv-row" key={f.name}>
+                    <div className="state present">{Math.round(f.size / 1024 / 1024 * 10) / 10} MB</div>
+                    <div className="tiny mono">{f.name}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {uploading !== null && <div className="note">Uploading and measuring {uploading}…</div>}
+          </div>
         </div>
 
         <div className="btn-row">
@@ -484,80 +492,6 @@ export function LibraryPage({ catalogue, onOpen, busy }: {
     </>
   );
 }
-
-/** ---------------------------------------------------------------- method */
-export function MethodPage(): ReactElement {
-  return (
-    <>
-      <PageHead eyebrow="How this works" title="Method"
-        lede="What the product does, what the record proves, and what is not built yet." />
-
-      <div className="stack-l">
-        <Section title="The evidence comes before any opinion">
-          <p>
-            Everyone reads the same neutral account of the documents before anyone
-            states a position. It is ordered by checklist identifier and by nothing
-            else - ranking gaps by severity would push the room before it has spoken.
-          </p>
-          <p>
-            A finding covers a question only when it <em>declares</em> that it does.
-            Nothing is inferred from a plausible-looking label, because guessing fails
-            silently in the dangerous direction: a question wrongly marked answered
-            never appears on the missing-evidence list again.
-          </p>
-        </Section>
-
-        <Section title="Blind submission, and how it is enforced">
-          <p>
-            While a case is open the server returns your own position and, for everyone
-            else, one bit: submitted or not. Not their call, not their reasoning, not a
-            running tally - a tally drags a room as hard as the positions themselves.
-            It is enforced by not sending the data, never by a screen choosing not to
-            render it.
-          </p>
-          <div className="note">
-            <strong>What the record proves.</strong> Every position is hashed when you
-            submit, and only that hash enters the log while the case is open. At reveal
-            the published answer must match it, so it can be proved that no position was
-            edited after sealing.
-            <p style={{ marginTop: 10 }}>
-              <strong>What it does not prove.</strong> That the server never read one
-              early. No server-side scheme can, because the server holds the text in
-              order to hand it to the adjudicator. Claiming otherwise would be the more
-              dangerous error.
-            </p>
-          </div>
-        </Section>
-
-        <Section title="Two questions, never one">
-          <p>
-            <em>Is there a route by which this compound injures the liver?</em> and{" "}
-            <em>is it severe enough to stop the programme?</em> are answered separately.
-            Collapsing them is a measured defect, not a theoretical one: an earlier
-            fixed-rule version flagged five compounds that are approved and widely
-            prescribed, because a mechanism finding alone was allowed to produce
-            “do not advance”.
-          </p>
-        </Section>
-
-        <Section title="What is not built yet">
-          <div className="scroll">
-            <table>
-              <thead><tr><th style={{ width: "34%" }}>Part</th><th>Status</th></tr></thead>
-              <tbody>
-                <tr><td>Blind deliberation, sealing, audit</td><td>Working. No model is involved in any of it.</td></tr>
-                <tr><td>Accounts, access control, document upload</td><td>Working. Running locally, with no transport encryption.</td></tr>
-                <tr><td>Reading findings out of a PDF automatically</td><td><b>Not built.</b> Findings are entered by hand, each with its source page. When extraction lands it will pre-fill exactly that form for a human to approve.</td></tr>
-                <tr><td>The adjudication itself</td><td><b>Unmeasured.</b> Without an API key it runs against a fixed stub, and every stub answer is labelled as one.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </Section>
-      </div>
-    </>
-  );
-}
-
 
 /** ------------------------------------------------------------------- ask */
 /**

@@ -14,10 +14,11 @@ const retrieval: EvalReport = {
 const ask: AskReport = {
   model: "gemini-3.5-flash", provider: "vertex", answerable: 53, unanswerable: 2,
   statedFactRate: 0.9, statedFactInterval: [0.79, 0.96], answeredRate: 1,
+  judgedCorrectRate: 0.85, judgedCorrectInterval: [0.73, 0.92],
   meanCitationPrecision: 0.4, meanCitationRecall: 0.7, refusalRate: 1, errors: 0,
   items: [{
     id: "a", document: "turalio", kind: "answerable", question: "q", answerable: true,
-    answer: "x", citedPages: [1], goldPages: [1], statedFact: true,
+    answer: "x", citedPages: [1], goldPages: [1], statedFact: true, judged: null,
     citationPrecision: 1, citationRecall: 1, refused: null,
   }],
 };

@@ -1,5 +1,17 @@
 # ARBITER - the clinical Cmax exposure axis (R3)
 
+> **STILL RELEVANT, but read it with the 2026-08-09 redesign.**
+>
+> The rules are **kept**: §2 of `2026-08-09-arbiter-ai-redesign-design.md` retains
+> R1-R6 as required disclosure because "they were never the defect. Being the *sole
+> decider* over six data fields was."
+>
+> Two things changed underneath this document. The rules no longer decide by
+> themselves - the adjudicator in `services/api` does, and discloses a position per
+> rule. And the rulebook now grows and versions (§5) rather than being six fixed
+> rules, so a new evidence axis lands as a versioned ruleset entry rather than as
+> another rule wired into `apps/web`. `rules/ruleset-v1.0.json` is never edited.
+
 **Date:** 6 August 2026 · **Submission due:** 16 August 2026 · **Data freeze:** 2 August 2026 (passed)
 
 Companion to `2026-07-26-arbiter-design.md` (the master spec, §5 R3 and §8 the honest results

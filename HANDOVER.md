@@ -19,6 +19,17 @@ This document is for whoever picks the repo up next. It says what exists, what t
 result actually is, what is left, and which things you must not touch. Read §0 through
 §3 before writing any code.
 
+**Branch handoffs — the current work, which this audit does not cover.** This file is
+the historical record and is only updated at merge; anything still in flight lives in a
+handoff of its own, and until now nothing pointed at them. Read the one for the branch
+you are on before §0:
+
+| Branch | Handoff | Subject |
+|---|---|---|
+| `feat/product-in-the-atmosphere` (PR #22) | `docs/HANDOFF-evaluation.md` | What is measured, where the corpus lives, the one eval still to run, and the four times a metric looked broken and the measurement was the broken thing. |
+| `feat/product-in-the-atmosphere` (PR #22) | `docs/HANDOFF-reading-and-atmosphere.md` | Read & mark, the SECTION scene, the unbuilt launcher, and the dev-server preflight in PR #24. |
+| `feat/atmosphere-backgrounds` (PR #21) | `docs/design/HANDOFF-atmosphere.md` | The original five WebGL environments. Partly superseded — it predates Read, Section and the palette re-fit. |
+
 ---
 
 ## 0. Sixty-second orientation
@@ -38,11 +49,28 @@ defensible **decision** - advance, do not advance, or abstain - with the argumen
 led there, the evidence that would change it, and a hash-chained audit log of who
 signed off.
 
+> **WHICH APP IS THE PRODUCT - read this before the list below.** There are now two
+> web applications, and the newer one is the product. **`apps/deliberation`** is the
+> redesign: four case stages - Evidence, Your position, Reveal & verdict, Record
+> (`src/Layout.tsx`) - against a real backend (`services/api`) with an AI adjudicator.
+> The redesign spec calls it "a new app, not a conversion" (§3.5), which is exactly
+> what it is: **`apps/web` was not converted and was not deleted.**
+>
+> `apps/web` is the predecessor, and it is still real: it is the self-contained
+> `index.html` artifact submitted for judging, and §6.1 and §14 below still govern it.
+> Keep it working. **Do not add product surface to it, and do not treat the plans that
+> built it as work still to do** - see the banner on each.
+>
+> The list below was written on 2026-07-28, before `apps/deliberation` existed, and is
+> left unedited for the same reason §2 is.
+
 It is two things in one repo:
 
 - **A pure reasoning engine** (`packages/engine`) - Dempster–Shafer belief fusion plus
   defeasible argumentation over six pre-registered rules R1–R6. No clock, no
-  randomness, no I/O. Deterministic to a single hash across 1000 runs.
+  randomness, no I/O. Deterministic to a single hash across 1000 runs. **The redesign
+  keeps this** - §2 of the redesign spec demotes it from the decider to the instrument
+  that measures the decider, which is the one component the audit did not fault.
 - **A multi-user deliberation client** (`apps/deliberation`) backed by
   `services/api`, in which each reviewer records a position **before** anyone sees
   anyone else's, then the room reveals, adjudicates and signs a hash-chained audit
@@ -947,7 +975,20 @@ apps/harness/             Benchmark runner. Node only.
   src/metrics.ts          The five metrics, with their honesty caveats in comments
   src/coverage-report.ts  The working behind §2 (npm run coverage:report)
 
-apps/web/                 Seven-tab app. Engine runs in the BROWSER.
+apps/deliberation/        THE PRODUCT. Four case stages, real backend, AI decider.
+  src/Layout.tsx          Steps() - the four stages, in order. The order IS the product.
+  src/router.ts           Route union. Hash routing; reveal is gated server-side.
+  vite.config.ts          Port 5174 + the /api proxy. NOT apps/web's config.
+
+services/api/             The backend. The first real one in this project.
+  server.ts               Routes. /api/auth/* is the only unauthenticated surface.
+  adjudicate.ts           ADJUDICATOR_PROMPT_PATH - the in-force prompt version
+  deliberation.ts         Blind submission + unanimity. Read the contract comments.
+  seed-demo.ts            The demo team. Published password, deliberately.
+
+apps/landing/             Marketing page. Links into apps/deliberation via APP_URL.
+
+apps/web/                 PREDECESSOR, still submitted. Engine runs in the BROWSER.
   src/router.ts           TAB_IDS - the tab list's source of truth
   src/intake/             Custom-compound validation + the reachability advisor
   src/tabs/Intake.tsx     The intake form. Cuttable; see §0.
@@ -958,8 +999,14 @@ apps/web/                 Seven-tab app. Engine runs in the BROWSER.
 data/prep/*.py            DILIrank ingestion, splits, QSAR/Tox21 streams
 rules/ruleset-v1.0.json   PRE-REGISTERED AND HASHED. Do not edit.
 results/                  metrics.json, golden/, verdict-manifest.json (golden-filed)
-docs/superpowers/specs/   2026-07-26-arbiter-design.md is the master spec
-docs/superpowers/plans/   Task-by-task plans with every code block synced to source
+docs/superpowers/specs/   2026-08-09-arbiter-ai-redesign-design.md is IN FORCE.
+                          2026-07-26-arbiter-design.md is the master spec it
+                          partly supersedes. Every pre-redesign doc now carries a
+                          banner saying which it is; read that before the body.
+docs/superpowers/plans/   Task-by-task plans, ALL ALREADY EXECUTED. Each opens with
+                          "implement this plan task-by-task" - that instruction is
+                          spent, and re-running the apps/web ones rebuilds the
+                          superseded design. History, not a queue.
 ```
 
 ### What you will look for and not find

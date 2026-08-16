@@ -15,7 +15,12 @@ test("the landing page renders at the root", async ({ page }) => {
   await page.goto("/");
 
   await expect(page).toHaveTitle(/ARBITER/i);
-  await expect(page.getByRole("link", { name: "Arbiter", exact: true })).toBeVisible();
+  /* The wordmark's accessible name is "Arbiter, back to top" - it carries what the
+     link DOES as well as what it says, which is right for a logo that is also a
+     navigation control. `exact: true` on "Arbiter" was written against the header
+     this one replaced. Anchored at the start rather than pinned to the whole string,
+     so rewording the purpose half does not fail a test about the page rendering. */
+  await expect(page.getByRole("link", { name: /^Arbiter\b/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /open the app/i }).first()).toBeVisible();
 });
 
@@ -47,11 +52,25 @@ test("the landing page survives a browser with no WebGL", async ({ page }) => {
   await expect(page.getByRole("contentinfo")).toBeVisible();
 });
 
+/**
+ * THE SIGN-IN BUTTON THIS USED TO ASSERT NO LONGER EXISTS, and it was not moved or
+ * renamed - it was deliberately removed. `App.tsx` says so where the branch is taken:
+ * "NO SIGN-IN. The landing page opens straight into the product." A test guarding a
+ * feature the product argued its way out of keeps failing until somebody deletes it,
+ * and teaches whoever reads it that the feature should be there.
+ *
+ * The nav is the honest replacement for what this test is actually named for. It is
+ * rendered by the product shell and only after a session exists, so it proves the app
+ * is served behind this origin AND that it got far enough to be usable - which the
+ * sign-in button proved back when the app opened on a form. Asserting the landmark
+ * rather than any tab label, because the tabs are product surface and change; the
+ * arrangement this file guards does not.
+ */
 test("the product is mounted behind the same origin", async ({ page }) => {
   await page.goto("/deliberation/");
 
   await expect(page).toHaveTitle(/deliberation/i);
-  await expect(page.getByRole("button", { name: "Sign in", exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
 });
 
 /**

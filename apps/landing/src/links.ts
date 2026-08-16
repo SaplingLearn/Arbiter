@@ -34,3 +34,26 @@ export const RULESET_URL = `${REPO}/blob/main/rules/ruleset-v1.0.json`;
 export const ENGINE_URL = `${REPO}/tree/main/packages/engine`;
 export const DELIBERATION_URL = `${REPO}/tree/main/apps/deliberation`;
 export const HARNESS_URL = `${REPO}/tree/main/apps/harness`;
+
+/**
+ * Should this destination open in a new tab?
+ *
+ * NOT `href.startsWith("http")`, which is the obvious test and is wrong here for one
+ * specific reason: `APP_URL` is configurable, and a deployment can still point it at
+ * an absolute URL. Under the naive test the product — the single thing this page
+ * exists to send people to — would get `target="_blank"` in that arrangement and stay
+ * in the same tab in the default one, so the most important link on the site behaves
+ * differently depending on how it was configured. It also meant LOGIN opened a popup,
+ * which is how this was found: the popup pointed at a dev server bound to IPv6 only
+ * and the click read as doing nothing at all.
+ *
+ * The same-origin `/deliberation/` default now makes that misfire rare rather than
+ * routine, but the rule is unchanged and still worth stating: the product is never
+ * external, whatever shape its URL takes. Everything else that leaves this origin is.
+ */
+export function externalAttrs(
+  href: string,
+): { target: "_blank"; rel: "noreferrer" } | Record<string, never> {
+  const leavesTheSite = href.startsWith("http") && href !== APP_URL;
+  return leavesTheSite ? { target: "_blank", rel: "noreferrer" } : {};
+}

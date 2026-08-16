@@ -1,168 +1,165 @@
-/* ============================================================================
-   ARBITER - BLUEPRINT
-   ----------------------------------------------------------------------------
-   One design system across all three surfaces: the landing page (apps/landing),
-   the evidence artifact (apps/web) and this deliberation client. Engineering
-   drawing / technical spec sheet - Swiss-minimal, flat, precise. No shadows, no
-   gradients, no rounded cards, no decorative colour, one electric blue.
+@import "@arbiter/design/tokens.css";
 
-   TYPE. Inter Tight for display and body, IBM Plex Mono for every utility label,
-   both loaded in index.html. This client is a CLIENT FOR A SERVICE: without the
-   API there is nothing to show, so a webfont request is not the liability it is in
-   apps/web, which is opened from the filesystem and must make zero requests. That
-   app runs BLUEPRINT on system faces for exactly that reason, and it is the only
-   difference between the two.
+/* ==========================================================================
+   THE PRODUCT, IN THE DESIGN SYSTEM'S PALETTE.
 
-   COLOUR. Red and green are spoken for by the evidence states, so the accent stays
-   the one blue and never competes with them. There is no amber: BLUEPRINT has no
-   third hue, and "inconclusive" is the ABSENCE of a finding rather than a warning,
-   so it reads neutral. Nothing meaningful is carried by colour alone - every state
-   also carries its word.
+   The app is dark now, unconditionally, because the site it is reached from is.
+   A reader who clicks LOGIN on a near-black landing page and lands on a
+   near-white product has crossed a seam, and no amount of matched typography
+   hides it — the two surfaces have to be the same object.
 
    THE TOKEN NAMES ARE UNCHANGED and only their values are remapped. app.css,
-   pages.tsx and screens.tsx reference them in well over a hundred places;
-   remapping values rethemes the product without touching a selector, which is the
-   difference between a change that can be reviewed and one that cannot.
+   pages.tsx and screens.tsx name them in well over a hundred places; remapping
+   values rethemes the entire product without touching a selector, which is the
+   difference between a change that can be reviewed and one that cannot. This
+   file already proved the point once — it carried a whole dark palette behind a
+   media query, built the same way.
+
+   THE LIGHT/DARK FORK IS GONE. Three copies of the same token list (root, media
+   query, data-theme) had to be kept in step by hand, and the design system this
+   now draws from ships one palette. Fewer places to disagree.
+
+   RED AND GREEN STILL MEAN SOMETHING. They are the verdict semantics — stop and
+   advance on a safety call — and they are the only hues on the surface that are
+   not in the blue wedge. Lifted for a dark ground, not re-hued.
    ========================================================================== */
 
 :root {
-  /* surfaces */
-  --app: #F2F2EF;
-  --paper: #FFFFFF;
-  --sunken: #ECECE9;
-  --brand-deep: #0E0E0E;
+  /* surfaces — the system's ground, then two steps above it.
 
-  /* ink */
-  --ink: #0E0E0E;
-  --ink-2: #5B5B60;
-  --ink-3: #74747B;
-  --on-brand: #FFFFFF;
+     PAPER AND SUNKEN ARE TRANSLUCENT NOW, and that one change rethemes every
+     surface in the product at once: the two tokens are named in a hundred-odd
+     places and not one of those selectors had to move. The file's header makes
+     this argument already - remapping values is a change that can be reviewed,
+     and rewriting a hundred rules is not.
 
-  /* lines. BLUEPRINT has ONE hairline weight: cells share a single 1px border, so
-     --line-soft is the same value rather than a lighter second tier. */
-  --line: #DEDEDA;
-  --line-soft: #DEDEDA;
+     They have to be translucent because a WebGL scene is drawing behind the
+     page. An opaque #070E1F card over a living field is a hole cut in the
+     environment, and a screen full of them is the old flat product with a
+     picture behind it rather than a product standing inside one.
 
-  /* accent */
-  --accent: #2B2BF0;
-  --accent-hover: #2222D6;
-  --accent-wash: #E6E8FC;
-  --accent-line: #C3C8F6;
+     DARK AND TRANSLUCENT, NOT LIGHT AND TRANSLUCENT. The first attempt washed
+     paper with white at 5%, which looks right over an empty black field and
+     fails completely over the library's Archive scene - lit panels behind a
+     lightening plate leave body copy sitting on a bright ground at about 2:1.
+     The ink here is near-white, so contrast has to come from taking light OUT
+     of the ground. The panel darkens what is behind it and keeps its lit edge
+     from the sheen gradient and the hairline, which is what glass actually does
+     in a dark room.
+
+     0.50, DOWN FROM 0.72. At 0.72 the scene behind a card was a mood - you could
+     tell something was moving back there and not what it was. Half alpha lets the
+     colony resolve into the object it actually is, which is the only reason to
+     have put the product inside a scene. The contrast that alpha used to buy is
+     bought by the type instead; see the text-shadow rule under the glass section. */
+  --app: #020a18;
+  --paper: rgba(6, 12, 28, 0.50);
+  --sunken: rgba(2, 6, 20, 0.50);
+  --brand-deep: #070e1f;
+
+  /* ink. ink-2 carries most of the body copy on a card, so it was the token the
+     scene was beating. Lifted from 0.62; ink-3 is for furniture that is allowed
+     to recede and stays where it was. */
+  --ink: #d5e0ff;
+  --ink-2: rgba(213, 224, 255, 0.76);
+  --ink-3: rgba(213, 224, 255, 0.46);
+  --on-brand: #020a18;
+
+  /* lines. One hairline weight, as before. */
+  --line: rgba(213, 224, 255, 0.15);
+  --line-soft: rgba(213, 224, 255, 0.15);
+
+  /* accent — the system's electric blue through cyan */
+  --accent: #4fc3ff;
+  --accent-hover: #8ad8ff;
+  --accent-wash: rgba(30, 111, 255, 0.16);
+  --accent-line: rgba(79, 195, 255, 0.38);
 
   /* semantics */
-  --stop: #E5484D;   --stop-wash: #FCEFEF;   --stop-line: #F2C9CA;
-  --go: #1CA64C;     --go-wash: #EDF7F0;     --go-line: #BFE3CC;
-  --open: #74747B;   --open-wash: #ECECE9;   --open-line: #DEDEDA;
+  --stop: #ff8a8e;  --stop-wash: rgba(255, 138, 142, 0.1);  --stop-line: rgba(255, 138, 142, 0.32);
+  --go: #55c97f;    --go-wash: rgba(85, 201, 127, 0.1);     --go-line: rgba(85, 201, 127, 0.3);
+  --open: rgba(213, 224, 255, 0.55);
+  --open-wash: rgba(213, 224, 255, 0.06);
+  --open-line: rgba(213, 224, 255, 0.15);
 
-  /* Reviewer seats. Orange, amber, olive, teal, violet, magenta - chosen to miss
-     every hue that already carries meaning here (--stop red, --go green,
-     --accent indigo, --open grey), because a reviewer rendered in --go would read
-     as a call rather than as a person. Six, not eight: four reserved hues do not
-     leave eight slots that stay separable in BOTH themes, and a palette whose last
-     two entries are near-neighbours of its first two breaks the only property
-     seats have. A seventh participant renders .seat-none. */
-  --seat-0: #C2410C;  --seat-0-wash: #FDEEE5;  --seat-0-line: #F3CDB6;
-  --seat-1: #A16207;  --seat-1-wash: #FBF3E0;  --seat-1-line: #E9D6A4;
-  --seat-2: #4D7C0F;  --seat-2-wash: #F0F5E4;  --seat-2-line: #CFE0AC;
-  --seat-3: #0F766E;  --seat-3-wash: #E4F2F0;  --seat-3-line: #AFD8D2;
-  --seat-4: #7E22CE;  --seat-4-wash: #F3E9FB;  --seat-4-line: #DCC3F2;
-  --seat-5: #BE185D;  --seat-5-wash: #FCE8F0;  --seat-5-line: #F2BFD4;
+  /* Reviewer seats — the colour a person's marks and badge wear, everywhere they
+     appear. Six, not eight: the hues that already carry meaning here are spoken
+     for, and what is left does not hold eight slots that stay apart. A reviewer
+     rendered in --go would read as a call rather than as a person, so the palette
+     misses it and every other reserved hue. A seventh participant renders
+     .seat-none rather than repeating a colour, because distinctness inside one
+     case is the only property a seat has.
 
-  /* Elevation, which BLUEPRINT does not have. Kept as tokens because ~15 rules
-     name them; --e1 disappears, and the two that separate something genuinely
-     floating become a hard 1px ring rather than a soft shadow. A ring is a rule,
-     which is on-system; a blur is not. */
-  --e1: none;
-  --e2: 0 0 0 1px var(--line);
-  --e3: 0 0 0 1px var(--ink);
+     INSIDE THE BLUE WEDGE, which is this branch's rule and not main's. These
+     arrived from main as six distinct hues - orange, amber, olive, teal, violet,
+     magenta - picked when the only reserved colours were red, green, indigo and
+     grey. That is not the rule here. This file's own header states it: red and
+     green "are the only hues on the surface that are not in the blue wedge",
+     because they carry verdict meaning. Six more non-blue hues would make the
+     seat palette a second, larger exception than the one the design system
+     actually grants, so the seats separate by LIGHTNESS along the wedge instead
+     of by hue.
 
-  --display: "Inter Tight", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+     WHAT THAT COSTS, stated rather than buried: lightness alone does not hold six
+     values as far apart as six hues did. Seats 3-5 are close, and at badge size a
+     reader will not reliably tell them apart by colour. The other two identity
+     channels carry the weight instead - initials, and the seat order every list
+     sorts by - which §3.3 already requires to be sufficient without colour. A room
+     of three or four reads cleanly; six leans on the initials.
+
+     Widening back to distinct hues is a design-system decision, not this feature's
+     to take. If the wedge is relaxed for identity the way it already is for
+     verdicts, the six-hue set is in git history at 2fe8303.
+
+     None of these is --accent (#4fc3ff), --accent-hover (#8ad8ff) or --ink
+     (#d5e0ff): a seat wearing the system-highlight colour would read as evidence
+     rather than as a person. */
+  --seat-0: #2B4FD8;  --seat-0-wash: rgba(43, 79, 216, 0.18);   --seat-0-line: rgba(43, 79, 216, 0.46);
+  --seat-1: #4A72E8;  --seat-1-wash: rgba(74, 114, 232, 0.16);  --seat-1-line: rgba(74, 114, 232, 0.42);
+  --seat-2: #6E93F0;  --seat-2-wash: rgba(110, 147, 240, 0.15); --seat-2-line: rgba(110, 147, 240, 0.40);
+  --seat-3: #93B2F5;  --seat-3-wash: rgba(147, 178, 245, 0.14); --seat-3-line: rgba(147, 178, 245, 0.38);
+  --seat-4: #B3CBF9;  --seat-4-wash: rgba(179, 203, 249, 0.13); --seat-4-line: rgba(179, 203, 249, 0.36);
+  --seat-5: #CFE0FB;  --seat-5-wash: rgba(207, 224, 251, 0.12); --seat-5-line: rgba(207, 224, 251, 0.34);
+
+  /* THE SPECULAR RIM - the edge of a sheet of glass, not a shadow under a box.
+
+     Glass catches light on the faces turned toward it and goes nearly dark
+     everywhere else. One flat hairline all the way round is the tell that reads
+     as a CSS border, so the rim runs bright along the top and left and drops to
+     almost nothing along the bottom and right. The third line is the light
+     entering the thickness of the sheet, falling a few pixels in from the top.
+
+     DRAWN AS INSETS, which is the whole reason this fits inside the existing
+     design. A gradient rim has to be a real gradient, a gradient cannot be a
+     border, and a clip-path cuts a border off with the box - which is what drove
+     the reverted attempt to rebuild every plate as two stacked layers. Inset
+     shadows are painted inside the element and clipped along with it, so they
+     get the directional edge with no new elements, no z-index and no change to
+     the mitre. The chamfered diagonal stays bare, exactly as it is today.
+
+     "Elevation is a ring, never a blur" still holds: nothing here casts outward.
+     The rim is the material, and it rides along in the elevation slot so the
+     hundred selectors already naming --e1 pick it up without moving. */
+  --rim:
+    inset 1px 1px 0 rgba(213, 224, 255, .30),
+    inset -1px -1px 0 rgba(213, 224, 255, .06),
+    inset 0 6px 12px -8px rgba(213, 224, 255, .40);
+  --e1: var(--rim);
+  --e2: var(--rim), 0 0 0 1px var(--line);
+  --e3: var(--rim), 0 0 0 1px var(--accent-line);
+
+  --display: "Space Grotesk", "Archivo", system-ui, sans-serif;
   --sans: var(--display);
-  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
 
-  /* Radius 0 everywhere except chips (2px) and avatars (6px). A square corner is
-     the cheapest possible signal that this is a spec sheet, not a dashboard. */
-  --r-sm: 2px; --r: 0px; --r-lg: 0px;
+  /* No radius anywhere. Corners are square or chamfered. */
+  --r-sm: 0px; --r: 0px; --r-lg: 0px;
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px;
   --s5: 24px; --s6: 32px; --s7: 48px; --s8: 72px;
   --measure: 66ch;
   --col: 1160px;
 }
 
-/* BLUEPRINT DOES NOT DEFINE A DARK PALETTE. This one is derived by swapping the
-   paper/ink relationship rather than invented: the ground becomes ink, the insets
-   sit just above it, and the hairline keeps the same job at the weight that reads
-   on a dark ground.
-
-   THE ACCENT IS THE ONE VALUE THAT CANNOT CARRY OVER. #2B2BF0 on a near-black
-   ground is roughly 1.3:1 - unreadable - so dark mode lifts it. It is the same
-   hue doing the same three jobs, at the only lightness that clears AA.
-
-   Duplicated below for the explicit toggle because a media query and an attribute
-   selector cannot share one rule; the two bodies must be kept in step. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --app: #0E0E0E;
-    --paper: #171717;
-    --sunken: #202020;
-    /* THE ONE TOKEN THAT DOES NOT INVERT. `.auth-brand` hardcodes `color: #fff`,
-       so a paper-coloured --brand-deep renders white text on a light panel -
-       measured, and completely unreadable. It stays dark and separates from the
-       ground by being one step lighter than it, not by flipping. */
-    --brand-deep: #171717;
-    --ink: #F2F2EF;
-    --ink-2: #A5A5A8;
-    --ink-3: #7E7E84;
-    --line: #2A2A28;
-    --line-soft: #2A2A28;
-    --accent: #7B84FF;
-    --accent-hover: #9AA1FF;
-    --accent-wash: #191A33;
-    --accent-line: #33366B;
-    --stop: #FF8A8E;  --stop-wash: #2A1516;  --stop-line: #4A2325;
-    --go: #55C97F;    --go-wash: #10241A;    --go-line: #1F4430;
-    --open: #9A9AA0;  --open-wash: #202020;  --open-line: #2A2A28;
-    --seat-0: #FB923C;  --seat-0-wash: #2A1A0E;  --seat-0-line: #4A2E17;
-    --seat-1: #FBBF24;  --seat-1-wash: #2A2310;  --seat-1-line: #4A3D19;
-    --seat-2: #A3C948;  --seat-2-wash: #1D2410;  --seat-2-line: #35441C;
-    --seat-3: #2DD4BF;  --seat-3-wash: #10262A;  --seat-3-line: #1B4249;
-    --seat-4: #C084FC;  --seat-4-wash: #241A2E;  --seat-4-line: #3E2C50;
-    --seat-5: #F472B6;  --seat-5-wash: #2A1520;  --seat-5-line: #4A2438;
-    --e1: none;
-    --e2: 0 0 0 1px var(--line);
-    --e3: 0 0 0 1px var(--ink);
-  }
-}
-
-/* Keep in step with the media-query block above. */
-:root[data-theme="dark"] {
-  --app: #0E0E0E;
-  --paper: #171717;
-  --sunken: #202020;
-  /* Does not invert - see the note above. */
-  --brand-deep: #171717;
-  --ink: #F2F2EF;
-  --ink-2: #A5A5A8;
-  --ink-3: #7E7E84;
-  --line: #2A2A28;
-  --line-soft: #2A2A28;
-  --accent: #7B84FF;
-  --accent-hover: #9AA1FF;
-  --accent-wash: #191A33;
-  --accent-line: #33366B;
-  --stop: #FF8A8E;  --stop-wash: #2A1516;  --stop-line: #4A2325;
-  --go: #55C97F;    --go-wash: #10241A;    --go-line: #1F4430;
-  --open: #9A9AA0;  --open-wash: #202020;  --open-line: #2A2A28;
-  --seat-0: #FB923C;  --seat-0-wash: #2A1A0E;  --seat-0-line: #4A2E17;
-  --seat-1: #FBBF24;  --seat-1-wash: #2A2310;  --seat-1-line: #4A3D19;
-  --seat-2: #A3C948;  --seat-2-wash: #1D2410;  --seat-2-line: #35441C;
-  --seat-3: #2DD4BF;  --seat-3-wash: #10262A;  --seat-3-line: #1B4249;
-  --seat-4: #C084FC;  --seat-4-wash: #241A2E;  --seat-4-line: #3E2C50;
-  --seat-5: #F472B6;  --seat-5-wash: #2A1520;  --seat-5-line: #4A2438;
-  --e1: none;
-  --e2: 0 0 0 1px var(--line);
-  --e3: 0 0 0 1px var(--ink);
-}
 
 * { box-sizing: border-box; }
 
@@ -201,62 +198,316 @@ a { color: var(--accent); text-underline-offset: 3px; }
   border-radius: var(--r-sm);
 }
 
-/* ---- app chrome ---------------------------------------------------------- */
-.page { min-height: 100vh; display: flex; flex-direction: column; }
+/* ==========================================================================
+   THE HEADS-UP DISPLAY
+   --------------------------------------------------------------------------
+   The product stands inside a live scene now, so the chrome had to stop being
+   an opaque bar and start being a bezel. Everything in this block is the
+   landing page's frame language - a hairline inset from the viewport, corners
+   cut at 45 degrees, mono labels at 11px, the accent present only as light.
 
-/* Paper, not white. BLUEPRINT's chrome is the same ground as the page, separated
-   by a hairline and the hatched band below it - exactly as the landing header is. */
-.topbar {
-  background: var(--app);
-  border-bottom: 1px solid var(--line);
-  position: sticky; top: 0; z-index: 20;
+   THE GROUND IS GONE ON PURPOSE. Nothing here paints a solid fill across the
+   viewport, because a WebGL canvas is drawing behind it. The one surface that
+   carries a ground is glass, below, and it earns it by having to stay legible
+   over six different backgrounds.
+   ========================================================================== */
+
+/* Frame inset and corner cut come from the design system so the product's
+   chamfers and the landing page's re-cut together from one number. */
+:root {
+  --hud-inset: 10px;
+  --hud-gutter: 26px;
+  --hud-h: 64px;
+  --cut: 14px;
+  /* The reference's easing, used by everything in the chrome that moves. */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* The hatched band, used once, as the boundary between the app chrome and the
-   work - the same single application it gets in apps/web. */
-.hatch-band {
-  height: 10px;
-  background: repeating-linear-gradient(45deg, transparent 0 10px, var(--line) 10px 11px);
-  border-bottom: 1px solid var(--line);
+/* The scene. Fixed and full-bleed, under everything, and inert - it is scenery,
+   and a canvas that swallows a click is a canvas covering the product. */
+.backdrop {
+  position: fixed; inset: 0;
+  width: 100%; height: 100%;
+  display: block; z-index: 0;
+  pointer-events: none;
 }
-.topbar .col { display: flex; align-items: center; gap: var(--s5); min-height: 62px; }
-.col { max-width: var(--col); margin: 0 auto; padding-inline: var(--s5); width: 100%; }
 
-.brand { display: inline-flex; align-items: center; gap: var(--s3); text-decoration: none; color: inherit; }
-/* The mark: four squares on a 2x2 grid, one at 40% and the bottom-right inset a
-   pixel, so it reads as a panel that has not quite agreed with itself - which is
-   the product. Identical construction across all three surfaces. */
-.mark {
-  position: relative; width: 22px; height: 22px; flex: none; display: inline-block;
+.shell { min-height: 100vh; position: relative; z-index: 1; }
+
+/* The bezel. Bordered box under a clip-path rather than an SVG: the clip cuts
+   the border with it, so each corner is a real mitre instead of a border
+   meeting a transparent notch. Inert - it sits over the canvas and must not
+   intercept a single event. */
+.bezel {
+  position: fixed;
+  inset: var(--hud-inset);
+  z-index: 40;
+  pointer-events: none;
+  border: 1px solid rgba(213, 224, 255, 0.18);
+  clip-path: polygon(
+    16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px),
+    calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px
+  );
 }
+
+.hud-head {
+  position: fixed;
+  top: calc(var(--hud-inset) + var(--hud-gutter) - 8px);
+  left: calc(var(--hud-inset) + var(--hud-gutter));
+  right: calc(var(--hud-inset) + var(--hud-gutter));
+  z-index: 50;
+  display: flex; align-items: center; gap: var(--s5);
+}
+
+.brand { display: inline-flex; flex-direction: column; gap: 6px; text-decoration: none; color: var(--ink); flex: none; }
+.brand-word { display: block; height: 15px; width: auto; }
+.brand-sub { font: 400 10px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); }
+
+/* ---- the menu -------------------------------------------------------------
+   ONE PLATE, not four buttons in a row. With a gap between them they read as
+   separate objects that happen to be adjacent; as one block with a single cut
+   outer corner the set reads as a control. The landing page's header pair is
+   built the same way for the same reason. */
+/* ---- the menu -------------------------------------------------------------
+   THE LANDING PAGE'S CHAPTER INDEX, laid along the top instead of down the left
+   edge. Part for part: a 6px square in the current colour present only on the
+   entry you are on, a mono label at 11px tracked to .16em, and that page's three
+   states - 35% at rest, 70% on hover, full when current.
+
+   INACTIVE ENTRIES REALLY DO SIT AT A THIRD. It reads as too faint written down
+   and is correct on the screen, for the reason the landing page gives: the set
+   is a position readout first and a menu second, and at full contrast four
+   labels compete with the page title beside them.
+
+   NO PLATE. An earlier pass sat the four entries on one glass block, which is
+   the landing page's header-BUTTON language, not its index - the index has no
+   ground at all and its type sits directly on the scene.
+
+   `hud-` prefixed because `.tabs` already belongs to the sign-in page's in/up
+   switcher. That page is unreachable - the product opens straight into a
+   session - but it is kept deliberately, and a redesign quietly breaking the
+   one thing it was told to leave alone is how dead code becomes a broken
+   restore six months later. */
+.hud-tabs {
+  margin-inline: auto;
+  display: flex;
+  gap: 26px;
+}
+
+.hud-tab {
+  display: flex; align-items: center; gap: 10px;
+  text-decoration: none;
+  color: rgba(213, 224, 255, .35);
+  font: 400 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  white-space: nowrap;
+  transition: color .2s ease;
+}
+.hud-tab:hover { color: rgba(213, 224, 255, .7); }
+.hud-tab[aria-current="page"] { color: var(--ink); }
+
+/* Square, in the current colour, and hidden rather than absent - laid out either
+   way, so the labels do not shift sideways when the marker moves. */
+.hud-dot {
+  width: 6px; height: 6px; flex: none;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.hud-tab[aria-current="page"] .hud-dot { opacity: 1; }
+
+/* The four-square mark, kept for the sign-in page above. Four squares on a 2x2
+   grid, one at 40% and the bottom-right inset a pixel, so it reads as a panel
+   that has not quite agreed with itself - which is the product. */
+.mark { position: relative; width: 22px; height: 22px; flex: none; display: inline-block; }
 .mark i { position: absolute; width: 9px; height: 9px; background: var(--accent); }
 .mark i:nth-child(1) { top: 0; left: 0; }
 .mark i:nth-child(2) { top: 0; right: 0; opacity: .4; }
 .mark i:nth-child(3) { bottom: 0; left: 0; }
 .mark i:nth-child(4) { bottom: 0; right: 2px; }
-.brand b { font: 600 20px/1 var(--display); letter-spacing: -.02em; }
-.brand span { font: 600 9.5px/1 var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); display: block; margin-top: 3px; }
 
-.nav { display: flex; gap: var(--s1); align-items: center; }
-.nav a {
-  font: 500 14px/1 var(--sans); color: var(--ink-2); text-decoration: none;
-  padding: var(--s2) var(--s3); border-radius: var(--r-sm);
+.account { display: flex; align-items: center; gap: var(--s3); flex: none; }
+.account-name {
+  font: 400 11px/1 var(--mono); letter-spacing: .08em; color: var(--ink-3);
+  max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.nav a:hover { background: var(--sunken); color: var(--ink); }
-.nav a[aria-current="page"] { color: var(--ink); background: var(--sunken); font-weight: 600; }
-.spacer { margin-left: auto; }
-
-.account { display: flex; align-items: center; gap: var(--s3); }
-/* 6px, which is the one radius BLUEPRINT grants an avatar. */
 .avatar {
-  width: 30px; height: 30px; border-radius: 6px; flex: none;
+  width: 28px; height: 28px; flex: none;
   background: var(--accent-wash); color: var(--accent); border: 1px solid var(--accent-line);
-  display: grid; place-items: center; font: 400 12px/1 var(--mono);
+  display: grid; place-items: center; font: 400 11px/1 var(--mono);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+}
+
+/* The header's own control, matching the landing page's segment buttons. */
+.seg {
+  font: 500 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-2); background: rgba(213, 224, 255, .06);
+  border: 1px solid rgba(213, 224, 255, .18); padding: 9px 14px; cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+.seg:hover { color: var(--ink); border-color: var(--accent-line); background: rgba(213, 224, 255, .12); }
+
+/* The corner readout: the name of the environment drawn behind this screen. */
+.corner {
+  position: fixed;
+  left: calc(var(--hud-inset) + var(--hud-gutter));
+  bottom: calc(var(--hud-inset) + var(--hud-gutter) - 8px);
+  z-index: 40; pointer-events: none;
+  display: flex; align-items: center; gap: 10px;
+  font: 400 10px/1 var(--mono); letter-spacing: .22em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.corner-dot { width: 5px; height: 5px; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+/* ---- the work -------------------------------------------------------------
+   A normal document, scrolling normally. The landing page locks the body and
+   scrolls an empty spacer stack so a camera can fly; a case table with three
+   hundred rows is a document and must behave like one. */
+.work {
+  padding-top: calc(var(--hud-inset) + var(--hud-gutter) + var(--hud-h));
+  padding-bottom: var(--s8);
+}
+.work-col {
+  max-width: var(--col); margin: 0 auto; width: 100%;
+  padding-inline: calc(var(--hud-inset) + var(--hud-gutter));
+}
+.col { max-width: var(--col); margin: 0 auto; padding-inline: var(--s5); width: 100%; }
+
+.work-foot {
+  margin-top: var(--s8); padding-top: var(--s5);
+  border-top: 1px solid var(--line);
+  display: flex; gap: var(--s5); flex-wrap: wrap; justify-content: space-between;
+  font: 400 11px/1.6 var(--mono); letter-spacing: .06em; color: var(--ink-3);
+}
+
+/* ---- glass ----------------------------------------------------------------
+   THE ONE SURFACE THAT CARRIES A GROUND.
+
+   A panel over a moving scene has a job the old flat card did not: stay
+   readable over a bright colony and over empty black, without hiding what is
+   behind it. So it is a low-alpha wash plus a blur, not a fill - the scene
+   stays visible THROUGH the panel, which is what makes the product look like
+   it is standing in the environment rather than pasted over a screenshot of
+   one.
+
+   The gradient runs top-light to bottom-dark by a couple of percent. Flat
+   translucency reads as a grey rectangle; the fall gives the plate an edge lit
+   from above, which is the whole difference between glass and tint.
+
+   ONE CUT CORNER, bottom right, at the same 14px the primary action uses. Not
+   all four: a panel with four mitres is a decorative object, and there are a
+   dozen of these on a screen. */
+.glass {
+  background-color: var(--paper);
+  background-image: linear-gradient(180deg,
+    rgba(213, 224, 255, .075) 0%, rgba(213, 224, 255, .012) 62%, rgba(213, 224, 255, .045) 100%);
+  border: 1px solid rgba(213, 224, 255, .14);
+  box-shadow: var(--e1);
+  backdrop-filter: blur(3px) saturate(1.5);
+  -webkit-backdrop-filter: blur(3px) saturate(1.5);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+  padding: var(--s5);
+}
+
+/* The rest of the product's surfaces, given the same treatment.
+
+   Listed by their existing class names rather than by adding `glass` to a
+   hundred JSX call sites: the classes already mean "a surface carrying content"
+   and this is what that now looks like. The blur is the expensive half, so it
+   goes only on containers - never on a row, a badge or a cell, where a dozen
+   stacked blur layers buy nothing the parent has not already bought. */
+/* VIBRANCY, NOT OPACITY. saturate(1.5) is the half of the material that costs
+   nothing: a translucent plate over a lit colony pulls the colour out of it and
+   leaves grey, and grey is the one thing this palette - a blue wedge plus two
+   verdict hues - cannot spend. The saturation lift puts the scene's own colour
+   back through the plate instead of buying legibility with alpha. The blur stays
+   at 3px; the point of the last pass was that you can see what is back there. */
+.card, .tile, .panel, .inv, .scroll, .empty, .pos, .concern, .note, .stub {
+  backdrop-filter: blur(3px) saturate(1.5);
+  -webkit-backdrop-filter: blur(3px) saturate(1.5);
+}
+.card, .panel, .empty, .scroll, .inv, .tile {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+}
+/* The rim, on every surface that already reads as a plate. .card and .pos name
+   --e1 themselves further down and land on the same value; .panel.sunken used to
+   say `none` to opt out of elevation and now says --e1, because there is no
+   elevation left to opt out of and the sheet still has an edge. */
+.glass, .card, .panel, .empty, .scroll, .inv, .tile, .pos {
+  box-shadow: var(--e1);
+}
+/* The sheen, as a second background layer over whatever ground the class already
+   set. Flat translucency reads as a grey rectangle; the fall gives the plate an
+   edge lit from above, which is the difference between glass and tint. Declared
+   as background-image so it composites over background-color instead of fighting
+   the shorthand each of these classes already uses.
+
+   THAT ARGUMENT WAS RIGHT AND THE CODE LOST ANYWAY. Every one of these classes
+   said `background: var(--paper)` a few hundred lines further down, and the
+   shorthand resets background-image to none - so this rule has been dead on all
+   seven of them since it was written, and only .glass, which sets
+   background-color, ever showed a sheen. They say background-color now. It is a
+   one-word change per class and it is the difference between a flat tinted
+   rectangle and a plate.
+
+   THREE STOPS, NOT TWO. A straight fall top-to-bottom is a gradient; a body that
+   falls and then lifts again at the foot is a sheet with thickness, catching a
+   little of the light that came through it. That last 4.5% at the bottom is the
+   difference, and it is the cheapest part of the material. */
+.card, .panel, .empty, .scroll, .inv, .tile, .pos {
+  background-image: linear-gradient(180deg,
+    rgba(213, 224, 255, .075) 0%, rgba(213, 224, 255, .012) 62%, rgba(213, 224, 255, .045) 100%);
+}
+
+/* THE PANEL NO LONGER CARRIES THE CONTRAST, SO THE TYPE HAS TO.
+
+   At 0.50 and a 3px blur the plate is a window, and a window does not darken
+   what is behind it enough to float body copy over the library's lit shelves -
+   ink-2 over a bright colony lands near 2:1 on its own. That is the price of
+   the transparency, and it is paid here rather than by putting the alpha back.
+
+   The landing page already solved this exact problem for its copy over a live
+   scene, and the answer is in its markup: a wide, very dark, very soft shadow
+   behind the glyphs. Invisible as an effect, worth a couple of stops of local
+   contrast under every letter, and it costs the panel no opacity at all.
+
+   Two shadows, not one: a tight 2px for the glyph's own edge and a wide 14px
+   for the halo. A single large blur on its own reads as a glow. */
+.work-col :where(h1, h2, h3, h4, p, span, b, a, td, th, li, label, blockquote) {
+  text-shadow:
+    0 1px 2px rgba(2, 8, 20, .55),
+    0 2px 14px rgba(2, 8, 20, .75);
+}
+/* The exceptions. A badge, a state chip and a verdict pill sit on their own
+   tinted ground and already have their contrast; a shadow there only makes
+   small mono type look smudged. */
+.work-col :where(.badge, .state, .basis, .pip, .eyebrow) { text-shadow: none; }
+
+/* THE PRIMARY ACTION, as a link.
+   The dashboard's "New case" was a flat #4FC3FF pill with white text, written as
+   an inline style so no rule in this file could reach it - the exact thing the
+   note above button.primary forbids, three sections down from the note. Same
+   glass plate, same chamfer, accent only as the glow. */
+.cta {
+  display: inline-block; text-decoration: none;
+  font: 500 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink);
+  background: rgba(213, 224, 255, .08);
+  border: 1px solid rgba(213, 224, 255, .2);
+  padding: 14px 24px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+.cta:hover {
+  background: rgba(213, 224, 255, .16);
+  border-color: var(--accent-line);
+  box-shadow: 0 0 24px -6px var(--accent);
 }
 
 /* A reviewer badge is .avatar plus a seat. The bare .avatar keeps its accent tint
    for the signed-in user in the header chrome, where no attribution is in play;
-   --accent is spoken for by system highlights, so a REVIEWER is never accent. */
+   --accent is spoken for by system highlights, so a REVIEWER is never accent.
+
+   No `main` rule came across with these. Main's Layout styled `main` directly;
+   this branch's shell owns that box, and re-adding the rule would fight it. */
 .avatar.seat-0 { background: var(--seat-0-wash); color: var(--seat-0); border-color: var(--seat-0-line); }
 .avatar.seat-1 { background: var(--seat-1-wash); color: var(--seat-1); border-color: var(--seat-1-line); }
 .avatar.seat-2 { background: var(--seat-2-wash); color: var(--seat-2); border-color: var(--seat-2-line); }
@@ -265,10 +516,6 @@ a { color: var(--accent); text-underline-offset: 3px; }
 .avatar.seat-5 { background: var(--seat-5-wash); color: var(--seat-5); border-color: var(--seat-5-line); }
 .avatar.seat-none { background: var(--open-wash); color: var(--open); border-color: var(--open-line); }
 
-main { flex: 1; padding-block: var(--s6) var(--s8); }
-
-.foot { border-top: 1px solid var(--line); background: var(--paper); padding-block: var(--s5); }
-.foot .col { display: flex; gap: var(--s5); flex-wrap: wrap; justify-content: space-between; font-size: 13px; color: var(--ink-2); }
 
 /* ---- page header --------------------------------------------------------- */
 .pagehead { display: flex; flex-wrap: wrap; gap: var(--s4); align-items: flex-end; margin-bottom: var(--s6); }
@@ -290,42 +537,42 @@ main { flex: 1; padding-block: var(--s6) var(--s8); }
 /* ---- summary tiles ------------------------------------------------------- */
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--s3); }
 .tile {
-  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r);
+  background-color: var(--paper); border: 1px solid var(--line); border-radius: var(--r);
   padding: var(--s4) var(--s5); display: flex; flex-direction: column; gap: var(--s1);
 }
 /* Mono, like every other measured figure in the system: a number always reads as
    something a run produced rather than as a headline. */
 .tile b { font: 400 30px/1.05 var(--mono); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.tile.act { border-color: var(--accent-line); background: var(--accent-wash); }
+.tile.act { border-color: var(--accent-line); background-color: var(--accent-wash); }
 .tile.act b { color: var(--accent); }
 
 /* ---- cards --------------------------------------------------------------- */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--s4); }
 
 .card {
-  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg);
+  background-color: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg);
   padding: var(--s5); display: flex; flex-direction: column; gap: var(--s3);
   box-shadow: var(--e1); text-decoration: none; color: inherit; text-align: left;
 }
 a.card, button.card { cursor: pointer; }
 /* No lift. BLUEPRINT is flat, so a hovered card answers with a fill and a border
    rather than by pretending to leave the page. */
-a.card:hover, button.card:hover { border-color: var(--ink-3); background: var(--sunken); }
+a.card:hover, button.card:hover { border-color: var(--ink-3); background-color: var(--sunken); }
 .card h3 { letter-spacing: -.005em; }
 .card .row { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; margin-top: auto; padding-top: var(--s2); }
 .card[aria-pressed="true"] { border-color: var(--accent); box-shadow: var(--e2); }
 
 .panel {
-  background: var(--paper); border: 1px solid var(--line);
+  background-color: var(--paper); border: 1px solid var(--line);
   border-radius: var(--r-lg); padding: var(--s5);
   display: flex; flex-direction: column; gap: var(--s3);
 }
-.panel.sunken { background: var(--sunken); box-shadow: none; }
+.panel.sunken { background-color: var(--sunken); box-shadow: var(--e1); }
 
 .empty {
   border: 1px dashed var(--line); border-radius: var(--r-lg); padding: var(--s7) var(--s5);
   text-align: center; display: flex; flex-direction: column; gap: var(--s3); align-items: center;
-  background: var(--paper);
+  background-color: var(--paper);
 }
 .empty p { max-width: 46ch; }
 
@@ -370,7 +617,7 @@ a.card:hover, button.card:hover { border-color: var(--ink-3); background: var(--
 .tabbar a[aria-current="page"] .pip { background: var(--accent-wash); color: var(--accent); }
 
 /* ---- evidence inventory -------------------------------------------------- */
-.inv { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--paper); }
+.inv { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background-color: var(--paper); }
 .inv-row {
   display: grid; grid-template-columns: 112px 1fr; gap: var(--s4);
   padding: var(--s4) var(--s5); border-top: 1px solid var(--line-soft); align-items: start;
@@ -390,13 +637,42 @@ a.card:hover, button.card:hover { border-color: var(--ink-3); background: var(--
 .state.not_applicable { color: var(--ink-3); background: transparent; border-color: var(--line); border-style: dashed; }
 
 /* ---- forms --------------------------------------------------------------- */
+
+/* Open a case: the compound and the reviewers share the top row, the documents run
+   full width beneath them. Stacked in a 720px column all three ran past the fold and
+   the submit button sat below the scroll, so the form read as longer than it is.
+
+   TWO EXPLICIT TRACKS rather than the auto-fit that `.grid` uses. auto-fit sizes the
+   row to whatever fits, and inside .work-col at --col 1160px that is three - which
+   would pull the documents panel up into a third column instead of leaving it the row
+   below. The count here is a layout decision, not a function of the width.
+
+   The documents panel takes the full row because its content is the one part that
+   GROWS: every accepted upload adds an inv-row beneath the field, and a list that
+   extends belongs in the section that can extend with it. The two above it are fixed
+   in size and stretch to a common height - they are bordered, and ragged bottoms
+   across a row read as a bug rather than as content. */
+.case-open { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4); }
+.case-open > .case-docs { grid-column: 1 / -1; }
+/* Two 300px columns plus the gap need 616px of content box, which .work-col stops
+   having at about a 700px viewport. Narrower than that the pair unstacks rather than
+   squeezing a compound field and an email list into half of a phone. */
+@media (max-width: 700px) { .case-open { grid-template-columns: 1fr; } }
+
 .field { display: flex; flex-direction: column; margin-top: var(--s5); }
 .field:first-child { margin-top: 0; }
 label { font: 650 13.5px/1.5 var(--sans); color: var(--ink); }
+/* A FIELD IS WHERE TRANSLUCENCY GIVES WAY. A blurred plate is legible for
+   prose; a caret and a half-typed compound name over a moving scene are not,
+   and this is the one surface where being wrong costs a reviewer their entry
+   rather than their patience. Darker than paper, not lighter - the ink is
+   near-white, so contrast comes from taking light out of the ground. */
 input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
   width: 100%; font: 15px/1.5 var(--sans); color: var(--ink);
   padding: 10px var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm);
-  background: var(--paper); margin-top: var(--s2);
+  background: rgba(2, 6, 20, 0.46); margin-top: var(--s2);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 input::placeholder, textarea::placeholder { color: var(--ink-3); }
 input:hover, textarea:hover, select:hover { border-color: var(--accent-line); }
@@ -410,13 +686,36 @@ input[type="file"] { padding: var(--s3); background: var(--sunken); border-style
 
 .btn-row { display: flex; gap: var(--s3); flex-wrap: wrap; align-items: center; margin-top: var(--s5); }
 
+/* THE ACCENT IS LIGHT, NEVER A FILL.
+   The system reserves the electric blue-through-cyan range for emitted light: the WebGL
+   scenes, glows, focus rings. The moment it becomes a button background the surface
+   stops reading as a dark room with light in it and starts reading as a website with a
+   blue button on it — which is exactly what a flat #4FC3FF fill did here.
+   The primary action is a glass plate with a chamfered corner, matching the landing
+   page's call to action: brighter ground, brighter hairline, and the accent present only
+   as the glow around it. */
 button.primary {
-  font: 650 14.5px/1 var(--sans); padding: 12px var(--s5);
-  background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: var(--r-sm);
-  cursor: pointer; box-shadow: var(--e1);
+  font: 500 11px/1 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: rgba(213, 224, 255, 0.08);
+  border: 1px solid rgba(213, 224, 255, 0.2);
+  padding: 14px 24px;
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
 }
-button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-button.primary:disabled { background: var(--sunken); border-color: var(--line); color: var(--ink-3); cursor: not-allowed; box-shadow: none; }
+button.primary:hover {
+  background: rgba(213, 224, 255, 0.16);
+  border-color: var(--accent-line);
+  box-shadow: 0 0 24px -6px var(--accent);
+}
+/* The press is an instant invert, as everywhere else in the system. */
+button.primary:active { background: var(--ink); color: var(--app); transition: none; }
+button.primary:disabled { background: transparent; border-color: var(--line); color: var(--ink-3); cursor: not-allowed; box-shadow: none; }
+/* `a.ghost` rides along because the document strip in the reading tab navigates by
+   real anchors rather than buttons - the URL is the source of truth there, so the
+   control has to be a link and still has to look like the system's ghost button. */
 button.ghost, a.ghost {
   font: 550 14px/1 var(--sans); padding: 10px var(--s4); background: var(--paper);
   color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-sm); cursor: pointer;
@@ -440,7 +739,7 @@ button.danger:hover { border-color: var(--stop-line); color: var(--stop); }
 /* ---- positions ----------------------------------------------------------- */
 .pos {
   border: 1px solid var(--line); border-left: 3px solid var(--line);
-  border-radius: 0 var(--r) var(--r) 0; padding: var(--s5); background: var(--paper);
+  border-radius: 0 var(--r) var(--r) 0; padding: var(--s5); background-color: var(--paper);
   display: flex; flex-direction: column; gap: var(--s3); box-shadow: var(--e1);
 }
 .pos.cited { border-left-color: var(--go); }
@@ -476,7 +775,7 @@ button.danger:hover { border-color: var(--stop-line); color: var(--stop); }
 .ok { color: var(--go); }
 
 /* ---- tables -------------------------------------------------------------- */
-.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--paper); }
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-lg); background-color: var(--paper); }
 table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 480px; }
 th, td { text-align: left; padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line-soft); vertical-align: top; }
 thead th {
@@ -562,8 +861,14 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
    answer on a short page or strand itself over a footer on a long one. */
 .composer {
   position: sticky; bottom: 0; z-index: 2;
-  background: var(--app); border-top: 1px solid var(--line);
-  padding: var(--s4) 0 var(--s5);
+  /* Heavier than a panel, and it has to be: this one rides over the thread's own
+     text as it scrolls past, so it is hiding type rather than a background. */
+  background: rgba(2, 6, 20, 0.56);
+  backdrop-filter: blur(5px) saturate(1.2);
+  -webkit-backdrop-filter: blur(5px) saturate(1.2);
+  border-top: 1px solid var(--line);
+  padding: var(--s4) var(--s4) var(--s5);
+  margin-inline: calc(var(--s4) * -1);
 }
 .composer-row { display: flex; gap: var(--s3); align-items: flex-end; }
 .composer-row textarea { min-height: 0; margin-top: 0; }
@@ -621,3 +926,19 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
 @media (prefers-reduced-motion: reduce) {
   a.card:hover, button.card:hover { transform: none; }
 }
+
+/* ---- opening ------------------------------------------------------------- */
+
+/* The moment between arriving from the landing page and the session existing. It
+   replaced a full sign-in screen, so it deliberately looks like nothing: a line of
+   status text on the same ground, not a card and not a spinner. Anything more
+   substantial would reintroduce the interruption that removing sign-in was meant to
+   delete. */
+.opening {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--s7) var(--s5);
+  text-align: center;
+}
+.opening > div { max-width: 46ch; display: grid; gap: var(--s2); }

@@ -1,0 +1,21 @@
+@import "@arbiter/design/tokens.css";
+
+/**
+ * Landing-page-only styling.
+ *
+ * Everything shared now lives in `@arbiter/design`. What is left here is the one thing
+ * the product must NOT inherit: this page locks the document and scrolls an inner
+ * container, and applying that to an app with real forms and long tables would trap the
+ * reader on every screen.
+ */
+
+html,
+body {
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+}

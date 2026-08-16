@@ -1,5 +1,20 @@
 # Clinical Cmax Exposure Axis - Implementation Plan
 
+> **EXECUTED. Read it with the 2026-08-09 redesign before extending it.**
+>
+> This plan built the R3 clinical Cmax exposure axis. It ran to completion and
+> merged; the checkboxes below are a record, not a queue.
+>
+> The rules themselves are **kept** - §2 of
+> `docs/superpowers/specs/2026-08-09-arbiter-ai-redesign-design.md` retains R1-R6 as
+> required disclosure, on the grounds that they "were never the defect". What
+> changed is that they stopped being the sole decider, and that the rulebook now
+> grows and versions (§5) instead of being six fixed rules.
+>
+> So a new evidence axis is still legitimate work - but it lands as a versioned
+> ruleset entry consumed by the adjudicator in `services/api`, not as another rule
+> wired into `apps/web`. `rules/ruleset-v1.0.json` is never edited.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the hardcoded `exposureRelevant: False` on every Tox21 claim with a measured margin - the assay's top tested concentration over the drug's unbound clinical Cmax - so R3 fires on established facts rather than on an assumption nobody checked.
