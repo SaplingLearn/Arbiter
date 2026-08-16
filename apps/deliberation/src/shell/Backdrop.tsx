@@ -66,11 +66,23 @@ export function Backdrop({ route, catalogue, focusKey }: {
         if (!live) return;
 
         atmo = new mod.Atmosphere(canvas);
-        atmo.register("dashboard", mod.createCulture);
-        atmo.register("new", mod.createGenesis);
-        atmo.register("library", mod.createArchive);
-        atmo.register("ask", mod.createSynapse);
-        atmo.register("record", mod.createHelix);
+        /* FROM THE PACKAGE'S OWN TABLE, not a list retyped here.
+
+           This was five hand-written register calls, and it had already drifted: the
+           package gained Section and `sceneFor` started returning "read" for the
+           reading surface, but nothing added it to this list. Pressing Read & mark
+           called transitionTo with an id the engine had never heard of, which throws -
+           out of an effect, so React unmounted the tree and the product went dark
+           behind a reload. The same call on a deep link went through mount() inside
+           this try, was swallowed, and left a reader with no scene at all, which is
+           why reloading appeared to fix it.
+
+           STATES is the list apps/atmosphere already registers from, and it is where a
+           new scene gets added. Registering from it makes that drift impossible rather
+           than merely fixed: a scene the package publishes is a scene the product has.
+           Registration is a map insert per entry - the factory does not run until
+           something mounts it - so carrying "landing" here costs nothing. */
+        for (const state of mod.STATES) atmo.register(state.id, state.factory);
 
         atmo.resize(window.innerWidth, window.innerHeight);
         atmo.populate(wantedSubjects.current);
@@ -118,7 +130,20 @@ export function Backdrop({ route, catalogue, focusKey }: {
     wanted.current = scene;
     const atmo = atmoRef.current;
     if (atmo === null || atmo.activeId === scene) return;
-    atmo.transitionTo(scene, transitionFor(scene));
+    /* GUARDED, FOR THE REASON THE HEADER GIVES ABOUT THE LOADER. Everything in the
+       mount path is inside a try because a fault in the decoration may not take the
+       product with it; this call was outside one, and it is the same hazard arriving
+       later - React unmounts a tree whose effect threw, so a renderer that gives up
+       during navigation blanks the page rather than losing the scenery.
+
+       That is the difference the reader actually saw when this went wrong: not a
+       missing background, but a dark product needing a reload. The scene stays on
+       whatever it was showing, which is the same failure the loader already accepts. */
+    try {
+      atmo.transitionTo(scene, transitionFor(scene));
+    } catch (e) {
+      console.error("[atmosphere] the scene change failed; the product does not:", e);
+    }
   }, [scene]);
 
   /**
