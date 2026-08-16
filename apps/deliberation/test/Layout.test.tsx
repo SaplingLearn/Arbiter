@@ -38,6 +38,13 @@ describe("case stages", () => {
 
   it("shows no pip when no count is given", () => {
     render(<Steps {...base} />);
-    expect(screen.getByRole("link", { name: /Read & mark/ })).not.toHaveTextContent(/\d/);
+    const link = screen.getByRole("link", { name: /Read & mark/ });
+    expect(link).not.toHaveTextContent(/\d/);
+    expect(link.querySelector(".pip")).toBeNull();
+  });
+
+  it("renders zero as a pip value", () => {
+    render(<Steps {...base} marks={0} />);
+    expect(screen.getByRole("link", { name: /Read & mark/ })).toHaveTextContent("0");
   });
 });
