@@ -843,6 +843,15 @@ git commit -m "Serve document bytes through the case, never by bare id"
 
 ### Task 8: The Read & mark screen
 
+> **SUPERSEDED IN PART, 2026-08-16.** The task body below prescribes a `highlightsFor`
+> that joins on **filename**, and fixtures inventing `sourceDocument: "turalio.pdf"`.
+> That join is wrong against the real data: findings in `data/cases/` carry a dossier
+> identifier (`"FDA NDA 211810"`, `"EMA/CHMP/290491/2025"`), never a filename, so it
+> matched nothing on any real case. The shipped implementation joins on
+> `Finding.sourceDocumentId` first, with filename only as a fallback, and no fuzzy
+> matching. See the Architecture paragraph at the top of this plan, and commit
+> `2fe8303`. Read this section as history, not as instructions.
+
 **Files:**
 - Create: `apps/deliberation/src/read.tsx`
 - Modify: `apps/deliberation/src/api.ts` — the client `Finding` interface at line 156 **lacks `sourceDocument` and `sourcePage`**; it is a narrower mirror of the server's type in `services/api/adjudicate.ts`. Add both as optional fields, or nothing in this task typechecks:
