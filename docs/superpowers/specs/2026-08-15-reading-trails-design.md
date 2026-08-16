@@ -114,6 +114,14 @@ a participant joins, and recorded in the `participant_added` log entry that alre
   the database. That is the same property the ruleset hash and the deterministic engine
   exist to provide, applied to the record's presentation.
 
+**A seat cannot be derived from position in `participantIds`.** That array is a *sorted set*,
+not a join order: `deliberation.ts` sorts it on create (`:152`) and on every add (`:179`), and
+filters on remove (`:193`). So a reviewer joining with an id that sorts early shifts the index
+of everyone after them, and a removal shifts everyone after the gap. Index-as-seat would
+recolour half the room whenever the roster changed — the precise instability seats exist to
+prevent. The seat map is therefore stored on the case and written to the log, and this is a
+requirement rather than a preference.
+
 A seat is released on `participant_removed` but **never reissued** within a case. Reissuing
 would let a departed reviewer's amber marks and a new reviewer's amber marks coexist on one
 page, which is precisely the ambiguity seats exist to prevent.
@@ -124,27 +132,37 @@ such a person makes no marks, so there is nothing to attribute.
 
 ### 3.2 The palette, and the three colours it may not use
 
-`apps/deliberation/src/app.css` has already spent its primary colours on meaning:
+`apps/deliberation/src/app.css` has already spent its primary hues on meaning, and it does
+so **twice** — BLUEPRINT ships a light theme and a dark one:
 
-| Token | Value | Reserved for |
-|---|---|---|
-| `--stop` | `#ff8a8e` | the do-not-advance verdict |
-| `--go` | `#55c97f` | the advance verdict |
-| `--accent` | `#4fc3ff` | UI chrome, and here: **system highlights** from extracted findings |
+| Token | Light | Dark | Reserved for |
+|---|---|---|---|
+| `--stop` | `#E5484D` | `#FF8A8E` | the do-not-advance verdict |
+| `--go` | `#1CA64C` | `#55C97F` | the advance verdict |
+| `--accent` | `#2B2BF0` | `#7B84FF` | UI chrome, and here: **system highlights** from extracted findings |
+| `--open` | `#74747B` | `#9A9AA0` | the neutral/unresolved state |
 
-A reviewer palette that reaches for red, green or cyan makes a person's colour read as a
-call. On a screen whose entire purpose is showing who called what, a reviewer rendered in
-`--go` green would be actively misleading. The reviewer palette is therefore drawn from the
-remaining hue space — amber, violet, magenta, teal-leaning-blue, orange, lilac — at a
-chroma that survives on `--app: #020a18` and as a ~22% alpha wash behind body text.
+A reviewer palette that reaches for red, green, indigo or grey makes a person's colour read
+as a call. On a screen whose entire purpose is showing who called what, a reviewer rendered
+in `--go` green would be actively misleading.
 
-Seat colours are defined as tokens (`--seat-0` … `--seat-7`) with a matching
-`--seat-N-wash`, following the existing `--stop` / `--stop-wash` / `--stop-line` idiom
-rather than inventing a second convention.
+That leaves orange, gold, olive-lime, teal, purple and magenta as hues that are unreserved
+and mutually separable. **Six seats, not eight.** Eight was the first number in this design
+and it does not survive the real constraint: four reserved hues plus the requirement to stay
+distinguishable in *both* themes does not leave eight well-separated slots, and a palette
+whose seventh and eighth entries are near-neighbours of the first two breaks the one property
+seats exist for. A seventh participant renders in neutral `--open` with initials and seat
+order carrying the identification (§3.3). Most deliberation rooms are three to five people;
+degrading honestly at seven beats claiming eight and shipping two ambiguous pairs.
 
-Eight seats. A ninth participant is a real case, and it renders in a neutral `--open` grey
-with the initials badge doing the identification. Cycling the palette to give seat 8 the
-same amber as seat 0 would break distinctness, which is the one property that may not bend.
+Seat colours follow the existing `--stop` / `--stop-wash` / `--stop-line` triple exactly —
+`--seat-N`, `--seat-N-wash`, `--seat-N-line` — rather than inventing a second convention.
+
+**They must be declared in all three token blocks**, because `app.css` defines its semantics
+three times: `:root` (light), the `@media (prefers-color-scheme: dark)` block, and
+`:root[data-theme="dark"]` for the explicit toggle. The file already carries the comment
+*"Keep in step with the media-query block above"* on the third. A seat colour defined in only
+one of the three is a reviewer who changes identity when someone flips the theme.
 
 ### 3.3 The icon, and why colour is never alone
 
@@ -181,7 +199,8 @@ log. One component is what makes a colour learnable at all.
 
 It extends the existing `.avatar` rule (`app.css:225`: 30px square, 6px radius, mono 12px)
 with a seat modifier. Note that `.avatar` is currently tinted `--accent-wash` / `--accent` /
-`--accent-line`, which **collides with the cyan reserved for system highlights in §3.2**.
+`--accent-line`, which **collides with the accent indigo reserved for system highlights in
+§3.2**.
 The resolution: the bare `.avatar` stays accent-tinted for the signed-in user in the header
 chrome, where no reviewer attribution is in play, and `<Reviewer>` always applies a seat
 modifier that re-tints all three properties. A reviewer badge is never rendered in accent.
@@ -288,7 +307,7 @@ document (§4.3) — and marks it freely. **Every mark is private to its author*
 no endpoint to anyone else, enforced server-side.
 
 What the reviewer does see besides their own marks: the existing findings, rendered as
-**system highlights** in `--accent` cyan — visually a different class of object from any
+**system highlights** in `--accent` — visually a different class of object from any
 person's mark. These come from `sourceDocument` and `sourcePage`, which are already populated
 on every finding in all three cases in `data/cases/`. So the document arrives pre-annotated
 with what extraction already found, and the reviewer's task reads as *what did this miss,
@@ -457,13 +476,15 @@ this page."** It never says "no reviewer read this page," which the system does 
 
 | Phase | Contents | Data model change |
 |---|---|---|
-| 1 | `read` route + "Read & mark" tab; viewer over `forCase(caseId)`; system highlights from existing `sourcePage`; `<Reviewer>` badge, seats, palette | none |
-| 2 | Private marks; seal-with-position; `marks_sealed` chain entry | `Mark`, seat on roster |
+| 1 | `read` route + "Read & mark" tab; viewer over `forCase(caseId)`; system highlights from existing `sourcePage`; `<Reviewer>` badge, seat palette | `seats` on the case |
+| 2 | Private marks; seal-with-position; `marks_sealed` chain entry | `Mark` |
 | 3 | Reveal aggregates: rail, stacked page, `contestedSpans`, `unreadByCamp` | none |
 | 4 | Promote-to-finding; `question`/`challenge` → inventory; post-reveal threads | `mark_replied` |
 
-Phase 1 is demonstrable on its own and touches no schema — every finding in all three cases
-in `data/cases/` already carries `sourceDocument` and `sourcePage`.
+Phase 1 is demonstrable on its own: every finding in all three cases in `data/cases/` already
+carries `sourceDocument` and `sourcePage`, so the viewer has real highlights to render before
+a single mark exists. Its one schema change is the seat map, which §3.1 shows cannot be
+deferred without shipping unstable colours.
 
 ## 10. Known risks
 
@@ -473,8 +494,13 @@ in `data/cases/` already carries `sourceDocument` and `sourcePage`.
   dependency and exposes word-level bounding boxes, so the path exists; this is the main
   engineering unknown and Phase 2 should begin by measuring anchor accuracy on the three
   library documents rather than assuming it.
-- **Eight seats.** A case with nine or more participants degrades to a neutral badge for the
-  ninth onward. Accepted over palette cycling, which would break distinctness.
+- **Six seats.** A case with seven or more participants degrades to a neutral `--open` badge
+  from the seventh onward, identified by initials and seat order. Accepted over palette
+  cycling, which would break distinctness, and over stretching to eight hues that cannot stay
+  separable in both themes once red, green, indigo and grey are reserved.
+- **Two themes.** Every seat token must be declared in all three blocks in `app.css`
+  (`:root`, the `prefers-color-scheme` media query, and `:root[data-theme="dark"]`). A seat
+  defined in one block only changes a reviewer's identity when the theme is toggled.
 - **Mark volume.** A thorough reviewer on a 288-page review may produce hundreds of marks.
   The chain stores hashes, so the log is bounded; the rail and stacked page need to stay
   usable at that density, which is a rendering problem to measure in Phase 3.
