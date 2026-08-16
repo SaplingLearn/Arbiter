@@ -227,6 +227,21 @@ export class DeliberationService {
     return this.store.getCase(caseId);
   }
 
+  /**
+   * How many cases exist, across every account.
+   *
+   * A COUNT AND NOTHING ELSE, and that is what makes it safe to expose beside
+   * `casesFor`. The access boundary is about who can read a case's label, its evidence
+   * and its positions; a total says none of those. It exists for the boot-time seed,
+   * which has to answer "is this store empty" before it may write into it and has no
+   * user to ask on behalf of.
+   *
+   * Not routed over HTTP. The seed runs in-process.
+   */
+  count(): number {
+    return this.store.allCases().length;
+  }
+
   /** Cases this account is named on, owner or participant. Nothing else, ever -
    *  a list endpoint that leaked case labels would undo the access boundary in the
    *  one place people go looking. */

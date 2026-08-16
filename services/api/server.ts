@@ -17,13 +17,14 @@ import { adjudicateConsensus, runsFrom } from "./consensus.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
 import { AuthStore, normaliseEmail, type PublicUser } from "./auth.js";
 import { DEMO_PASSWORD, DEMO_TEAM, seedDemoTeam } from "./seed-demo.js";
+import { seedDemoCases } from "./seed-cases.js";
 import { DocumentStore, MAX_BYTES } from "./documents.js";
 import { LibraryStore } from "./library.js";
 import { can, denial, type CaseAction } from "./access.js";
 import { InviteStore } from "./invites.js";
 import { LoginThrottle } from "./throttle.js";
 import { ModelBudget, budgetFrom } from "./spend.js";
-import { envFileInUse, loadEnv } from "./env.js";
+import { envFilesInUse, loadEnv } from "./env.js";
 
 /**
  * The deliberation API.
@@ -788,7 +789,10 @@ if (invokedDirectly) {
   // Before anything reads configuration. A missing .env is not an error - every value
   // has a working default and the product runs with none of them set.
   loadEnv();
-  const envFile = envFileInUse();
+  // ALL of them, not the first. Configuration layers by name across the three files, so
+  // naming only the highest-precedence one would hide the tracked `.env.defaults` that
+  // supplied the model everybody is actually running.
+  const envFiles = envFilesInUse();
   const HOST = bindHost();
   const port = Number(process.env["PORT"] ?? 8787);
   const deps = buildDeps("results/deliberation-log.jsonl");
@@ -812,6 +816,27 @@ if (invokedDirectly) {
     console.log(`Seeded ${String(report.created.length)} demonstration accounts (ARBITER_DEMO_SEED=1). Shared password: ${DEMO_PASSWORD}`);
     console.log("Real accounts on the real authentication path. Delete results/deliberation-log.jsonl.users.json before this holds anything that matters.");
   }
+
+  /**
+   * And the four usable library cases, under the same flag and its own empty-store guard.
+   *
+   * Separate from the account seed rather than folded into it, because the two guards are
+   * over different stores: a deployment can legitimately have the demonstration accounts
+   * already and no cases, or cases and no accounts, and one combined check would seed the
+   * wrong half of that. The case content is in git either way - this only opens it, so a
+   * fresh clone shows the product with something in it rather than an empty list that
+   * looks like the data was never shared.
+   */
+  if ((process.env["ARBITER_DEMO_SEED"] ?? "") === "1") {
+    const cases = seedDemoCases(deps.service, deps.auth, Date.now());
+    if (cases.opened.length > 0) {
+      console.log(`Opened ${String(cases.opened.length)} library cases for the demonstration team: ${cases.opened.join("; ")}`);
+    }
+    // Named rather than swallowed. A case that could not be read is a data problem the
+    // person starting the server can fix; silence would leave them comparing their
+    // screen against a colleague's and finding one case missing with no reason given.
+    for (const s of cases.skipped) console.log(`Case not opened (${s.name}): ${s.reason}`);
+  }
   createServer((req, res) => { void makeHandler(deps)(req, res); }).listen(port, HOST, () => {
     console.log(`ARBITER deliberation API on http://${HOST}:${port}`);
     const adjudicationModel = resolveModel("adjudication");
@@ -831,7 +856,7 @@ if (invokedDirectly) {
     console.log(`Short calls:  ${named("short")}`);
     // Which file the configuration came from. A shared `.env.share` that was never
     // renamed used to be indistinguishable from no configuration at all.
-    console.log(`Config: ${envFile ?? "no .env or .env.share found - defaults only"}`);
+    console.log(`Config: ${envFiles.length === 0 ? "no .env, .env.share or .env.defaults found - code defaults only" : `${envFiles.join(", ")} (earlier wins, name by name)`}`);
     console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token.`);
     console.log(HOST === "127.0.0.1"
       ? "Bound to loopback. This process terminates no TLS; set ARBITER_HOST only behind a proxy that does."

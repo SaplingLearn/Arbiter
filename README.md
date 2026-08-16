@@ -183,9 +183,25 @@ npm run dev                # http://localhost:5173
 
 One command, one origin. The landing page is at `/`, the product at `/deliberation/`, the API at `/api`. `ARBITER_PORT=4173 npm run dev` moves the whole group if something already holds 5173.
 
-The demo team is five accounts whose shared password is printed in `services/api/seed-demo.ts`, because the fixture is the secrecy, not the check. A fresh clone has none of them - the account store is gitignored - so create them with `npm run seed:demo`, or set `ARBITER_DEMO_SEED=1` and let the first boot do it. The banner prints the account count either way, so a forgotten demo team is visible rather than silent.
+That is the whole setup. `ARBITER_DEMO_SEED=1` is set in the tracked `.env.defaults`, so the first boot creates the five demonstration accounts and opens the four usable library cases for them. You get the same product everybody else on the repository gets, with something in it.
 
-Configuration is read from `.env`, or from `.env.share` if there is no `.env`. The second name exists so a file prepared for somebody else works where it lands: an unread share file and no credentials at all look identical from the outside, and that ambiguity was worth a line of code to remove. The banner names the file it read.
+The demo team is five accounts whose shared password is printed in `services/api/seed-demo.ts`, because the fixture is the secrecy, not the check. `npm run seed:demo` does the accounts alone if you would rather be explicit. Both paths are guarded on an EMPTY store - accounts into an empty account store, cases into an empty case store - so neither can appear beside real data and neither resurrects something you deleted on purpose. The banner prints what it created, so a forgotten demo team is visible rather than silent.
+
+**The case content was always in git** - `data/cases/*.json`, `data/out/tak994.json`, `data/probe-case.json`. What a fresh clone lacked was any case *open*: the store starts empty and cases are created by clicking through the library picker, so a developer who pulled the repository and ran it saw an empty product and reasonably concluded the data had not been shared. It had; nothing had opened it. The seed closes that and only that - it adds no evidence and invents no case, and it will not open the two refused documents, because a refusal you can route around is decorative.
+
+### Configuration
+
+Three files are read, in order, and they layer **by name** rather than by file:
+
+| file | tracked? | what belongs in it |
+|---|---|---|
+| `.env` | no | your own credentials and overrides |
+| `.env.share` | no | a configuration handed to you, working where it lands - no rename step to forget |
+| `.env.defaults` | **yes** | what the team has agreed on and that is not secret: which models, and the boot seed |
+
+Each file sets only the names still unset, so a `.env` holding nothing but your own API key overrides that one name and inherits the shared models. Whole-file precedence would have silently dropped them, and two developers getting different answers from what they both believe is one configuration is exactly what the tracked file exists to prevent. A blank value (`ARBITER_MODEL=`) counts as unset and falls through to the code default. The real environment - a shell export, a CI secret - still beats all three. The banner lists every file it read.
+
+**No credential is in `.env.defaults` and none may be added.** This repository is public: a key committed there is world-readable, is harvested by scanners within minutes, and survives deletion in the history and in every clone taken meanwhile. To use live AI, put a key in `.env` or `.env.share`; see section 4 of `.env.defaults` for the three ways.
 
 ### It runs with no credentials, and says so
 

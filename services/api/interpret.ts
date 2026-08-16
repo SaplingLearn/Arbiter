@@ -304,9 +304,25 @@ export type CallKind = "short" | "adjudication" | "ask" | "summary";
 export const DEFAULT_SHORT_MODEL = "gemini-2.5-flash-lite";
 export const DEFAULT_ADJUDICATION_MODEL = "gemini-3.5-flash";
 
+/**
+ * An override that was actually set to something.
+ *
+ * EMPTY IS UNSET, and `??` alone did not say that: `ARBITER_MODEL=` in a file sets the
+ * name to "", `""` is not nullish, and the resolution returned an empty model name that
+ * failed at the first call with a 404 on a URL ending in `/models/:generateContent`.
+ *
+ * Reachable the moment configuration layers (env.ts): blanking a line is the obvious way
+ * to say "not this one, use the default" once a tracked `.env.defaults` supplies the
+ * value you are trying to drop, and there is no other way to say it - a file cannot
+ * unset a name that a lower layer will then set.
+ */
+function override(value: string | undefined): string | undefined {
+  return value === undefined || value.trim() === "" ? undefined : value.trim();
+}
+
 export function resolveModel(kind: CallKind, env: NodeJS.ProcessEnv = process.env): string {
   if (kind === "adjudication") {
-    return env["ARBITER_ADJUDICATION_MODEL"] ?? env["ARBITER_MODEL"] ?? DEFAULT_ADJUDICATION_MODEL;
+    return override(env["ARBITER_ADJUDICATION_MODEL"]) ?? override(env["ARBITER_MODEL"]) ?? DEFAULT_ADJUDICATION_MODEL;
   }
   // "ask" resolves to the ADJUDICATION model, not the short one. It reads document
   // prose and has to decide when the passages do not answer the question, which is
@@ -315,9 +331,9 @@ export function resolveModel(kind: CallKind, env: NodeJS.ProcessEnv = process.en
   // A summary reads the same prose on the same terms and answers under the same
   // prompt, so it resolves exactly as "ask" does. Only the output ceiling differs.
   if (kind === "ask" || kind === "summary") {
-    return env["ARBITER_ASK_MODEL"] ?? env["ARBITER_ADJUDICATION_MODEL"] ?? env["ARBITER_MODEL"] ?? DEFAULT_ADJUDICATION_MODEL;
+    return override(env["ARBITER_ASK_MODEL"]) ?? override(env["ARBITER_ADJUDICATION_MODEL"]) ?? override(env["ARBITER_MODEL"]) ?? DEFAULT_ADJUDICATION_MODEL;
   }
-  return env["ARBITER_MODEL"] ?? DEFAULT_SHORT_MODEL;
+  return override(env["ARBITER_MODEL"]) ?? DEFAULT_SHORT_MODEL;
 }
 
 /**

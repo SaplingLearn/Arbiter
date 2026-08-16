@@ -99,6 +99,17 @@ dist/
 # template.
 .env.share
 
+# `.env.defaults` is deliberately NOT listed here. It is the third file services/api/env.ts
+# reads and the only tracked one, and it carries the settings a team must agree on and
+# that are not secret: which models, and whether the demonstration team and cases are
+# created on boot. Configuration layers by NAME, so a developer's own `.env` overrides
+# one line of it without having to copy the rest.
+#
+# NOTHING SECRET MAY BE ADDED TO IT. This repository is public - a key committed there is
+# world-readable, is harvested by scanners within minutes, and survives deletion in the
+# history and in every clone taken meanwhile. Credentials go in `.env` or `.env.share`,
+# both ignored above.
+
 # Python
 __pycache__/
 *.pyc
