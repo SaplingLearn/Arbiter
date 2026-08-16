@@ -215,12 +215,17 @@ GEMINI_API_KEY=AQ....                                         # Gemini on a key
 teammate. `GEMINI_API_KEY` is the shareable form: one line, sufficient on its own, and
 still a cloud credential that bills the project it belongs to.
 
-A key also picks a **host**, and the two are not interchangeable:
-`ARBITER_GEMINI_HOST=vertex` (the default, `aiplatform.googleapis.com`, the catalogue
-every committed number was measured on) or `=developer`
-(`generativelanguage.googleapis.com`, no project setup, a different and smaller
-catalogue - `gemini-2.5-flash-lite` is a 404 there). The startup banner prints which one
-is in use, so a misconfiguration cannot hide behind the word "Vertex".
+A key also picks a **host**, and only one of them works here. `ARBITER_GEMINI_HOST=vertex`
+is the default and the catalogue every committed number was measured on. `=developer`
+(`generativelanguage.googleapis.com`) **cannot serve this codebase**: it rejects
+`additionalProperties: false` with a 400, and every schema in `services/api` sets it.
+Unconstrained calls succeed there and the banner reads LIVE, so that misconfiguration
+looks healthy right up until the first real adjudication fails - which is exactly why
+the banner prints the endpoint rather than inferring "Vertex" from the model name.
+
+A key must also be on a project with **billing linked**. Without it the key is free-tier
+only, capped at 20 requests/minute shared across every holder, and Vertex refuses
+outright with `requires billing to be enabled`.
 
 One key shared across a team is one budget shared across a team. See
 `ARBITER_MODEL_BUDGET` below.
