@@ -465,7 +465,13 @@ export function PositionForm({ token, caseId, findings, onDone }: {
   };
 
   return (
-    <section>
+    /* ON A PLATE, the same one the evidence stage uses. A heading, four labels, three
+       paragraphs of explanation and a basis line were sitting directly on a live scene.
+       `.glass` is the product's one surface that carries a ground, and this is the
+       screen where failing to read a sentence costs a reviewer their answer rather than
+       their patience - the fields already made that argument for themselves further
+       down in app.css, and the prose around them had no equivalent. */
+    <section className="glass">
       <h2>Your position</h2>
       <p className="muted">
         Sealed the moment you submit, and you cannot change it. Nobody sees it - and you
@@ -540,7 +546,10 @@ export function Waiting({ view, isOwner, nameOf, onReveal }: {
   // only control on this screen.
   const sealed = view.own !== null;
   return (
-    <section>
+    // The other half of the position tab, and it carries the plate for the same reason
+    // the form does: this is what that tab becomes once you have sealed, so a ground on
+    // only one of them would disappear at the moment you submit.
+    <section className="glass">
       <h2>{sealed ? "Sealed. Waiting for the others." : "Waiting for the panel."}</h2>
       <p className="muted">
         This screen shows one bit per person, and that is all the server will send: not

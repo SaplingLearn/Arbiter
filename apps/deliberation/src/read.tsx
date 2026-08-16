@@ -83,7 +83,9 @@ export function Read({ caseId, documentId, page, documents, findings }: {
 
   if (documents.length === 0) {
     return (
-      <section>
+      // One paragraph and nothing else, which is the state most exposed to the scene:
+      // there is no other object on the screen for the type to sit on.
+      <section className="glass">
         <p className="small muted">
           No documents on this case yet. Upload a study PDF on the Evidence stage and it will
           open here.
@@ -93,7 +95,19 @@ export function Read({ caseId, documentId, page, documents, findings }: {
   }
 
   return (
-    <section className="read">
+    /* ON A PLATE, the same one the evidence stage uses.
+
+       Everything here was bare type over a live WebGL field: the document strip, the
+       findings rail, and the paragraph explaining why a citation could not be placed.
+       `.glass` is the product's one surface that carries a ground - a low-alpha wash
+       with a blur behind it - and it exists precisely so prose stays legible over a lit
+       scene. This is the longest stretch of reading in the product, so it is the last
+       screen that should have been going without one.
+
+       ONE PLATE FOR THE SCREEN, not one per part. app.css puts the blur on containers
+       only, never on a row or a cell, because a dozen stacked blur layers buy nothing
+       the parent has not already bought. */
+    <section className="read glass">
       <nav aria-label="Case documents">
         {documents.map((d) => (
           <a key={d.id} className="ghost" aria-current={d.id === open?.id ? "true" : undefined}
