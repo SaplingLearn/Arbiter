@@ -206,7 +206,7 @@ describe("FileStore", () => {
     const path = tmp();
     const a = new FileStore(path);
     a.putCase({
-      caseId: "c", compoundLabel: "X", context: "", ownerId: "o", participantIds: ["ann"],
+      caseId: "c", compoundLabel: "X", context: "", ownerId: "o", participantIds: ["ann"], seats: {},
       status: "open", positions: [pos("ann")], closedEarly: null, adjudication: null, signature: null,
     });
     expect(new FileStore(path).getCase("c")?.positions).toHaveLength(1);
