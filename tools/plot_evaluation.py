@@ -72,7 +72,10 @@ def fig_headline(results: Path, out: Path) -> None:
     """The five things a reviewer needs, each with the interval its sample supports."""
     retrieval = json.loads((results / "retrieval-eval.json").read_text())
     ask = json.loads((results / "model-comparison" / "ask-eval-gemini-3.5-flash.json").read_text())
-    verdict = json.loads((results / "verdict-eval.json").read_text())
+    # The MODEL-COMPARISON copy, not results/verdict-eval.json: whichever model ran
+    # last owns that file, and a Pro run once put 88.9% on a figure captioned as the
+    # headline result. The headline is flash, named explicitly.
+    verdict = json.loads((results / "model-comparison" / "verdict-eval-gemini-3.5-flash.json").read_text())
 
     n_ask = ask["answerable"]
     n_ret = retrieval.get("answerable", n_ask)
@@ -101,13 +104,13 @@ def fig_headline(results: Path, out: Path) -> None:
         lo, hi = wilson(k, n)
         ax.text(x, hi + 0.035, f"{v * 100:.1f}%", ha="center", fontsize=13,
                 fontweight="bold", color=INK)
-        ax.text(x, -0.085, f"n={n}", ha="center", fontsize=9, color=MUTED)
+        ax.text(x, 0.04, f"n={n}", ha="center", fontsize=9, color="white")
         ax.text(x, hi + 0.005, f"[{lo * 100:.0f}–{hi * 100:.0f}]", ha="center",
                 fontsize=8.5, color=MUTED)
 
     ax.set_xticks(list(xs))
     ax.set_xticklabels([r[0] for r in rows], fontsize=10, color=INK)
-    ax.set_ylim(0, 1.22)
+    ax.set_ylim(0, 1.18)
     ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
     ax.set_yticklabels(["0", "25%", "50%", "75%", "100%"], fontsize=9)
     ax.yaxis.grid(True, color=GRID, linewidth=1)

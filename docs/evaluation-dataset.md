@@ -176,7 +176,31 @@ weighted toward oncology is weighted toward high risk tolerance.
 
 ---
 
-## 7. Reproducing all of it
+## 7. What the corpus showed about model choice
+
+Both surfaces were run on `gemini-3.5-flash` and `gemini-3.1-pro-preview` over identical
+inputs.
+
+| | flash | 3.1-pro-preview |
+|---|---|---|
+| Ask — states the fact | 100.0% | 100.0% |
+| Ask — citation recall | 81.1% | 82.1% |
+| Ask — flips over 3 runs | 0 | 0 |
+| **Verdict — constructed cases** | **27/27** | **24/27** |
+| Verdict — real drugs, caught turalio | yes | yes |
+| Verdict — specificity | 12/13 | 11/12 (+1 error) |
+| Latency per Ask item | ~40s | ~90s |
+
+Pro's Ask advantage is +1.0pp on citation recall, which is **less than one item** out of
+53. Its verdict deficit is not noise: all three failures are the same case,
+`human-tox-over-animal-safe`, in 3 of 3 runs — the R1 case, where human-cell evidence
+should defeat a clean animal study and Pro abstained instead. The provider decision of
+2026-08-10 recorded `gemini-2.5-pro` failing the same pass mark at R1 75.0%. **Same rule,
+different model generation, newer prompt.**
+
+---
+
+## 8. Reproducing all of it
 
 ```bash
 python data/prep/gate_eval.py --build   # 42 documents, confusion matrix
