@@ -178,6 +178,17 @@ two are equal. Option 2 keeps that test; option 3 changes it deliberately.
   before building a fixture rather than guessing at what will pass, and note the
   comment at `documents.ts:114` — this gate was deliberately tightened after a version
   that let "probably fine" through.
+- **The e2e suite cannot run on Windows.** `playwright.config.ts` starts its server
+  with POSIX `VAR=x cmd`, which is a parse error in this shell. CI is the only place
+  these five tests have ever run — which is how they went stale unnoticed.
+- **`npm run seed:demo` is a prerequisite, not a demo convenience.** The product no
+  longer asks anyone to sign in (`App.tsx:195`); it signs itself in as
+  `r.okafor@arbiter.demo`, and that account exists only after seeding. Without it the
+  app renders "Cannot open the record" and looks like a routing failure.
+- **`apps/landing/src/sections/Header.tsx` is dead code that still compiles.** The
+  redesign mounts `shell/Chrome.tsx`'s `Header` instead. Reading the wrong one cost
+  real time chasing a visibility bug that did not exist — check `Overture.tsx` for
+  what is actually mounted before trusting anything under `sections/`.
 - **Run the scene and look at it.** The previous handoff said this and it earned its
   place three times over in one session: typecheck, lint and the full suite all passed
   on a scene that rendered nothing at all.
@@ -203,9 +214,15 @@ ATMOSPHERE_URL=http://127.0.0.1:5187/ node apps/atmosphere/shot.mjs shots
 
 - 821 tests / 58 files, typecheck clean, lint clean locally, on `652adf5` + this
   document. (829 / 59 on PR #24, which adds eight tests of its own.)
-- **CI was red on this branch for three commits and is now fixed** — see the PyMuPDF
-  note in §5. Local green did not mean CI green, and nothing said so; check
-  `gh pr checks 22` rather than trusting a local run.
+- **CI is green on this branch, for the first time.** It had been red since Read & mark
+  landed, and it took four separate causes, none of them visible from a local run:
+  no Python on the runner (so every upload 422'd); no `seed:demo` (so the product could
+  not boot at all and every e2e assertion about it was really an assertion about a
+  failed login); an e2e test still waiting for a sign-in button the redesign
+  deliberately deleted; and a landing assertion written against a header that is no
+  longer mounted. The Preloader also ignored `prefers-reduced-motion`, which is fixed
+  in the component rather than worked around in the test.
+  **Local green never implied CI green here. Check `gh pr checks 22`.**
 - PR #22 — this branch → `main`, open.
 - PR #24 — `fix/dev-dependency-preflight` → this branch, open, **merge first**.
 - PR #23 — the reading-trails phase 1 record, merged to `main`.
