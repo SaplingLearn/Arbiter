@@ -153,7 +153,11 @@ def fig_structure(out: Path) -> None:
     ax2.plot(xs, cum, color=VIOLET, marker="o", ms=5, lw=1.8, zorder=3)
     for xi, s, c in zip(xs, share, cum):
         ax2.text(xi, s + 0.02, f"{s * 100:.0f}%", ha="center", fontsize=8.5, color=INK)
-        ax2.text(xi, c + 0.03, f"{c * 100:.0f}%", ha="center", fontsize=8.5, color=VIOLET)
+        # Offset the cumulative label away from the bar label; at direction 1 the two
+        # sit within a couple of points of each other and collide.
+        gap = 0.055 if (c - s) < 0.08 else 0.03
+        ax2.text(xi, c + gap, f"{c * 100:.0f}%", ha="center", fontsize=8.5,
+                 color=VIOLET, weight="bold")
     ax2.axhline(1.0, color=GRID, lw=1)
     ax2.set_ylim(0, 1.18)
     ax2.set_xticks(xs)
