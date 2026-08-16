@@ -336,15 +336,38 @@ npx tsx tools/validate_fixture.ts --score ponatinib regorafenib obeticholic \
   tolvaptan teriflunomide mipomersen trabectedin
 ```
 
-**hit@16 92.9% (26/28), recall@16 92.9%, MRR 0.567**, against 96.2% and MRR 0.529 on the
-original fourteen. The new documents are slightly harder, which is the expected direction
-for older, partly-scanned reviews and is a reason to keep them.
+**hit@16 92.9% (26/28), recall@16 92.9%, MRR 0.567** on the seven new documents alone,
+against 96.2% and MRR 0.529 on the original fourteen. The new documents are slightly
+harder, which is the expected direction for older, partly-scanned reviews and is a reason
+to keep them.
 
 **Both misses are the same paraphrase.** `pona-reversible-b` and `reg-reversible-b` are
 each *"Did the … recover after dosing stopped?"*, and in both documents the sibling
 phrasing — *"reversible"*, *"during the recovery period"* — retrieves correctly. That is
 one reproducible vocabulary gap in the retriever, found on two independent documents, and
 it is precisely the failure metric 5 exists to surface.
+
+### 8.4 The corpus was rebuilt from nothing, and reproduces exactly
+
+All 21 documents are gitignored and none was in this checkout. Every one was re-fetched
+from `accessdata.fda.gov` and `ema.europa.eu` with `data/prep/fetch_reviews.py`, and every
+page count matches the figure §2 records — retevmo 398, exkivity 292, krazati 288,
+lumakras 269, turalio 264, nipocalimab 178.
+
+Scoring **only the original fourteen** then returned **hit@16 96.2%, recall 91.5%, MRR
+0.529, stability 33.7%** — every committed figure in `results/retrieval-eval.json`, to the
+decimal. The committed retrieval numbers are therefore not merely on disk but
+re-derivable by anyone with a network connection, and the fetch-and-extract path is proven
+faithful rather than merely green.
+
+Over all 21 documents and 81 answerable items: **hit@16 95.1%, recall 92.0%, MRR 0.542,
+stability 37.4%**. All 81 gold quotes verify.
+
+`results/retrieval-eval.json` was deliberately **not** overwritten. Doing so would put an
+81-item retrieval number beside a 53-item judge number in the same report, so metrics 1 and
+3 would be measured on a different item set from 2 and 4 — the mixing error §5.4 of
+`HANDOFF-evaluation.md` warns about. All ten should move together, on one run, once
+credentials exist.
 
 The ask half of these items has **not** been run: it needs a model, and this checkout has
 no GCP credentials. See `docs/EVALUATION-SCOREBOARD.md` §3.

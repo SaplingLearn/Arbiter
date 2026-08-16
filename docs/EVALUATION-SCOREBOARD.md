@@ -236,28 +236,72 @@ Worth separating, because the corpus now tests all three and they demand differe
    CML and Ph+ ALL patients"*. This is **answerable**. Scoring it as a refusal would teach
    the opposite of the rule the product depends on: `not applicable` is not `missing`.
 
-### 3A.2 Measured on the new documents, without a model
+### 3A.2 The whole corpus was rebuilt from public sources, and it reproduces exactly
 
-The retrieval half needs no credentials, so it was run here:
+All 21 documents are gitignored and were absent from this checkout. Every one has been
+re-fetched from `accessdata.fda.gov` and `ema.europa.eu`:
 
 ```bash
-npx tsx tools/validate_fixture.ts --score ponatinib regorafenib obeticholic \
-  tolvaptan teriflunomide mipomersen trabectedin
+python data/prep/fetch_reviews.py           # 21 documents, ~230 MB
+npx tsx tools/warm_library_cache.ts         # build the extraction caches
 ```
 
-**hit@16 92.9% (26/28), recall@16 92.9%, MRR 0.567** — against 96.2% and MRR 0.529 on the
-original fourteen. The new documents are slightly harder, which is the expected direction
-for older, partly-scanned reviews and a reason to keep them.
+**Every page count matches the figure `docs/evaluation-dataset.md` §2 recorded** —
+retevmo 398, exkivity 292, krazati 288, lumakras 269, turalio 264, nipocalimab 178, and so
+on down the table.
 
-**Both misses are the same paraphrase.** `pona-reversible-b` and `reg-reversible-b` are
-each *"Did the … recover after dosing stopped?"*, and in both documents the sibling
-phrasing retrieves correctly. One reproducible vocabulary gap in the retriever, found
-independently on two documents — exactly what metric 5 exists to surface.
+Then the decisive check. Scoring **only the original fourteen documents** returns:
 
-**The ask half of these items has not been run.** It needs a model and this checkout has no
-credentials (§3.1). So the ten headline metrics in §1 and §3 are still measured on the
-original corpus, and nothing above changes them. What has changed is that the corpus can
-now support the toxic/non-toxic contrast the next run should be measured on.
+| Metric | Reproduced here | Committed in `results/retrieval-eval.json` |
+|---|---|---|
+| hit@16 | **96.2%** | 96.2% |
+| recall@16 | **91.5%** | 91.5% |
+| MRR | **0.529** | 0.529 |
+| paraphrase stability | **33.7%** | 33.7% |
+
+Every committed retrieval figure, to the decimal, from a corpus downloaded from nothing.
+That is an independent verification of the Ask retrieval numbers in §1 — they are not
+merely on disk, they are re-derivable by anyone with a network connection — and it is the
+evidence that the fetch-and-extract pipeline is faithful rather than merely green.
+
+**All 81 answerable gold quotes across all 21 documents are verbatim on the pages they
+name.** The fixture has not rotted.
+
+### 3A.3 The extended corpus, measured
+
+Over all 104 items (81 answerable, 23 unanswerable, 21 documents):
+
+| Metric | Original 14 docs | All 21 docs |
+|---|---|---|
+| hit@16 | 96.2% (n=53) | **95.1%** (n=81) |
+| recall@16 | 91.5% | **92.0%** |
+| MRR | 0.529 | **0.542** |
+| paraphrase stability | 33.7% | **37.4%** |
+
+The added documents are slightly harder to retrieve from — the expected direction for
+older, partly-scanned reviews, and a reason to keep them rather than a reason to worry.
+
+Three misses across the whole corpus, and **two of them are the same paraphrase**:
+`pona-reversible-b` and `reg-reversible-b` are each *"Did the … recover after dosing
+stopped?"*, failing on two independent documents where the sibling phrasing —
+*"reversible"*, *"during the recovery period"* — retrieves correctly. One reproducible
+vocabulary gap in the retriever, not two unrelated failures. The third, `tur-liver-b`
+(*"does this drug damage the liver?"*), is the pre-existing failure the handoff already
+names.
+
+**`results/retrieval-eval.json` has deliberately NOT been overwritten.** Re-running
+`npm run retrieval:eval` now would put an 81-item retrieval number in the same file as a
+53-item judge number, and metrics 1 and 3 would then be measured on a different item set
+from metrics 2 and 4. That is exactly the error §5.4 of the handoff warns about, where a
+Pro run once put 88.9% onto a figure captioned as the flash headline. The numbers above
+come from a read-only tool. **All ten metrics should move together, on one run, once
+credentials exist.**
+
+**The ask half of the new items has not been run.** It needs a model (§3.1), so the ten
+headline metrics in §1 and §3 are still measured on the original corpus and nothing here
+changes them. What has changed is that the corpus can now support the toxic/non-toxic
+contrast the next run should be measured on — and that the whole thing is now one command
+away on any machine.
 
 ---
 
