@@ -3,7 +3,7 @@ import { consistencyOf, summarise, wilson, type AskItemResult } from "../ask-eva
 
 const result = (over: Partial<AskItemResult> = {}): AskItemResult => ({
   id: "i", document: "d", kind: "answerable", question: "q", answerable: true, answer: "300 mg/kg",
-  citedPages: [36], goldPages: [36, 37], statedFact: true,
+  citedPages: [36], goldPages: [36, 37], statedFact: true, judged: null,
   citationPrecision: 1, citationRecall: 0.5, refused: null, ...over,
 });
 
@@ -33,7 +33,7 @@ describe("the summary", () => {
     // behaviour look like failure.
     const r = summarise([
       result(),
-      result({ id: "u", kind: "unanswerable", answerable: false, statedFact: null, refused: true, citationPrecision: null, citationRecall: null }),
+      result({ id: "u", kind: "unanswerable", answerable: false, statedFact: null, judged: null, refused: true, citationPrecision: null, citationRecall: null }),
     ], "m");
     expect(r.answerable).toBe(1);
     expect(r.statedFactRate).toBe(1);
