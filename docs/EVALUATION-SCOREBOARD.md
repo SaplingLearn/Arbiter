@@ -185,6 +185,82 @@ regenerable from the JSON by `tools/plot_evaluation.py`, which the JSON is not.
 
 ---
 
+## 3A. What the Ask benchmark is measured *on*
+
+A separate question from "what do the metrics say", and the one that decides whether the
+metrics mean anything: **are the documents spread across drugs that turned out toxic,
+drugs that did not, and documents with incomplete information?**
+
+The corpus was designed on exactly that axis — `data/library-sources.json` says so in its
+own note, that a set of only hepatotoxic drugs "measures willingness to say danger and
+nothing else". But as built, the toxic end was one document deep.
+
+| Class | Before | Now |
+|---|---:|---:|
+| Toxic outcome (boxed hepatic warning or withdrawn) | 1 of 14 | **8 of 21** |
+| Non-toxic outcome (approved, no liver warning) | 13 of 14 | 13 of 21 |
+| Incomplete information — document level | 1 (slynd, a 505(b)(2)) | 2 |
+| Incomplete information — question level | 16 unanswerable | **23 unanswerable** |
+
+Seven FDA pharmacology reviews were added, chosen for their **outcome** rather than their
+findings, fetched from `accessdata.fda.gov` by application number: **Iclusig** (ponatinib),
+**Stivarga** (regorafenib), **Ocaliva** (obeticholic acid), **Jynarque** (tolvaptan),
+**Aubagio** (teriflunomide), **Yondelis** (trabectedin) and **Kynamro** (mipomersen). Six
+carry a boxed hepatic warning; **Kynamro and Ocaliva were withdrawn from the US market for
+liver injury**. Four of the seven are non-oncology, and Kynamro is an antisense
+oligonucleotide — a modality the corpus did not have.
+
+That last pair matters more than the count. `docs/evaluation-dataset.md` §6 recorded, as
+its sharpest limit, that the only two drugs with genuine negative outcomes — troglitazone
+and tolcapone — **could not supply cases**, because the upload gate correctly refuses one
+scanned document and one labelling supplement. The fix was not to weaken the gate but to
+find withdrawn drugs whose reviews are readable. Kynamro and Ocaliva are.
+
+Full detail, including what these documents let the fixture ask that it could not before,
+is in `docs/evaluation-dataset.md` §8.
+
+### 3A.1 Three kinds of "the document does not say", not one
+
+Worth separating, because the corpus now tests all three and they demand different answers:
+
+1. **The document cannot answer.** 23 unanswerable items, each verified by the zero-hit
+   rule — the term that would have to appear was searched across the whole extracted text
+   and only zero-hit candidates kept. Correct response: refuse. Two candidates were
+   rejected during this extension (`juvenile` and `hERG` for ponatinib, both actually
+   present).
+2. **The document is the wrong kind of document.** slynd is a 505(b)(2) with no
+   nonclinical studies; Yondelis is a 19-page concurrence memorandum over reviews conducted
+   elsewhere.
+3. **A study was deliberately not done, and the document says so and why.** Ponatinib:
+   *"Carcinogenicity studies were not completed because of the short life-expectancy of
+   CML and Ph+ ALL patients"*. This is **answerable**. Scoring it as a refusal would teach
+   the opposite of the rule the product depends on: `not applicable` is not `missing`.
+
+### 3A.2 Measured on the new documents, without a model
+
+The retrieval half needs no credentials, so it was run here:
+
+```bash
+npx tsx tools/validate_fixture.ts --score ponatinib regorafenib obeticholic \
+  tolvaptan teriflunomide mipomersen trabectedin
+```
+
+**hit@16 92.9% (26/28), recall@16 92.9%, MRR 0.567** — against 96.2% and MRR 0.529 on the
+original fourteen. The new documents are slightly harder, which is the expected direction
+for older, partly-scanned reviews and a reason to keep them.
+
+**Both misses are the same paraphrase.** `pona-reversible-b` and `reg-reversible-b` are
+each *"Did the … recover after dosing stopped?"*, and in both documents the sibling
+phrasing retrieves correctly. One reproducible vocabulary gap in the retriever, found
+independently on two documents — exactly what metric 5 exists to surface.
+
+**The ask half of these items has not been run.** It needs a model and this checkout has no
+credentials (§3.1). So the ten headline metrics in §1 and §3 are still measured on the
+original corpus, and nothing above changes them. What has changed is that the corpus can
+now support the toxic/non-toxic contrast the next run should be measured on.
+
+---
+
 ## 4. Corrections to `docs/HANDOFF-evaluation.md`
 
 That document is accurate and unusually careful. Two things in it are now stale in a way

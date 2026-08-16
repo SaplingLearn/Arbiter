@@ -8,9 +8,14 @@ a harness in this repo and can be re-derived; none is transcribed from a past ru
 
 ## 1. In one line
 
-**16 real regulatory review documents — 3,567 pages, ~7.65 million characters, 120 MB** —
-expanded to **42 documents** for the upload gate, carrying **55 questions with 98
+**23 real regulatory review documents** — the original 16, plus the seven added in §8 —
+expanded to **42 documents** for the upload gate, carrying **104 questions with 127
 human-verified quotes** for the Ask surface and **23 cases** for the verdict surface.
+
+Of those 104: **81 answerable, 23 unanswerable**, over **21 documents**. §2 and §4 below
+describe the original 16 and their 55 questions and have not been rewritten — they are the
+record of what was measured when the committed Ask numbers were produced. §8 is the
+extension, and the counts in this paragraph are the current totals.
 
 ---
 
@@ -97,16 +102,22 @@ on**, which is the single strongest argument for building it this way.
 
 ## 4. The question set (Ask)
 
-**55 questions over 14 documents, 98 human-verified verbatim quotes** with page numbers.
+**As originally built: 55 questions over 14 documents, 98 human-verified verbatim quotes**
+with page numbers. The table below is that original set, kept because it is what the
+committed Ask numbers in `results/ask-eval.json` were measured against. Current totals
+after the §8 extension are in the right-hand column.
 
-| Topic | Questions |
-|---|---:|
-| NOAEL | 19 |
-| Reversibility | 12 + 2 clinical |
-| Liver findings | 12 + 4 |
-| Exposure margins | 2 |
-| Nonclinical (general) | 2 |
-| **Unanswerable** | **2** |
+| Topic | Questions (v2.0) | Now |
+|---|---:|---:|
+| NOAEL | 19 | 26 |
+| Reversibility | 12 + 2 clinical | 20 + 2 clinical + 1 organ-level |
+| Liver findings | 12 + 4 | 15 + 4 |
+| Exposure margins | 2 | 2 |
+| Nonclinical (general) | 2 | 2 |
+| NOAEL not established / disputed | — | 3 + 2 |
+| NOAEL for liver toxicity | — | 2 |
+| Stated absent study | — | 2 |
+| **Unanswerable** | **2** | **23** |
 
 Two design choices worth naming:
 
@@ -167,16 +178,29 @@ reporting n=27 overstate the sample.
 lands around rank 2 of 16), paraphrase stability 33.7%, citation recall 81.1%, and
 real-drug specificity 12/13. Those describe the system; the 100%s describe the metrics.
 
-**Only one drug has a hepatotoxicity outcome.** Turalio carries the boxed warning; the
-other thirteen do not. This is **survivorship bias by construction** — approval packages
-contain drugs that cleared the bar. A classifier that always says "advance" scores 13/14.
-So sensitivity is reported as a **single observation (n=1), never as a rate**, and
-specificity is reported separately.
+**~~Only one drug has a hepatotoxicity outcome.~~ Eight do, as of the v2.1 extension.**
+This was the sharpest limit in the whole dataset and it has been addressed directly — see
+§8. Turalio was the only one of the original fourteen; seven FDA reviews of drugs whose
+*outcome* was hepatic were added beside it, two of them **withdrawn from the US market for
+liver injury**.
 
-**The two drugs with genuine negative outcomes cannot supply cases.** Troglitazone was
-withdrawn for hepatotoxicity and tolcapone was restricted — exactly the labels the dataset
-is short of — and the upload gate refuses both documents, one scanned and one a labelling
-supplement. The gate is right to refuse them and the evaluation is poorer for it.
+The survivorship-bias reasoning below still holds for the ORIGINAL fourteen and for any
+figure computed over them, so it is kept rather than deleted: approval packages contain
+drugs that cleared the bar, and a classifier that always says "advance" scored 13/14 on
+that set. Sensitivity computed on the original fourteen is still **a single observation
+(n=1), never a rate**. What has changed is that the corpus is no longer confined to it.
+
+**~~The two drugs with genuine negative outcomes cannot supply cases.~~ Two more can, and
+now do.** Troglitazone was withdrawn for hepatotoxicity and tolcapone was restricted —
+exactly the labels the dataset was short of — and the upload gate refuses both documents,
+one scanned and one a labelling supplement. The gate is right to refuse them.
+
+That was the binding constraint, and the fix was not to weaken the gate but to find
+withdrawn drugs whose reviews are *readable*. **Kynamro (mipomersen)** was withdrawn in
+2019 for hepatotoxicity and **Ocaliva (obeticholic acid)** was withdrawn at FDA's request
+after post-marketing liver injury. Both have full FDA pharmacology reviews that extract
+cleanly — 67% and 79% of pages carry text — and both are now in the corpus with items
+against them. §8.
 
 **DILIrank cannot fill the gap.** It was the obvious external ground truth: 1,336
 compounds with DILI-concern labels. Seven of the fifteen drugs here are post-2016
@@ -228,7 +252,106 @@ different model generation, newer prompt.**
 
 ---
 
-## 8. Reproducing all of it
+## 8. v2.1 — the toxic / non-toxic / incomplete axis, made real
+
+Added 2026-08-16. The question this answers: **are the documents spread across drugs that
+turned out toxic, drugs that did not, and documents with incomplete information?** For the
+original fourteen the honest answer was "barely" — one boxed warning, thirteen clean
+approvals, and the two genuinely-withdrawn drugs unusable. Seven FDA reviews were added to
+close that, chosen for their *outcome* rather than their findings.
+
+| Document | NDA | Outcome | Area | Pages | Readable |
+|---|---|---|---|---:|---:|
+| Iclusig (ponatinib) | 203469 | BOXED: arterial occlusion + hepatotoxicity | oncology | 127 | 52% |
+| Stivarga (regorafenib) | 203085 | BOXED: fatal hepatotoxicity | oncology | 219 | 83% |
+| Ocaliva (obeticholic acid) | 207999 | BOXED: hepatic decompensation; **WITHDRAWN** | hepatology | 229 | 79% |
+| Jynarque (tolvaptan) | 204441 | BOXED: serious liver injury, REMS | nephrology | 111 | **100%** |
+| Aubagio (teriflunomide) | 202992 | BOXED: hepatotoxicity + embryofetal | neurology | 238 | 75% |
+| Yondelis (trabectedin) | 207953 | hepatotoxicity incl. hepatic failure | oncology | 19 | 74% |
+| Kynamro (mipomersen) | 203568 | BOXED: hepatotoxicity, REMS; **WITHDRAWN 2019** | lipidology | 271 | 67% |
+
+Every one was fetched from `accessdata.fda.gov` by its application number and screened with
+the same extractor the product uses. What the set buys, beyond the outcome label:
+
+- **Four of seven are non-oncology.** The original corpus was six-of-fourteen solid-tumour
+  oncology, and §6 flagged that as a weighting toward high risk tolerance. Hepatology,
+  nephrology, neurology and lipidology now sit beside it.
+- **A modality nothing else covers.** Mipomersen is an antisense oligonucleotide. The
+  corpus previously ran small molecules plus one monoclonal antibody.
+- **The twenty-year format hole is partly filled.** These are 2012–2018 `PharmR`-format
+  pharmacology reviews, not the 2019+ multidiscipline format — different headings,
+  different structure, and *partly scanned*: readability runs 52% to 100%, where the
+  modern reviews are essentially all born-digital.
+- **A document shape that is not a review at all.** Yondelis is 19 pages, and most of it
+  is a director's concurrence memorandum over reviews conducted elsewhere. It still
+  carries citable toxicology, and it is the shape the upload gate should be tested on.
+
+### 8.1 The three classes, stated plainly
+
+**Toxic outcome — 8 of 21 documents.** Turalio plus the seven above. Two are withdrawn.
+
+**Non-toxic outcome — 13 of 21.** The original approvals with no liver warning.
+
+**Incomplete information — two distinct kinds, and the distinction matters.**
+*At the document level*: slynd is a 505(b)(2) with no nonclinical studies at all, and
+Yondelis is a memorandum rather than a study report. *At the question level*: 23
+`unanswerable` items, up from 16, each verified by the zero-hit rule in §4 — the term that
+would have to appear for the document to answer was searched across the whole extracted
+text, and only zero-hit candidates were kept. Two candidates were rejected during this
+extension: `juvenile` for ponatinib (it appears in a study-type checklist) and `hERG` for
+ponatinib (the assay was actually run).
+
+A third kind is worth separating out because it is **not** incompleteness: a study that was
+deliberately not done, where the document says so and says why. Ponatinib's
+*"Carcinogenicity studies were not completed because of the short life-expectancy of CML
+and Ph+ ALL patients"* and Yondelis's *"Carcinogenicity studies were not conducted and are
+not required"* are **answerable** questions about an absence. Scoring them as refusals
+would teach exactly the wrong lesson: `not applicable` is not `missing`.
+
+### 8.2 What the new documents let the fixture ask that it could not before
+
+- **A reversibility minimal pair across two documents.** Ponatinib's transaminase
+  elevations had *no microscopic correlate* and *"were not present during the recovery
+  period"*; Yondelis's liver **necrosis** *"persisted through the recovery period in many
+  studies"*. Same question, opposite answer, both verbatim.
+- **A NOAEL the reviewer refuses.** Tolvaptan p23: *"According to the sponsor, the NOAEL
+  for this study was 30 mg/kg/day. However, it is incorrect"* … *"A NOAEL could not be
+  determined for this study."* An answer that quotes 30 mg/kg/day has read the document and
+  still got it wrong, which no keyword screen can detect.
+- **A NOAEL that does not exist because toxicity started at the lowest dose.**
+  Teriflunomide p230, and obeticholic p68.
+- **A NOAEL expressed as a bound.** Mipomersen: *"the NOAEL for liver toxicity is
+  considered to be < 5 mg/kg/week"*.
+- **A drug with a boxed hepatotoxicity warning whose nonclinical package does not
+  obviously predict it.** Ponatinib. This is the direct counter to the concern in
+  `HANDOFF-evaluation.md` §8 that FDA reviews leak the clinical answer into the
+  nonclinical text — here they do not.
+
+### 8.3 Measured, without a model
+
+The retrieval half needs no credentials, so the new documents were scored on this checkout:
+
+```
+npx tsx tools/validate_fixture.ts --score ponatinib regorafenib obeticholic \
+  tolvaptan teriflunomide mipomersen trabectedin
+```
+
+**hit@16 92.9% (26/28), recall@16 92.9%, MRR 0.567**, against 96.2% and MRR 0.529 on the
+original fourteen. The new documents are slightly harder, which is the expected direction
+for older, partly-scanned reviews and is a reason to keep them.
+
+**Both misses are the same paraphrase.** `pona-reversible-b` and `reg-reversible-b` are
+each *"Did the … recover after dosing stopped?"*, and in both documents the sibling
+phrasing — *"reversible"*, *"during the recovery period"* — retrieves correctly. That is
+one reproducible vocabulary gap in the retriever, found on two independent documents, and
+it is precisely the failure metric 5 exists to surface.
+
+The ask half of these items has **not** been run: it needs a model, and this checkout has
+no GCP credentials. See `docs/EVALUATION-SCOREBOARD.md` §3.
+
+---
+
+## 9. Reproducing all of it
 
 ```bash
 python data/prep/gate_eval.py --build   # 42 documents, confusion matrix

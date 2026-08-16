@@ -1,6 +1,6 @@
 {
-  "version": "2.0",
-  "note": "Retrieval fixture for the ask surface. Every gold page carries the VERBATIM sentence that makes it gold, and the scorer refuses to run if a quote is no longer on its page - a fixture nobody can audit is an assertion, and one that rots silently is worse. Quotes were located by regular expression over the extracted text of the library documents and read before being written down. `group` marks questions a reviewer would call the same question: retrieval that changes its answer when the words change is the failure this set exists to measure. `kind: unanswerable` items have no gold pages by construction - the document genuinely does not contain the answer, and they are scored on refusal rather than on recall. `mustContain` is a regular expression the ANSWER text must match, taken from the same verified quote that makes the page gold - an objective check on whether the answer states the fact, which is weaker than 'the answer is correct' and is named that way for a reason. Version 2.0 adds eleven more FDA multi-disciplinary reviews, fetched from accessdata.fda.gov by NDA number and screened with measure_pdf.py. Their items were PROPOSED by regular expression and then reviewed by reading every quote: six proposals were rejected for matching tissue-distribution tables, KRAS pharmacology and the name of an adverse event rather than the finding asked about. The set varies on purpose - a boxed hepatotoxicity warning, several liver findings without one, approved drugs with no liver warning at all, and one 505(b)(2) with no nonclinical studies - because a set of only hepatotoxic drugs measures willingness to say danger and nothing else.",
+  "version": "2.1",
+  "note": "Retrieval fixture for the ask surface. Every gold page carries the VERBATIM sentence that makes it gold, and the scorer refuses to run if a quote is no longer on its page - a fixture nobody can audit is an assertion, and one that rots silently is worse. Quotes were located by regular expression over the extracted text of the library documents and read before being written down. `group` marks questions a reviewer would call the same question: retrieval that changes its answer when the words change is the failure this set exists to measure. `kind: unanswerable` items have no gold pages by construction - the document genuinely does not contain the answer, and they are scored on refusal rather than on recall. `mustContain` is a regular expression the ANSWER text must match, taken from the same verified quote that makes the page gold - an objective check on whether the answer states the fact, which is weaker than 'the answer is correct' and is named that way for a reason. Version 2.0 adds eleven more FDA multi-disciplinary reviews, fetched from accessdata.fda.gov by NDA number and screened with measure_pdf.py. Their items were PROPOSED by regular expression and then reviewed by reading every quote: six proposals were rejected for matching tissue-distribution tables, KRAS pharmacology and the name of an adverse event rather than the finding asked about. The set varies on purpose - a boxed hepatotoxicity warning, several liver findings without one, approved drugs with no liver warning at all, and one 505(b)(2) with no nonclinical studies - because a set of only hepatotoxic drugs measures willingness to say danger and nothing else. Version 2.1 adds seven FDA pharmacology reviews chosen for their OUTCOME rather than their findings - six with a boxed hepatic warning and two withdrawn from the US market for liver injury - because the set previously held exactly one drug whose outcome was hepatic and could not measure whether Ask reports what a document says rather than what a drug's reputation implies. Four of the seven are non-oncology, one is an antisense oligonucleotide, and they are 2012-2018 PharmR-format reviews that are partly scanned (52-100% of pages carry text), so they vary the format and the machine-readability as well as the outcome. Every quote was located by regular expression over the extracted text and read before being written down; every item is checked by tools/validate_fixture.ts, which asserts the quote is verbatim on the page it names.",
   "items": [
     {
       "id": "nipo-noael-a",
@@ -1174,7 +1174,522 @@
       "question": "What was the NOAEL in the dog?",
       "goldPages": [],
       "why": "No dog study is reported - 'dog' and 'canine' return zero hits - so any dose quoted is invented."
+    },
+    {
+      "id": "pona-noael-a",
+      "document": "ponatinib",
+      "group": "ponatinib:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set in the six-month monkey study?",
+      "goldPages": [
+        {
+          "page": 121,
+          "quote": "NOAEL 2 mg/kg/day (24 mg/m2/day) corresponded to mean AP24534 Cmax of 56.9 and 87.9 ng/mL"
+        }
+      ],
+      "mustContain": [
+        "2\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "pona-noael-b",
+      "document": "ponatinib",
+      "group": "ponatinib:noael",
+      "kind": "answerable",
+      "question": "What was the no observed adverse effect level in monkeys, and what exposure did it correspond to?",
+      "goldPages": [
+        {
+          "page": 121,
+          "quote": "NOAEL 2 mg/kg/day (24 mg/m2/day) corresponded to mean AP24534 Cmax of 56.9 and 87.9 ng/mL"
+        }
+      ],
+      "mustContain": [
+        "2\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "pona-liver-a",
+      "document": "ponatinib",
+      "group": "ponatinib:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported in the six-month monkey study, and at what magnitude?",
+      "goldPages": [
+        {
+          "page": 15,
+          "quote": "ranged from 2- to 4.5-fold in ALT and 2- to 9.2-fold in AST"
+        }
+      ],
+      "mustContain": [
+        "4\\.5-fold|9\\.2-fold"
+      ]
+    },
+    {
+      "id": "pona-liver-b",
+      "document": "ponatinib",
+      "group": "ponatinib:liver",
+      "kind": "answerable",
+      "question": "Were transaminases elevated in the animal studies, and by how much?",
+      "goldPages": [
+        {
+          "page": 15,
+          "quote": "ranged from 2- to 4.5-fold in ALT and 2- to 9.2-fold in AST"
+        }
+      ],
+      "mustContain": [
+        "4\\.5-fold|9\\.2-fold"
+      ]
+    },
+    {
+      "id": "pona-reversible-a",
+      "document": "ponatinib",
+      "group": "ponatinib:reversibility",
+      "kind": "answerable",
+      "question": "Were the transaminase elevations reversible?",
+      "goldPages": [
+        {
+          "page": 16,
+          "quote": "elevations in transaminases were not present during the recovery period"
+        }
+      ],
+      "mustContain": [
+        "recovery|reversib"
+      ]
+    },
+    {
+      "id": "pona-reversible-b",
+      "document": "ponatinib",
+      "group": "ponatinib:reversibility",
+      "kind": "answerable",
+      "question": "Did the liver enzyme changes recover after dosing stopped?",
+      "goldPages": [
+        {
+          "page": 16,
+          "quote": "elevations in transaminases were not present during the recovery period"
+        }
+      ],
+      "mustContain": [
+        "recovery|reversib"
+      ]
+    },
+    {
+      "id": "pona-kidney-reversible-a",
+      "document": "ponatinib",
+      "group": "ponatinib:organ-reversibility",
+      "kind": "answerable",
+      "question": "Were the kidney findings in the six-month rat study reversible?",
+      "goldPages": [
+        {
+          "page": 121,
+          "quote": "non-reversible microscopic findings kidney"
+        }
+      ],
+      "mustContain": [
+        "non-reversible|not reversible|did not reverse|persist"
+      ]
+    },
+    {
+      "id": "pona-carcinogenicity-a",
+      "document": "ponatinib",
+      "group": "ponatinib:absent-study",
+      "kind": "answerable",
+      "question": "Was a carcinogenicity study conducted, and if not, why not?",
+      "goldPages": [
+        {
+          "page": 16,
+          "quote": "Carcinogenicity studies were not completed because of the short life- expectancy"
+        }
+      ],
+      "mustContain": [
+        "not completed|were not conducted|no carcinogenicity"
+      ]
+    },
+    {
+      "id": "pona-milk-unanswerable",
+      "document": "ponatinib",
+      "group": "ponatinib:unanswerable",
+      "kind": "unanswerable",
+      "question": "Was transfer of the drug into milk measured in lactating animals?",
+      "goldPages": [],
+      "why": "No lactation study is reported - 'milk', 'lactat' and 'nursing' each return zero hits across the whole extracted text - so any transfer figure in an answer is invented."
+    },
+    {
+      "id": "reg-noael-a",
+      "document": "regorafenib",
+      "group": "regorafenib:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was determined in rats, and on what findings was it based?",
+      "goldPages": [
+        {
+          "page": 183,
+          "quote": "NOAEL value in rats determined in this study was 0.6 mg/m2"
+        }
+      ],
+      "mustContain": [
+        "0\\.6\\s*mg/m2"
+      ]
+    },
+    {
+      "id": "reg-noael-b",
+      "document": "regorafenib",
+      "group": "regorafenib:noael",
+      "kind": "answerable",
+      "question": "What was the no observed adverse effect level in the rat study?",
+      "goldPages": [
+        {
+          "page": 183,
+          "quote": "NOAEL value in rats determined in this study was 0.6 mg/m2"
+        }
+      ],
+      "mustContain": [
+        "0\\.6\\s*mg/m2"
+      ]
+    },
+    {
+      "id": "reg-reversible-a",
+      "document": "regorafenib",
+      "group": "regorafenib:reversibility",
+      "kind": "answerable",
+      "question": "Were the toxicology findings reversible during the recovery period?",
+      "goldPages": [
+        {
+          "page": 198,
+          "quote": "Some findings were reversible, some were persistent and some progressed"
+        }
+      ],
+      "mustContain": [
+        "reversibl|persistent"
+      ]
+    },
+    {
+      "id": "reg-reversible-b",
+      "document": "regorafenib",
+      "group": "regorafenib:reversibility",
+      "kind": "answerable",
+      "question": "Did the findings recover after dosing stopped?",
+      "goldPages": [
+        {
+          "page": 198,
+          "quote": "Some findings were reversible, some were persistent and some progressed"
+        }
+      ],
+      "mustContain": [
+        "reversibl|persistent"
+      ]
+    },
+    {
+      "id": "reg-abuse-unanswerable",
+      "document": "regorafenib",
+      "group": "regorafenib:unanswerable",
+      "kind": "unanswerable",
+      "question": "Was abuse or dependence potential assessed nonclinically?",
+      "goldPages": [],
+      "why": "'abuse liability' returns zero hits across the whole extracted text. No abuse-potential assessment is reported, so any finding quoted in an answer is invented."
+    },
+    {
+      "id": "oca-noael-rat-a",
+      "document": "obeticholic",
+      "group": "obeticholic:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set in the 26-week rat toxicity study?",
+      "goldPages": [
+        {
+          "page": 8,
+          "quote": "The NOAEL from the 26-week toxicity study in rats (6 mg/kg/day)"
+        }
+      ],
+      "mustContain": [
+        "6\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "oca-noael-rat-b",
+      "document": "obeticholic",
+      "group": "obeticholic:noael",
+      "kind": "answerable",
+      "question": "In the 26-week rat study, what was the no observed adverse effect level?",
+      "goldPages": [
+        {
+          "page": 8,
+          "quote": "The NOAEL from the 26-week toxicity study in rats (6 mg/kg/day)"
+        }
+      ],
+      "mustContain": [
+        "6\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "oca-noael-absent-a",
+      "document": "obeticholic",
+      "group": "obeticholic:noael-not-established",
+      "kind": "answerable",
+      "question": "Was a NOAEL established in the study reporting mononuclear cell infiltrates in the large intestine?",
+      "goldPages": [
+        {
+          "page": 68,
+          "quote": "a NOAEL was not established in this study"
+        }
+      ],
+      "mustContain": [
+        "not established"
+      ]
+    },
+    {
+      "id": "oca-juvenile-unanswerable",
+      "document": "obeticholic",
+      "group": "obeticholic:unanswerable",
+      "kind": "unanswerable",
+      "question": "What did the juvenile animal toxicity study show?",
+      "goldPages": [],
+      "why": "'juvenile' returns zero hits across the whole extracted text. No juvenile study is reported, so any finding quoted in an answer is invented."
+    },
+    {
+      "id": "tol-noael-disputed-a",
+      "document": "tolvaptan",
+      "group": "tolvaptan:noael-disputed",
+      "kind": "answerable",
+      "question": "What NOAEL was set in the study reporting renal pelvic dilatation, and did the reviewer accept it?",
+      "goldPages": [
+        {
+          "page": 23,
+          "quote": "According to the sponsor, the NOAEL for this study was 30 mg/kg/day. However, it is incorrect"
+        },
+        {
+          "page": 23,
+          "quote": "A NOAEL could not be determined for this study"
+        }
+      ],
+      "mustContain": [
+        "could not be determined|incorrect"
+      ]
+    },
+    {
+      "id": "tol-noael-disputed-b",
+      "document": "tolvaptan",
+      "group": "tolvaptan:noael-disputed",
+      "kind": "answerable",
+      "question": "Did the reviewer agree with the sponsor's NOAEL for that study?",
+      "goldPages": [
+        {
+          "page": 23,
+          "quote": "A NOAEL could not be determined for this study"
+        }
+      ],
+      "mustContain": [
+        "could not be determined"
+      ]
+    },
+    {
+      "id": "tol-noael-a",
+      "document": "tolvaptan",
+      "group": "tolvaptan:noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set in the 42-day rat study?",
+      "goldPages": [
+        {
+          "page": 81,
+          "quote": "The middle dose of 100 mg/kg/day was considered to be the NOAEL for the study"
+        }
+      ],
+      "mustContain": [
+        "100\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "tol-herg-unanswerable",
+      "document": "tolvaptan",
+      "group": "tolvaptan:unanswerable",
+      "kind": "unanswerable",
+      "question": "What did the hERG channel assay show?",
+      "goldPages": [],
+      "why": "'hERG' and 'QT interval' both return zero hits across the whole extracted text. No cardiac ion-channel assay is reported here, so any result quoted in an answer is invented."
+    },
+    {
+      "id": "teri-liver-noael-a",
+      "document": "teriflunomide",
+      "group": "teriflunomide:noael-not-established",
+      "kind": "answerable",
+      "question": "Was a NOAEL established in the study where liver toxicity occurred at the lowest dose?",
+      "goldPages": [
+        {
+          "page": 230,
+          "quote": "liver toxicity at the lowest dose tested in this study, a NOAEL was not established"
+        }
+      ],
+      "mustContain": [
+        "not established"
+      ]
+    },
+    {
+      "id": "teri-liver-noael-b",
+      "document": "teriflunomide",
+      "group": "teriflunomide:noael-not-established",
+      "kind": "answerable",
+      "question": "In the study with liver findings at the low dose, could a no-effect level be identified?",
+      "goldPages": [
+        {
+          "page": 230,
+          "quote": "liver toxicity at the lowest dose tested in this study, a NOAEL was not established"
+        }
+      ],
+      "mustContain": [
+        "not established"
+      ]
+    },
+    {
+      "id": "teri-reversible-a",
+      "document": "teriflunomide",
+      "group": "teriflunomide:reversibility",
+      "kind": "answerable",
+      "question": "Did the findings recover after a drug-free period?",
+      "goldPages": [
+        {
+          "page": 229,
+          "quote": "findings were recoverable following a 28-day drug-free period"
+        }
+      ],
+      "mustContain": [
+        "recover"
+      ]
+    },
+    {
+      "id": "teri-phototox-unanswerable",
+      "document": "teriflunomide",
+      "group": "teriflunomide:unanswerable",
+      "kind": "unanswerable",
+      "question": "What did the phototoxicity study show?",
+      "goldPages": [],
+      "why": "'phototox' returns zero hits across the whole extracted text. No phototoxicity study is reported, so any result quoted in an answer is invented."
+    },
+    {
+      "id": "mipo-liver-noael-a",
+      "document": "mipomersen",
+      "group": "mipomersen:liver-noael",
+      "kind": "answerable",
+      "question": "What NOAEL was set for liver toxicity?",
+      "goldPages": [
+        {
+          "page": 262,
+          "quote": "the NOAEL for liver toxicity is considered to be < 5 mg/kg/week"
+        }
+      ],
+      "mustContain": [
+        "5\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "mipo-liver-noael-b",
+      "document": "mipomersen",
+      "group": "mipomersen:liver-noael",
+      "kind": "answerable",
+      "question": "At what dose was liver toxicity considered to have no adverse effect level?",
+      "goldPages": [
+        {
+          "page": 262,
+          "quote": "the NOAEL for liver toxicity is considered to be < 5 mg/kg/week"
+        }
+      ],
+      "mustContain": [
+        "5\\s*mg/kg"
+      ]
+    },
+    {
+      "id": "mipo-reversible-a",
+      "document": "mipomersen",
+      "group": "mipomersen:reversibility",
+      "kind": "answerable",
+      "question": "Was the tubular vacuolation reversible?",
+      "goldPages": [
+        {
+          "page": 263,
+          "quote": "minimal-slight tubular vacuolation at 50 mg/kg/week (not reversible)"
+        }
+      ],
+      "mustContain": [
+        "not reversible"
+      ]
+    },
+    {
+      "id": "mipo-phototox-unanswerable",
+      "document": "mipomersen",
+      "group": "mipomersen:unanswerable",
+      "kind": "unanswerable",
+      "question": "What did the phototoxicity study show?",
+      "goldPages": [],
+      "why": "'phototox' returns zero hits across the whole extracted text. No phototoxicity study is reported, so any result quoted in an answer is invented."
+    },
+    {
+      "id": "trab-liver-a",
+      "document": "trabectedin",
+      "group": "trabectedin:liver",
+      "kind": "answerable",
+      "question": "What liver findings are reported in monkeys?",
+      "goldPages": [
+        {
+          "page": 11,
+          "quote": "Findings in monkeys included liver necrosis and yellow skin"
+        }
+      ],
+      "mustContain": [
+        "necrosis"
+      ]
+    },
+    {
+      "id": "trab-reversible-a",
+      "document": "trabectedin",
+      "group": "trabectedin:reversibility",
+      "kind": "answerable",
+      "question": "Did the liver toxicity resolve during the recovery period?",
+      "goldPages": [
+        {
+          "page": 11,
+          "quote": "Toxicity in the liver and at injection sites persisted through the recovery period in many studies"
+        }
+      ],
+      "mustContain": [
+        "persisted"
+      ]
+    },
+    {
+      "id": "trab-reversible-b",
+      "document": "trabectedin",
+      "group": "trabectedin:reversibility",
+      "kind": "answerable",
+      "question": "Were the liver findings reversible?",
+      "goldPages": [
+        {
+          "page": 11,
+          "quote": "Toxicity in the liver and at injection sites persisted through the recovery period in many studies"
+        }
+      ],
+      "mustContain": [
+        "persisted"
+      ]
+    },
+    {
+      "id": "trab-carcinogenicity-a",
+      "document": "trabectedin",
+      "group": "trabectedin:absent-study",
+      "kind": "answerable",
+      "question": "Were carcinogenicity studies conducted, and if not, why not?",
+      "goldPages": [
+        {
+          "page": 11,
+          "quote": "Carcinogenicity studies were not conducted and are not required"
+        }
+      ],
+      "mustContain": [
+        "not conducted|not required"
+      ]
+    },
+    {
+      "id": "trab-noael-unanswerable",
+      "document": "trabectedin",
+      "group": "trabectedin:unanswerable",
+      "kind": "unanswerable",
+      "question": "What NOAEL was set in the repeat-dose toxicity study?",
+      "goldPages": [],
+      "why": "'NOAEL' and 'no observed adverse effect' both return zero hits across the whole extracted text - this document is a concurrence memorandum over reviews conducted elsewhere - so any dose quoted in an answer is invented."
     }
   ],
-  "_unanswerableProvenance": "Sixteen unanswerable items, up from two. Each was VERIFIED before being added: the term that would have to appear for the document to answer it was searched across the whole extracted text, and only candidates returning ZERO hits were kept. Seven candidates were rejected by that check, including ones that looked obviously safe - krazati names sotorasib twelve times, so 'how does this compare to sotorasib' is answerable; orgovyx and xpovio both report a 2-year carcinogenicity study. An unanswerable item the document can actually answer inverts the metric it is there to measure."
+  "_unanswerableProvenance": "Sixteen unanswerable items, up from two. Each was VERIFIED before being added: the term that would have to appear for the document to answer it was searched across the whole extracted text, and only candidates returning ZERO hits were kept. Seven candidates were rejected by that check, including ones that looked obviously safe - krazati names sotorasib twelve times, so 'how does this compare to sotorasib' is answerable; orgovyx and xpovio both report a 2-year carcinogenicity study. An unanswerable item the document can actually answer inverts the metric it is there to measure. Version 2.1 takes this to twenty-three by the same rule. Two candidates were rejected during that extension: 'juvenile' for ponatinib, which appears in a study-type checklist, and 'hERG' for ponatinib, whose assay was actually run. Separately, a study the document says was NOT done and explains why - ponatinib's carcinogenicity studies, Yondelis's - is an ANSWERABLE item, not an unanswerable one: 'not applicable' is not 'missing', and scoring a stated absence as a refusal would teach the opposite."
 }
