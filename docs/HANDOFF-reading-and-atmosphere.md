@@ -166,6 +166,12 @@ two are equal. Option 2 keeps that test; option 3 changes it deliberately.
   crash on Node 20, which is what this repo runs. `check-deps.mjs` version-checks exact
   pins for this reason; a stale hoisted 5.x satisfies a directory check and then fails
   at runtime talking about something else.
+- **`services/api` shells out to Python on the upload path**, and a runner without
+  PyMuPDF answers *every* upload with `422 unreadable`. CI had no Python step at all,
+  so it went red the moment Read & mark landed and stayed red through three commits —
+  on two tests that pass on any machine that has ever run the data prep. `ci.yml` now
+  installs `pymupdf==1.28.2`. If you add a server path that shells out to a script
+  needing more than `fitz`, that list has to grow.
 - **The upload gate rejects toy PDFs with a 422 `unreadable`** — `documents.ts:173`,
   measured by `data/prep/measure_pdf.py`. A 1-page placeholder does not get in; the
   fixture that did was 4 pages of real toxicology prose. Read the measurement code
@@ -195,8 +201,11 @@ ATMOSPHERE_URL=http://127.0.0.1:5187/ node apps/atmosphere/shot.mjs shots
 
 ## 7. State at handoff
 
-- 821 tests / 58 files, typecheck clean, lint clean, on `652adf5` + this document.
-  (829 / 59 on PR #24, which adds eight tests of its own.)
+- 821 tests / 58 files, typecheck clean, lint clean locally, on `652adf5` + this
+  document. (829 / 59 on PR #24, which adds eight tests of its own.)
+- **CI was red on this branch for three commits and is now fixed** — see the PyMuPDF
+  note in §5. Local green did not mean CI green, and nothing said so; check
+  `gh pr checks 22` rather than trusting a local run.
 - PR #22 — this branch → `main`, open.
 - PR #24 — `fix/dev-dependency-preflight` → this branch, open, **merge first**.
 - PR #23 — the reading-trails phase 1 record, merged to `main`.

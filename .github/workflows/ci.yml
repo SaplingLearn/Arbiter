@@ -10,6 +10,23 @@ jobs:
         with:
           node-version: '20'
           cache: npm
+      # PYTHON IS PART OF THE UPLOAD PATH, not a data-prep convenience. `services/api`
+      # shells out to data/prep/measure_pdf.py and extract_pdf_text.py for every
+      # document uploaded, so a runner without them answers every upload with
+      # 422 unreadable "PyMuPDF is not installed" - which is what CI did from the
+      # moment the Read & mark tab landed, on tests that pass on any machine that has
+      # ever run the data prep.
+      #
+      # PyMuPDF ALONE, pinned to the version in data/prep/requirements.txt, rather than
+      # the whole file: the other entries there are the offline dataset toolchain
+      # (rdkit, pandas, scikit-learn) which no server path touches and which cost
+      # minutes to install. If a server path ever shells out to a script needing more
+      # than fitz, this list grows - it is not "the requirements file minus what is
+      # slow", it is "what the product needs at runtime".
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pymupdf==1.28.2
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
