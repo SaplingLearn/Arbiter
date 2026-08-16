@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { readFileSync } from "node:fs";
+import { createReadStream, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { DeliberationService } from "./deliberation-service.js";
@@ -318,8 +318,25 @@ export function makeHandler(deps: ServerDeps) {
           }
           case "audit":
             return json(res, 200, deps.service.audit(caseId));
-          case "documents":
+          case "documents": {
+            // GET /api/cases/:caseId/documents/:documentId/raw
+            //
+            // SCOPED THROUGH forCase, NOT through get(). Resolving by id alone would
+            // serve any document to anyone holding a case they are on, which quietly
+            // admits a library PDF nobody on this case was asked to read. A mark
+            // against such a document could not mean what a mark means: in later
+            // phases a highlight says "this reviewer, reading the evidence for THIS
+            // case, stopped here," and that sentence has no referent for a document
+            // that was never on the case.
+            if (parts[4] !== undefined && parts[5] === "raw") {
+              const doc = deps.documents.forCase(caseId).find((d) => d.id === parts[4]);
+              if (doc === undefined) return json(res, 404, { error: "no_such_document" });
+              res.writeHead(200, { "content-type": "application/pdf", "content-length": doc.bytes });
+              createReadStream(deps.documents.pathFor(doc.id)).pipe(res);
+              return;
+            }
             return json(res, 200, deps.documents.forCase(caseId));
+          }
           case "participants":
             return json(res, 200, {
               ownerId: kase.ownerId,

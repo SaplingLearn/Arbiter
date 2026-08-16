@@ -415,6 +415,83 @@ describe("document upload", () => {
   });
 });
 
+/**
+ * A minimal, hand-built PDF that PyMuPDF can actually read: one page, a content
+ * stream carrying real text, a correct xref table. measure_pdf.py rejects anything
+ * with no extractable toxicology vocabulary, so the raw-bytes tests below need a
+ * document that clears that gate rather than a bare "%PDF-" header - the existing
+ * "document upload" tests only exercise the refusal paths and never produce one.
+ */
+function readablePdfBytes(): Buffer {
+  const text = "Toxicology review: nonclinical NOAEL assessment of hepatic findings.";
+  const content = `BT /F1 18 Tf 50 700 Td (${text}) Tj ET`;
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 4 0 R >> >> /MediaBox [0 0 612 792] /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`,
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objects.forEach((obj, i) => {
+    offsets.push(Buffer.byteLength(pdf));
+    pdf += `${i + 1} 0 obj\n${obj}\nendobj\n`;
+  });
+  const xrefStart = Buffer.byteLength(pdf);
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const off of offsets) pdf += `${String(off).padStart(10, "0")} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  return Buffer.from(pdf, "latin1");
+}
+
+describe("raw document bytes", () => {
+  // The case-scoping enforcement point. A mark means "this reviewer, reading the
+  // evidence for THIS case, stopped here" - so a document that is not on the case
+  // must not be reachable here, whatever its id. Resolving by bare id would admit
+  // a library PDF nobody on this case was asked to read.
+  const raw = (caseId: string, docId: string, who: string) =>
+    fetch(`${base}/api/cases/${caseId}/documents/${docId}/raw`, {
+      headers: { authorization: `Bearer ${tok[who]}` },
+    });
+
+  let docId: string;
+
+  beforeAll(async () => {
+    const res = await fetch(`${base}/api/cases/c1/documents`, {
+      method: "POST",
+      headers: { "content-type": "application/pdf", "x-filename": "raw-test.pdf", authorization: `Bearer ${tok["owner"]}` },
+      body: readablePdfBytes(),
+    });
+    const body = await res.json() as { document?: { id: string } };
+    if (res.status !== 201 || body.document === undefined) {
+      throw new Error(`fixture upload failed: ${res.status} ${JSON.stringify(body)}`);
+    }
+    docId = body.document.id;
+  });
+
+  it("serves a PDF that belongs to the case", async () => {
+    const res = await raw("c1", docId, "owner");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("application/pdf");
+    expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(0);
+  });
+
+  it("refuses a document id that is not on this case", async () => {
+    const res = await raw("c1", "doc_not_on_this_case", "owner");
+    expect(res.status).toBe(404);
+  });
+
+  // Matches the existing access boundary (server.ts, "the access boundary"): a case
+  // you may not read answers 404, not 403, because a 403 would confirm the case
+  // exists - the one fact an unauthorised caller is asking for. That check runs
+  // before any tail is dispatched, so an outsider never reaches the raw route at all.
+  it("still refuses somebody who is not on the case at all", async () => {
+    const res = await raw("c1", docId, "outsider");
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("routing", () => {
   it("404s an unknown route and an unknown case rather than guessing", async () => {
     expect((await call("GET", "/api/nope", "owner")).status).toBe(404);
