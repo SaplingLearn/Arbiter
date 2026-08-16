@@ -54,6 +54,20 @@
   --go: #1CA64C;     --go-wash: #EDF7F0;     --go-line: #BFE3CC;
   --open: #74747B;   --open-wash: #ECECE9;   --open-line: #DEDEDA;
 
+  /* Reviewer seats. Orange, amber, olive, teal, violet, magenta - chosen to miss
+     every hue that already carries meaning here (--stop red, --go green,
+     --accent indigo, --open grey), because a reviewer rendered in --go would read
+     as a call rather than as a person. Six, not eight: four reserved hues do not
+     leave eight slots that stay separable in BOTH themes, and a palette whose last
+     two entries are near-neighbours of its first two breaks the only property
+     seats have. A seventh participant renders .seat-none. */
+  --seat-0: #C2410C;  --seat-0-wash: #FDEEE5;  --seat-0-line: #F3CDB6;
+  --seat-1: #A16207;  --seat-1-wash: #FBF3E0;  --seat-1-line: #E9D6A4;
+  --seat-2: #4D7C0F;  --seat-2-wash: #F0F5E4;  --seat-2-line: #CFE0AC;
+  --seat-3: #0F766E;  --seat-3-wash: #E4F2F0;  --seat-3-line: #AFD8D2;
+  --seat-4: #7E22CE;  --seat-4-wash: #F3E9FB;  --seat-4-line: #DCC3F2;
+  --seat-5: #BE185D;  --seat-5-wash: #FCE8F0;  --seat-5-line: #F2BFD4;
+
   /* Elevation, which BLUEPRINT does not have. Kept as tokens because ~15 rules
      name them; --e1 disappears, and the two that separate something genuinely
      floating become a hard 1px ring rather than a soft shadow. A ring is a rule,
@@ -108,6 +122,12 @@
     --stop: #FF8A8E;  --stop-wash: #2A1516;  --stop-line: #4A2325;
     --go: #55C97F;    --go-wash: #10241A;    --go-line: #1F4430;
     --open: #9A9AA0;  --open-wash: #202020;  --open-line: #2A2A28;
+    --seat-0: #FB923C;  --seat-0-wash: #2A1A0E;  --seat-0-line: #4A2E17;
+    --seat-1: #FBBF24;  --seat-1-wash: #2A2310;  --seat-1-line: #4A3D19;
+    --seat-2: #A3C948;  --seat-2-wash: #1D2410;  --seat-2-line: #35441C;
+    --seat-3: #2DD4BF;  --seat-3-wash: #10262A;  --seat-3-line: #1B4249;
+    --seat-4: #C084FC;  --seat-4-wash: #241A2E;  --seat-4-line: #3E2C50;
+    --seat-5: #F472B6;  --seat-5-wash: #2A1520;  --seat-5-line: #4A2438;
     --e1: none;
     --e2: 0 0 0 1px var(--line);
     --e3: 0 0 0 1px var(--ink);
@@ -133,6 +153,12 @@
   --stop: #FF8A8E;  --stop-wash: #2A1516;  --stop-line: #4A2325;
   --go: #55C97F;    --go-wash: #10241A;    --go-line: #1F4430;
   --open: #9A9AA0;  --open-wash: #202020;  --open-line: #2A2A28;
+  --seat-0: #FB923C;  --seat-0-wash: #2A1A0E;  --seat-0-line: #4A2E17;
+  --seat-1: #FBBF24;  --seat-1-wash: #2A2310;  --seat-1-line: #4A3D19;
+  --seat-2: #A3C948;  --seat-2-wash: #1D2410;  --seat-2-line: #35441C;
+  --seat-3: #2DD4BF;  --seat-3-wash: #10262A;  --seat-3-line: #1B4249;
+  --seat-4: #C084FC;  --seat-4-wash: #241A2E;  --seat-4-line: #3E2C50;
+  --seat-5: #F472B6;  --seat-5-wash: #2A1520;  --seat-5-line: #4A2438;
   --e1: none;
   --e2: 0 0 0 1px var(--line);
   --e3: 0 0 0 1px var(--ink);
@@ -227,6 +253,17 @@ a { color: var(--accent); text-underline-offset: 3px; }
   background: var(--accent-wash); color: var(--accent); border: 1px solid var(--accent-line);
   display: grid; place-items: center; font: 400 12px/1 var(--mono);
 }
+
+/* A reviewer badge is .avatar plus a seat. The bare .avatar keeps its accent tint
+   for the signed-in user in the header chrome, where no attribution is in play;
+   --accent is spoken for by system highlights, so a REVIEWER is never accent. */
+.avatar.seat-0 { background: var(--seat-0-wash); color: var(--seat-0); border-color: var(--seat-0-line); }
+.avatar.seat-1 { background: var(--seat-1-wash); color: var(--seat-1); border-color: var(--seat-1-line); }
+.avatar.seat-2 { background: var(--seat-2-wash); color: var(--seat-2); border-color: var(--seat-2-line); }
+.avatar.seat-3 { background: var(--seat-3-wash); color: var(--seat-3); border-color: var(--seat-3-line); }
+.avatar.seat-4 { background: var(--seat-4-wash); color: var(--seat-4); border-color: var(--seat-4-line); }
+.avatar.seat-5 { background: var(--seat-5-wash); color: var(--seat-5); border-color: var(--seat-5-line); }
+.avatar.seat-none { background: var(--open-wash); color: var(--open); border-color: var(--open-line); }
 
 main { flex: 1; padding-block: var(--s6) var(--s8); }
 
@@ -380,12 +417,17 @@ button.primary {
 }
 button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 button.primary:disabled { background: var(--sunken); border-color: var(--line); color: var(--ink-3); cursor: not-allowed; box-shadow: none; }
-button.ghost {
+button.ghost, a.ghost {
   font: 550 14px/1 var(--sans); padding: 10px var(--s4); background: var(--paper);
   color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-sm); cursor: pointer;
 }
-button.ghost:hover { border-color: var(--accent-line); color: var(--accent); }
+/* a.ghost exists for navigation that is styled like a button - the document strip in
+   read.tsx, for one. Anchors are inline by default and carry an underline; neither is
+   part of the button look the rest of the app already has for this class. */
+a.ghost { display: inline-block; text-decoration: none; }
+button.ghost:hover, a.ghost:hover { border-color: var(--accent-line); color: var(--accent); }
 button.ghost[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-wash); font-weight: 650; }
+a.ghost[aria-current="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-wash); font-weight: 650; }
 button.link {
   background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer;
   font: 550 13.5px/1 var(--sans); text-decoration: underline; text-underline-offset: 3px;
@@ -533,6 +575,33 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
 
 .pagehead .actions .field { min-width: 268px; }
 
+/* ---- read & mark ----------------------------------------------------------- */
+/* The document strip and the open page sit in one section; the page itself splits
+   into the rendered PDF and the findings rail beside it. Page-level only in this
+   phase - the rail links to a page, it does not draw a box on it. */
+.read { display: flex; flex-direction: column; gap: var(--s4); }
+.read nav[aria-label="Case documents"] { display: flex; flex-wrap: wrap; gap: var(--s2); }
+
+.pdfview { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s5); align-items: start; }
+.pdfview canvas { max-width: 100%; border: 1px solid var(--line); background: var(--paper); }
+.pdfview aside { display: flex; flex-direction: column; gap: var(--s2); position: sticky; top: var(--s4); }
+
+/* System highlights, never a reviewer's: accent is reserved for what extraction
+   found, so no participant can ever wear it (see the seat palette above). */
+.finding-row {
+  display: flex; align-items: baseline; gap: var(--s2);
+  border: 1px solid var(--accent-line); background: var(--accent-wash);
+  border-radius: var(--r); padding: var(--s3) var(--s4);
+  color: var(--ink); text-decoration: none; font-size: 13.5px;
+}
+.finding-row:hover { border-color: var(--accent); }
+.finding-row .pip { font: 600 11px/1 var(--mono); color: var(--accent); flex: none; }
+
+@media (max-width: 780px) {
+  .pdfview { grid-template-columns: 1fr; }
+  .pdfview aside { position: static; }
+}
+
 /* Labelled for a screen reader, silent for everybody else: the composer's purpose is
    obvious from its position, and a visible "Your question" label above a chat box is
    the sort of form furniture a thread is meant to lose. */
@@ -547,7 +616,7 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  a.card, button.card, button.ghost, button.primary, .nav a { transition: border-color .15s, background .15s, color .15s, box-shadow .15s, transform .15s; }
+  a.card, button.card, button.ghost, a.ghost, button.primary, .nav a { transition: border-color .15s, background .15s, color .15s, box-shadow .15s, transform .15s; }
 }
 @media (prefers-reduced-motion: reduce) {
   a.card:hover, button.card:hover { transform: none; }

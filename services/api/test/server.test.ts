@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { createServer, type Server } from "node:http";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AddressInfo } from "node:net";
@@ -358,6 +358,39 @@ describe("the roster is on the record", () => {
     expect(removal.payload.participantId).toBe(uid["bea"]);
     // And the chain still verifies with the new entry kinds in it.
     expect(audit.body.chain).toEqual([]);
+
+    /**
+     * THE SEAT IS IN THE ENTRY. Spec §3.1 promises "the colours are recoverable from
+     * the audit chain alone, without needing the database" - which was false: the
+     * payload carried only a participant id, so the chain said somebody joined and
+     * only the JSON projection said what colour they wear. store.ts is explicit that
+     * the projection is a convenience and the LOG is the record.
+     */
+    const opened = audit.body.entries.find((e: any) => e.kind === "case_opened");
+    expect(opened.payload.seats).toEqual({ [uid["ann"]!]: 0 });
+
+    const added = audit.body.entries.find((e: any) => e.kind === "participant_added");
+    expect(added.payload).toMatchObject({ participantId: uid["bea"], seat: 1 });
+  });
+
+  /**
+   * Seats leave the server, and this is the only route that carries them. Without it
+   * `DeliberationCase.seats` was allocated, stored, logged and never read - and every
+   * badge on the client was uncoloured.
+   *
+   * Safe before the reveal: §3.4, a seat is identity, not position. It says which
+   * colour somebody wears, not whether they have answered.
+   */
+  it("returns the seat allocation on the roster, and nothing progress-shaped", async () => {
+    const r = await call("GET", "/api/cases/roster-1/participants", "ann");
+    expect(r.status).toBe(200);
+    // A removed participant KEEPS their seat so it is never reissued (seats.ts) -
+    // bea was added and removed in the test above, and the map still holds her.
+    expect(r.body.seats).toEqual({ [uid["ann"]!]: 0, [uid["bea"]!]: 1 });
+    expect(Object.keys(r.body.seats)).not.toContain(uid["cal"]);
+    // Nothing else came with it. Mark counts or per-person activity here would leak
+    // progress through a route that is open for the whole blind phase.
+    expect(Object.keys(r.body).sort()).toEqual(["members", "ownerId", "pending", "seats"]);
   });
 
   it("refuses roster changes from anybody but the convener", async () => {
@@ -412,6 +445,230 @@ describe("document upload", () => {
     const r = await call("GET", "/api/cases/c1/documents", "ann");
     expect(r.status).toBe(200);
     expect(Array.isArray(r.body)).toBe(true);
+  });
+});
+
+/**
+ * A minimal, hand-built PDF that PyMuPDF can actually read: one page, a content
+ * stream carrying real text, a correct xref table. measure_pdf.py rejects anything
+ * with no extractable toxicology vocabulary, so the raw-bytes tests below need a
+ * document that clears that gate rather than a bare "%PDF-" header - the existing
+ * "document upload" tests only exercise the refusal paths and never produce one.
+ *
+ * `variant` changes the embedded text, and therefore the content hash. DocumentStore
+ * deduplicates uploads by sha256 across the WHOLE store, not per case - so two calls
+ * uploaded to two different cases with identical bytes would collapse to the same
+ * stored document (still attributed to whichever case uploaded it first), which would
+ * make it impossible to get a real document id that genuinely belongs to a second case.
+ */
+function readablePdfBytes(variant = ""): Buffer {
+  const text = `Toxicology review: nonclinical NOAEL assessment of hepatic findings. ${variant}`.trim();
+  const content = `BT /F1 18 Tf 50 700 Td (${text}) Tj ET`;
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 4 0 R >> >> /MediaBox [0 0 612 792] /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`,
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objects.forEach((obj, i) => {
+    offsets.push(Buffer.byteLength(pdf));
+    pdf += `${i + 1} 0 obj\n${obj}\nendobj\n`;
+  });
+  const xrefStart = Buffer.byteLength(pdf);
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const off of offsets) pdf += `${String(off).padStart(10, "0")} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  return Buffer.from(pdf, "latin1");
+}
+
+describe("raw document bytes", () => {
+  // The case-scoping enforcement point. A mark means "this reviewer, reading the
+  // evidence for THIS case, stopped here" - so a document that is not on the case
+  // must not be reachable here, whatever its id. Resolving by bare id would admit
+  // a library PDF nobody on this case was asked to read.
+  const raw = (caseId: string, docId: string, who: string) =>
+    fetch(`${base}/api/cases/${caseId}/documents/${docId}/raw`, {
+      headers: { authorization: `Bearer ${tok[who]}` },
+    });
+
+  let docId: string;
+
+  beforeAll(async () => {
+    const res = await fetch(`${base}/api/cases/c1/documents`, {
+      method: "POST",
+      headers: { "content-type": "application/pdf", "x-filename": "raw-test.pdf", authorization: `Bearer ${tok["owner"]}` },
+      body: readablePdfBytes(),
+    });
+    const body = await res.json() as { document?: { id: string } };
+    if (res.status !== 201 || body.document === undefined) {
+      throw new Error(`fixture upload failed: ${res.status} ${JSON.stringify(body)}`);
+    }
+    docId = body.document.id;
+  });
+
+  it("serves a PDF that belongs to the case", async () => {
+    const res = await raw("c1", docId, "owner");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("application/pdf");
+    expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(0);
+  });
+
+  // THE ENDPOINT'S ACTUAL USERS. The owner convenes and does not answer; it is the
+  // reviewers who read the document. Every other test here drives it as the owner,
+  // which would have passed just as happily against an owner-only route.
+  it("serves the same bytes to a reviewer who is not the owner", async () => {
+    const res = await raw("c1", docId, "ann");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("application/pdf");
+    expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(0);
+  });
+
+  // Revalidatable, so paging through a 264-page review does not re-download it.
+  // `private` because this is unpublished safety data and a shared cache must not
+  // hold it.
+  it("carries a validator and a private cache directive", async () => {
+    const first = await raw("c1", docId, "owner");
+    const etag = first.headers.get("etag");
+    expect(etag).toMatch(/^"[0-9a-f]{64}"$/);
+    expect(first.headers.get("cache-control")).toContain("private");
+    await first.arrayBuffer();
+
+    const again = await fetch(`${base}/api/cases/c1/documents/${docId}/raw`, {
+      headers: { authorization: `Bearer ${tok["owner"]}`, "if-none-match": etag ?? "" },
+    });
+    expect(again.status).toBe(304);
+  });
+
+  it("refuses a document id that does not exist anywhere", async () => {
+    const res = await raw("c1", "doc_not_on_this_case", "owner");
+    expect(res.status).toBe(404);
+  });
+
+  // THE test that actually exercises case-scoping. A nonexistent id (above) cannot
+  // distinguish a correct forCase() resolution from a regression to get(id): both
+  // return nothing for an id that is in neither case. This one uses a REAL document
+  // id that genuinely exists in the store - just on a different case - so it can
+  // only pass if the lookup is actually scoped to c1.
+  it("refuses a document id that is real, but belongs to a different case", async () => {
+    const other = await call("POST", "/api/cases", "owner", {
+      caseId: "c-other-case", compoundLabel: "Unrelated compound", context: "",
+      participantIds: [uid["ann"]], findings: FINDINGS, at: "t",
+    });
+    expect(other.status).toBe(201);
+
+    const upload = await fetch(`${base}/api/cases/c-other-case/documents`, {
+      method: "POST",
+      headers: { "content-type": "application/pdf", "x-filename": "other-case.pdf", authorization: `Bearer ${tok["owner"]}` },
+      body: readablePdfBytes("case-c-other-case"),
+    });
+    const uploadBody = await upload.json() as { document?: { id: string } };
+    if (upload.status !== 201 || uploadBody.document === undefined) {
+      throw new Error(`fixture upload failed: ${upload.status} ${JSON.stringify(uploadBody)}`);
+    }
+    const otherCaseDocId = uploadBody.document.id;
+
+    // Sanity check: this id is real and reachable on the case it actually belongs to.
+    const onItsOwnCase = await raw("c-other-case", otherCaseDocId, "owner");
+    expect(onItsOwnCase.status).toBe(200);
+
+    const res = await raw("c1", otherCaseDocId, "owner");
+    expect(res.status).toBe(404);
+  });
+
+  // Matches the existing access boundary (server.ts, "the access boundary"): a case
+  // you may not read answers 404, not 403, because a 403 would confirm the case
+  // exists - the one fact an unauthorised caller is asking for. That check runs
+  // before any tail is dispatched, so an outsider never reaches the raw route at all.
+  it("still refuses somebody who is not on the case at all", async () => {
+    const res = await raw("c1", docId, "outsider");
+    expect(res.status).toBe(404);
+  });
+
+  it("returns a clean error, and stays up, when the stored file is missing from disk", async () => {
+    const upload = await fetch(`${base}/api/cases/c1/documents`, {
+      method: "POST",
+      headers: { "content-type": "application/pdf", "x-filename": "vanishing.pdf", authorization: `Bearer ${tok["owner"]}` },
+      body: readablePdfBytes("vanishing-fixture"),
+    });
+    const uploadBody = await upload.json() as { document?: { id: string } };
+    if (upload.status !== 201 || uploadBody.document === undefined) {
+      throw new Error(`fixture upload failed: ${upload.status} ${JSON.stringify(uploadBody)}`);
+    }
+    const vanishingId = uploadBody.document.id;
+
+    // Simulate the index and the file on disk drifting apart: the document record
+    // still exists, but its bytes do not - deleted externally, a migration gap, a
+    // disk issue.
+    unlinkSync(deps.documents.pathFor(vanishingId));
+
+    // The handler documents exactly this answer - 500 with `document_missing` - so
+    // the test asserts it. "Any status in [400, 600)" passed for a 404, a 403 and a
+    // crash-shaped 502 alike, which is to say it did not check the contract at all.
+    const res = await raw("c1", vanishingId, "owner");
+    expect(res.status).toBe(500);
+    expect(await res.json()).toMatchObject({ error: "document_missing" });
+
+    // And the server itself is still up: an ordinary request right after still works,
+    // which it would not if the missing file had thrown an unhandled stream error and
+    // crashed the process.
+    const still = await call("GET", "/api/cases/c1/documents", "owner");
+    expect(still.status).toBe(200);
+  });
+});
+
+/**
+ * The document a finding was written against has to survive the round trip to the
+ * client, because it is the only EXACT join between a finding and a page of a PDF.
+ *
+ * `sourceDocument` cannot do it: on every case in `data/cases/` it holds a dossier
+ * identifier ("FDA NDA 211810"), not a filename, so string-matching it against an
+ * upload never succeeds. The id was validated against the case on the way in and
+ * then dropped on the way out, which left the reader's viewer with no highlights at
+ * all on any real case.
+ */
+describe("a finding keeps its document", () => {
+  let linkedDocId: string;
+
+  beforeAll(async () => {
+    const open = await call("POST", "/api/cases", "owner", {
+      caseId: "c-linked", compoundLabel: "Linked findings", context: "",
+      participantIds: [uid["ann"]], findings: FINDINGS, at: "t",
+    });
+    if (open.status !== 201) throw new Error(`fixture: ${open.status}`);
+
+    const up = await fetch(`${base}/api/cases/c-linked/documents`, {
+      method: "POST",
+      headers: { "content-type": "application/pdf", "x-filename": "linked-review.pdf", authorization: `Bearer ${tok["owner"]}` },
+      body: readablePdfBytes("linked-review"),
+    });
+    const body = await up.json() as { document?: { id: string } };
+    if (up.status !== 201 || body.document === undefined) throw new Error(`fixture: ${up.status}`);
+    linkedDocId = body.document.id;
+  });
+
+  it("carries sourceDocumentId back out on the route the client reads", async () => {
+    const add = await call("POST", "/api/cases/c-linked/findings", "owner", {
+      id: "f-linked", label: "ALT elevation", assertion: "toxic", detail: "3x ULN at week 4.",
+      sourceDocumentId: linkedDocId, sourcePage: 88, covers: ["M1"],
+    });
+    expect(add.status).toBe(201);
+
+    const req = await call("GET", "/api/cases/c-linked/adjudication-request", "ann");
+    expect(req.status).toBe(200);
+    const f = req.body.findings.find((x: any) => x.id === "f-linked");
+    expect(f).toMatchObject({ sourceDocumentId: linkedDocId, sourcePage: 88 });
+  });
+
+  it("still refuses a document that is not on the case", async () => {
+    const r = await call("POST", "/api/cases/c-linked/findings", "owner", {
+      id: "f-foreign", label: "Elsewhere", assertion: "toxic", detail: "d",
+      sourceDocumentId: "doc_not_here", covers: [],
+    });
+    expect(r.status).toBe(400);
+    expect(r.body.detail).toContain("not on this case");
   });
 });
 

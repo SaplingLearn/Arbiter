@@ -128,11 +128,25 @@ export function Section({ title, count, children }: {
  * prevent, so the reveal stage is genuinely unreachable until the case locks
  * rather than merely styled as unavailable.
  */
-export function Steps({ caseId, route, revealed, answered, of }: {
+export function Steps({ caseId, route, revealed, answered, of, marks }: {
   caseId: string; route: Route; revealed: boolean; answered?: number; of?: number;
+  /** The VIEWER's own mark count. Never another participant's - see the pip note. */
+  marks?: number;
 }): ReactElement {
   const items: { label: string; to: Route; enabled: boolean; pip?: string; why?: string }[] = [
     { label: "Evidence", to: { name: "case", caseId }, enabled: true },
+    {
+      // Second, not appended. The strip claims the order is the product and then
+      // skipped the part where somebody reads: a reviewer went from a list of
+      // documents straight to a verdict form, so the reading happened off-system.
+      // Read-then-decide is the order the work already has.
+      //
+      // Never gated, unlike Reveal. Status changes what this shows, not whether it
+      // opens. The pip is the viewer's OWN count: own activity is not an aggregate
+      // over other people, so it leaks nothing blind submission protects.
+      label: "Read & mark", to: { name: "read", caseId }, enabled: true,
+      ...(marks === undefined ? {} : { pip: String(marks) }),
+    },
     {
       label: "Your position", to: { name: "position", caseId }, enabled: !revealed,
       ...(answered !== undefined && of !== undefined ? { pip: `${answered}/${of}` } : {}),

@@ -243,7 +243,14 @@ export class FileStore extends MemoryStore {
     }
     if (existsSync(this.casesPath)) {
       const raw = JSON.parse(readFileSync(this.casesPath, "utf8")) as DeliberationCase[];
-      for (const c of raw) this.cases.set(c.caseId, c);
+      // NORMALISED ON LOAD, because this file outlives the schema that wrote it.
+      // Every case written before seats existed has no `seats` key, and the seat
+      // transitions read it unguarded - `withParticipant(undefined, id)` throws on
+      // `'userId' in undefined`, which the request handler's outer catch turns into
+      // an opaque 500. That is: adding anybody to any pre-existing case failed, and
+      // failed with a message naming nothing. A missing map is an EMPTY map; the
+      // first participant added then gets seat 0, exactly as a new case would.
+      for (const c of raw) this.cases.set(c.caseId, { ...c, seats: c.seats ?? {} });
     }
   }
 

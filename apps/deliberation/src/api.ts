@@ -86,6 +86,15 @@ export interface Roster {
   ownerId: string;
   members: Person[];
   pending: { email: string; caseId: string; invitedBy: string; at: string }[];
+  /**
+   * Participant id -> seat number, the allocation the server made and keeps stable.
+   *
+   * Safe to send BEFORE the reveal, and spec §3.4 says why: a seat is identity, not
+   * position. It says which colour this person wears, and nothing about whether they
+   * have answered or what they answered. Mark counts and per-person activity are a
+   * different question and are deliberately not here.
+   */
+  seats: Record<string, number>;
 }
 
 export interface StoredDocument {
@@ -158,6 +167,15 @@ export interface Finding {
   label: string;
   assertion: "toxic" | "safe" | "ambiguous";
   detail: string;
+  /** Where extraction found this, as free text. On every case in `data/cases/` this
+   *  is a DOSSIER identifier ("FDA NDA 211810"), not a filename, so it does not
+   *  resolve to an upload - see read.tsx's `pointsAt`. */
+  sourceDocument?: string;
+  /** The uploaded document this finding was written against, validated case-side
+   *  when the finding was created. The exact join the viewer highlights on; absent
+   *  on findings that predate an upload. */
+  sourceDocumentId?: string;
+  sourcePage?: number;
 }
 
 export interface AuditResult {

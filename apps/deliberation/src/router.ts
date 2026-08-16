@@ -23,6 +23,7 @@ export type Route =
   | { name: "position"; caseId: string }
   | { name: "reveal"; caseId: string }
   | { name: "record"; caseId: string }
+  | { name: "read"; caseId: string; documentId?: string; page?: number }
   | { name: "ask" }
   | { name: "method" };
 
@@ -45,6 +46,20 @@ export function parseHash(hash: string): Route {
       case "position": return { name: "position", caseId };
       case "reveal": return { name: "reveal", caseId };
       case "record": return { name: "record", caseId };
+      case "read": {
+        // #/case/:id/read/:documentId/:page. Both tail segments are optional, and a
+        // page that is not a number is dropped rather than defaulted - a deep link
+        // that silently lands on page 1 is worse than one that lands on the document.
+        const documentId = parts[3] === undefined ? undefined : decodeURIComponent(parts[3]);
+        const page = parts[4] === undefined || !/^\d+$/.test(parts[4])
+          ? undefined
+          : Number.parseInt(parts[4], 10);
+        return {
+          name: "read", caseId,
+          ...(documentId === undefined ? {} : { documentId }),
+          ...(page === undefined ? {} : { page }),
+        };
+      }
       // An unknown sub-route falls back to the case overview rather than to a 404
       // page. The caseId is still valid, so dropping the reader at the top of the
       // case they asked for beats telling them nothing exists.
@@ -66,6 +81,12 @@ export function href(route: Route): string {
     case "position": return `#/case/${encodeURIComponent(route.caseId)}/position`;
     case "reveal": return `#/case/${encodeURIComponent(route.caseId)}/reveal`;
     case "record": return `#/case/${encodeURIComponent(route.caseId)}/record`;
+    case "read": {
+      const base = `#/case/${encodeURIComponent(route.caseId)}/read`;
+      if (route.documentId === undefined) return base;
+      const doc = `${base}/${encodeURIComponent(route.documentId)}`;
+      return route.page === undefined ? doc : `${doc}/${route.page}`;
+    }
     case "ask": return "#/ask";
   }
 }

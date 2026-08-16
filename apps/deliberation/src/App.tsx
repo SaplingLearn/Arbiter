@@ -11,6 +11,7 @@ import {
   Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
   Refused, Reveal, RosterPanel, Verdict, Waiting,
 } from "./screens.js";
+import { Read } from "./read.js";
 import { caseIdOf, href, navigate, parseHash, type Route } from "./router.js";
 import "./app.css";
 
@@ -347,7 +348,7 @@ export function App(): ReactElement {
     }
     return caseShell(
       <div className="stack-l">
-        <Reveal view={view} unanimity={unanimity} nameOf={nameOf} />
+        <Reveal view={view} unanimity={unanimity} nameOf={nameOf} seats={roster?.seats ?? {}} />
         {adjudication === null && view.status !== "signed" && isOwner && (
           <button className="primary" style={{ alignSelf: "flex-start" }}
             onClick={() => act(async () => { setAdjudication(await api.adjudicate(token, caseId, new Date().toISOString())); })}>
@@ -364,6 +365,14 @@ export function App(): ReactElement {
           <p className="ok">Signed. The record is closed, and every position in it is kept.</p>
         )}
       </div>,
+    );
+  }
+
+  if (route.name === "read") {
+    return caseShell(
+      <Read caseId={caseId} documents={docs} findings={findings}
+        {...(route.documentId === undefined ? {} : { documentId: route.documentId })}
+        {...(route.page === undefined ? {} : { page: route.page })} />,
     );
   }
 
