@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import { Decode, Wordmark } from "@arbiter/design";
 import { href, type Route } from "../router.js";
 import type { Person } from "../api.js";
@@ -38,13 +38,69 @@ export function Frame(): ReactElement {
  * ground is the tab block itself, which needs one to stay legible over six different
  * backgrounds.
  */
+/**
+ * Where the header stops being a fixture and starts being in the way.
+ *
+ * REVEAL_AT is roughly its own height plus the inset it floats in: above that the
+ * header is not covering anything yet, so hiding it would be motion with no reason.
+ *
+ * FLOOR exists because a trackpad does not emit one scroll event per gesture - it
+ * emits a stream of one- and two-pixel moves, some of them in the wrong direction.
+ * Without a floor the header flickers on and off all the way down a case table.
+ */
+const REVEAL_AT = 96;
+const FLOOR = 6;
+
+/**
+ * Hidden while the reader is going down the page, showing the moment they turn round.
+ *
+ * DIRECTION, NOT POSITION. "Hide below 400px" would take the navigation away and keep
+ * it away for the length of a 300-row table; scrolling up is the gesture that means
+ * "give me the chrome back", and answering it is why this pattern is everywhere.
+ *
+ * NO rAF THROTTLE. The listener is passive and does two comparisons against a number
+ * the browser already has; scroll events are frame-aligned as it is, so a rAF here
+ * would buy a frame of latency and nothing else. The state only changes when the
+ * answer changes, so React re-renders on the turn, not on the scroll.
+ */
+function useHideOnScroll(): boolean {
+  const [hidden, setHidden] = useState(false);
+  const last = useRef(0);
+
+  useEffect(() => {
+    last.current = window.scrollY;
+
+    const onScroll = (): void => {
+      const y = window.scrollY;
+      const moved = y - last.current;
+      if (Math.abs(moved) < FLOOR) return;
+      last.current = y;
+      // Showing at the top whichever way the last move went: a flick to the top is
+      // downward in its final pixels and the header belongs on screen there anyway.
+      setHidden(y > REVEAL_AT && moved > 0);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); };
+  }, []);
+
+  return hidden;
+}
+
 export function Header({ route, me, onSignOut }: {
   route: Route;
   me: Person | null;
   onSignOut: () => void;
 }): ReactElement {
+  const hidden = useHideOnScroll();
+
   return (
-    <header className="hud-head">
+    /* INERT WHILE IT IS AWAY, not merely transparent. This holds the main menu and the
+       only sign-out control, and a tab stop on something translated off the top of the
+       viewport sends focus somewhere the reader cannot see. `inert` takes the whole
+       subtree out of the tab order and off the accessibility tree in one attribute,
+       which is exactly the state being described. */
+    <header className="hud-head" data-hidden={hidden ? "true" : "false"} {...(hidden ? { inert: "" } : {})}>
       <a className="brand" href={href({ name: "dashboard" })} aria-label="Arbiter, to the dashboard">
         <Wordmark className="brand-word" />
         <span className="brand-sub">Preclinical safety review</span>

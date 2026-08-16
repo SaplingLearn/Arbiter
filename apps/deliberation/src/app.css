@@ -257,6 +257,36 @@ a { color: var(--accent); text-underline-offset: 3px; }
   right: calc(var(--hud-inset) + var(--hud-gutter));
   z-index: 50;
   display: flex; align-items: center; gap: var(--s5);
+  transition: transform .32s var(--ease), opacity .2s var(--ease);
+}
+
+/* IT LEAVES WHEN YOU ARE READING DOWN THE PAGE.
+   --------------------------------------------------------------------------
+   The header is fixed and the work scrolls under it, which is the arrangement
+   the file's header argues for - a product that hijacks the wheel is a product
+   nobody can use. The cost of that arrangement is this: on a long case table
+   the rows pass behind the navigation. So it goes up on the way down and comes
+   back the moment the reader turns around, which is what scrolling up means.
+
+   TRANSFORM AND OPACITY ONLY - the two properties a compositor can animate
+   without laying anything out again. There is a WebGL scene drawing behind this
+   and a frame is not free.
+
+   Far enough to clear its own top inset as well as its height, or the bottom
+   edge of the account row stays visible as a stripe against the bezel.
+
+   The state carries no `visibility` and needs none: `inert` on the element (see
+   Chrome.tsx) takes the whole subtree out of the tab order AND swallows pointer
+   events, so nothing invisible here is reachable by either route. */
+.hud-head[data-hidden="true"] {
+  transform: translateY(calc(-100% - var(--hud-inset) - var(--hud-gutter)));
+  opacity: 0;
+}
+
+/* The behaviour stays, the animation goes. A reader who has asked for less
+   motion still wants the navigation out from over the paragraph. */
+@media (prefers-reduced-motion: reduce) {
+  .hud-head { transition: none; }
 }
 
 .brand { display: inline-flex; flex-direction: column; gap: 6px; text-decoration: none; color: var(--ink); flex: none; }
