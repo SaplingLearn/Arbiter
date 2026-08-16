@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { createServer, type Server } from "node:http";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AddressInfo } from "node:net";
@@ -421,9 +421,15 @@ describe("document upload", () => {
  * with no extractable toxicology vocabulary, so the raw-bytes tests below need a
  * document that clears that gate rather than a bare "%PDF-" header - the existing
  * "document upload" tests only exercise the refusal paths and never produce one.
+ *
+ * `variant` changes the embedded text, and therefore the content hash. DocumentStore
+ * deduplicates uploads by sha256 across the WHOLE store, not per case - so two calls
+ * uploaded to two different cases with identical bytes would collapse to the same
+ * stored document (still attributed to whichever case uploaded it first), which would
+ * make it impossible to get a real document id that genuinely belongs to a second case.
  */
-function readablePdfBytes(): Buffer {
-  const text = "Toxicology review: nonclinical NOAEL assessment of hepatic findings.";
+function readablePdfBytes(variant = ""): Buffer {
+  const text = `Toxicology review: nonclinical NOAEL assessment of hepatic findings. ${variant}`.trim();
   const content = `BT /F1 18 Tf 50 700 Td (${text}) Tj ET`;
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
@@ -477,8 +483,39 @@ describe("raw document bytes", () => {
     expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(0);
   });
 
-  it("refuses a document id that is not on this case", async () => {
+  it("refuses a document id that does not exist anywhere", async () => {
     const res = await raw("c1", "doc_not_on_this_case", "owner");
+    expect(res.status).toBe(404);
+  });
+
+  // THE test that actually exercises case-scoping. A nonexistent id (above) cannot
+  // distinguish a correct forCase() resolution from a regression to get(id): both
+  // return nothing for an id that is in neither case. This one uses a REAL document
+  // id that genuinely exists in the store - just on a different case - so it can
+  // only pass if the lookup is actually scoped to c1.
+  it("refuses a document id that is real, but belongs to a different case", async () => {
+    const other = await call("POST", "/api/cases", "owner", {
+      caseId: "c-other-case", compoundLabel: "Unrelated compound", context: "",
+      participantIds: [uid["ann"]], findings: FINDINGS, at: "t",
+    });
+    expect(other.status).toBe(201);
+
+    const upload = await fetch(`${base}/api/cases/c-other-case/documents`, {
+      method: "POST",
+      headers: { "content-type": "application/pdf", "x-filename": "other-case.pdf", authorization: `Bearer ${tok["owner"]}` },
+      body: readablePdfBytes("case-c-other-case"),
+    });
+    const uploadBody = await upload.json() as { document?: { id: string } };
+    if (upload.status !== 201 || uploadBody.document === undefined) {
+      throw new Error(`fixture upload failed: ${upload.status} ${JSON.stringify(uploadBody)}`);
+    }
+    const otherCaseDocId = uploadBody.document.id;
+
+    // Sanity check: this id is real and reachable on the case it actually belongs to.
+    const onItsOwnCase = await raw("c-other-case", otherCaseDocId, "owner");
+    expect(onItsOwnCase.status).toBe(200);
+
+    const res = await raw("c1", otherCaseDocId, "owner");
     expect(res.status).toBe(404);
   });
 
@@ -489,6 +526,34 @@ describe("raw document bytes", () => {
   it("still refuses somebody who is not on the case at all", async () => {
     const res = await raw("c1", docId, "outsider");
     expect(res.status).toBe(404);
+  });
+
+  it("returns a clean error, and stays up, when the stored file is missing from disk", async () => {
+    const upload = await fetch(`${base}/api/cases/c1/documents`, {
+      method: "POST",
+      headers: { "content-type": "application/pdf", "x-filename": "vanishing.pdf", authorization: `Bearer ${tok["owner"]}` },
+      body: readablePdfBytes("vanishing-fixture"),
+    });
+    const uploadBody = await upload.json() as { document?: { id: string } };
+    if (upload.status !== 201 || uploadBody.document === undefined) {
+      throw new Error(`fixture upload failed: ${upload.status} ${JSON.stringify(uploadBody)}`);
+    }
+    const vanishingId = uploadBody.document.id;
+
+    // Simulate the index and the file on disk drifting apart: the document record
+    // still exists, but its bytes do not - deleted externally, a migration gap, a
+    // disk issue.
+    unlinkSync(deps.documents.pathFor(vanishingId));
+
+    const res = await raw("c1", vanishingId, "owner");
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(600);
+
+    // And the server itself is still up: an ordinary request right after still works,
+    // which it would not if the missing file had thrown an unhandled stream error and
+    // crashed the process.
+    const still = await call("GET", "/api/cases/c1/documents", "owner");
+    expect(still.status).toBe(200);
   });
 });
 

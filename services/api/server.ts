@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { createReadStream, readFileSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { DeliberationService } from "./deliberation-service.js";
@@ -331,8 +331,29 @@ export function makeHandler(deps: ServerDeps) {
             if (parts[4] !== undefined && parts[5] === "raw") {
               const doc = deps.documents.forCase(caseId).find((d) => d.id === parts[4]);
               if (doc === undefined) return json(res, 404, { error: "no_such_document" });
+
+              // Existence checked BEFORE the status line is committed. The index and
+              // the file on disk can drift apart - deleted externally, a migration
+              // gap, a disk issue - and once writeHead(200, ...) has gone out the
+              // client has already been told this is a successful response; there is
+              // no way to take that back and turn it into a clean error.
+              const path = deps.documents.pathFor(doc.id);
+              if (!existsSync(path)) {
+                return json(res, 500, {
+                  error: "document_missing",
+                  detail: "The document record exists but its file could not be found.",
+                });
+              }
+
               res.writeHead(200, { "content-type": "application/pdf", "content-length": doc.bytes });
-              createReadStream(deps.documents.pathFor(doc.id)).pipe(res);
+              const stream = createReadStream(path);
+              // A failure here is asynchronous and fires AFTER this handler's own
+              // try/catch has already returned, so that catch cannot see it. Left
+              // unhandled, Node treats an 'error' event with no listener as an
+              // uncaught exception - which crashes the whole process, taking down
+              // every in-flight request, not just this one.
+              stream.on("error", () => res.destroy());
+              stream.pipe(res);
               return;
             }
             return json(res, 200, deps.documents.forCase(caseId));
