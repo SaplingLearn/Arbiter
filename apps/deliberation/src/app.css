@@ -874,7 +874,26 @@ a.inv-row { color: inherit; text-decoration: none; transition: background-color 
 a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 
 .pdfview { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s5); align-items: start; }
-.pdfview canvas { max-width: 100%; border: 1px solid var(--line); background: var(--paper); }
+
+/* `min-width: 0` is what makes the measurement above mean anything: without it a grid
+   item takes its content's intrinsic width as its floor, so a wide canvas would push
+   the column wider, which would rasterise a wider canvas. The page is measured against
+   this box, so the box must be free to be narrower than the page it holds. */
+.pdfpage { min-width: 0; display: flex; flex-direction: column; gap: var(--s3); }
+
+/* The canvas carries its own width and height in inline styles, set from the same
+   viewport the bitmap was painted at. `height: auto` is the guard for the frames
+   before that lands - a canvas clamped by max-width with its raw pixel height still in
+   force is squashed out of its aspect ratio, and a squashed page reads as a broken
+   PDF rather than as a CSS bug. */
+.pdfview canvas { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); background: var(--paper); }
+
+.pager { display: flex; align-items: center; gap: var(--s4); }
+.pager .at { font: 500 12px/1 var(--mono); color: var(--muted); letter-spacing: .04em; }
+/* Kept in the flow rather than hidden at the ends of the document: a pager whose
+   controls disappear on the first and last page changes width as you read, and the
+   remaining control moves under the cursor mid-click. */
+.pager .off { opacity: .35; pointer-events: none; }
 .pdfview aside { display: flex; flex-direction: column; gap: var(--s2); position: sticky; top: var(--s4); }
 
 /* System highlights, never a reviewer's: accent is reserved for what extraction

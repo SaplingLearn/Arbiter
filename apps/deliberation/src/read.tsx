@@ -131,14 +131,25 @@ export function Read({ caseId, token, documentId, page, documents, findings }: {
  * The `import type` at the top of this file is erased at compile time and pulls in
  * nothing at runtime, so holding a typed PDFDocumentProxy in state costs no load.
  */
+/**
+ * The rasterisation scale used until the column has been measured - the old fixed
+ * scale, kept as the fallback rather than as the answer. Server-side rendering, a
+ * detached tree and jsdom all reach the painting code before any layout exists, and a
+ * page rendered at a scale of zero is a zero-by-zero canvas: an invisible document
+ * with nothing on screen to say so.
+ */
+const UNMEASURED_SCALE = 1.4;
+
 function PdfView({ caseId, token, document: doc, page, highlights, unresolved }: {
   caseId: string; token: string; document: StoredDocument; page?: number;
   highlights: Finding[]; unresolved: number;
 }): ReactElement {
+  const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const shown = page ?? 1;
   const [error, setError] = useState<string | null>(null);
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
+  const [column, setColumn] = useState(0);
 
   /**
    * TWO EFFECTS, BECAUSE FETCHING AND PAINTING ARE NOT THE SAME EVENT.
@@ -215,9 +226,34 @@ function PdfView({ caseId, token, document: doc, page, highlights, unresolved }:
     return () => { cancelled = true; void task?.destroy(); };
   }, [caseId, doc.id, token]);
 
+  /**
+   * THE COLUMN IS MEASURED, because a fixed rasterisation scale cannot be right twice.
+   *
+   * The page was rasterised at a hardcoded 1.4 and then handed to CSS with
+   * `max-width: 100%`, which means the browser resampled a bitmap of one size into a
+   * box of another on nearly every screen: soft, greyish type that reads as "the PDF
+   * is wrong" long before anyone suspects the scale. Measuring the column and painting
+   * at exactly that width is what makes the raster and the layout agree.
+   */
+  useEffect(() => {
+    const el = wrap.current;
+    if (el === null) return undefined;
+    const take = (w: number): void => { if (w > 0) setColumn(w); };
+    take(el.getBoundingClientRect().width);
+    // Guarded rather than assumed: jsdom ships no ResizeObserver, and the viewer
+    // still has to paint under the tests at the fallback scale instead of throwing.
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) take(e.contentRect.width);
+    });
+    ro.observe(el);
+    return () => { ro.disconnect(); };
+  }, []);
+
   useEffect(() => {
     if (pdf === null) return undefined;
     let cancelled = false;
+    let task: { cancel: () => void } | undefined;
     // Only reachable with a document already loaded, so this can never wipe a load
     // failure off the screen - it clears a render failure from a PREVIOUS page when
     // the reader moves off it.
@@ -229,30 +265,110 @@ function PdfView({ caseId, token, document: doc, page, highlights, unresolved }:
         // should land on the last page, not on an error screen.
         const p = await pdf.getPage(Math.min(Math.max(shown, 1), pdf.numPages));
         if (cancelled || canvas.current === null) return;
-        const viewport = p.getViewport({ scale: 1.4 });
+
+        /**
+         * TWO SCALES, AND COLLAPSING THEM INTO ONE IS THE BUG THIS FIXES.
+         *
+         * `fit` is how big the page should APPEAR - one page across the column it was
+         * given. `dpr` is how many device pixels back each of those CSS pixels on this
+         * display. A canvas painted without the second one hands a 1x bitmap to a 1.5x
+         * or 2x screen and lets the compositor blur the difference, which is precisely
+         * what a 150%-scaled Windows desktop or any Retina panel does to every glyph.
+         *
+         * So the backing store is `fit * dpr` and the CSS box is `fit`, set explicitly
+         * in both dimensions. Explicitly, because `max-width: 100%` on a canvas whose
+         * height attribute is still the raw pixel count squashes the page out of its
+         * own aspect ratio - a distortion that looks exactly like a badly made PDF.
+         */
+        const unscaled = p.getViewport({ scale: 1 });
+        const fit = column > 0 ? column / unscaled.width : UNMEASURED_SCALE;
+        const dpr = typeof devicePixelRatio === "number" && devicePixelRatio > 0
+          ? devicePixelRatio
+          : 1;
+        const viewport = p.getViewport({ scale: fit * dpr });
+
+        // Sized BEFORE a context is asked for: the dimensions are a property of the
+        // element, not of the drawing surface, and writing either one resets that
+        // surface anyway. Doing it here also means the canvas carries the right shape
+        // even where there is no 2d context to paint into.
+        canvas.current.width = Math.round(viewport.width);
+        canvas.current.height = Math.round(viewport.height);
+        canvas.current.style.width = `${Math.round(unscaled.width * fit)}px`;
+        canvas.current.style.height = `${Math.round(unscaled.height * fit)}px`;
+
         const ctx = canvas.current.getContext("2d");
         if (ctx === null) return;
-        canvas.current.width = viewport.width;
-        canvas.current.height = viewport.height;
-        await p.render({ canvasContext: ctx, viewport }).promise;
+        const running = p.render({ canvasContext: ctx, viewport });
+        task = running;
+        await running.promise;
       } catch (e) {
         if (cancelled) return;
         setError(e instanceof Error ? e.message : String(e));
       }
     })();
 
-    return () => { cancelled = true; };
-  }, [pdf, shown]);
+    // Dragging a window edge re-runs this effect on every frame the column changes
+    // width, and pdf.js refuses to paint the same canvas from two renders at once.
+    // Cancelling the outgoing one is what keeps a resize from throwing "Cannot use
+    // the same canvas" across the reader; the rejection it causes lands in the catch
+    // above with `cancelled` already true, so it never reaches the screen.
+    return () => { cancelled = true; task?.cancel(); };
+  }, [pdf, shown, column]);
+
+  /**
+   * THE PAGE COUNT COMES FROM THE FILE, not from the upload measurement.
+   *
+   * `measurement.pages` is what `measure_pdf.py` counted at upload time and it is the
+   * right number for the reading room, which is describing files it has not opened.
+   * Here the document itself is already parsed, so `numPages` is the number the reader
+   * is actually turning through - and if the two ever disagree, the one that can be
+   * navigated to is the one a pager may promise.
+   */
+  const total = pdf === null ? 0 : pdf.numPages;
+  // The same clamp the renderer applies, so a deep link to page 400 of a 288-page
+  // review reports the page it is LOOKING at rather than the one it asked for.
+  const at = total === 0 ? shown : Math.min(Math.max(shown, 1), total);
+  const toPage = (n: number): string =>
+    href({ name: "read", caseId, documentId: doc.id, page: n });
 
   return (
     <div className="pdfview">
-      {error === null
-        ? <canvas ref={canvas} aria-label={`${doc.filename} page ${shown}`} />
-        : (
-          <p className="err" role="alert">
-            Could not open {doc.filename}: {error}
-          </p>
+      <div className="pdfpage" ref={wrap}>
+        {/*
+          A DOCUMENT WITH NO WAY THROUGH IT IS NOT DISPLAYED, it is sampled. The reader
+          opened at page 1 and stayed there: the only route to any other page was a
+          finding in the rail that happened to cite one, so 27 pages of a 28-page review
+          existed on the record, were counted in the strip, and could not be read.
+
+          Links, not buttons, and they go through the hash exactly as the strip above
+          does. The route already carries `:documentId/:page`, which is what makes a
+          page shareable, bookmarkable and reachable with the back button; a click
+          handler holding the page in local state would quietly take all three away.
+
+          ABOVE THE PAGE, not under it. A page fitted to the full width of the column is
+          taller than the window on any normal screen, so a pager below the canvas sits
+          a full sheet past the fold: turning to page 2 of 28 would mean scrolling to
+          the bottom of page 1 first, every time, twenty-seven times.
+        */}
+        {error === null && total > 1 && (
+          <nav className="pager" aria-label={`Pages of ${doc.filename}`}>
+            {at > 1
+              ? <a className="ghost" rel="prev" href={toPage(at - 1)}>Previous</a>
+              : <span className="ghost off">Previous</span>}
+            <span className="at">Page {at} of {total}</span>
+            {at < total
+              ? <a className="ghost" rel="next" href={toPage(at + 1)}>Next</a>
+              : <span className="ghost off">Next</span>}
+          </nav>
         )}
+        {error === null
+          ? <canvas ref={canvas} aria-label={`${doc.filename} page ${at}`} />
+          : (
+            <p className="err" role="alert">
+              Could not open {doc.filename}: {error}
+            </p>
+          )}
+      </div>
       <aside aria-label="Findings sourced to this document">
         {highlights.length > 0
           ? highlights.map((f) => (

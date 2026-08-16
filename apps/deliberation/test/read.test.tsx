@@ -21,10 +21,23 @@ import type { Finding, StoredDocument } from "../src/api.js";
 // The arguments are echoed back into the fakes rather than ignored: naming them is
 // what makes `toHaveBeenCalledWith(11)` and the `{ url, httpHeaders }` assertions
 // typed against the real call signatures instead of against `any`.
+/**
+ * US Letter at 72dpi, and the viewport HONOURS THE SCALE it is handed.
+ *
+ * It used to answer 800x1000 to every caller regardless, which made it impossible to
+ * tell a page rasterised at the right size from one rasterised at any other - the
+ * exact defect that shipped. Multiplying here is what lets the tests below read the
+ * scale back off the canvas.
+ */
+const PAGE_W = 612;
+const PAGE_H = 792;
+
+const renderTask = vi.fn(() => ({ promise: Promise.resolve(), cancel: () => {} }));
+
 const getPage = vi.fn((n: number) => Promise.resolve({
   pageNumber: n,
-  getViewport: () => ({ width: 800, height: 1000 }),
-  render: () => ({ promise: Promise.resolve() }),
+  getViewport: ({ scale }: { scale: number }) => ({ width: PAGE_W * scale, height: PAGE_H * scale }),
+  render: renderTask,
 }));
 
 /**
@@ -389,5 +402,150 @@ describe("the viewer", () => {
     expect(getDocument).toHaveBeenLastCalledWith(
       expect.objectContaining({ httpHeaders: { Authorization: "Bearer tok_fresh" } }),
     );
+  });
+});
+
+/**
+ * HOW THE PAGE IS RASTERISED, which is the difference between a document and a
+ * photograph of one.
+ *
+ * The canvas is sized before `getContext` is asked for, precisely so these can run:
+ * jsdom has no 2d context, the painting returns early, and the DIMENSIONS are still on
+ * the element. Every number below is read off the canvas the reader would see.
+ */
+describe("the page raster", () => {
+  const canvasOf = (): HTMLCanvasElement =>
+    screen.getByLabelText(/turalio-211810-multidiscipline\.pdf page/i) as HTMLCanvasElement;
+
+  const withDpr = (dpr: number): void => {
+    Object.defineProperty(window, "devicePixelRatio", { value: dpr, configurable: true });
+  };
+
+  /** jsdom lays nothing out, so a measured column has to be stated outright. */
+  const withColumn = (px: number): void => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      width: px, height: 0, top: 0, left: 0, right: px, bottom: 0, x: 0, y: 0, toJSON: () => ({}),
+    });
+  };
+
+  beforeEach(() => { withDpr(1); });
+
+  it("falls back to a visible scale when the column has not been measured", async () => {
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
+    // 612pt at the fallback 1.4. The exact number matters far less than that it is not
+    // zero: a page fitted to an unmeasured column is a canvas nobody can see.
+    await waitFor(() => { expect(canvasOf().width).toBe(Math.round(PAGE_W * 1.4)); });
+  });
+
+  /**
+   * THE BLUR. A 1x bitmap stretched across a 2x panel is what made the type look soft
+   * and grey, and it is invisible to every other check in this repo because the canvas
+   * is the right SIZE on screen either way - it is only the wrong number of pixels.
+   */
+  it("paints one bitmap pixel per device pixel, not per CSS pixel", async () => {
+    withDpr(2);
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
+    await waitFor(() => { expect(canvasOf().width).toBe(Math.round(PAGE_W * 1.4 * 2)); });
+    // ...while still OCCUPYING the same space: the backing store doubled, the box did not.
+    expect(canvasOf().style.width).toBe(`${Math.round(PAGE_W * 1.4)}px`);
+  });
+
+  it("fits the page to the column it was given", async () => {
+    withColumn(1000);
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
+    await waitFor(() => { expect(canvasOf().style.width).toBe("1000px"); });
+    expect(canvasOf().width).toBe(1000);
+  });
+
+  /**
+   * The squash. `max-width: 100%` with the raw pixel height still in force is the
+   * oldest way there is to distort a replaced element, and on a page of body text it
+   * looks like a badly generated PDF rather than like a stylesheet mistake.
+   */
+  it("keeps the page in its own aspect ratio", async () => {
+    withColumn(1000);
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
+    await waitFor(() => { expect(canvasOf().style.height).not.toBe(""); });
+    const box = canvasOf().style;
+    expect(parseFloat(box.height) / parseFloat(box.width)).toBeCloseTo(PAGE_H / PAGE_W, 2);
+  });
+});
+
+/**
+ * TURNING THE PAGE. The reader opened at page 1 of a 300-page review and had no way to
+ * reach page 2: the only route to any other page was a finding in the rail that
+ * happened to cite one. The document was on the record, counted in the strip, and
+ * unreadable past its first sheet.
+ */
+describe("the pager", () => {
+  const openAt = (page?: number): void => {
+    render(
+      <Read caseId="c1" token="tok_test" documentId="doc_1"
+        {...(page === undefined ? {} : { page })} documents={DOCS} findings={LINKED_FINDINGS} />,
+    );
+  };
+
+  it("says where in the document the reader is", async () => {
+    openAt();
+    expect(await screen.findByText("Page 1 of 300")).toBeInTheDocument();
+  });
+
+  it("goes forward through the hash, so the page can be shared and gone back to", async () => {
+    openAt();
+    expect(await screen.findByRole("link", { name: "Next" }))
+      .toHaveAttribute("href", "#/case/c1/read/doc_1/2");
+  });
+
+  it("goes back to the page before it", async () => {
+    openAt(9);
+    expect(await screen.findByRole("link", { name: "Previous" }))
+      .toHaveAttribute("href", "#/case/c1/read/doc_1/8");
+  });
+
+  it("offers no way back from the first page", async () => {
+    openAt();
+    await screen.findByText("Page 1 of 300");
+    expect(screen.queryByRole("link", { name: "Previous" })).not.toBeInTheDocument();
+    // Present, not removed: a control that vanishes moves the one beside it under the
+    // cursor between clicks.
+    expect(screen.getByText("Previous")).toBeInTheDocument();
+  });
+
+  it("offers no way on from the last page", async () => {
+    openAt(300);
+    await screen.findByText("Page 300 of 300");
+    expect(screen.queryByRole("link", { name: "Next" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Previous" }))
+      .toHaveAttribute("href", "#/case/c1/read/doc_1/299");
+  });
+
+  /**
+   * The same clamp the renderer applies. Reporting "Page 400 of 300" would be the
+   * pager contradicting the page under it, and offering a Next from there would walk
+   * further off the end of a document that stopped a hundred pages ago.
+   */
+  it("reports the page it is looking at when the link overshoots the document", async () => {
+    openAt(400);
+    expect(await screen.findByText("Page 300 of 300")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Next" })).not.toBeInTheDocument();
+  });
+
+  it("says nothing at all about pages in a one-page document", async () => {
+    getDocument.mockImplementationOnce(() => ({
+      promise: Promise.resolve({ numPages: 1, getPage, fingerprint: "one" }),
+      destroy: () => Promise.resolve(),
+    }) as unknown as ReturnType<typeof getDocument>);
+    openAt();
+    await waitFor(() => { expect(getPage).toHaveBeenCalled(); });
+    expect(screen.queryByText(/Page 1 of/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Next" })).not.toBeInTheDocument();
+  });
+
+  /** A document that never arrived has no pages to turn, and says so instead. */
+  it("does not offer to page through a document that failed to open", async () => {
+    rejectOnce("network died");
+    openAt();
+    expect(await screen.findByRole("alert")).toHaveTextContent(/network died/);
+    expect(screen.queryByText(/Page 1 of/)).not.toBeInTheDocument();
   });
 });

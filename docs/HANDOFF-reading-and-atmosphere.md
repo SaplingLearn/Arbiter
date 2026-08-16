@@ -190,6 +190,26 @@ two are equal. Option 2 keeps that test; option 3 changes it deliberately.
 
 ## 5. Gotchas already paid for
 
+- **The demo store used to be stocked from a TEST FIXTURE, under real filenames.**
+  Every document in `results/documents` was output from `readablePdfBytes()` in
+  `services/api/test/server.test.ts` — the same four sentences on every page with the
+  page number swapped, written to clear the gate's vocabulary floors and nothing else —
+  filed under names like `turalio-211810-multidiscipline.pdf` that name real FDA
+  reviews. It is a fine test fixture and it was indefensible as demo content: the
+  reader looked like it was rendering regulatory reviews and was rendering a
+  keyword-stuffed stub. `npm run seed:documents` now fetches the real reports from EMA
+  and puts each one through `measure_pdf.py` before uploading it. **If the reader ever
+  shows a page reading "Page N of the nonclinical toxicology review", the fixture is
+  back.**
+- **`accessdata.fda.gov` refuses scripted clients.** Every path — not just the large
+  ones — is answered with a 420-byte Akamai abuse-detection page, which will happily
+  save itself as a `.pdf` and fail much later as a corrupt document. The FDA reviews
+  this project is built on therefore cannot be fetched by any script here that is not
+  pretending to be a browser; they are listed as `manual` at the end of
+  `seed-demo-documents.mjs` with their URLs. That script checks for the `%PDF-` magic
+  bytes on every download for exactly this reason. `data/prep/README.md` set the
+  precedent for the DILIrank workbook: asking a human to click once beats a script that
+  saves an error page.
 - **`apps/atmosphere/shot.mjs` carries its own copy of the scene list.** It silently
   skipped `read` when that scene was added and reported "no console errors" about a
   scene it had never mounted. Add new scenes to that list too.
@@ -252,6 +272,8 @@ two are equal. Option 2 keeps that test; option 3 changes it deliberately.
 npm install                    # first, always, after any pull
 npm run check:deps             # after PR #24 — says what npm install would fix
 npm run dev                    # http://localhost:5173/deliberation/
+npm run seed:demo              # the five accounts. NOT the cases, and not the documents
+npm run seed:documents         # the real EMA reports, gate-checked, onto the demo cases
 npx vitest run                 # 821 tests / 58 files here; 829 / 59 once #24 lands
 npm run typecheck
 npm run lint
@@ -263,10 +285,23 @@ ATMOSPHERE_URL=http://127.0.0.1:5187/ node apps/atmosphere/shot.mjs shots
 
 ## 7. State at handoff
 
-- **863 tests / 60 files**, typecheck clean, lint clean, `deliberate:build` clean, and
+- **875 tests / 60 files**, typecheck clean, lint clean, `deliberate:build` clean, and
   `apps/deliberation/shot.mjs` reports no console errors on all five surfaces. This is
-  after the reading room (§3), which adds `nav.test.ts` and `readingRoom.test.tsx`.
-  (Was 821 / 58 before it; PR #24 adds eight more of its own on top.)
+  after the reading room (§3), which adds `nav.test.ts` and `readingRoom.test.tsx`, and
+  after the viewer work below. (Was 821 / 58 before it; PR #24 adds eight more of its
+  own on top.)
+- **The viewer rasterises to the column and to the device.** It painted at a fixed
+  scale of 1.4 and let `max-width: 100%` resample the result, so the page was soft on
+  every display and squashed out of its aspect ratio on a narrow one. It now measures
+  its column with a `ResizeObserver`, paints at `fit × devicePixelRatio`, and sets the
+  CSS box explicitly in both dimensions. The four guards are in `read.test.tsx` under
+  "the page raster" — they only work because the canvas is sized BEFORE `getContext` is
+  asked for, since jsdom has no 2d context and the paint returns early.
+- **A 144-page document can be read past page 1.** There was no pager at all: the only
+  route to any page but the first was a finding in the rail that happened to cite one.
+  The controls are links through the existing `:documentId/:page` route, so a page is
+  shareable and the back button works, and they sit ABOVE the canvas because a page
+  fitted to the column is taller than the window.
 - **Local `npx vitest run` needs PyMuPDF**, or two `beforeAll` hooks in
   `server.test.ts` fail with `fixture: 422` and take nine tests down with them — the
   §5 bullet about Python, seen from a laptop rather than from CI. `pip install
