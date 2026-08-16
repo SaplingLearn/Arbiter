@@ -64,6 +64,25 @@ export interface Finding {
    */
   sourceDocumentId?: string;
   sourcePage?: number;
+  /**
+   * The passage this finding was read off, VERBATIM, so the viewer can put a mark on
+   * the page rather than leave a reader to hunt a 144-page report for the sentence.
+   *
+   * Recorded rather than inferred, and that is the whole design. The obvious
+   * alternative - search the page for something resembling `detail` - is the fuzzy
+   * matching this project has already refused once for the document join, on the
+   * grounds that a WRONG highlight on a safety document is worse than no highlight at
+   * all: a mark over the neighbouring paragraph is an accusation the reviewer never
+   * made, and it looks exactly as authoritative as a correct one.
+   *
+   * So it is exact-match only. A quote that does not appear on the page it names is
+   * reported as not found; nothing is highlighted approximately, ever.
+   *
+   * NOT rendered into the adjudicator prompt, for the same reason `sourceDocumentId`
+   * is not: it is provenance for the UI. The quote's substance is already in `detail`,
+   * and printing both would put the same sentence in front of the model twice.
+   */
+  sourceQuote?: string;
 }
 
 export interface AdjudicateRequest {

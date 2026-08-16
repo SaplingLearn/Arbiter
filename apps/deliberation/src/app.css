@@ -888,6 +888,30 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
    PDF rather than as a CSS bug. */
 .pdfview canvas { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); background: var(--paper); }
 
+/* The page and its marks share a coordinate system, so the marks are positioned
+   against THIS box rather than the column - the canvas can be narrower than the space
+   it sits in, and a mark measured from the column would drift by the difference. */
+.sheet { position: relative; align-self: flex-start; line-height: 0; }
+
+/* Multiply, so the words stay on top of their own highlight rather than under a wash.
+   Accent is the system's colour for what extraction found, and a cited passage is the
+   same category of thing - it is never a seat colour, because the mark belongs to the
+   document, not to whichever reviewer happened to quote it. */
+.mark {
+  position: absolute; pointer-events: none; border-radius: 2px;
+  background: var(--accent-wash); mix-blend-mode: multiply;
+  box-shadow: inset 0 -1px 0 var(--accent);
+}
+
+.finding-block { display: flex; flex-direction: column; gap: var(--s2); }
+.cited { display: flex; flex-direction: column; gap: var(--s2); padding-left: var(--s3); }
+.cited-by { border-left: 2px solid var(--line); padding-left: var(--s3); }
+.cited-who { display: flex; align-items: center; gap: var(--s2); font-size: 12.5px; }
+.cited-call { font: 600 11px/1 var(--mono); color: var(--muted); letter-spacing: .04em; }
+.cited-why { margin: var(--s2) 0 0; font-size: 12.5px; color: var(--muted); }
+.cited-blind, .cited-none { margin: 0; padding-left: var(--s3); font-size: 12px; color: var(--muted); }
+.cited-blind { font-style: italic; }
+
 .pager { display: flex; align-items: center; gap: var(--s4); }
 .pager .at { font: 500 12px/1 var(--mono); color: var(--muted); letter-spacing: .04em; }
 /* Kept in the flow rather than hidden at the ends of the document: a pager whose

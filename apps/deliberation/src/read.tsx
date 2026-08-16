@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { api, type CaseListing, type Finding, type StoredDocument } from "./api.js";
+import { api, type Call, type CaseListing, type Finding, type Position, type StoredDocument } from "./api.js";
 import { PageHead, Section } from "./Layout.js";
+import { Reviewer } from "./Reviewer.js";
 import { href } from "./router.js";
 
 /**
@@ -56,7 +57,57 @@ export function unresolvedCitations(findings: Finding[], documents: StoredDocume
   ).length;
 }
 
-export function Read({ caseId, token, documentId, page, documents, findings }: {
+/** One reviewer's use of one finding, as it can be shown once the case is open. */
+export interface Citation {
+  participantId: string;
+  name: string;
+  /** The seat colour, so a person is the same colour here as everywhere else. */
+  seat: number | null;
+  call: Call;
+  reasoning: string;
+}
+
+/** The three calls, spelled for a reader rather than for the wire. */
+const CALL_WORDS: Record<Call, string> = {
+  advance: "Advance",
+  do_not_advance: "Do not advance",
+  cannot_conclude: "Cannot conclude",
+};
+
+/**
+ * Who cited which finding, from the positions the SERVER chose to release.
+ *
+ * BLINDNESS IS NOT ENFORCED HERE AND MUST NOT BE. `BlindView.revealed` is null until
+ * the case is closed because `visibleTo` on the server refuses to send positions, not
+ * because this function declines to read them - the handoff is explicit that any new
+ * reading surface goes inside the same guard "or the blind stage stops meaning
+ * anything". Passing null therefore yields no citations, and that is the whole of the
+ * client's involvement in the rule.
+ *
+ * The reason it matters that this attribution exists at all: after reveal, "two people
+ * cited this and both called it Do not advance" is the fact a reader most wants beside
+ * the passage. Before reveal, that same fact is exactly the anchoring the two-phase
+ * design exists to prevent, and a tally is what spec §6.4 forbids.
+ */
+export function citationsFor(
+  positions: Position[] | null,
+  people: { id: string; displayName: string }[],
+  seats: Record<string, number>,
+): (findingId: string) => Citation[] {
+  if (positions === null) return () => [];
+  return (findingId: string) =>
+    positions
+      .filter((p) => p.citedFindingIds.includes(findingId))
+      .map((p) => ({
+        participantId: p.participantId,
+        name: people.find((m) => m.id === p.participantId)?.displayName ?? p.participantId,
+        seat: seats[p.participantId] ?? null,
+        call: p.call,
+        reasoning: p.reasoning,
+      }));
+}
+
+export function Read({ caseId, token, documentId, page, documents, findings, positions, people, seats }: {
   caseId: string;
   /** Sent to pdf.js for the `/raw` fetch. See `PdfView` - it is not decoration. */
   token: string;
@@ -64,6 +115,10 @@ export function Read({ caseId, token, documentId, page, documents, findings }: {
   page?: number;
   documents: StoredDocument[];
   findings: Finding[];
+  /** Null while the case is blind. Never assembled client-side; see `citationsFor`. */
+  positions?: Position[] | null;
+  people?: { id: string; displayName: string }[];
+  seats?: Record<string, number>;
 }): ReactElement {
   // Derived from props on every render, NEVER held in local state. The route's
   // documentId is the single source of truth for which document is open: a
@@ -114,6 +169,8 @@ export function Read({ caseId, token, documentId, page, documents, findings }: {
         : (
           <PdfView caseId={caseId} token={token} document={open} highlights={highlights}
             unresolved={unresolvedCitations(findings, documents)}
+            citers={citationsFor(positions ?? null, people ?? [], seats ?? {})}
+            blind={(positions ?? null) === null}
             {...(page === undefined ? {} : { page })} />
         )}
     </section>
@@ -140,9 +197,125 @@ export function Read({ caseId, token, documentId, page, documents, findings }: {
  */
 const UNMEASURED_SCALE = 1.4;
 
-function PdfView({ caseId, token, document: doc, page, highlights, unresolved }: {
+/** A rectangle over the page, in CSS pixels relative to the canvas box. */
+export interface Mark { left: number; top: number; width: number; height: number }
+
+/**
+ * Drop whitespace entirely, because a PDF's is not evidence of anything.
+ *
+ * THIS IS NOT FUZZY MATCHING, and the line between the two is the point of the whole
+ * file. A PDF has no notion of a word, let alone a sentence: `getTextContent` returns
+ * positioned fragments split wherever the typesetter changed something, and it splits
+ * MID-WORD. The real page this was built against breaks like this:
+ *
+ *     "...No mortality in the repeat"  +  "-dose toxicity studies were"
+ *
+ * An earlier version of this joined fragments with a space, produced "repeat -dose",
+ * and could therefore never match the sentence a reader had copied off the screen. It
+ * reported the quote as absent every time, which was at least honest and completely
+ * useless.
+ *
+ * So both sides have their whitespace removed and are compared character for
+ * character. Every character that carries meaning still has to be identical: no case
+ * folding, no stemming, no punctuation stripping, no edit distance, no "close
+ * enough". A quote either appears on the page or it is reported as absent.
+ */
+function bare(s: string): string {
+  return s.replace(/\s+/g, "");
+}
+
+/**
+ * Where a quote sits on a page, or nothing at all.
+ *
+ * Walks the text items in reading order, keeping a running offset into the flattened
+ * page text, and returns a rectangle for every item the matched span touches - one
+ * per fragment, so a quote crossing a line break marks both lines rather than drawing
+ * one enormous box around the paragraph between them.
+ *
+ * Returns [] when the quote is not on the page. The caller SAYS SO rather than
+ * quietly rendering an unmarked page: a reader who was promised a highlight and sees
+ * none has no way to tell "the quote is wrong" from "the highlighter is broken", and
+ * on a safety document those are very different problems.
+ */
+export function highlightRects(
+  items: { str: string; transform: number[]; width: number; height: number }[],
+  quote: string,
+  transform: number[],
+): Mark[] {
+  const needle = bare(quote);
+  if (needle === "") return [];
+
+  // The page with its whitespace gone, plus where each fragment lands inside it.
+  // Built in one pass so the offsets and the string can never disagree, and with no
+  // separator between fragments - inserting one is exactly the bug described above.
+  let page = "";
+  const spans: { from: number; to: number; item: (typeof items)[number] }[] = [];
+  for (const item of items) {
+    const text = bare(item.str);
+    if (text === "") continue;
+    const from = page.length;
+    page += text;
+    spans.push({ from, to: page.length, item });
+  }
+
+  const at = page.indexOf(needle);
+  if (at < 0) return [];
+  const end = at + needle.length;
+
+  const marks: Mark[] = [];
+  for (const s of spans) {
+    // Half-open overlap: an item ending exactly where the match starts is not part
+    // of it, and neither is one starting exactly where the match ends.
+    if (s.to <= at || s.from >= end) continue;
+    const m = s.item.transform;
+    /**
+     * Multiply the item's matrix by the viewport's, by hand.
+     *
+     * pdf.js exports `Util.transform` for this, but importing it drags the utility
+     * module into a file whose tests mock the whole library - and the operation is
+     * six multiplies. `e`/`f` land on the text BASELINE in CSS pixels, which is why
+     * the height comes off the matrix below and is subtracted to find the top.
+     */
+    const x = transform[0]! * m[4]! + transform[2]! * m[5]! + transform[4]!;
+    const y = transform[1]! * m[4]! + transform[3]! * m[5]! + transform[5]!;
+    const height = Math.hypot(transform[1]! * m[1]!, transform[3]! * m[3]!) || Math.abs(transform[3]! * s.item.height);
+    const full = Math.abs(transform[0]!) * s.item.width;
+
+    /**
+     * CLIPPED TO THE QUOTED CHARACTERS, not spread over the whole fragment.
+     *
+     * The fragment carrying a match usually carries more than the match: the one this
+     * was built against reads "...cynomolgus monkeys (<=9 months). No mortality in the
+     * repeat", of which only the tail was quoted. Marking the fragment whole draws a
+     * highlight over a sentence the reviewer never cited, which is the same wrong
+     * claim as marking the wrong paragraph, only smaller.
+     *
+     * The position within the fragment is interpolated by character count. That is an
+     * approximation OF WHERE TO DRAW - the text match itself is still exact - and it
+     * is the only approximation in this file. Per-glyph advances would be truer, and
+     * would mean shipping a font metrics table to move a highlight by a few pixels.
+     */
+    const span = s.to - s.from;
+    const fromChar = Math.max(at, s.from) - s.from;
+    const toChar = Math.min(end, s.to) - s.from;
+    marks.push({
+      left: x + (full * fromChar) / span,
+      top: y - height,
+      width: (full * (toChar - fromChar)) / span,
+      height,
+    });
+  }
+  return marks;
+}
+
+function PdfView({ caseId, token, document: doc, page, highlights, unresolved, citers, blind }: {
   caseId: string; token: string; document: StoredDocument; page?: number;
   highlights: Finding[]; unresolved: number;
+  /** Who cited each finding, and why. Empty while the case is blind - see `Read`. */
+  citers: (findingId: string) => Citation[];
+  /** True while positions are still sealed, which is a different fact from "nobody
+   *  cited this" and has to read differently on screen. */
+  blind: boolean;
 }): ReactElement {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -150,6 +323,24 @@ function PdfView({ caseId, token, document: doc, page, highlights, unresolved }:
   const [error, setError] = useState<string | null>(null);
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [column, setColumn] = useState(0);
+  const [marks, setMarks] = useState<Mark[]>([]);
+  /**
+   * Stable dependency for the paint effect. See the note where it is used.
+   *
+   * Joined on a control character rather than a comma or a pipe: the parts are a
+   * page number and a QUOTE, and a quote is arbitrary prose that will eventually
+   * contain whatever punctuation was chosen as a separator. This one cannot appear in
+   * text pulled out of a PDF, so two different sets of quotes can never collide into
+   * the same key and silently stop the highlight from updating.
+   */
+  const SEP = String.fromCharCode(0);
+  const quoteKey = highlights
+    .filter((f) => typeof f.sourceQuote === "string" && f.sourceQuote.trim() !== "")
+    .map((f) => `${f.sourcePage ?? "?"}${SEP}${f.sourceQuote ?? ""}`)
+    .join(String.fromCharCode(1));
+  /** Null when nothing is being looked for; false when it was and the page does not
+   *  carry it. The three states are three different sentences on screen. */
+  const [quoteFound, setQuoteFound] = useState<boolean | null>(null);
 
   /**
    * TWO EFFECTS, BECAUSE FETCHING AND PAINTING ARE NOT THE SAME EVENT.
@@ -263,7 +454,8 @@ function PdfView({ caseId, token, document: doc, page, highlights, unresolved }:
       try {
         // Clamp rather than throw: a stale deep link to page 400 of a 288-page review
         // should land on the last page, not on an error screen.
-        const p = await pdf.getPage(Math.min(Math.max(shown, 1), pdf.numPages));
+        const pageNo = Math.min(Math.max(shown, 1), pdf.numPages);
+        const p = await pdf.getPage(pageNo);
         if (cancelled || canvas.current === null) return;
 
         /**
@@ -296,6 +488,29 @@ function PdfView({ caseId, token, document: doc, page, highlights, unresolved }:
         canvas.current.style.width = `${Math.round(unscaled.width * fit)}px`;
         canvas.current.style.height = `${Math.round(unscaled.height * fit)}px`;
 
+        /**
+         * The marks, computed against a CSS-scale viewport rather than the painted
+         * one. The canvas backing store is `fit * dpr`, but the overlay is laid out in
+         * CSS pixels on top of it, so measuring against the device-scaled transform
+         * would put every highlight at twice its offset on a Retina screen.
+         */
+        const wanted = highlights.filter(
+          (f) => f.sourcePage === pageNo && typeof f.sourceQuote === "string" && f.sourceQuote.trim() !== "",
+        );
+        if (wanted.length === 0) {
+          setMarks([]);
+          setQuoteFound(null);
+        } else {
+          const text = await p.getTextContent();
+          if (cancelled) return;
+          const cssViewport = p.getViewport({ scale: fit });
+          const found = wanted.flatMap(
+            (f) => highlightRects(text.items as Parameters<typeof highlightRects>[0], f.sourceQuote ?? "", cssViewport.transform),
+          );
+          setMarks(found);
+          setQuoteFound(found.length > 0);
+        }
+
         const ctx = canvas.current.getContext("2d");
         if (ctx === null) return;
         const running = p.render({ canvasContext: ctx, viewport });
@@ -313,7 +528,11 @@ function PdfView({ caseId, token, document: doc, page, highlights, unresolved }:
     // the same canvas" across the reader; the rejection it causes lands in the catch
     // above with `cancelled` already true, so it never reaches the screen.
     return () => { cancelled = true; task?.cancel(); };
-  }, [pdf, shown, column]);
+    // `quoteKey` rather than `highlights`, which is a fresh array on every render and
+    // would spin this effect forever. The key changes exactly when a quote or the page
+    // it names changes, so the `highlights` captured in the closure above is always
+    // the one the key describes.
+  }, [pdf, shown, column, quoteKey]);
 
   /**
    * THE PAGE COUNT COMES FROM THE FILE, not from the upload measurement.
@@ -362,28 +581,86 @@ function PdfView({ caseId, token, document: doc, page, highlights, unresolved }:
           </nav>
         )}
         {error === null
-          ? <canvas ref={canvas} aria-label={`${doc.filename} page ${at}`} />
+          ? (
+            // Positioned so the overlay can sit on the page. The wrapper takes the
+            // canvas's own width rather than the column's, or a mark would be offset
+            // by half the slack whenever the page is narrower than the space.
+            <div className="sheet">
+              <canvas ref={canvas} aria-label={`${doc.filename} page ${at}`} />
+              {marks.map((m, i) => (
+                <span key={`${m.left},${m.top},${i}`} className="mark" aria-hidden="true"
+                  style={{ left: m.left, top: m.top, width: m.width, height: m.height }} />
+              ))}
+            </div>
+          )
           : (
             <p className="err" role="alert">
               Could not open {doc.filename}: {error}
             </p>
           )}
+
+        {/*
+          SAYS SO WHEN IT CANNOT FIND THE PASSAGE. A reader promised a highlight who
+          sees an unmarked page cannot tell a wrong quote from a broken highlighter,
+          and the honest failure is the one that names itself. Nothing is marked
+          approximately to avoid this message.
+        */}
+        {error === null && quoteFound === false && (
+          <p className="small muted" role="status">
+            The quoted passage is not on this page as written. Nothing has been marked -
+            a highlight over the nearest similar sentence would be a claim the reviewer
+            did not make.
+          </p>
+        )}
       </div>
       <aside aria-label="Findings sourced to this document">
         {highlights.length > 0
-          ? highlights.map((f) => (
-            <a key={f.id} className="finding-row"
-              href={href({
-                name: "read", caseId, documentId: doc.id,
-                // highlightsFor guarantees sourcePage is set on everything reaching this
-                // map, but the type is still `number | undefined` (exactOptionalPropertyTypes
-                // forbids assigning that straight to an optional field), so it's spread in
-                // rather than asserted away.
-                ...(f.sourcePage === undefined ? {} : { page: f.sourcePage }),
-              })}>
-              <span className="pip">p.{f.sourcePage}</span> {f.label}
-            </a>
-          ))
+          ? highlights.map((f) => {
+            const cited = citers(f.id);
+            return (
+              <div className="finding-block" key={f.id}>
+                <a className="finding-row"
+                  href={href({
+                    name: "read", caseId, documentId: doc.id,
+                    // highlightsFor guarantees sourcePage is set on everything reaching this
+                    // map, but the type is still `number | undefined` (exactOptionalPropertyTypes
+                    // forbids assigning that straight to an optional field), so it's spread in
+                    // rather than asserted away.
+                    ...(f.sourcePage === undefined ? {} : { page: f.sourcePage }),
+                  })}>
+                  <span className="pip">p.{f.sourcePage}</span> {f.label}
+                </a>
+                {/*
+                  WHO USED THIS, AND FOR WHAT - once the case is open, and not one
+                  moment before. `citers` returns nothing while `positions` is null,
+                  which is the state the server puts the client in for the whole blind
+                  stage. The line below is what stands in its place: it says the
+                  attribution is being withheld rather than that nobody cited this,
+                  because those are different facts and only one of them is true.
+                */}
+                {blind
+                  ? <p className="cited-blind">Who cited this is sealed until the case is revealed.</p>
+                  : cited.length === 0
+                    ? <p className="cited-none">No position cited this finding.</p>
+                    : (
+                      <div className="cited">
+                        {cited.map((c) => (
+                          <div className="cited-by" key={c.participantId}>
+                            <span className="cited-who">
+                              <Reviewer name={c.name} seat={c.seat} />
+                              <strong>{c.name}</strong>
+                              <span className="cited-call">{CALL_WORDS[c.call]}</span>
+                            </span>
+                            {/* Their reasoning, verbatim and unsummarised. A paraphrase
+                                here would be this screen editing a sealed position. */}
+                            {c.reasoning.trim() !== "" && <p className="cited-why">{c.reasoning}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+              </div>
+            );
+          })
           : unresolved > 0
             ? (
               <p className="small muted">

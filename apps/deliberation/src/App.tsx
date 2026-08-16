@@ -481,7 +481,12 @@ export function App(): ReactElement {
 
   if (route.name === "read") {
     return caseShell(
+      // `view.revealed` straight through, null and all. The reader shows who cited a
+      // finding only once the server has released the positions - passing anything
+      // reconstructed here would move blindness into the client, which the handoff
+      // names as the way the blind stage stops meaning anything.
       <Read caseId={caseId} token={token} documents={docs} findings={findings}
+        positions={view.revealed} people={people} seats={roster?.seats ?? {}}
         {...(route.documentId === undefined ? {} : { documentId: route.documentId })}
         {...(route.page === undefined ? {} : { page: route.page })} />,
     );

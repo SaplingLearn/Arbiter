@@ -1,8 +1,8 @@
 import "@testing-library/jest-dom/vitest";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
-import { Read, highlightsFor, unresolvedCitations } from "../src/read.js";
-import type { Finding, StoredDocument } from "../src/api.js";
+import { Read, citationsFor, highlightRects, highlightsFor, unresolvedCitations } from "../src/read.js";
+import type { Finding, Position, StoredDocument } from "../src/api.js";
 
 /**
  * PdfView's dynamic `import("pdfjs-dist")` is mocked for the whole file - no test here
@@ -34,9 +34,34 @@ const PAGE_H = 792;
 
 const renderTask = vi.fn(() => ({ promise: Promise.resolve(), cancel: () => {} }));
 
+/**
+ * A page of positioned fragments, the way pdf.js actually hands text over: one item
+ * per printed run, each with its own matrix. The sentence below is split across three
+ * items ON PURPOSE - a quote that spans them is the normal case, not the edge case.
+ */
+const TEXT_ITEMS = [
+  { str: "Pyridine is known to be", transform: [11, 0, 0, 11, 50, 700], width: 120, height: 11 },
+  { str: "hepatotoxic, probably because", transform: [11, 0, 0, 11, 50, 686], width: 150, height: 11 },
+  { str: "it forms reactive intermediates.", transform: [11, 0, 0, 11, 50, 672], width: 160, height: 11 },
+  // THE MID-WORD SPLIT, copied from the shape a real EMA assessment report produced:
+  // pdf.js ended one fragment at "repeat" and began the next at "-dose". Joining
+  // fragments with a space turns that into "repeat -dose", and every quote containing
+  // a hyphenated word then reports itself absent. This pair is the regression test.
+  { str: "No mortality in the repeat", transform: [11, 0, 0, 11, 50, 658], width: 130, height: 11 },
+  { str: "-dose toxicity studies were", transform: [11, 0, 0, 11, 50, 644], width: 140, height: 11 },
+];
+
+const getTextContent = vi.fn(() => Promise.resolve({ items: TEXT_ITEMS }));
+
 const getPage = vi.fn((n: number) => Promise.resolve({
   pageNumber: n,
-  getViewport: ({ scale }: { scale: number }) => ({ width: PAGE_W * scale, height: PAGE_H * scale }),
+  getViewport: ({ scale }: { scale: number }) => ({
+    width: PAGE_W * scale, height: PAGE_H * scale,
+    // The real viewport transform: y is flipped, because PDF space counts up from the
+    // bottom of the page and CSS counts down from the top.
+    transform: [scale, 0, 0, -scale, 0, PAGE_H * scale],
+  }),
+  getTextContent,
   render: renderTask,
 }));
 
@@ -68,7 +93,7 @@ const rejectOnce = (message: string): void => {
   }) as unknown as ReturnType<typeof getDocument>);
 };
 
-beforeEach(() => { getDocument.mockClear(); getPage.mockClear(); });
+beforeEach(() => { getDocument.mockClear(); getPage.mockClear(); getTextContent.mockClear(); });
 
 /**
  * jsdom has no 2d canvas context and throws a loud "Not implemented" the moment one
@@ -547,5 +572,202 @@ describe("the pager", () => {
     openAt();
     expect(await screen.findByRole("alert")).toHaveTextContent(/network died/);
     expect(screen.queryByText(/Page 1 of/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * MARKING THE PASSAGE, and refusing to mark anything else.
+ *
+ * The rule these enforce is the one the handoff states outright: a wrong highlight on
+ * a safety document is worse than no highlight. Every "does not match" case below is
+ * therefore a REQUIREMENT, not a limitation - each one is a near-miss that a
+ * similarity score would happily have marked.
+ */
+describe("highlightRects", () => {
+  // Identity transform keeps the arithmetic readable; the flip is exercised in the
+  // component tests, which use the real viewport matrix.
+  const FLAT = [1, 0, 0, 1, 0, 0];
+
+  it("finds a quote that sits inside a single fragment", () => {
+    const marks = highlightRects(TEXT_ITEMS, "Pyridine is known to be", FLAT);
+    expect(marks).toHaveLength(1);
+    expect(marks[0]).toMatchObject({ left: 50, width: 120 });
+  });
+
+  /**
+   * The over-mark. A fragment usually carries more than the quote - on the real page
+   * this was built against, the match began two thirds of the way through one - and
+   * marking it whole highlights a sentence nobody cited.
+   */
+  it("marks only the quoted part of a fragment that carries more", () => {
+    const [whole] = highlightRects(TEXT_ITEMS, "No mortality in the repeat", FLAT);
+    const [tail] = highlightRects(TEXT_ITEMS, "in the repeat", FLAT);
+    expect(tail!.left).toBeGreaterThan(whole!.left);
+    expect(tail!.width).toBeLessThan(whole!.width);
+    // ...and it stays inside the fragment it came from.
+    expect(tail!.left + tail!.width).toBeLessThanOrEqual(whole!.left + whole!.width + 0.001);
+  });
+
+  /** The normal case. pdf.js splits printed lines wherever it likes. */
+  it("marks every line a quote crosses, and only those", () => {
+    const marks = highlightRects(TEXT_ITEMS, "known to be hepatotoxic, probably", FLAT);
+    expect(marks).toHaveLength(2);
+  });
+
+  it("does not care how the document broke its lines", () => {
+    // The same words, written the way a person would paste them.
+    const marks = highlightRects(TEXT_ITEMS, "hepatotoxic,   probably\n because", FLAT);
+    expect(marks).toHaveLength(1);
+  });
+
+  /**
+   * THE REGRESSION. pdf.js split "repeat-dose" across two fragments on the real
+   * Sotyktu assessment report, and joining fragments with a space made the quote
+   * unmatchable - the viewer reported every hyphenated sentence as absent from the
+   * page it was quoted from.
+   */
+  it("matches a quote across a fragment that splits a word in half", () => {
+    const marks = highlightRects(TEXT_ITEMS, "No mortality in the repeat-dose toxicity studies were", FLAT);
+    expect(marks).toHaveLength(2);
+  });
+
+  it("finds nothing when a single word was changed", () => {
+    expect(highlightRects(TEXT_ITEMS, "Pyridine is thought to be", FLAT)).toEqual([]);
+  });
+
+  it("finds nothing when the case is different", () => {
+    expect(highlightRects(TEXT_ITEMS, "PYRIDINE IS KNOWN TO BE", FLAT)).toEqual([]);
+  });
+
+  it("finds nothing for a quote that is merely similar", () => {
+    expect(highlightRects(TEXT_ITEMS, "Pyridine is hepatotoxic", FLAT)).toEqual([]);
+  });
+
+  it("marks nothing at all for an empty quote", () => {
+    expect(highlightRects(TEXT_ITEMS, "   ", FLAT)).toEqual([]);
+  });
+
+  /** The mark is a box over the words, so it must have a real size. */
+  it("gives every mark a positive width and height", () => {
+    for (const m of highlightRects(TEXT_ITEMS, "Pyridine is known to be", FLAT)) {
+      expect(m.width).toBeGreaterThan(0);
+      expect(m.height).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("citationsFor", () => {
+  const PEOPLE = [{ id: "u_1", displayName: "A. Silva" }, { id: "u_2", displayName: "B. Mehta" }];
+  const SEATS = { u_1: 0, u_2: 1 };
+  const POS: Position[] = [
+    { participantId: "u_1", call: "do_not_advance", reasoning: "The liver signal is characterised.", citedFindingIds: ["g1"], external: [], submittedAt: "2026-08-16T00:00:00.000Z" },
+    { participantId: "u_2", call: "advance", reasoning: "Margins are adequate.", citedFindingIds: ["g2"], external: [], submittedAt: "2026-08-16T00:00:00.000Z" },
+  ];
+
+  /**
+   * THE BLINDNESS TEST, and it asserts the client's whole share of the rule: given
+   * null it produces nothing. The server is what makes `revealed` null before the
+   * case closes - this only has to not invent positions of its own.
+   */
+  it("yields no citation for anything while the positions are sealed", () => {
+    const cite = citationsFor(null, PEOPLE, SEATS);
+    expect(cite("g1")).toEqual([]);
+    expect(cite("g2")).toEqual([]);
+  });
+
+  it("names who cited a finding, with their call and their reasoning", () => {
+    const cite = citationsFor(POS, PEOPLE, SEATS);
+    expect(cite("g1")).toEqual([{
+      participantId: "u_1", name: "A. Silva", seat: 0,
+      call: "do_not_advance", reasoning: "The liver signal is characterised.",
+    }]);
+  });
+
+  it("does not attribute a finding to somebody who cited a different one", () => {
+    expect(citationsFor(POS, PEOPLE, SEATS)("g1").map((c) => c.name)).toEqual(["A. Silva"]);
+    expect(citationsFor(POS, PEOPLE, SEATS)("g2").map((c) => c.name)).toEqual(["B. Mehta"]);
+  });
+
+  it("returns an empty list for a finding nobody cited", () => {
+    expect(citationsFor(POS, PEOPLE, SEATS)("g4")).toEqual([]);
+  });
+
+  /** A participant with no seat renders neutral rather than borrowing seat 0. */
+  it("carries a null seat rather than inventing one", () => {
+    expect(citationsFor(POS, PEOPLE, {})("g1")[0]?.seat).toBeNull();
+  });
+
+  it("falls back to the id when the person is not in the roster", () => {
+    expect(citationsFor(POS, [], SEATS)("g1")[0]?.name).toBe("u_1");
+  });
+});
+
+describe("the viewer's marks and attribution", () => {
+  const QUOTED: Finding[] = [{
+    id: "g1", label: "M12 metabolite", assertion: "toxic", detail: "d",
+    sourceDocumentId: "doc_1", sourcePage: 1,
+    sourceQuote: "Pyridine is known to be hepatotoxic",
+  }];
+
+  const marks = (): HTMLElement[] => [...document.querySelectorAll(".mark")] as HTMLElement[];
+
+  it("marks the quoted passage on the page it was quoted from", async () => {
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={QUOTED} />);
+    await waitFor(() => { expect(marks().length).toBeGreaterThan(0); });
+    // Two fragments, because the quote crosses the line break in the fixture page.
+    expect(marks()).toHaveLength(2);
+  });
+
+  it("puts the mark inside the page rather than off it", async () => {
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={QUOTED} />);
+    await waitFor(() => { expect(marks().length).toBeGreaterThan(0); });
+    for (const m of marks()) {
+      expect(parseFloat(m.style.top)).toBeGreaterThanOrEqual(0);
+      expect(parseFloat(m.style.left)).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("does not read the text layer at all when no finding quotes the page", async () => {
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
+    await waitFor(() => { expect(getPage).toHaveBeenCalled(); });
+    expect(getTextContent).not.toHaveBeenCalled();
+    expect(marks()).toHaveLength(0);
+  });
+
+  /** The honest failure. Nothing is marked, and the screen says why. */
+  it("says the passage is not on the page rather than marking something near it", async () => {
+    const wrong: Finding[] = [{ ...QUOTED[0]!, sourceQuote: "Pyridine is thought to be hepatotoxic" }];
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={wrong} />);
+    expect(await screen.findByText(/not on this page as written/i)).toBeInTheDocument();
+    expect(marks()).toHaveLength(0);
+  });
+
+  it("keeps who cited a finding sealed while the case is blind", async () => {
+    render(<Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={QUOTED} />);
+    expect(await screen.findByText(/sealed until the case is revealed/i)).toBeInTheDocument();
+    expect(screen.queryByText(/A\. Silva/)).not.toBeInTheDocument();
+  });
+
+  it("shows who cited it and why once the positions are revealed", async () => {
+    const positions: Position[] = [{
+      participantId: "u_1", call: "do_not_advance", reasoning: "Not advanceable without a mechanism.",
+      citedFindingIds: ["g1"], external: [], submittedAt: "2026-08-16T00:00:00.000Z",
+    }];
+    render(
+      <Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={QUOTED}
+        positions={positions} people={[{ id: "u_1", displayName: "A. Silva" }]} seats={{ u_1: 0 }} />,
+    );
+    expect(await screen.findByText("A. Silva")).toBeInTheDocument();
+    expect(screen.getByText("Do not advance")).toBeInTheDocument();
+    expect(screen.getByText("Not advanceable without a mechanism.")).toBeInTheDocument();
+    expect(screen.queryByText(/sealed until/i)).not.toBeInTheDocument();
+  });
+
+  it("says so when a revealed case simply has no citation for a finding", async () => {
+    render(
+      <Read caseId="c1" token="tok_test" documentId="doc_1" documents={DOCS} findings={QUOTED}
+        positions={[]} people={[]} seats={{}} />,
+    );
+    expect(await screen.findByText(/No position cited this finding/i)).toBeInTheDocument();
   });
 });

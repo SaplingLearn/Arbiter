@@ -342,6 +342,10 @@ export class DeliberationService {
         // that never succeeded on any real case.
         ...(f.sourceDocumentId === undefined ? {} : { sourceDocumentId: f.sourceDocumentId }),
         ...(f.sourcePage === undefined ? {} : { sourcePage: f.sourcePage }),
+        // Travels with the page number for the same reason the page number travels
+        // with the document id: this route is where the reader gets its findings, and
+        // a quote left behind here is a highlight the viewer cannot draw.
+        ...(f.sourceQuote === undefined ? {} : { sourceQuote: f.sourceQuote }),
       })),
       absent: [...absentForAdjudication(inv), ...externalClaimsAsGaps(c)],
       // The other half of the same inventory. Feeds `consequenceBasis`, so a severity

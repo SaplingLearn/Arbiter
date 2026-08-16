@@ -721,6 +721,47 @@ describe("a finding keeps its document", () => {
     expect(r.status).toBe(400);
     expect(r.body.detail).toContain("not on this case");
   });
+
+  /**
+   * The quote is what the reader's viewer draws a mark from, so it travels the same
+   * route the document id does. A quote that never arrives is a highlight that never
+   * appears, with nothing on screen to explain the difference.
+   */
+  it("carries sourceQuote back out with the page it was quoted from", async () => {
+    const add = await call("POST", "/api/cases/c-linked/findings", "owner", {
+      id: "f-quoted", label: "Hepatic necrosis", assertion: "toxic", detail: "Seen at week 13.",
+      sourceDocumentId: linkedDocId, sourcePage: 3,
+      sourceQuote: "Liver: ALT and AST elevations, transaminase changes, hepatic necrosis noted.",
+      covers: [],
+    });
+    expect(add.status).toBe(201);
+
+    const req = await call("GET", "/api/cases/c-linked/adjudication-request", "ann");
+    const f = req.body.findings.find((x: any) => x.id === "f-quoted");
+    expect(f.sourceQuote).toBe("Liver: ALT and AST elevations, transaminase changes, hepatic necrosis noted.");
+  });
+
+  /**
+   * An unanchored quote is refused for the same reason "page 26" with no document is:
+   * it names a passage nobody can navigate to, and it would sit in the record looking
+   * like provenance while pointing nowhere.
+   */
+  it("refuses a quote with no page to find it on", async () => {
+    const r = await call("POST", "/api/cases/c-linked/findings", "owner", {
+      id: "f-floating", label: "Unanchored", assertion: "toxic", detail: "d",
+      sourceDocumentId: linkedDocId, sourceQuote: "somewhere in here", covers: [],
+    });
+    expect(r.status).toBe(400);
+    expect(r.body.detail).toContain("document and the page");
+  });
+
+  it("refuses a quote with no document either", async () => {
+    const r = await call("POST", "/api/cases/c-linked/findings", "owner", {
+      id: "f-floating-2", label: "Unanchored too", assertion: "toxic", detail: "d",
+      sourcePage: 3, sourceQuote: "somewhere in here", covers: [],
+    });
+    expect(r.status).toBe(400);
+  });
 });
 
 describe("routing", () => {

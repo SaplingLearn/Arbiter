@@ -83,10 +83,31 @@ renders a case's PDFs and draws what extraction already found on top of them.
    bug. **Do not add fuzzy matching here.** A wrong highlight on a safety document is
    worse than an honest empty state.
 
+   The same rule now governs the passage highlight. `Finding.sourceQuote` is recorded
+   by whoever wrote the finding and matched against the page EXACTLY — whitespace is
+   dropped from both sides and nothing else is touched, so a changed word, a different
+   case or a merely similar sentence all mark nothing and say so. Whitespace has to go
+   because pdf.js splits fragments **mid-word**: the real Sotyktu report yields
+   `"...No mortality in the repeat"` + `"-dose toxicity studies were"`, and the first
+   version of this joined fragments with a space, produced `"repeat -dose"`, and
+   reported every hyphenated quote as absent. `read.test.tsx` carries that exact pair
+   as a fixture. The one approximation in the file is *geometric*: the position of the
+   match inside a fragment is interpolated by character count, because per-glyph
+   advances would mean shipping font metrics to move a mark a few pixels.
+
 3. **Blindness is server-side.** Positions stay hidden before reveal because the API
    does not return them (`visibleTo`), not because the client hides them. Any new
    reading-surface endpoint has to go inside the same `can(kase, user.id, "read")`
    guard, or the blind stage stops meaning anything.
+
+   The reader's "who cited this, and why" rail obeys this by construction and adds no
+   endpoint: it is computed from `BlindView.revealed`, which the server sends as
+   `null` for the whole blind stage. `citationsFor(null, …)` therefore yields nothing,
+   and the rail says *who cited this is sealed* rather than *nobody cited this* —
+   different facts, and only the first one is true before reveal. Do not be tempted to
+   assemble it from anything the client already holds; a per-finding tally before
+   people have answered is the anchoring the two-phase design exists to prevent, and
+   spec §6.4 forbids the tally directly.
 
 ### SECTION — the scene behind reading
 
@@ -285,7 +306,7 @@ ATMOSPHERE_URL=http://127.0.0.1:5187/ node apps/atmosphere/shot.mjs shots
 
 ## 7. State at handoff
 
-- **875 tests / 60 files**, typecheck clean, lint clean, `deliberate:build` clean, and
+- **901 tests / 60 files**, typecheck clean, lint clean, `deliberate:build` clean, and
   `apps/deliberation/shot.mjs` reports no console errors on all five surfaces. This is
   after the reading room (§3), which adds `nav.test.ts` and `readingRoom.test.tsx`, and
   after the viewer work below. (Was 821 / 58 before it; PR #24 adds eight more of its

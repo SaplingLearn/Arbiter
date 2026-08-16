@@ -522,6 +522,18 @@ export function makeHandler(deps: ServerDeps) {
             if (!["toxic", "safe", "ambiguous"].includes(f.assertion)) {
               return json(res, 400, { error: "bad_request", detail: "A finding must assert toxic, safe or ambiguous." });
             }
+            // A quote is an instruction to mark a specific place, so it is refused
+            // without one. Accepting an unanchored quote would store a passage the
+            // viewer can never draw and the reader can never check - the citation
+            // equivalent of "page 26" with no document, which this route already
+            // refuses one field up.
+            if (typeof f?.sourceQuote === "string" && f.sourceQuote.trim() !== ""
+              && (f.sourceDocumentId === undefined || f.sourcePage === undefined)) {
+              return json(res, 400, {
+                error: "bad_request",
+                detail: "A quoted passage needs the document and the page it was quoted from.",
+              });
+            }
             const r = deps.service.addFinding(caseId, f);
             return r.ok ? json(res, 201, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
           }
