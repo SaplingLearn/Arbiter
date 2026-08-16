@@ -89,7 +89,13 @@ class SceneBoundary extends Component<
 export function Overture() {
   const [motion, setMotion] = useState(() => !prefersReducedMotion());
   const [menuOpen, setMenuOpen] = useState(false);
-  const [booted, setBooted] = useState(false);
+  /* BOOTED IMMEDIATELY UNDER prefers-reduced-motion, so the Preloader never mounts.
+     OpeningScene.tsx states the rule this follows - "prefers-reduced-motion: never,
+     the reader's setting, not overridable" - and the Preloader simply missed it, which
+     left a counting overlay in front of the page as the one piece of the opening a
+     reader could not turn off. It also hid the header from the e2e suite, whose
+     documented escape hatch is exactly this setting. */
+  const [booted, setBooted] = useState(() => prefersReducedMotion());
   const [sceneReady, setSceneReady] = useState(false);
 
   const scroller = useRef<HTMLDivElement>(null);

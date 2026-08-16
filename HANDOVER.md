@@ -19,6 +19,17 @@ This document is for whoever picks the repo up next. It says what exists, what t
 result actually is, what is left, and which things you must not touch. Read §0 through
 §3 before writing any code.
 
+**Branch handoffs — the current work, which this audit does not cover.** This file is
+the historical record and is only updated at merge; anything still in flight lives in a
+handoff of its own, and until now nothing pointed at them. Read the one for the branch
+you are on before §0:
+
+| Branch | Handoff | Subject |
+|---|---|---|
+| `feat/product-in-the-atmosphere` (PR #22) | `docs/HANDOFF-evaluation.md` | What is measured, where the corpus lives, the one eval still to run, and the four times a metric looked broken and the measurement was the broken thing. |
+| `feat/product-in-the-atmosphere` (PR #22) | `docs/HANDOFF-reading-and-atmosphere.md` | Read & mark, the SECTION scene, the unbuilt launcher, and the dev-server preflight in PR #24. |
+| `feat/atmosphere-backgrounds` (PR #21) | `docs/design/HANDOFF-atmosphere.md` | The original five WebGL environments. Partly superseded — it predates Read, Section and the palette re-fit. |
+
 ---
 
 ## 0. Sixty-second orientation

@@ -175,7 +175,7 @@
         },
         {
           "page": 50,
-          "quote": "ALT and AST at doses ≥20 mg/kg"
+          "quote": "ALT and AST at doses \u226520 mg/kg"
         }
       ],
       "mustContain": [
@@ -196,7 +196,7 @@
         },
         {
           "page": 50,
-          "quote": "ALT and AST at doses ≥20 mg/kg"
+          "quote": "ALT and AST at doses \u226520 mg/kg"
         }
       ],
       "mustContain": [
@@ -216,7 +216,7 @@
         },
         {
           "page": 50,
-          "quote": "ALT and AST at doses ≥20 mg/kg"
+          "quote": "ALT and AST at doses \u226520 mg/kg"
         }
       ],
       "mustContain": [
@@ -236,7 +236,7 @@
         },
         {
           "page": 50,
-          "quote": "ALT and AST at doses ≥20 mg/kg"
+          "quote": "ALT and AST at doses \u226520 mg/kg"
         }
       ],
       "mustContain": [
@@ -594,7 +594,7 @@
       "goldPages": [
         {
           "page": 63,
-          "quote": "liver to body weight ratios at ≥ 150 mg/kg"
+          "quote": "liver to body weight ratios at \u2265 150 mg/kg"
         },
         {
           "page": 64,
@@ -614,7 +614,7 @@
       "goldPages": [
         {
           "page": 63,
-          "quote": "liver to body weight ratios at ≥ 150 mg/kg"
+          "quote": "liver to body weight ratios at \u2265 150 mg/kg"
         },
         {
           "page": 64,
@@ -706,7 +706,7 @@
       "goldPages": [
         {
           "page": 60,
-          "quote": "recovery period of 4 weeks, microscopic findings were limited to minimal submucosal edema in the non‐glandular stomach i"
+          "quote": "recovery period of 4 weeks, microscopic findings were limited to minimal submucosal edema in the non\u2010glandular stomach i"
         },
         {
           "page": 69,
@@ -866,11 +866,11 @@
       "goldPages": [
         {
           "page": 55,
-          "quote": "aminotransferase (ALT) activity in males administered ≥ 30 mg/kg"
+          "quote": "aminotransferase (ALT) activity in males administered \u2265 30 mg/kg"
         },
         {
           "page": 56,
-          "quote": "liver, lungs, and/or mesenteric lymph node at ≥ 100 mg/kg"
+          "quote": "liver, lungs, and/or mesenteric lymph node at \u2265 100 mg/kg"
         }
       ],
       "mustContain": [
@@ -886,11 +886,11 @@
       "goldPages": [
         {
           "page": 55,
-          "quote": "aminotransferase (ALT) activity in males administered ≥ 30 mg/kg"
+          "quote": "aminotransferase (ALT) activity in males administered \u2265 30 mg/kg"
         },
         {
           "page": 56,
-          "quote": "liver, lungs, and/or mesenteric lymph node at ≥ 100 mg/kg"
+          "quote": "liver, lungs, and/or mesenteric lymph node at \u2265 100 mg/kg"
         }
       ],
       "mustContain": [
@@ -962,7 +962,7 @@
         },
         {
           "page": 35,
-          "quote": "Recovery Period/ KNC-G-13-001 Key Study Findings • There were no unscheduled deaths. • Hematological changes included de"
+          "quote": "Recovery Period/ KNC-G-13-001 Key Study Findings \u2022 There were no unscheduled deaths. \u2022 Hematological changes included de"
         }
       ],
       "mustContain": [
@@ -1022,7 +1022,7 @@
         },
         {
           "page": 47,
-          "quote": "Recovery Period in Rats Key Study Findings • 25% (5/20) main toxicology group rats and 12.5% (1/8) toxicokinetic group r"
+          "quote": "Recovery Period in Rats Key Study Findings \u2022 25% (5/20) main toxicology group rats and 12.5% (1/8) toxicokinetic group r"
         }
       ],
       "mustContain": [
@@ -1042,12 +1042,139 @@
         },
         {
           "page": 61,
-          "quote": "effects were fully or partially reversible with a recovery period. The FDA’s Assessment: In general, F"
+          "quote": "effects were fully or partially reversible with a recovery period. The FDA\u2019s Assessment: In general, F"
         }
       ],
       "mustContain": [
         "reversib|recover|resolv"
       ]
+    },
+    {
+      "id": "krazati-bsep-unanswerable",
+      "document": "krazati",
+      "group": "krazati:unanswerable",
+      "kind": "unanswerable",
+      "question": "What was the BSEP (bile salt export pump) inhibition IC50?",
+      "goldPages": [],
+      "why": "Transporter inhibition is an internal industry screen and appears nowhere in this review - 'BSEP' and 'bile salt export' return zero hits. Any IC50 in an answer is invented."
+    },
+    {
+      "id": "lumakras-bsep-unanswerable",
+      "document": "lumakras",
+      "group": "lumakras:unanswerable",
+      "kind": "unanswerable",
+      "question": "What was the BSEP (bile salt export pump) inhibition IC50?",
+      "goldPages": [],
+      "why": "Same: zero hits for the assay anywhere in the document."
+    },
+    {
+      "id": "trikafta-bsep-unanswerable",
+      "document": "trikafta",
+      "group": "trikafta:unanswerable",
+      "kind": "unanswerable",
+      "question": "What was the BSEP inhibition IC50?",
+      "goldPages": [],
+      "why": "Same: zero hits."
+    },
+    {
+      "id": "qinlock-bsep-unanswerable",
+      "document": "qinlock",
+      "group": "qinlock:unanswerable",
+      "kind": "unanswerable",
+      "question": "What was the BSEP inhibition IC50?",
+      "goldPages": [],
+      "why": "Same: zero hits."
+    },
+    {
+      "id": "nipocalimab-bsep-unanswerable",
+      "document": "nipocalimab",
+      "group": "nipocalimab:unanswerable",
+      "kind": "unanswerable",
+      "question": "What was the BSEP inhibition IC50?",
+      "goldPages": [],
+      "why": "An antibody does not enter hepatocytes, so the assay is not run and the term appears nowhere."
+    },
+    {
+      "id": "retevmo-mito-unanswerable",
+      "document": "retevmo",
+      "group": "retevmo:unanswerable",
+      "kind": "unanswerable",
+      "question": "What was the mitochondrial toxicity assay result?",
+      "goldPages": [],
+      "why": "Mitochondrial toxicity screening is an internal assay; 'mitochondri' returns zero hits in this review."
+    },
+    {
+      "id": "qinlock-mito-unanswerable",
+      "document": "qinlock",
+      "group": "qinlock:unanswerable",
+      "kind": "unanswerable",
+      "question": "What was the mitochondrial toxicity assay result?",
+      "goldPages": [],
+      "why": "Same: zero hits."
+    },
+    {
+      "id": "orgovyx-mito-unanswerable",
+      "document": "orgovyx",
+      "group": "orgovyx:unanswerable",
+      "kind": "unanswerable",
+      "question": "What was the mitochondrial toxicity assay result?",
+      "goldPages": [],
+      "why": "Same: zero hits."
+    },
+    {
+      "id": "exkivity-mito-unanswerable",
+      "document": "exkivity",
+      "group": "exkivity:unanswerable",
+      "kind": "unanswerable",
+      "question": "What was the mitochondrial toxicity assay result?",
+      "goldPages": [],
+      "why": "Same: zero hits."
+    },
+    {
+      "id": "nubeqa-mito-unanswerable",
+      "document": "nubeqa",
+      "group": "nubeqa:unanswerable",
+      "kind": "unanswerable",
+      "question": "What was the mitochondrial toxicity assay result?",
+      "goldPages": [],
+      "why": "Same: zero hits."
+    },
+    {
+      "id": "xpovio-mito-unanswerable",
+      "document": "xpovio",
+      "group": "xpovio:unanswerable",
+      "kind": "unanswerable",
+      "question": "What was the mitochondrial toxicity assay result?",
+      "goldPages": [],
+      "why": "Same: zero hits."
+    },
+    {
+      "id": "inrebic-cost-unanswerable",
+      "document": "inrebic",
+      "group": "inrebic:unanswerable",
+      "kind": "unanswerable",
+      "question": "What is the annual cost of treatment?",
+      "goldPages": [],
+      "why": "A regulatory review carries no pricing. Plausible to ask of a drug, absent from this document."
+    },
+    {
+      "id": "lumakras-cost-unanswerable",
+      "document": "lumakras",
+      "group": "lumakras:unanswerable",
+      "kind": "unanswerable",
+      "question": "What is the annual cost of treatment?",
+      "goldPages": [],
+      "why": "Same."
+    },
+    {
+      "id": "tazverik-dognoael-unanswerable",
+      "document": "tazverik",
+      "group": "tazverik:unanswerable",
+      "kind": "unanswerable",
+      "question": "What was the NOAEL in the dog?",
+      "goldPages": [],
+      "why": "No dog study is reported - 'dog' and 'canine' return zero hits - so any dose quoted is invented."
     }
-  ]
+  ],
+  "_unanswerableProvenance": "Sixteen unanswerable items, up from two. Each was VERIFIED before being added: the term that would have to appear for the document to answer it was searched across the whole extracted text, and only candidates returning ZERO hits were kept. Seven candidates were rejected by that check, including ones that looked obviously safe - krazati names sotorasib twelve times, so 'how does this compare to sotorasib' is answerable; orgovyx and xpovio both report a 2-year carcinogenicity study. An unanswerable item the document can actually answer inverts the metric it is there to measure."
 }
