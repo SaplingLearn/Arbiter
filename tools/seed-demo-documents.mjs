@@ -1,5 +1,5 @@
 /**
- * Put REAL regulatory documents on the demo cases.
+ * Build the demonstration: real documents, real quotes, real citations.
  *
  * WHY THIS EXISTS. The demo store used to be stocked from `readablePdfBytes()` in
  * services/api/test/server.test.ts - a hand-assembled PDF whose five lines of text were
@@ -10,16 +10,26 @@
  * Anyone opening the reader saw a product that appeared to render regulatory reviews
  * and was in fact rendering a keyword-stuffed stub.
  *
- * So the demo corpus is fetched from the agencies that published it, and every file
- * goes through `measure_pdf.py` - the same gate a human upload passes - before it is
- * accepted. A document that cannot clear the gate does not get quietly waved through
- * here; it is reported and skipped, because the gate refusing something real is
- * information and faking a pass would destroy it.
+ * So the corpus is fetched from the agencies that published it, every file goes
+ * through `measure_pdf.py` - the same gate a human upload passes - and every quote is
+ * CHECKED AGAINST THE PDF before it is seeded (see `verifyQuotes`). A seeded demo
+ * whose highlights silently fail to draw is worse than one with no highlights: it
+ * teaches whoever opens it that the feature is broken.
  *
- *   node tools/seed-demo-documents.mjs            fetch what is missing, then upload
- *   node tools/seed-demo-documents.mjs --fetch    fetch only, no upload
+ *   node tools/seed-demo-documents.mjs            top up what is missing
+ *   node tools/seed-demo-documents.mjs --fetch    fetch and verify only, write nothing
+ *   node tools/seed-demo-documents.mjs --reset    DISCARD the store and rebuild it
  *
- * Needs `npm run dev` up (for the upload step) and PyMuPDF installed for the gate:
+ * `--reset` deletes the case log, the case file and the uploaded documents, because a
+ * closed case cannot be given anything - not a document, not a finding, not a quote.
+ * Its findings live in the hash-chained log behind `case_opened` and the Record stage
+ * verifies that chain, so editing one to slip a passage in would forge exactly the
+ * evidence this product exists to make checkable. Rebuilding is the honest way to
+ * change a sealed case, and it throws the old deliberation away. Accounts are NOT
+ * touched: `results/deliberation-log.jsonl.users.json` holds password hashes and is
+ * nobody's to discard here.
+ *
+ * Needs `npm run dev` up, and PyMuPDF for the gate:
  * `pip install -r data/prep/requirements.txt`.
  *
  * ---------------------------------------------------------------------------------
@@ -40,86 +50,145 @@
  * clinical one". For a product whose entire claim is reading the preclinical evidence
  * on its own terms, that separation is the better material.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const API = process.env["ARBITER_API"] ?? "http://127.0.0.1:8787";
 const DIR = "data/raw/approval-packages";
 const FETCH_ONLY = process.argv.includes("--fetch");
+const RESET = process.argv.includes("--reset");
+
+const OWNER = { email: "r.okafor@arbiter.demo", password: "arbiter-demo-2026" };
+/** The two seated reviewers. The owner convenes and does not hold a seat. */
+const PANEL = [
+  { email: "a.silva@arbiter.demo", password: "arbiter-demo-2026" },
+  { email: "b.mehta@arbiter.demo", password: "arbiter-demo-2026" },
+];
 
 /**
- * The caseIds are the demo store's, and they are matched to the drug the document is
- * ABOUT - never to whichever case happens to be empty. A nipocalimab report filed under
- * a pexidartinib case would look exactly as convincing as the stub it replaced.
+ * One case per document, and the document is the one about THAT drug.
+ *
+ * TAK-994 is deliberately absent. It was discontinued in trials over hepatotoxicity
+ * and never reached an approval package, so no regulatory review of it exists to
+ * attach - `data/library-sources.json` records it as "no source PDF" for the same
+ * reason. A case here with a document borrowed from another compound would look
+ * exactly as convincing as the fixture this script replaced.
+ *
+ * Every `quote` below is verbatim from the page named beside it, and every one is
+ * re-checked against the PDF at seed time.
  */
-const SOURCES = [
+const CASES = [
   {
+    caseId: "case_turalio_pexidartinib",
+    compoundLabel: "Turalio (pexidartinib)",
+    context: "Tenosynovial giant cell tumour. Oral, 800 mg/day, chronic dosing in a non-life-threatening indication.",
     file: "turalio-epar-refusal.pdf",
-    url: "https://www.ema.europa.eu/en/documents/assessment-report/turalio-epar-refusal-public-assessment-report_en.pdf",
-    label: "Turalio (pexidartinib) - EMA refusal public assessment report",
-    // The refusal, deliberately, over the approval: the CHMP refused this marketing
-    // authorisation in June 2020 partly over unpredictable and potentially fatal liver
-    // injury, so the document argues the hepatotoxicity question at length instead of
-    // recording it in passing. It is the densest liver-toxicity text in the set.
-    caseId: "case_1339597248",
     uploadAs: "turalio-epar-refusal-assessment-report.pdf",
+    findings: [
+      {
+        id: "m12-metabolite-hepatotoxicity",
+        label: "M12 metabolite may drive the hepatotoxicity",
+        assertion: "toxic",
+        detail: "Pyridine forms reactive intermediates on oxidation; the assessor states M12 may contribute to the observed hepatotoxicity, and that the applicant did not discuss it.",
+        page: 22,
+        quote: "Pyridine is known to be hepatotoxic, probably because it forms reactive intermediates during oxidation.",
+      },
+      {
+        id: "necrotizing-inflammation-not-reversible",
+        label: "Liver necrotizing inflammation did not reverse",
+        assertion: "toxic",
+        detail: "Higher incidence after 16 weeks of recovery rather than resolution - reversibility is the question a repeat-dose finding is supposed to answer, and here the answer is no.",
+        page: 24,
+        quote: "The necrotizing inflammation in the liver was not reversible even with higher incidence after 16 weeks of recovery.",
+      },
+      {
+        id: "mechanism-of-liver-toxicity-unknown",
+        label: "Mechanism unknown, so no preventive measure can be defined",
+        assertion: "ambiguous",
+        detail: "The assessor's conclusion on the hepatic signal: without a mechanism there is nothing to monitor for and nothing to mitigate.",
+        page: 32,
+        quote: "The mechanism of liver toxicity in animals and in humans is unknown; therefore, it is not possible to define preventive measures for avoiding liver damage during pexidartinib therapy.",
+      },
+    ],
+    positions: [
+      { call: "do_not_advance", reasoning: "The liver signal is characterised, it did not reverse on withdrawal, and no mechanism is offered - so there is nothing to monitor for. Not advanceable in a non-life-threatening indication." },
+      { call: "do_not_advance", reasoning: "Reactive-metabolite route is plausible and unexamined by the applicant. Without the mechanism I cannot bound the risk at chronic dosing." },
+    ],
   },
   {
+    caseId: "case_bms_986165",
+    compoundLabel: "BMS-986165 (deucravacitinib)",
+    context: "Plaque psoriasis. Oral, chronic dosing in a broad outpatient population.",
     file: "sotyktu-epar-assessment.pdf",
-    url: "https://www.ema.europa.eu/en/documents/assessment-report/sotyktu-epar-public-assessment-report_en.pdf",
-    label: "Sotyktu (deucravacitinib) - EMA public assessment report",
-    // BMS-986165 is deucravacitinib's development code, which is the name the demo case
-    // carries.
-    caseId: "case_298194277",
     uploadAs: "sotyktu-deucravacitinib-epar-assessment-report.pdf",
+    findings: [
+      {
+        id: "unscheduled-deaths-6-month-rat",
+        label: "Unscheduled deaths in the 6-month rat study",
+        assertion: "toxic",
+        detail: "Eleven unscheduled deaths in the 6-month rat study; no mortality in the other repeat-dose studies. Cause undetermined for five of them.",
+        page: 37,
+        quote: "No mortality in the repeat-dose toxicity studies were observed, except in the 6-month rat toxicity study where 11 unscheduled deaths occurred.",
+      },
+      {
+        id: "heart-liver-kidney-effects-raised",
+        label: "Heart, liver and kidney effects raised at CHMP request",
+        assertion: "ambiguous",
+        detail: "Raised, discussed, and ruled out on imputability and statistical significance; MACE followed up post-marketing rather than resolved preclinically.",
+        page: 37,
+        quote: "Some concerns were raised on adverse effects on heart, liver and kidneys which occurred during the toxicology studies in rats and monkeys.",
+      },
+      {
+        id: "obstructive-uropathy-rat-death",
+        label: "Obstructive uropathy killed a rat at the top dose",
+        assertion: "toxic",
+        detail: "A single male rat at 50 mg/kg/day in the 6-month study. A named cause of death rather than an unexplained one.",
+        page: 30,
+        quote: "In the 6-month toxicity study in rats, an obstructive uropathy was the cause of death of 1 male rat at 50 mg/kg/day.",
+      },
+    ],
+    positions: [
+      { call: "cannot_conclude", reasoning: "Five of eleven deaths undetermined is not a resolved question, however the incidence compares across dose groups. I want the cause before a chronic outpatient indication." },
+      { call: "advance", reasoning: "Exposure margin at the NOAEL is 247x the recommended human dose and the deaths show no dose relationship. The renal finding is single-animal at the top dose." },
+    ],
   },
   {
+    caseId: "case_nipocalimab_imaavy",
+    compoundLabel: "Nipocalimab (Imaavy)",
+    context: "Generalised myasthenia gravis. Intravenous monoclonal antibody, chronic dosing.",
     file: "ema-epar-sample-imaavy.pdf",
-    url: "https://www.ema.europa.eu/en/documents/assessment-report/imaavy-epar-public-assessment-report_en.pdf",
-    label: "Imaavy (nipocalimab) - EMA public assessment report",
-    // NOT uploaded to a case: there is no nipocalimab case in the demo store. It is
-    // fetched because data/library-sources.json names this exact path, and because it
-    // is the document data/cases/nipocalimab-imaavy.json was transcribed from - the
-    // gate measures it at 178 pages, which is the totalPages that file records.
-    caseId: null,
+    uploadAs: "imaavy-nipocalimab-epar-assessment-report.pdf",
+    findings: [
+      {
+        id: "serum-albumin-decrease-all-studies",
+        label: "Dose-dependent albumin decrease in every repeat-dose study",
+        assertion: "toxic",
+        detail: "Present in all repeat-dose studies in cynomolgus monkey rather than at the top dose only, so it is on the mechanism rather than an artefact of one group.",
+        page: 34,
+        quote: "However, dose dependent decreases in serum albumin were observed in all repeat dose toxicity studies performed in the cynomolgus monkey.",
+      },
+      {
+        id: "no-traditional-carcinogenicity-possible",
+        label: "Carcinogenicity could not be tested conventionally",
+        assertion: "ambiguous",
+        detail: "No cross-reactivity with rodent FcRn, so the carcinogenic assessment is a weight-of-evidence argument rather than a study. Absence of a study is not absence of risk.",
+        page: 38,
+        quote: "It does not cross-react with rodent FcRn, precluding the conduct of traditional carcinogenicity studies.",
+      },
+    ],
+    positions: [
+      { call: "advance", reasoning: "The albumin effect is pharmacology, monitorable, and reversed on withdrawal. The carcinogenicity gap is inherent to the modality and argued properly." },
+      { call: "cannot_conclude", reasoning: "A weight-of-evidence carcinogenicity argument is the weakest form of the answer, and the albumin decrease is in every study. Chronic dosing makes both matter." },
+    ],
   },
 ];
 
-/**
- * Findings that carry the passage they were read off, so the reader has something to
- * MARK rather than only a page number to point at.
- *
- * Every quote below is lifted verbatim from the page it names - checked by running
- * the matcher against the real file, not by eye. That is not decoration: the viewer
- * matches exactly, so a quote with a word retyped marks nothing and says so, and a
- * seeded demo whose highlights all fail is worse than one with no highlights.
- *
- * Applied only to OPEN cases. A closed case's findings live in the hash-chained log
- * behind `case_opened`, and the Record stage checks that chain - editing it to slip a
- * quote in would forge exactly the evidence the product exists to make checkable.
- */
-const FINDINGS = [
-  {
-    caseId: "case_298194277",
-    id: "repeat-dose-mortality-6-month-rat",
-    label: "Unscheduled deaths in the 6-month rat study",
-    assertion: "toxic",
-    detail: "Eleven unscheduled deaths in the 6-month rat toxicity study; no mortality in the other repeat-dose studies.",
-    file: "sotyktu-epar-assessment.pdf",
-    sourcePage: 37,
-    sourceQuote: "No mortality in the repeat-dose toxicity studies were observed, except in the 6-month rat toxicity study where 11 unscheduled deaths occurred.",
-  },
-  {
-    caseId: "case_298194277",
-    id: "hepatobiliary-effects-raised-at-chmp-request",
-    label: "Heart, liver and kidney effects raised at CHMP request",
-    assertion: "ambiguous",
-    detail: "Adverse effects on heart, liver and kidneys in the rat and monkey toxicology studies; discussed and ruled out for imputability, with MACE followed up post-marketing.",
-    file: "sotyktu-epar-assessment.pdf",
-    sourcePage: 37,
-    sourceQuote: "Some concerns were raised on adverse effects on heart, liver and kidneys which occurred during the toxicology studies in rats and monkeys.",
-  },
-];
+/** Where each file comes from. Keyed by the filename the cases above name. */
+const SOURCES = {
+  "turalio-epar-refusal.pdf": "https://www.ema.europa.eu/en/documents/assessment-report/turalio-epar-refusal-public-assessment-report_en.pdf",
+  "sotyktu-epar-assessment.pdf": "https://www.ema.europa.eu/en/documents/assessment-report/sotyktu-epar-public-assessment-report_en.pdf",
+  "ema-epar-sample-imaavy.pdf": "https://www.ema.europa.eu/en/documents/assessment-report/imaavy-epar-public-assessment-report_en.pdf",
+};
 
 /** The ones a person has to fetch by hand, and exactly where from. */
 const MANUAL = [
@@ -127,123 +196,192 @@ const MANUAL = [
   ["modern-fda-multidiscipline-211367.pdf", "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2019/211367Orig1s000MultidisciplineR.pdf"],
 ];
 
+const STORE = [
+  "results/deliberation-log.jsonl",
+  "results/deliberation-log.jsonl.cases.json",
+];
+
 mkdirSync(DIR, { recursive: true });
 
-/** The gate, run exactly as services/api/documents.ts runs it. */
-function measure(path) {
-  const out = execFileSync("python", ["data/prep/measure_pdf.py", path], { encoding: "utf8" });
-  return JSON.parse(out);
+// ---- fetch, and gate ------------------------------------------------------------
+
+for (const c of CASES) {
+  const path = `${DIR}/${c.file}`;
+  if (existsSync(path)) { console.log(`have     ${c.file}`); continue; }
+
+  console.log(`fetching ${c.file}\n         ${SOURCES[c.file]}`);
+  const res = await fetch(SOURCES[c.file]);
+  if (!res.ok) { console.log(`         FAILED ${res.status}`); process.exit(1); }
+  const body = Buffer.from(await res.arrayBuffer());
+  // A refused download that saves an HTML error page under a .pdf name is the exact
+  // failure data/prep/README.md warns about, and it stays invisible until something
+  // tries to read it. Check the magic bytes rather than trusting the status line.
+  if (body.subarray(0, 5).toString("latin1") !== "%PDF-") {
+    console.log(`         NOT A PDF (${body.length} bytes) - refusing to save it`);
+    process.exit(1);
+  }
+  writeFileSync(path, body);
+  console.log(`         ${(body.length / 1e6).toFixed(1)}MB`);
 }
 
-const ready = [];
-
-for (const s of SOURCES) {
-  const path = `${DIR}/${s.file}`;
-
-  if (existsSync(path)) {
-    console.log(`have     ${s.file}`);
-  } else {
-    console.log(`fetching ${s.file}\n         ${s.url}`);
-    const res = await fetch(s.url);
-    if (!res.ok) {
-      console.log(`         FAILED ${res.status} - skipped`);
-      continue;
-    }
-    const body = Buffer.from(await res.arrayBuffer());
-    // A refused download that saves an HTML error page under a .pdf name is the exact
-    // failure data/prep/README.md warns about, and it stays invisible until something
-    // tries to read it. Check the magic bytes rather than trusting the status line.
-    if (body.subarray(0, 5).toString("latin1") !== "%PDF-") {
-      console.log(`         NOT A PDF (${body.length} bytes, starts "${body.subarray(0, 20).toString("latin1").replace(/\s+/g, " ")}") - skipped`);
-      continue;
-    }
-    writeFileSync(path, body);
-    console.log(`         ${(body.length / 1e6).toFixed(1)}MB`);
-  }
-
-  const m = measure(path);
-  if (!m.ok) {
-    console.log(`         GATE REFUSED: ${m.reason}`);
-    continue;
-  }
-  console.log(`         gate: ${m.pages} pages, nonclinical chapter ${m.nonclinicalChapterPages}pp, tox ${m.toxTermHits}, liver ${m.liverTermHits} - ${m.verdict}`);
-  if (s.caseId !== null) ready.push({ ...s, path });
+for (const c of CASES) {
+  const m = JSON.parse(execFileSync("python", ["data/prep/measure_pdf.py", `${DIR}/${c.file}`], { encoding: "utf8" }));
+  if (!m.ok) { console.log(`GATE REFUSED ${c.file}: ${m.reason}`); process.exit(1); }
+  console.log(`gate     ${c.file}: ${m.pages}pp, nonclinical ${m.nonclinicalChapterPages}pp, tox ${m.toxTermHits}, liver ${m.liverTermHits}`);
 }
 
-if (FETCH_ONLY || ready.length === 0) {
+// ---- verify every quote against the page it names --------------------------------
+
+/**
+ * The same comparison `highlightRects` makes: whitespace removed from both sides and
+ * nothing else touched. Checked HERE so a retyped word fails the seed rather than
+ * shipping a demo whose marks quietly never draw - the failure mode that reaches a
+ * reader as "the highlighter is broken".
+ */
+const bare = (s) => s.replace(/\s+/g, "");
+
+async function verifyQuotes() {
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  let bad = 0;
+  for (const c of CASES) {
+    const url = new URL(`file://${process.cwd().replace(/\\/g, "/")}/${DIR}/${c.file}`).href;
+    const doc = await getDocument({ url, useSystemFonts: true }).promise;
+    for (const f of c.findings) {
+      const tc = await (await doc.getPage(f.page)).getTextContent();
+      const page = bare(tc.items.map((i) => i.str).join(""));
+      if (page.includes(bare(f.quote))) {
+        console.log(`quote    ${c.compoundLabel} p.${f.page} - on the page`);
+      } else {
+        console.log(`QUOTE MISSING  ${c.compoundLabel} p.${f.page}: ${f.quote.slice(0, 60)}...`);
+        bad++;
+      }
+    }
+    await doc.destroy();
+  }
+  return bad;
+}
+
+const bad = await verifyQuotes();
+if (bad > 0) { console.log(`\n${bad} quote(s) would never draw. Refusing to seed.`); process.exit(1); }
+
+if (FETCH_ONLY) {
   console.log("");
   for (const [file, url] of MANUAL) console.log(`manual   ${file}\n         ${url}`);
   process.exit(0);
 }
 
-// ---- upload, through the endpoint a person uses ---------------------------------
+// ---- reset, if asked -------------------------------------------------------------
 
-const login = await fetch(`${API}/api/auth/login`, {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  // The demo team's shared, published password. See services/api/seed-demo.ts, which
-  // prints it for the same reason it is written here rather than hidden.
-  body: JSON.stringify({ email: "r.okafor@arbiter.demo", password: "arbiter-demo-2026" }),
-});
-if (!login.ok) {
-  console.error(`\nlogin failed: ${login.status}. Is \`npm run dev\` up, and has \`npm run seed:demo\` been run?`);
-  process.exit(1);
-}
-const { token } = await login.json();
-
-console.log("");
-for (const s of ready) {
-  const res = await fetch(`${API}/api/cases/${s.caseId}/documents`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "content-type": "application/pdf",
-      "x-filename": s.uploadAs,
-    },
-    body: readFileSync(s.path),
-  });
-  const out = await res.json();
-  if (res.status !== 201) {
-    console.log(`refused  ${s.uploadAs} [${res.status}] ${JSON.stringify(out).slice(0, 200)}`);
-    continue;
+/**
+ * BEFORE sign-in, deliberately. `--reset` requires the API to be DOWN - the service
+ * holds the log in memory and rewrites it on the next write, so deleting the file
+ * under a running server just watches it come back - and signing in first would fail
+ * on the connection refused that is the precondition here, not the error.
+ */
+if (RESET) {
+  const live = await fetch(`${API}/api/cases`).then(() => true).catch(() => false);
+  if (live) {
+    console.log("\n--reset needs the API stopped, or it will rewrite the log from memory.");
+    console.log("Stop `npm run dev`, run this with --reset, then start it again.");
+    process.exit(1);
   }
-  // A second run re-posting the same bytes is answered with the document already
-  // stored rather than a duplicate, so this script is safe to run twice.
-  console.log(`uploaded ${s.uploadAs} -> ${s.label}${out.duplicateOf === null ? "" : " (already stored)"}`);
+  for (const f of STORE) if (existsSync(f)) { rmSync(f); console.log(`removed  ${f}`); }
+  rmSync("results/documents", { recursive: true, force: true });
+  console.log("removed  results/documents");
+  console.log("\nStore cleared. Start `npm run dev` and run this again without --reset.");
+  process.exit(0);
 }
 
-// ---- findings, with the passage they were read off -------------------------------
+// ---- sign in ---------------------------------------------------------------------
 
-/** Which document id each seeded file ended up with, so a finding can point at it. */
-const idOf = new Map();
-for (const s of ready) {
-  const list = await (await fetch(`${API}/api/cases/${s.caseId}/documents`, {
-    headers: { authorization: `Bearer ${token}` },
-  })).json();
-  for (const d of list) idOf.set(d.filename, { id: d.id, caseId: s.caseId });
+async function signIn({ email, password }) {
+  const r = await fetch(`${API}/api/auth/login`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!r.ok) {
+    console.error(`\nlogin failed for ${email} (${r.status}). Is \`npm run dev\` up, and has \`npm run seed:demo\` been run?`);
+    process.exit(1);
+  }
+  return r.json();
 }
+
+const owner = await signIn(OWNER);
+const panel = [];
+for (const p of PANEL) panel.push(await signIn(p));
+console.log(`\nsigned in as ${owner.user.displayName}, panel of ${panel.length}`);
+
+const as = (session) => ({ authorization: `Bearer ${session.token}`, "content-type": "application/json" });
+
+// ---- build each case -------------------------------------------------------------
+
+const existing = await (await fetch(`${API}/api/cases`, { headers: as(owner) })).json();
+const known = new Set(existing.map((c) => c.caseId));
 
 console.log("");
-for (const f of FINDINGS) {
-  const doc = [...idOf.values()].find((d) => d.caseId === f.caseId);
-  if (doc === undefined) { console.log(`skipped  ${f.id} - its document is not on the case`); continue; }
+for (const c of CASES) {
+  if (!known.has(c.caseId)) {
+    const r = await fetch(`${API}/api/cases`, {
+      method: "POST", headers: as(owner),
+      body: JSON.stringify({
+        caseId: c.caseId, compoundLabel: c.compoundLabel, context: c.context,
+        participantIds: panel.map((p) => p.user.id), findings: [],
+        at: new Date().toISOString(),
+      }),
+    });
+    if (r.status !== 201) { console.log(`case     ${c.compoundLabel} FAILED ${r.status} ${JSON.stringify(await r.json()).slice(0, 200)}`); continue; }
+    console.log(`case     ${c.compoundLabel} opened`);
+  } else {
+    console.log(`case     ${c.compoundLabel} already here`);
+  }
 
-  const res = await fetch(`${API}/api/cases/${f.caseId}/findings`, {
+  // The document, through the endpoint a person uploads by.
+  const up = await fetch(`${API}/api/cases/${c.caseId}/documents`, {
     method: "POST",
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify({
-      id: f.id, label: f.label, assertion: f.assertion, detail: f.detail,
-      sourceDocumentId: doc.id, sourcePage: f.sourcePage, sourceQuote: f.sourceQuote,
-      covers: [],
-    }),
+    headers: { authorization: `Bearer ${owner.token}`, "content-type": "application/pdf", "x-filename": c.uploadAs },
+    body: readFileSync(`${DIR}/${c.file}`),
   });
-  if (res.status === 201) { console.log(`finding  ${f.id} -> p.${f.sourcePage}, quoted`); continue; }
+  const upBody = await up.json();
+  if (up.status !== 201) { console.log(`         document REFUSED ${up.status} ${JSON.stringify(upBody).slice(0, 200)}`); continue; }
+  const documentId = upBody.document.id;
+  console.log(`         ${c.uploadAs} -> ${upBody.document.measurement.pages}pp`);
 
-  const out = await res.json();
-  // A closed case and an already-seeded one are both expected on a re-run, and
-  // neither is a failure worth a non-zero exit - but they are named, because a
-  // silently skipped finding is a highlight that never appears.
-  console.log(`skipped  ${f.id} [${res.status}] ${out.detail ?? out.error ?? ""}`);
+  for (const f of c.findings) {
+    const r = await fetch(`${API}/api/cases/${c.caseId}/findings`, {
+      method: "POST", headers: as(owner),
+      body: JSON.stringify({
+        id: f.id, label: f.label, assertion: f.assertion, detail: f.detail,
+        sourceDocumentId: documentId, sourcePage: f.page, sourceQuote: f.quote, covers: [],
+      }),
+    });
+    const out = r.status === 201 ? "quoted" : `[${r.status}] ${(await r.json()).detail ?? ""}`;
+    console.log(`         finding p.${f.page} ${f.id} - ${out}`);
+  }
+
+  // Positions, then the reveal, so the reader's rail can show who leaned on which
+  // finding and why. Sealed one at a time through the real endpoint; the server is
+  // what keeps them invisible until the case closes.
+  const ids = c.findings.map((f) => f.id);
+  for (let i = 0; i < panel.length; i++) {
+    const p = c.positions[i];
+    if (p === undefined) continue;
+    const r = await fetch(`${API}/api/cases/${c.caseId}/positions`, {
+      method: "POST", headers: as(panel[i]),
+      body: JSON.stringify({
+        call: p.call, reasoning: p.reasoning,
+        // Each reviewer cites everything on the case: this is a demonstration of
+        // attribution, and a finding nobody cited shows the empty state instead.
+        citedFindingIds: ids, external: [], submittedAt: new Date().toISOString(),
+      }),
+    });
+    console.log(`         position ${panel[i].user.displayName} - ${r.status === 201 ? p.call : `[${r.status}]`}`);
+  }
+
+  const rev = await fetch(`${API}/api/cases/${c.caseId}/reveal`, {
+    method: "POST", headers: as(owner),
+    body: JSON.stringify({ mode: "all_in", at: new Date().toISOString() }),
+  });
+  console.log(`         reveal - ${rev.status === 200 ? "positions open" : `[${rev.status}]`}`);
 }
 
 console.log("");
