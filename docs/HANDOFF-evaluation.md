@@ -9,6 +9,29 @@ written, not recalled. Where a number appears, the file it came from is named.
 **The one thing to know before you touch a number:** four times in this session a metric
 looked broken and the *measurement* was the broken thing. §7 is not optional reading.
 
+### Before anything else — the deadline
+
+`HANDOVER.md` records the submission as due **16 Aug 2026**, which is the day this was
+written. Confirm with Jack what is actually still open before starting anything with a
+long runway. §0 is ordered so it can be stopped after any single step, and the only item
+that must happen is §5, which is one command and about forty minutes.
+
+If the deadline has passed by the time you read this, the ordering still holds — §5 is
+still the outstanding measurement — but §8's EMA EPAR work becomes worth doing properly
+rather than being out of reach.
+
+### Sibling handoff
+
+`docs/HANDOFF-reading-and-atmosphere.md` was written the same day from a different
+session on this same branch. **That one owns the reading surface, the SECTION scene, the
+unbuilt launcher, and the dev-server preflight; this one owns the numbers.** Read both if
+you are picking up the branch cold — and note its first instruction, which is that **PR
+#24 is open against this branch and should be merged before other work on it.** Without
+it, opening a document in Read & mark fails on any checkout whose `node_modules`
+predates the last dependency addition.
+
+`HANDOVER.md` is the historical audit of the whole repo and indexes every branch handoff.
+
 ---
 
 ## 0. TL;DR — what to do, in order
@@ -482,6 +505,17 @@ From memory and from this session. These are not suggestions.
   and record what was tried and rejected. Match that register.
 - **Verification before any commit:** `npm run typecheck && npm run lint && npm test`.
   Last green state: typecheck clean, lint clean, **821 tests across 58 files**.
+- **CI (`.github/workflows/ci.yml`) runs more than those three.** It also runs
+  `validate:evidence`, `harness`, `metrics`, the golden test, a
+  `git diff --exit-code results/verdict-manifest.json`, both production builds, and
+  Playwright e2e. The manifest diff is the one that catches you: **if a reported figure
+  moves, CI fails until the manifest is committed and the move is explained.** That is
+  deliberate. CI also installs `pymupdf==1.28.2`, because Python is part of the upload
+  path and not a data-prep convenience.
+- **This branch has two active sessions.** Another one is working the reading surface and
+  the scene. `git fetch` and rebase before you push — the last push here was rejected for
+  exactly this reason. Your files and theirs have not collided so far, but `HANDOVER.md`
+  is shared.
 - **`vitest.config.ts` excludes `.claude/worktrees/**`.** Without that, 15 phantom
   failures appear from a stale worktree. Do not remove it.
 - **Scripts you will want:** `npm run ask:eval`, `npm run retrieval:eval`,

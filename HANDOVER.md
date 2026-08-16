@@ -26,7 +26,7 @@ you are on before §0:
 
 | Branch | Handoff | Subject |
 |---|---|---|
-| `feat/product-in-the-atmosphere` (PR #22) | `docs/HANDOFF-evaluation.md` | What is measured, and the three times a metric looked broken and the measurement was the broken thing. |
+| `feat/product-in-the-atmosphere` (PR #22) | `docs/HANDOFF-evaluation.md` | What is measured, where the corpus lives, the one eval still to run, and the four times a metric looked broken and the measurement was the broken thing. |
 | `feat/product-in-the-atmosphere` (PR #22) | `docs/HANDOFF-reading-and-atmosphere.md` | Read & mark, the SECTION scene, the unbuilt launcher, and the dev-server preflight in PR #24. |
 | `feat/atmosphere-backgrounds` (PR #21) | `docs/design/HANDOFF-atmosphere.md` | The original five WebGL environments. Partly superseded — it predates Read, Section and the palette re-fit. |
 
