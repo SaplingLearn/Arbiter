@@ -11,6 +11,7 @@ import {
   Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
   Refused, Reveal, RosterPanel, Verdict, Waiting,
 } from "./screens.js";
+import { Read } from "./read.js";
 import { caseIdOf, href, navigate, parseHash, type Route } from "./router.js";
 import "./app.css";
 
@@ -368,8 +369,11 @@ export function App(): ReactElement {
   }
 
   if (route.name === "read") {
-    // Replaced by the Read screen in Task 8.
-    return caseShell(<p className="small muted">Loading documents…</p>);
+    return caseShell(
+      <Read caseId={caseId} documents={docs} findings={findings}
+        {...(route.documentId === undefined ? {} : { documentId: route.documentId })}
+        {...(route.page === undefined ? {} : { page: route.page })} />,
+    );
   }
 
   return caseShell(audit === null

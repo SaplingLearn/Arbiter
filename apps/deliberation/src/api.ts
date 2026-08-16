@@ -158,6 +158,10 @@ export interface Finding {
   label: string;
   assertion: "toxic" | "safe" | "ambiguous";
   detail: string;
+  /** Where extraction found this. Optional because a finding need not be sourced
+   *  to a document at all; highlightsFor drops the ones that are not. */
+  sourceDocument?: string;
+  sourcePage?: number;
 }
 
 export interface AuditResult {

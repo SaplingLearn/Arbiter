@@ -570,6 +570,33 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
 
 .pagehead .actions .field { min-width: 268px; }
 
+/* ---- read & mark ----------------------------------------------------------- */
+/* The document strip and the open page sit in one section; the page itself splits
+   into the rendered PDF and the findings rail beside it. Page-level only in this
+   phase - the rail links to a page, it does not draw a box on it. */
+.read { display: flex; flex-direction: column; gap: var(--s4); }
+.read nav[aria-label="Case documents"] { display: flex; flex-wrap: wrap; gap: var(--s2); }
+
+.pdfview { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s5); align-items: start; }
+.pdfview canvas { max-width: 100%; border: 1px solid var(--line); background: var(--paper); }
+.pdfview aside { display: flex; flex-direction: column; gap: var(--s2); position: sticky; top: var(--s4); }
+
+/* System highlights, never a reviewer's: accent is reserved for what extraction
+   found, so no participant can ever wear it (see the seat palette above). */
+.finding-row {
+  display: flex; align-items: baseline; gap: var(--s2);
+  border: 1px solid var(--accent-line); background: var(--accent-wash);
+  border-radius: var(--r); padding: var(--s3) var(--s4);
+  color: var(--ink); text-decoration: none; font-size: 13.5px;
+}
+.finding-row:hover { border-color: var(--accent); }
+.finding-row .pip { font: 600 11px/1 var(--mono); color: var(--accent); flex: none; }
+
+@media (max-width: 780px) {
+  .pdfview { grid-template-columns: 1fr; }
+  .pdfview aside { position: static; }
+}
+
 /* Labelled for a screen reader, silent for everybody else: the composer's purpose is
    obvious from its position, and a visible "Your question" label above a chat box is
    the sort of form furniture a thread is meant to lose. */
