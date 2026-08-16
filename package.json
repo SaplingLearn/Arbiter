@@ -31,7 +31,8 @@
     "deliberate:build": "npm run build -w @arbiter/deliberation",
     "landing:dev": "npm run dev -w @arbiter/landing",
     "landing:build": "npm run build -w @arbiter/landing",
-    "site:build": "npm run deliberate:build && npm run landing:build && node tools/stage-site.mjs"
+    "site:build": "npm run deliberate:build && npm run landing:build && node tools/stage-site.mjs",
+    "verdict:eval": "tsx services/api/verdict-eval.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",

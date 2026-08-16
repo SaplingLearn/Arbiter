@@ -1,5 +1,5 @@
 {
-  "model": "gemini-3.5-flash",
+  "model": "gemini-3.1-pro-preview",
   "provider": "vertex",
   "answerable": 53,
   "unanswerable": 2,
@@ -9,8 +9,8 @@
     1
   ],
   "answeredRate": 1,
-  "meanCitationPrecision": 0.4002012138804591,
-  "meanCitationRecall": 0.8113207547169812,
+  "meanCitationPrecision": 0.40507542771693716,
+  "meanCitationRecall": 0.8207547169811321,
   "refusalRate": 1,
   "errors": 0,
   "items": [
@@ -20,20 +20,21 @@
       "kind": "answerable",
       "question": "What NOAEL was set, and in which study?",
       "answerable": true,
-      "answer": "Based on the provided documents, several NOAELs (no-observed-adverse-effect-levels) were set or suggested across different studies of nipocalimab in monkeys: 1) In the 4-week repeat-dose toxicity study, the NOAEL was set at 306 mg/kg, though Table 1 lists it as 300 mg/kg. 2) In the 26-week repeat-dose toxicity study, the applicant suggested a NOAEL of 300 mg/kg, but the assessment concluded it should be lowered to 100 mg/kg. 3) In the 2-week non-GLP repeat-dose study, a NOAEL of 300 mg/kg is listed. 4) In the 8-week GLP immunotoxicity study, a NOAEL of 300 mg/kg is listed and supported.",
+      "answer": "The provided documents report NOAEL (no-observed-adverse-effect-level) values established across several studies:\n\n*   **4-week repeat-dose study:** The NOAEL was set at 306 mg/kg based on the absence of clinically relevant changes in serum clinical chemistry and histological parameters [2]. (Note: An interspecies comparison table lists the NOAEL for this study as 300 mg/kg [3]).\n*   **26-week repeat-dose study:** The applicant initially set the NOAEL at the highest dose of 300 mg/kg [3, 5]. However, the assessment states this is not supported and the NOAEL should be lowered to 100 mg/kg because nipocalimab could not be ruled out as being involved in systemic lymphoproliferation in a euthanized monkey [4].\n*   **2-week non-GLP repeat-dose study:** The NOAEL was 300 mg/kg [3].\n*   **8-week immunotoxicity study:** The NOAEL was 300 mg/kg, which was supported by the assessment [3, 6].\n*   **26-week subcutaneous repeat-dose study (evaluating fertility):** NOAELs were established at 100 mg/kg for efgartigimod and 150 mg/kg for rozanolixizumab [8].",
       "citedPages": [
         36,
         40,
         48,
         37,
-        50
+        50,
+        46
       ],
       "goldPages": [
         36,
         37
       ],
       "statedFact": true,
-      "citationPrecision": 0.4,
+      "citationPrecision": 0.3333333333333333,
       "citationRecall": 1,
       "refused": null
     },
@@ -43,10 +44,11 @@
       "kind": "answerable",
       "question": "no observed adverse effect level",
       "answerable": true,
-      "answer": "The no-observed-adverse-effect-level (NOAEL) for nipocalimab has been evaluated across several non-clinical studies:\n\n- **4-Week Study**: The NOAEL was set at 306 mg/kg based on the absence of clinically relevant changes in serum chemistry, histological parameters, and the reversibility of serum IgG levels.\n- **26-Week Study**: The applicant proposed a NOAEL of 300 mg/kg/week. However, this was not supported by the assessors, who determined the NOAEL should be lowered to 100 mg/kg because nipocalimab could not be ruled out as being involved in systemic lymphoproliferation observed in a euthanized monkey.\n- **8-Week Immunotoxicity Study**: The suggested NOAEL of 300 mg/kg (the highest dose level) was supported.\n- **2-Week Study**: The NOAEL is listed as 300 mg/kg.",
+      "answer": "The documents report the following no-observed-adverse-effect-levels (NOAEL) for nipocalimab based on studies in cynomolgus monkeys:\n\n- **4-week study:** The NOAEL was set at 306 mg/kg based on the absence of clinically relevant changes in histological parameters and serum clinical chemistry, as well as the ability of serum IgG to recover to pre-dose levels.\n- **26-week study:** The applicant initially suggested a NOAEL of 300 mg/kg/week. However, this was not supported because nipocalimab could not be ruled out as being involved in systemic lymphoproliferation in a euthanized monkey. It was concluded that the NOAEL should be lowered to 100 mg/kg.\n- **8-week immunotoxicity study:** The suggested NOAEL of 300 mg/kg (the highest dose level) is supported.\n- **2-week study:** A NOAEL of 300 mg/kg is listed.\n\nAdditionally, the documents note that for other approved anti-FcRn compounds, efgartigimod and rozanolixizumab, the NOAELs for fertility and early embryonic development were established at 100 mg/kg and 150 mg/kg, respectively.",
       "citedPages": [
         40,
         36,
+        46,
         48,
         50,
         37
@@ -56,7 +58,7 @@
         37
       ],
       "statedFact": true,
-      "citationPrecision": 0.4,
+      "citationPrecision": 0.3333333333333333,
       "citationRecall": 1,
       "refused": null
     },
@@ -66,7 +68,7 @@
       "kind": "answerable",
       "question": "what was the highest dose that produced no adverse effects",
       "answerable": true,
-      "answer": "The highest dose of nipocalimab that produced no adverse effects (the no-observed-adverse-effect-level, or NOAEL) was 306 mg/kg in the 4-week repeat-dose toxicity study in cynomolgus monkeys, and 300 mg/kg/week in the 26-week repeat-dose toxicity study.",
+      "answer": "The no-observed-adverse-effect-level (NOAEL) was set at 306 mg/kg in a 4-week study. In a 26-week study, the NOAEL was established at 300 mg/kg/week, which was the highest dose evaluated in that study.",
       "citedPages": [
         37,
         36,
@@ -87,60 +89,13 @@
       "kind": "answerable",
       "question": "Were the toxicology findings reversible?",
       "answerable": true,
-      "answer": "Yes, the toxicology findings were generally reversible. Decreases in albumin and increases in cholesterol and triglycerides recovered to baseline levels during the recovery period or upon treatment discontinuation [1, 2, 8]. Decreases in total protein, globulin, albumin:globulin ratio, AST, and calcium were also reversible upon treatment discontinuation [2, 8]. Reductions in IgG levels and FcRn receptor occupancy returned to baseline levels during the recovery phase or after treatment was terminated [1, 5, 6, 8, 10]. Slight, transient changes in the relative percentages of granulocytes, monocytes, and NK cell populations across tissue samples were reversible [5]. Infusion-related clinical signs (such as swelling, reddening of skin, tremors, salivation, pruritus, deep breathing, and vomiting) generally resolved during the dosing day [1], and specific swellings of the prepuce, face, and hindlimb resolved with or without treatment [7]. However, one male animal in the 26-week study (300 mg/kg group) had to be euthanized due to worsening clinical signs consistent with systemic lymphoproliferation [1, 6].",
+      "answer": "Yes, the toxicology findings were shown to be reversible upon treatment discontinuation. Decreases in albumin, total protein, globulin, AST, and calcium, as well as increases in cholesterol and triglycerides, recovered to baseline levels during the recovery period. Additionally, pharmacodynamic effects such as receptor occupancy and reductions in IgG levels were reversible, as were slight changes in the relative percentages of granulocytes, monocytes, and NK cell populations.",
       "citedPages": [
         37,
         45,
         49,
-        44,
         50,
-        47,
-        48
-      ],
-      "goldPages": [
-        36,
-        37
-      ],
-      "statedFact": true,
-      "citationPrecision": 0.14285714285714285,
-      "citationRecall": 0.5,
-      "refused": null
-    },
-    {
-      "id": "nipo-reversible-b",
-      "document": "nipocalimab",
-      "kind": "answerable",
-      "question": "was there a recovery phase in the repeat-dose studies",
-      "answerable": true,
-      "answer": "Yes, there was a recovery phase in the repeat-dose studies. The pivotal GLP-compliant 4-week and 26-week repeat-dose studies evaluated reversibility over recovery periods of 9 and 8 weeks, respectively. During these recovery periods, treatment-related effects—such as reductions in IgG levels, receptor occupancy (RO), and decreases in albumin—showed reversibility or recovery toward baseline levels.",
-      "citedPages": [
-        37,
-        45,
-        36,
-        43
-      ],
-      "goldPages": [
-        36,
-        37
-      ],
-      "statedFact": true,
-      "citationPrecision": 0.5,
-      "citationRecall": 1,
-      "refused": null
-    },
-    {
-      "id": "nipo-reversible-c",
-      "document": "nipocalimab",
-      "kind": "answerable",
-      "question": "did the changes resolve after dosing stopped",
-      "answerable": true,
-      "answer": "Yes, the treatment-related changes observed during dosing resolved after treatment was stopped (during the recovery period or upon treatment discontinuation):\n\n* **Albumin, Cholesterol, and Triglycerides:** Decreases in albumin and increases in cholesterol and triglycerides were reversible, returning to baseline levels during the recovery period [1, 4, 9].\n* **IgG Levels and Receptor Occupancy:** Reductions in serum IgG levels and FcRn receptor occupancy on cells were dose-dependent and returned to baseline levels during the recovery phase or after treatment was terminated [1, 8, 14]. Reduced IgG levels in infants of treated dams also returned to normal over time [9].\n* **Other Clinical Chemistry Parameters:** Decreases in total protein, globulin, albumin:globulin ratio, AST, and calcium were reversible upon treatment discontinuation [4, 9].\n* **Immune Cell Populations:** Slight, transient changes in the relative percentages of granulocytes, monocytes, and NK cell populations in tissues were reversible [8].",
-      "citedPages": [
-        37,
-        45,
-        49,
-        47,
-        44
+        47
       ],
       "goldPages": [
         36,
@@ -152,12 +107,58 @@
       "refused": null
     },
     {
+      "id": "nipo-reversible-b",
+      "document": "nipocalimab",
+      "kind": "answerable",
+      "question": "was there a recovery phase in the repeat-dose studies",
+      "answerable": true,
+      "answer": "Yes, the pivotal 4-week and 26-week repeat-dose studies included recovery periods of 9 weeks and 8 weeks, respectively, to evaluate reversibility. During these recovery phases, parameters such as receptor occupancy, IgG levels, albumin, and cholesterol were observed to recover toward baseline levels.",
+      "citedPages": [
+        37,
+        36,
+        43
+      ],
+      "goldPages": [
+        36,
+        37
+      ],
+      "statedFact": true,
+      "citationPrecision": 0.6666666666666666,
+      "citationRecall": 1,
+      "refused": null
+    },
+    {
+      "id": "nipo-reversible-c",
+      "document": "nipocalimab",
+      "kind": "answerable",
+      "question": "did the changes resolve after dosing stopped",
+      "answerable": true,
+      "answer": "The documents indicate that several changes resolved or showed reversibility after dosing stopped (during the recovery period or upon treatment discontinuation). Specifically:\n\n- Decreases in albumin and increases in cholesterol and triglyceride levels recovered by the end of the recovery period [1].\n- Decreases in total protein, albumin, globulin, the albumin:globulin ratio, AST, and calcium were reversible upon treatment discontinuation [4].\n- Reductions in IgG levels returned to baseline levels during the recovery phase or when treatment was terminated [1, 2, 6, 14].\n- FcRn receptor occupancy was generally reversible during the recovery phase [8].\n- Low circulating IgG levels in neonates returned to normal levels after 24 weeks [9].",
+      "citedPages": [
+        37,
+        50,
+        45,
+        163,
+        49,
+        47,
+        44
+      ],
+      "goldPages": [
+        36,
+        37
+      ],
+      "statedFact": true,
+      "citationPrecision": 0.14285714285714285,
+      "citationRecall": 0.5,
+      "refused": null
+    },
+    {
       "id": "nipo-margin-a",
       "document": "nipocalimab",
       "kind": "answerable",
       "question": "What safety margins were reported?",
       "answerable": true,
-      "answer": "The following safety margins and exposure multiples were reported: 1) High-dose exposure comparisons between monkeys and humans provided exposure multiples of 24-71 times (based on AUC corrected for dose intervals) and 14-23 times (based on Cmax) the maximum expected human exposure [1]. 2) Lowering the NOAEL to 100 mg/kg in the 26-week study provided safety margins of 10.8 based on AUC0-last and 6.7 based on Cmax [1]. 3) An AUC comparison using the applicant's NOAEL of 300 mg/kg/week in the 26-week study against simulated clinical exposure resulted in a safety margin of 44x to the clinical setting [2]. 4) The highest tested dose of 306 mg/kg in the 4-week study corresponded to a 44-fold exposure margin [5]. 5) The retrovirus-like particles (RVLP) per dose safety margin was reported as equal to 1 lipid-enveloped [4]. 6) Safety margins for safety pharmacology endpoints in the 4- and 26-week repeat-dose studies at the NOAEL were considered adequate, with monkey exposures sufficiently in excess of the maximum human exposure [3].",
+      "answer": "The documents report the following safety margins:\n\n- An initial safety margin of 44x to the clinical setting was estimated based on the applicant's NOAEL of 300 mg/kg/week in a 26-week study, using an AUC comparison to the simulated clinical exposure from the Phase III dosing scheme [2]. The highest tested dose of 306 mg/kg in a 4-week study also corresponded to a 44-fold exposure margin [5].\n- The NOAEL in the 26-week study was subsequently lowered to 100 mg/kg, which provided safety margins of 10.8 based on AUC0-last and 6.7 based on Cmax [1].\n- Safety margins for safety pharmacology endpoints in the 4- and 26-week repeat-dose studies were considered adequate, as exposure values at the NOAEL sufficiently exceeded the maximum human exposure [3].\n- A retrovirus-like particles (RVLP) per dose safety margin equal to 1 lipid-enveloped was reported [4].",
       "citedPages": [
         48,
         37,
@@ -180,9 +181,10 @@
       "kind": "answerable",
       "question": "how does the monkey exposure compare with the clinical dose",
       "answerable": true,
-      "answer": "High-dose exposure comparisons from monkey studies (including 2-, 4-, and 26-week repeat-dose, immunotoxicity, and ePPND phase 2 studies) compared to the modeled human clinical maintenance dose of 15 mg/kg every two weeks (Q2W) yielded exposure multiples of 24 to 71 times for AUC and 14 to 23 times for Cmax. \n\nSpecifically, the exposure multiples at the 300 mg/kg monkey dose compared to the clinical dose are:\n- **2-week study**: 33 times for AUC and 15 times for Cmax.\n- **4-week study**: 71 times for AUC and 20 times for Cmax.\n- **26-week study**: 44 times for AUC and 24 times for Cmax. This is based on comparing the monkey exposure at 300 mg/kg/week (AUC of 20,250 µg·day/mL over a two-week interval) to the simulated clinical exposure (AUC0-14days of 918 µg·day/mL).\n- **8-week immunotoxicity study**: 32 times for AUC and 16 times for Cmax.\n- **ePPND phase 2 study**: 24 times for AUC and 14 times for Cmax.\n\nAdditionally, if the 26-week study's NOAEL is lowered to 100 mg/kg (as recommended by the assessor), the safety margins are reduced to 10.8 times for AUC0-last and 6.7 times for Cmax.",
+      "answer": "High dose exposure comparisons from monkey in vivo toxicity studies (including 2-, 4-, and 26-week repeat-dose, immunotoxicity, and ePPND phase 2 studies) yielded exposure multiples of 24 to 71 times for AUC and 14 to 23 times for Cmax compared to the maximum expected human exposure, which was modelled from the phase 3 clinical dose of 15 mg/kg every two weeks [1, 5]. \n\nSpecifically, the highest tested dose in the 4-week study (306 mg/kg) and the 300 mg/kg/week dose in the 26-week study both corresponded to a 44-fold exposure margin compared to the clinical setting [4, 8]. However, it was suggested that the NOAEL in the 26-week study be lowered to 100 mg/kg, which would provide safety margins of 10.8 based on AUC0-last and 6.7 based on Cmax [5].",
       "citedPages": [
         40,
+        36,
         48,
         37
       ],
@@ -191,7 +193,7 @@
         42
       ],
       "statedFact": true,
-      "citationPrecision": 0.3333333333333333,
+      "citationPrecision": 0.25,
       "citationRecall": 0.5,
       "refused": null
     },
@@ -201,21 +203,24 @@
       "kind": "answerable",
       "question": "What liver findings are reported, and at what doses?",
       "answerable": true,
-      "answer": "Based on the provided documents, liver findings are reported in both animal and human studies at various doses. In rats, doses of 20 mg/kg or higher resulted in increased ALT and AST levels, hemosiderin deposition, and necrotizing inflammation in the liver [3, 8]. At the high dose of 60 mg/kg, findings included increased liver weight [1], liver identified as a target organ of toxicity [4], biliary cysts and increased GGT levels in female rats [3], and increased urine urobilinogen [8]. In humans, across doses ranging from 200 to 5000 mg/day, aminotransferase elevations associated with elevated total bilirubin did not appear to be dose-dependent [11]. Specific case reports detailed hepatotoxicity at various doses: a patient on 1000 mg/day (reduced to 800 mg/day) experienced hepatic steatosis and elevated liver enzymes (peak ALT 8x ULN, AST 5x ULN, ALP 3x ULN, TBIL 7x ULN, DBIL 4x ULN) [2]; a patient on 600 mg BID (with paclitaxel) experienced cholestasis, severe steatosis, suspected drug-induced vanishing bile duct syndrome, and elevated liver enzymes (peak ALT 12x ULN, AST 8x ULN, ALP 4x ULN, TBIL 25x ULN, DBIL 5x ULN) [2]; and a patient on 1000 mg/day (with cisplatin, temozolomide, and recombinant human endostatin) experienced elevated liver enzymes (peak ALT 10x ULN, AST 11x ULN, ALP 5x ULN, TBIL 18x ULN, DBIL 60x ULN) [2].",
+      "answer": "The documents report various liver findings in both animal studies and human clinical trials, with specific doses noted for many of the findings:\n\n**Animal Studies (Rats)**\n*   **≥20 mg/kg:** Findings included hemosiderin deposition, necrotizing inflammation, and increased AST and ALT levels [3, 8].\n*   **60 mg/kg:** Female rats developed biliary cysts and increased gamma-glutamyl transferase (GGT) [3]. The liver was identified as a target organ of toxicity at this dose (60 mg/kg/day) [4].\n*   **High dose (unspecified):** Increases in liver weight were observed [1].\n\n**Human Clinical Findings**\n*   **General Laboratory Abnormalities:** Frequent elevations in transaminases were reported, with ALT elevations occurring in 67% of patients and AST in 90% of patients [14]. Bilirubin increases occurred in 10% to 12% of patients [5, 14].\n*   **Severe Liver Injury:** Approximately 3% to 5% of patients experienced severe liver injury, characterized by AST or ALT ≥3x the upper limit of normal (ULN) with concurrent total bilirubin ≥2x ULN [5, 14]. \n*   **Biopsy Findings:** Liver biopsies in 8 patients revealed a pattern of hepatocellular injury as well as injury to bile ducts/ductopenia [7].\n*   **Irreversible Hepatotoxicity:** Across the development program, 2 out of 768 patients (0.3%) experienced irreversible liver injury, resulting in one death and one liver transplantation [7].\n*   **Specific Patient Cases and Doses:**\n    *   *1000 mg/day (reduced to 800 mg/day):* A patient developed hepatic steatosis, cholangitis, and peak laboratory values of ALT 8x ULN, AST 5x ULN, ALP 3x ULN, TBIL 7x ULN, and DBIL 4x ULN [2].\n    *   *600 mg BID (with paclitaxel):* A patient developed cholestasis, severe steatosis, suspected vanishing bile duct syndrome, and cholecystitis, with peak ALT 12x ULN, AST 8x ULN, TBIL 25x ULN, and DBIL 5x ULN, ultimately requiring a liver transplant [2].\n    *   *1000 mg/day (with cisplatin, temozolomide, and endostatin):* A patient experienced peak abnormalities of ALT 10x ULN, AST 11x ULN, ALP 5x ULN, TBIL 18x ULN, and DBIL 60x ULN [2].\n*   **Dose Dependence in Humans:** In clinical trials evaluating doses ranging from 200 to 5000 mg/day, the incidence of aminotransferase elevations associated with elevated total bilirubin did not appear to be dose-dependent [11].",
       "citedPages": [
         51,
         189,
         40,
         48,
+        182,
+        210,
         50,
-        184
+        184,
+        203
       ],
       "goldPages": [
         40,
         50
       ],
       "statedFact": true,
-      "citationPrecision": 0.3333333333333333,
+      "citationPrecision": 0.2222222222222222,
       "citationRecall": 1,
       "refused": null
     },
@@ -225,17 +230,14 @@
       "kind": "answerable",
       "question": "does this drug damage the liver?",
       "answerable": true,
-      "answer": "Yes, pexidartinib (Turalio) is clearly associated with liver injury and hepatotoxicity [1, 16]. Across the drug's development program, 0.3% of patients (2 out of 768) experienced irreversible liver injury, which resulted in a liver transplantation for one patient and death for another [1, 7, 8, 11, 12]. Biopsies from patients with severe liver injury, including the two irreversible cases, showed evidence of bile duct injury or ductopenia [1, 7, 8, 12, 14]. Additionally, elevated transaminases were observed in the majority of patients treated with the drug [2, 9, 12]. Approximately 3% of patients with tenosynovial giant cell tumor (TGCT) [1, 2, 11] and 4.9% to 5% of patients in the ENLIVEN trial [1, 12, 14] experienced laboratory values consistent with severe liver injury (defined as AST or ALT elevations concurrent with total bilirubin elevations) [1, 2, 12, 14]. Because of the risk of serious and potentially fatal liver injury, a Risk Evaluation and Mitigation Strategy (REMS) program is required to mitigate these risks [3, 7, 11, 15].",
+      "answer": "The documents state that pexidartinib use is associated with liver injury, which was a major review issue for the drug [1, 2, 12]. Hepatotoxicity occurs frequently in exposed patients, most commonly presenting as hepatocellular injury [16]. Liver biopsies from patients with severe liver injury have revealed bile duct damage (ductopenia) and hepatocellular injury [1, 7, 8]. \n\nAcross the development program, 0.3% of patients (2 out of 768) experienced irreversible liver injury, which resulted in one liver transplantation and one death [1, 7, 8, 12]. Approximately 3% to 5% of patients experienced severe liver injury, characterized by elevated transaminases and bilirubin [1, 2, 12]. \n\nWhile the liver injury is generally self-limited or manageable with dose modifications, temporary interruption, or withdrawal of the drug, some patients experienced prolonged recovery times despite these measures [7, 11, 15, 16]. The documents also note uncertainty regarding the long-term effects of pexidartinib on the liver, including whether it causes subacute or chronic injury that is not initially detectable by routine laboratory monitoring [1, 7, 8, 11, 12, 15, 16].",
       "citedPages": [
         190,
         182,
-        217,
         204,
         210,
-        209,
         207,
         21,
-        188,
         22,
         24
       ],
@@ -254,21 +256,21 @@
       "kind": "answerable",
       "question": "hepatotoxicity in the animal studies",
       "answerable": true,
-      "answer": "In animal studies, the liver was identified as a target organ of toxicity in rats. In rat liver, hemosiderin deposition and necrotizing inflammation occurred at doses of 20 mg/kg or greater. Additionally, increased levels of aspartate aminotransferase (AST) and alanine aminotransferase (ALT) were observed in rats at doses of 20 mg/kg or greater, and increased liver weight was noted at the high dose. In female rats, biliary cysts and increased gamma-glutamyl transferase (GGT) levels occurred at 60 mg/kg. In contrast, in a 9-month toxicity study in dogs, clinical chemistry and gross pathology evaluations were unremarkable, with no liver-related findings reported.",
+      "answer": "In animal studies, the liver was identified as a major target organ of toxicity in rats [2, 4]. Specific hepatotoxic findings in rats included:\n- Necrotizing inflammation and hemosiderin deposition in the liver at doses ≥20 mg/kg [6].\n- Increased levels of aspartate aminotransferase (AST) and alanine aminotransferase (ALT) at doses ≥20 mg/kg [3, 6].\n- Biliary cysts and increased gamma-glutamyl transferase (GGT) levels in female rats at 60 mg/kg [6].\n- Increased liver weights at the high dose [9].\n- Increased urine urobilinogen at 60 mg/kg [3].",
       "citedPages": [
         39,
         50,
         48,
-        51,
-        55
+        40,
+        51
       ],
       "goldPages": [
         40,
         50
       ],
       "statedFact": true,
-      "citationPrecision": 0.2,
-      "citationRecall": 0.5,
+      "citationPrecision": 0.4,
+      "citationRecall": 1,
       "refused": null
     },
     {
@@ -277,7 +279,7 @@
       "kind": "answerable",
       "question": "were transaminases elevated in the toxicology studies",
       "answerable": true,
-      "answer": "Yes, transaminases were elevated in the toxicology studies. In rat studies, increased levels of the transaminases aspartate aminotransferase (AST) and alanine aminotransferase (ALT) occurred in the liver at doses of 20 mg/kg or higher.",
+      "answer": "Yes, in the toxicology studies, increased levels of the transaminases aspartate aminotransferase (AST) and alanine aminotransferase (ALT) were observed at doses of 20 mg/kg or higher.",
       "citedPages": [
         40
       ],
@@ -296,7 +298,7 @@
       "kind": "answerable",
       "question": "What NOAEL was set?",
       "answerable": true,
-      "answer": "In a study of pregnant Sprague Dawley rats, the maternal NOAEL (No Observed Adverse Effect Level) was set at 10 mg/kg/day.",
+      "answer": "The NOAEL was set at 10 mg/kg/day.",
       "citedPages": [
         67
       ],
@@ -314,7 +316,7 @@
       "kind": "answerable",
       "question": "no observed adverse effect level",
       "answerable": true,
-      "answer": "In a study of pregnant Sprague Dawley rats, the maternal no observed adverse effect level (NOAEL) was determined to be 10 mg/kg/day, with no test article-related findings observed at any dose level in any generation. The maternal exposure at this NOAEL was approximately 0.5 times the human clinical exposure based on AUC at the recommended human dose of 800 mg.",
+      "answer": "The no observed adverse effect level (NOAEL) was identified as 10 mg/kg/day in a study of pregnant rats. At this NOAEL, the maternal exposure was approximately 0.5 times the human clinical exposure based on the area under the curve (AUC) at the recommended human dose of 800 mg.",
       "citedPages": [
         67
       ],
@@ -332,7 +334,7 @@
       "kind": "answerable",
       "question": "Was the liver injury in patients reversible?",
       "answerable": true,
-      "answer": "For the majority of patients, liver injury was reversible, with serum transaminase and bilirubin elevations improving to baseline levels following dose reductions, dose interruptions, and/or drug discontinuation. However, some patients experienced a prolonged recovery period. Additionally, 0.3% of patients (2 out of 768 patients) in the overall development program experienced irreversible liver injury, which led to a liver transplant in one patient and death in another. None of these irreversible liver injury cases occurred in patients with tenosynovial giant cell tumor (TGCT).",
+      "answer": "The documents state that liver injury caused by pexidartinib is generally self-limited or manageable, with the majority of patients improving to baseline levels following dose reductions, interruptions, or discontinuation [1, 2, 3, 4]. However, some patients experienced a prolonged time to recovery despite these measures [1, 2, 3, 4]. \n\nIn rare cases, the liver injury was irreversible [2]. Across the overall development program, there were 2 cases (0.3%) of irreversible liver injury among 768 patients [1, 2, 5, 6, 10, 13]. Of these two cases, one patient required a liver transplant and the other died from factors that included liver failure [1, 6, 10, 13].",
       "citedPages": [
         204,
         207,
@@ -358,7 +360,7 @@
       "kind": "answerable",
       "question": "did the patients recover from the hepatotoxicity",
       "answerable": true,
-      "answer": "The majority of patients who experienced hepatotoxicity or elevated liver enzymes improved or recovered, though outcomes varied:\n\n- In Part 1 of the ENLIVEN trial, all 55 patients with elevated transaminases (with or without bilirubin elevations) improved following no intervention, dose modifications, or drug withdrawal. While the majority returned to baseline or normal limits, 18 patients did not fully recover to within normal limits (15 improved to 1.1 to 2x ULN, and 3 improved to 2 to 2.7x ULN) [1].\n- Across the overall development program, most patients who experienced transaminase and bilirubin elevations improved to baseline levels, though some experienced a prolonged recovery period [6, 7, 13, 15].\n- There were 2 cases of irreversible liver injury among the 768 patients in the overall program: one patient required a liver transplant (after which hepatic parameters normalized), and another patient died due to several factors, including liver failure [5, 6, 9, 15].",
+      "answer": "The majority of patients who experienced elevated transaminases and bilirubin improved to baseline levels or within normal limits following dose modifications, interruptions, or drug withdrawal [1, 6, 7, 13]. However, recovery varied among patients:\n\n- **Prolonged Recovery:** Some patients experienced a prolonged time to recovery despite intervention [6, 7, 13]. Specific patient narratives describe hepatotoxicity events taking 1.9 months, 3.9 months, and 7.1 months to resolve [9, 16].\n- **Incomplete Recovery:** In Part 1 of the ENLIVEN trial, 18 patients did not fully recover to within normal limits, though their laboratory values improved to 1.1 to 2.7 times the upper limit of normal [1].\n- **Irreversible Liver Injury:** There were 2 cases of irreversible liver injury among the 768 patients in the overall development program. Of these two cases, one patient required a liver transplant and the other died due to several factors that included liver failure [5, 6, 15].",
       "citedPages": [
         186,
         25,
@@ -366,14 +368,15 @@
         22,
         189,
         24,
-        21
+        21,
+        188
       ],
       "goldPages": [
         21,
         23
       ],
       "statedFact": true,
-      "citationPrecision": 0.14285714285714285,
+      "citationPrecision": 0.125,
       "citationRecall": 0.5,
       "refused": null
     },
@@ -383,15 +386,38 @@
       "kind": "answerable",
       "question": "What nonclinical studies were submitted with this application?",
       "answerable": true,
-      "answer": "There were no nonclinical studies submitted with this application. The applicant submitted a 505(b)(2) application relying on the FDA's previous findings of safety for the drospirenone (DRSP) component of the approved listed drug, YAZ (NDA 21676), to support the nonclinical section of the NDA.",
+      "answer": "No nonclinical studies were submitted with this application. The applicant submitted a 505(b)(2) application that relies on the FDA's previous findings of safety and efficacy for the drospirenone (DRSP) component of the approved listed drug, YAZ (NDA 21676), to support the nonclinical sections of the NDA.",
       "citedPages": [
         124,
         120,
         130,
         28,
+        119
+      ],
+      "goldPages": [
+        124,
+        130
+      ],
+      "statedFact": true,
+      "citationPrecision": 0.4,
+      "citationRecall": 1,
+      "refused": null
+    },
+    {
+      "id": "slynd-nonclinical-b",
+      "document": "slynd",
+      "kind": "answerable",
+      "question": "were any new animal studies conducted",
+      "answerable": true,
+      "answer": "The documents state that no new nonclinical studies were conducted or submitted for this application. The applicant did not conduct any new safety pharmacology, pharmacokinetic/ADME/toxicokinetic, general toxicology, genetic toxicology, carcinogenicity, or reproductive and developmental toxicology studies. Instead, the application relies on the FDA's previous findings of safety for the listed drug YAZ® and information from published literature.",
+      "citedPages": [
+        126,
         29,
-        119,
-        128
+        28,
+        128,
+        130,
+        124,
+        119
       ],
       "goldPages": [
         124,
@@ -403,38 +429,12 @@
       "refused": null
     },
     {
-      "id": "slynd-nonclinical-b",
-      "document": "slynd",
-      "kind": "answerable",
-      "question": "were any new animal studies conducted",
-      "answerable": true,
-      "answer": "No, no new nonclinical (animal) studies were conducted with LF111. The applicant did not conduct any new nonclinical pharmacology, safety pharmacology, pharmacokinetic/ADME/toxicokinetic, general toxicology, genetic toxicology, carcinogenicity, or reproductive and developmental toxicology studies. Instead, the applicant relied on the FDA's previous findings of safety and efficacy for the reference drug, Yaz.",
-      "citedPages": [
-        126,
-        29,
-        28,
-        128,
-        130,
-        124,
-        119,
-        129
-      ],
-      "goldPages": [
-        124,
-        130
-      ],
-      "statedFact": true,
-      "citationPrecision": 0.25,
-      "citationRecall": 1,
-      "refused": null
-    },
-    {
       "id": "slynd-noael-unanswerable",
       "document": "slynd",
       "kind": "unanswerable",
       "question": "What NOAEL was set in the repeat-dose toxicity study?",
       "answerable": false,
-      "answer": "The provided documents do not mention what NOAEL (No Observed Adverse Effect Level) was set in the repeat-dose toxicity study.",
+      "answer": "The provided documents do not state the NOAEL (No Observed Adverse Effect Level) set in the repeat-dose toxicity study. While they mention that nonclinical repeat-dose toxicity studies were conducted and describe the observed pharmacological effects, they do not provide the specific NOAEL value.",
       "citedPages": [],
       "goldPages": [],
       "statedFact": null,
@@ -448,7 +448,7 @@
       "kind": "unanswerable",
       "question": "What is the annual cost of treatment?",
       "answerable": false,
-      "answer": "I am sorry, but the provided documents do not contain any information about the annual cost of treatment.",
+      "answer": "The provided documents do not contain information about the annual cost of treatment.",
       "citedPages": [],
       "goldPages": [],
       "statedFact": null,
@@ -462,28 +462,25 @@
       "kind": "answerable",
       "question": "What liver findings are reported, and at what doses?",
       "answerable": true,
-      "answer": "Based on the provided documents, liver findings are reported across clinical (human) and nonclinical (animal) studies at various doses. In humans at a dose of 960 mg QD sotorasib: Hepatotoxicity adverse events occurred in 25% to 29.9% of patients [1, 15], with 12% experiencing Grade 3 or 4 events [15]. The most frequent hepatotoxicity adverse events of any grade were increased AST (20.6%), increased ALT (20.1%), and increased blood ALP (13.7%) [1]. Grade 3 or higher events included increased ALT (7.8%), increased AST (6.9%), increased blood ALP (3.9%), and increased gamma glutamyl transferase (2.5%) [1]. Serious events included increased ALT (1.0%) and drug-induced liver injury (DILI) (1.0%) [1]. Shifts from baseline in AST and ALT occurred in 39% and 38% of patients, respectively, with shifts to Grade 3 or 4 in 9% (AST) and 11% (ALT) [5, 16]. Grade 3 and 4 increases from baseline in patients with NSCLC were reported for ALT (10.8% and 1.5%), AST (8.8% and 1.0%), total bilirubin (1.5% and 0%), and ALP (2.5% and 0%) [12]. Adverse events leading to treatment discontinuation included increased ALT (2.0%), increased AST (2.0%), drug-induced liver injury (1.5%), increased blood ALP (1.0%), and increased transaminases (1.0%) [3]. No events of hepatotoxicity or elevated liver enzymes met Hy's law criteria, and there were no cases of liver failure or fatal hepatotoxicity [3, 5, 14, 15]. One case of DILI was attributed to ischemic hepatopathy ('shock liver') following cardiac arrest [3]. Liver function test elevations generally reversed upon interruption or discontinuation of sotorasib [1, 14], with hepatotoxicity events resolving in 91% of cases following dose reduction or interruption [15]. In rats at the high dose of 750 mg/kg once daily: Sotorasib treatment resulted in increases in bilirubin, AST, and ALT [4, 13], and minimal multifocal liver necrosis was observed in one female recovery rat [7]. In dogs at doses of 200 and 1000 mg/kg/day (exposures ~0.4 times the clinical AUC at the 960 mg human dose): Sotorasib-related findings included increased bilirubin, increased alkaline phosphatase (ALP), increased liver weight, and minimal to mild centrilobular hepatocellular hypertrophy [2, 4, 7, 8, 13], which appeared consistent with an adaptive response to hepatocellular enzyme induction [10]. Abnormal gallbladder content (black particulate material/bile sludge) was also observed at doses of 200 mg/kg/day and higher [8, 10, 13]. At the high dose of 1000 mg/kg/day, electron microscopy showed that liver hepatocytes from female dogs contained greater amounts of glycogen than control female dogs [2].",
+      "answer": "The documents report the following liver findings and their associated doses:\n\n**Clinical Findings (at 960 mg once daily):**\n* Hepatotoxicity was identified as an adverse event of interest, with 25% of patients experiencing an event and 12% experiencing a Grade 3 or 4 event [15].\n* Specific reported events and laboratory abnormalities include increased alanine aminotransferase (ALT), aspartate aminotransferase (AST), blood alkaline phosphatase (ALP), gamma glutamyl transferase, blood bilirubin, transaminases, hepatitis, and drug-induced liver injury (DILI) [1, 3, 9, 12, 15].\n* No cases of liver failure, fatal hepatotoxicity, or cases meeting Hy's Law criteria were reported [1, 3, 15]. One case of DILI was deemed to be ischemic hepatopathy (\"shock liver\") resulting from a cardiac arrest [3].\n\n**Nonclinical Findings in Rats:**\n* At the high dose (approximately 6.4 times the human exposure at the 960 mg clinical dose), findings included increases in bilirubin, AST, and ALT [4].\n* Minimal multifocal liver necrosis was reported in one female recovery rat at the 750 mg/kg dose [7].\n\n**Nonclinical Findings in Dogs:**\n* At doses of 200 and 1000 mg/kg/day (approximately 0.4 times the clinical AUC at the 960 mg human dose), findings included increased bilirubin and alkaline phosphatase, increased liver weight, and minimal to mild centrilobular hepatocellular hypertrophy [2, 4, 8, 13].\n* Electron microscopy revealed that liver hepatocytes from high-dose (1000 mg/kg) female dogs contained greater amounts of glycogen compared to control female dogs [2].",
       "citedPages": [
         198,
         75,
         187,
         42,
-        200,
         72,
         74,
-        43,
+        186,
         195,
         66,
-        206,
-        199,
-        196
+        199
       ],
       "goldPages": [
         66,
         72
       ],
       "statedFact": true,
-      "citationPrecision": 0.15384615384615385,
+      "citationPrecision": 0.2,
       "citationRecall": 1,
       "refused": null
     },
@@ -493,14 +490,14 @@
       "kind": "answerable",
       "question": "does this drug damage the liver?",
       "answerable": true,
-      "answer": "According to the provided documents, sotorasib (LUMAKRAS) is associated with hepatotoxicity and changes in liver enzyme levels, though clinical trials reported no cases of liver failure, fatal hepatotoxicity, or cases meeting Hy's Law criteria [1, 3, 6, 12].\n\nKey findings regarding the liver include:\n- **Hepatotoxicity and Enzyme Elevations:** Hepatotoxicity is characterized as an adverse event of special interest [1, 6]. In clinical trials, 25% to 29.9% of patients experienced hepatotoxicity events [1, 6], with 12% experiencing Grade 3 or 4 events [1]. The most common events were elevations in liver enzymes, including alanine aminotransferase (ALT), aspartate aminotransferase (AST), and blood alkaline phosphatase (ALP) [1, 6, 8].\n- **Drug-Induced Liver Injury (DILI):** DILI was reported in 1.5% to 2.0% of patients in the primary safety population [1, 2, 5].\n- **Management:** Hepatotoxicity events and liver function test elevations generally resolved, improved, or reversed following dose interruption, reduction, or treatment discontinuation [1, 3, 6, 12].\n- **Nonclinical Findings:** In repeat-dose toxicology studies, the liver was identified as a target organ [11]. High doses in rats resulted in increased bilirubin, AST, and ALT [11]. In dogs, sotorasib treatment led to increased bilirubin, alkaline phosphatase, liver weight, and centrilobular hepatocellular hypertrophy [11, 16].",
+      "answer": "The provided documents identify hepatotoxicity and elevated liver enzymes (such as ALT and AST) as adverse reactions and events of special interest associated with sotorasib [1, 3, 6, 7]. In clinical trials, 25% of patients in the primary safety population experienced a hepatotoxicity event, and 12% had a Grade 3 or 4 event [1]. Specific liver-related adverse events reported include increased ALT and AST, increased blood bilirubin, drug-induced liver injury, and hepatitis [1, 5]. The documents state that liver function test elevations generally improved or reversed upon the interruption or discontinuation of sotorasib treatment [3, 6]. There were no reported cases of liver failure, fatal hepatotoxicity, or cases meeting Hy's Law criteria [1, 3, 6, 12]. In nonclinical studies involving rats and dogs, the liver was also identified as a target organ, with findings including increased bilirubin, AST, ALT, alkaline phosphatase, increased liver weight, and centrilobular hepatocellular hypertrophy [11, 16]. Consequently, the drug's labeling includes a warning for hepatotoxicity and elevated liver enzymes, along with guidelines for dose modification [3, 4, 11, 12].",
       "citedPages": [
         199,
-        187,
         206,
+        212,
         186,
         198,
-        195,
+        205,
         42,
         200,
         75
@@ -520,19 +517,21 @@
       "kind": "answerable",
       "question": "Were the toxicology findings reversible?",
       "answerable": true,
-      "answer": "Based on the nonclinical toxicology studies, the reversibility of findings varied:\n\n- **Rat Studies:** In the 28-day rat study, minimal sperm granuloma in the epididymis showed evidence of recovery. In the 3-month rat study, clinical signs generally showed evidence of recovery. Regarding kidney changes in the 3-month study, there was partial recovery (indicated by mild tubular degeneration/regeneration and minimal tubular dilatation) after a 2-month recovery period. However, this was accompanied by interstitial fibrosis and glomerulosclerosis, which are not expected to be reversible.\n- **Dog Studies:** Neither of the dog toxicology studies (28-day or 3-month) included recovery cohorts to assess reversibility.",
+      "answer": "The documents indicate that the reversibility of toxicology findings varied depending on the specific finding:\n\n*   **Kidney findings (Rats):** In the 3-month rat toxicology study, sotorasib-related kidney changes showed partial recovery after a 2-month recovery phase. However, these changes were accompanied by interstitial fibrosis and glomerulosclerosis, which would not be expected to be reversible. Mild tubular degeneration/regeneration was noted, suggesting partial recovery [1, 7].\n*   **Epididymis findings (Rats):** In the 28-day rat toxicology study, minimal sperm granuloma in the epididymis showed evidence of recovery [5].\n*   **Clinical signs (Rats):** Clinical signs observed in the rat toxicology studies generally showed evidence of recovery [10].\n*   **Hepatotoxicity (Clinical):** In clinical studies, elevations in liver function tests generally reversed upon the interruption or discontinuation of sotorasib treatment [8, 12].",
       "citedPages": [
         65,
         76,
         43,
-        67
+        206,
+        67,
+        198
       ],
       "goldPages": [
         65,
         66
       ],
       "statedFact": true,
-      "citationPrecision": 0.25,
+      "citationPrecision": 0.16666666666666666,
       "citationRecall": 0.5,
       "refused": null
     },
@@ -542,7 +541,7 @@
       "kind": "answerable",
       "question": "What NOAEL was set, and in which study?",
       "answerable": true,
-      "answer": "In Study LOXO-292-TOX-009 (titled \"An Oral (Gavage) Dose Range-Finding Study of the Effects of LOXO-292 on Embryo/Fetal Development in Rats\"), the NOAEL for maternal toxicity was set at 100 mg/kg/day.",
+      "answer": "The NOAEL for maternal toxicity was set at 100 mg/kg/day in the study titled \"LOXO-292-TOX-009: An Oral (Gavage) Dose Range-Finding Study of the Effects of LOXO-292 on Embryo/Fetal Development in Rats\".",
       "citedPages": [
         105
       ],
@@ -560,7 +559,7 @@
       "kind": "answerable",
       "question": "no observed adverse effect level",
       "answerable": true,
-      "answer": "The abbreviation NOAEL stands for \"no observed adverse effect level\". In an embryo-fetal development study of selpercatinib in rats, the NOAEL for maternal toxicity was 100 mg/kg/day.",
+      "answer": "The documents define NOAEL as the \"no observed adverse effect level\" [1]. In rats, the NOAEL for maternal toxicity was determined to be 100 mg/kg/day [2].",
       "citedPages": [
         17,
         105
@@ -579,7 +578,7 @@
       "kind": "answerable",
       "question": "Were the toxicology findings reversible?",
       "answerable": true,
-      "answer": "In general, the toxicities induced in rats and minipigs reversed or were partially reversible, with the exception of the testis. During the recovery phase of the rat study, reticulocyte counts recovered to values comparable to the control group, though some high-dose females still exhibited malocclusion and tooth loss. In the minipig study, some findings persisted or were noted during the recovery phase, including reduced neutrophils and increased blood urea nitrogen in females, and decreased testis weight in males.",
+      "answer": "In general, the toxicities induced in rats and minipigs reversed or were partially reversible, with the exception of findings in the testis [1]. \n\nSpecific observations during the recovery phases of the studies included:\n- **Rats:** Reticulocyte counts recovered to values comparable to the control group by the end of the recovery phase [9]. However, some high-dose females experienced tooth loss and malocclusion during the recovery phase [14].\n- **Minipigs:** During the recovery phase, female minipigs exhibited reduced neutrophils, increased blood urea nitrogen (BUN), and increased ovary weights, while males experienced decreased testis weights [6].",
       "citedPages": [
         80,
         86,
@@ -601,7 +600,7 @@
       "kind": "answerable",
       "question": "What NOAEL was set, and in which study?",
       "answerable": true,
-      "answer": "The provided documents define several No Observed Adverse Effect Levels (NOAELs) across multiple studies:\n\n- **28-day study in rats (VRT-1651445-TX-006)**: NOAEL of 50 mg/kg/day for males and 30 mg/kg/day for females.\n- **Chronic rat study (VX-445-TX-005)**: NOAEL of 15 mg/kg/day.\n- **1-month study in rats (VRT-1651445-TX-021)**: NOAEL of 20/45/30 mg/kg/day in males and 15/45/30 mg/kg/day in females for the VX-445/VX-661/VX-770 triple combination.\n- **3-month triple combination study in rats (VX-445-TX-007)**: NOAEL for VX-445 of 7.5 mg/kg/day in males and 12.5 mg/kg/day in females.\n- **Fertility and Early Embryonic Development study (VX-445-TX-010)**: NOAEL for reproductive toxicity of 55 mg/kg/day in males and 25 mg/kg/day in females.\n- **Embryo-Fetal Development (EFD) Study in Rats (VRT-1651445-TX-026)**: NOAEL for maternal and embryo/fetal toxicities of 25 mg/kg/day.\n- **EFD Study in Rabbits (VRT-1651445-TX-027)**: NOAEL of 100 mg/kg/day for maternal toxicity and 125 mg/kg/day for embryo/fetal development.\n- **Prenatal and Postnatal Development Study (VX-445-TX-014)**: NOAEL of 10 mg/kg/day.\n- **28-day study in dogs (VRT-1651445-TX-007)**: NOAEL of 30 mg/kg/day.\n- **Chronic (up to 39-week) study in dogs (VX-445-TX-006)**: NOAEL of 6 mg/kg/day.\n- **1-month triple combination study in dogs (VRT-1651445-TX-022)**: NOAEL of 15 mg/kg/day of VX-445 co-administered with VX-661/VX-770.\n- **28-day mouse toxicology study (VX-445-TX-011)**: The specific NOAEL value is omitted/redacted in the text.",
+      "answer": "The documents report multiple No Observed Adverse Effect Levels (NOAELs) established across various nonclinical studies:\n\n**Rat Studies**\n*   **28-day study (VRT-1651445-TX-006):** 50 mg/kg/day for males and 30 mg/kg/day for females.\n*   **Chronic study (VX-445-TX-005):** 15 mg/kg/day.\n*   **1-month triple combination study (VRT-1651445-TX-021):** 20/45/30 mg/kg/day for males and 15/45/30 mg/kg/day for females.\n*   **3-month triple combination study (VX-445-TX-007):** 7.5 mg/kg/day for males and 12.5 mg/kg/day for females.\n\n**Dog Studies**\n*   **28-day study (VRT-1651445-TX-007):** 30 mg/kg/day.\n*   **Chronic (up to 39-week) study (VX-445-TX-006):** 6 mg/kg/day.\n*   **1-month triple combination study (VRT-1651445-TX-022):** 15 mg/kg/day (for VX-445 co-administered with VX-661/VX-770).\n\n**Reproductive and Developmental Studies**\n*   **Fertility and Early Embryonic Development (VX-445-TX-010):** 55 mg/kg/day for males and 25 mg/kg/day for females.\n*   **Embryo-Fetal Development (EFD) Study in Rats (VRT-1651445-TX-026):** 25 mg/kg/day for both maternal and embryo/fetal toxicities.\n*   **EFD Study in Rabbits (VRT-1651445-TX-027):** 100 mg/kg/day for maternal toxicity and 125 mg/kg/day for embryo/fetal development.\n*   **Prenatal and Postnatal Development Study (VX-445-TX-014):** 10 mg/kg/day.\n\n**Mouse Studies**\n*   **28-day toxicology study (VX-445-TX-011):** A NOAEL was established, but the specific value is redacted in the provided text.",
       "citedPages": [
         44,
         50,
@@ -623,21 +622,19 @@
       "kind": "answerable",
       "question": "no observed adverse effect level",
       "answerable": true,
-      "answer": "The No Observed Adverse Effect Levels (NOAELs) for VX-445 and its major active metabolite M23 across various studies are as follows: **VX-445 NOAELs:** * **Rat Studies:** - Fertility and Early Embryonic Development (FEED) Study (VX-445-TX-010): 55 mg/kg/day in males and 25 mg/kg/day in females (Passages 1, 6). - Embryo-Fetal Development (EFD) Study (VRT-1651445-TX-026): 25 mg/kg/day for maternal and embryo/fetal toxicities (Passages 1, 6). - Prenatal and Postnatal Development Study (VX-445-TX-014): 10 mg/kg/day (Passages 1, 6). - 28-Day Study (VRT-1651445-TX-006): 50 mg/kg/day for males and 30 mg/kg/day for females (Passages 2, 9). - Chronic (26-Week) Study (VX-445-TX-005): 15 mg/kg/day (Passages 2, 9). - 1-Month Triple Combination Study (VRT-1651445-TX-021): 20/45/30 mg/kg/day in males and 15/45/30 mg/kg/day in females (Passages 2, 9). - 3-Month Triple Combination Study (VX-445-TX-007): 7.5 mg/kg/day in males and 12.5 mg/kg/day in females (Passages 2, 9). * **Rabbit Studies:** - EFD Study (VRT-1651445-TX-027): 100 mg/kg/day for maternal toxicity and 125 mg/kg/day for embryo/fetal development (Passages 1, 6). * **Dog Studies:** - 28-Day Study (VRT-1651445-TX-007): 30 mg/kg/day (Passage 4). - Chronic (39-Week) Study (VX-445-TX-006): 6 mg/kg/day (Passages 4, 9). - 1-Month Triple Combination Study (VRT-1651445-TX-022): 15 mg/kg/day of VX-445 co-administered with VX-661/VX-770 (Passage 4). * **Mouse Studies:** - 4-Week Toxicity Study (VX-445-TX-011): 50 mg/kg/day (Passage 9). **M23 Metabolite NOAELs:** * **Rat Studies:** - EFD Study: 25 mg/kg (Passage 6). - FEED Study: 55/25 mg/kg (Passage 6). - Prenatal and Postnatal Development (PPND) Study: 10 mg/kg (Passage 6). - 26-Week Toxicity Study: 15/7.5 mg/kg (Passage 7). - 13-Week Combo Toxicity Study: 7.5/40/30 mg/kg in males and 12.5/40/30 mg/kg in females (Passage 7). * **Dog Studies:** - 39-Week Toxicity Study: 6 mg/kg (Passage 7). * **Mouse Studies:** - 4-Week Toxicity Study: 50 mg/kg (Passage 7).",
+      "answer": "The documents report the No Observed Adverse Effect Levels (NOAEL) for VX-445 across several nonclinical studies:\n\n**Rats**\n* **28-day study:** 50 mg/kg/day for males and 30 mg/kg/day for females.\n* **Chronic study (26-week):** 15 mg/kg/day.\n* **1-month triple combination (with VX-661 and VX-770):** 20/45/30 mg/kg/day for males and 15/45/30 mg/kg/day for females.\n* **3-month triple combination:** 7.5 mg/kg/day for males and 12.5 mg/kg/day for females (for the VX-445 component).\n* **Reproductive toxicity (Fertility and Early Embryonic Development):** 55 mg/kg/day for males and 25 mg/kg/day for females.\n* **Maternal and embryo/fetal toxicities:** 25 mg/kg/day.\n* **Prenatal and postnatal development:** 10 mg/kg/day.\n\n**Dogs**\n* **28-day study:** 30 mg/kg/day.\n* **Chronic study (up to 39 weeks):** 6 mg/kg/day.\n* **1-month triple combination:** 15 mg/kg/day (for VX-445 co-administered with VX-661/VX-770).\n\n**Rabbits**\n* **Embryo-Fetal Development:** 100 mg/kg/day for maternal toxicity and 125 mg/kg/day for embryo/fetal development.\n\n*(Note: The documents also mention a 28-day mouse toxicology study, but the specific NOAEL value is redacted in the provided text.)*",
       "citedPages": [
         50,
         44,
         45,
-        51,
-        47,
-        46
+        180
       ],
       "goldPages": [
         44,
         45
       ],
       "statedFact": true,
-      "citationPrecision": 0.3333333333333333,
+      "citationPrecision": 0.5,
       "citationRecall": 1,
       "refused": null
     },
@@ -647,7 +644,7 @@
       "kind": "answerable",
       "question": "Were the toxicology findings reversible?",
       "answerable": true,
-      "answer": "In a chronic (up to 39-week) toxicity study of VX-445 in dogs, the testicular changes (seminiferous tubule atrophy/degeneration) observed at 14 mg/kg/day were not fully reversible.",
+      "answer": "According to the documents, in a 39-week chronic toxicity study in dogs, testicular changes (seminiferous tubule atrophy/degeneration) were observed and were not fully reversible.",
       "citedPages": [
         45
       ],
@@ -666,7 +663,7 @@
       "kind": "answerable",
       "question": "What NOAEL was set, and in which study?",
       "answerable": true,
-      "answer": "Several No-Observed-Adverse-Effect-Levels (NOAELs) were established across different studies:\n\n1. **150 mg/kg/day** in the following rat studies:\n   - The 28-day repeated oral gavage toxicity study (Study TX-MRTX849-004) [2, 8].\n   - The 13-week oral gavage toxicity study (Study TX-MRTX849-012) [2, 7, 8].\n\n2. **10 mg/kg/day** in the 28-day repeated oral gavage toxicity study in beagle dogs (Study TX-MRTX849-005) [2, 6].\n\n3. **15 mg/kg/day** in the 13-week oral gavage toxicity study in dogs (Study TX-MRTX849-013) [2, 9].\n\n4. **90 mg/kg/day** (for maternal and developmental toxicity / F0 Females and F1 Litters) in the rat embryo-fetal development study (Study TX-MRTX849-001) [1, 5, 10].\n\n5. **30 mg/kg/day** (for maternal and developmental toxicity / F0 Females and F1 Litters) in the rabbit embryo-fetal development study (Study TX-MRTX849-021) [4].\n\n6. **15 mg/kg** (determined by the FDA for maternal toxicity in rabbits) [1].",
+      "answer": "The documents report multiple No-Observed-Adverse-Effect-Levels (NOAELs) established across several different studies:\n\n- **Study TX-MRTX849-004** (28-day repeat-dose study in rats): 150 mg/kg/day.\n- **Study TX-MRTX849-012** (13-week repeat-dose study in rats): 150 mg/kg/day.\n- **Study TX-MRTX849-005** (28-day repeat-dose study in dogs): 10 mg/kg/day.\n- **Study TX-MRTX849-013** (13-week repeat-dose study in dogs): 15 mg/kg/day.\n- **Study TX-MRTX849-001** (Embryo-fetal development in rats): 90 mg/kg/day for both maternal and developmental toxicity (F0 females and F1 litters).\n- **Study TX-MRTX849-021** (Embryo-fetal development in rabbits): The study summary lists a NOAEL of 30 mg/kg/day for maternal and developmental toxicity (F0 females and F1 litters); however, the FDA determined the NOAEL for maternal toxicity in rabbits to be 15 mg/kg.",
       "citedPages": [
         77,
         61,
@@ -674,7 +671,6 @@
         74,
         65,
         64,
-        83,
         66,
         75
       ],
@@ -683,7 +679,7 @@
         77
       ],
       "statedFact": true,
-      "citationPrecision": 0.2222222222222222,
+      "citationPrecision": 0.25,
       "citationRecall": 1,
       "refused": null
     },
@@ -693,11 +689,12 @@
       "kind": "answerable",
       "question": "no observed adverse effect level",
       "answerable": true,
-      "answer": "The no-observed-adverse-effect-level (NOAEL) for adagrasib varies by species and study type. In rats, the NOAEL was 150 mg/kg/day in both the 28-day and 13-week repeat-dose toxicology studies. For embryo-fetal development in rats, the NOAEL was 90 mg/kg/day for F0 females and F1 litters, which the FDA also determined as the NOAEL for maternal and developmental toxicity. In dogs, the NOAEL was 10 mg/kg/day in the 28-day repeat-dose study and 15 mg/kg/day in the 13-week repeat-dose study. In rabbits, the embryo-fetal development study established a NOAEL of 30 mg/kg/day for F0 females and F1 litters, though the FDA determined the maternal toxicity NOAEL in rabbits to be 15 mg/kg.",
+      "answer": "The documents define NOAEL as the \"no-observed-adverse-effect-level\" [4]. The provided passages report the following NOAELs for adagrasib across different animal studies:\n\n**Rats:**\n- 28-day and 13-week repeat-dose toxicity studies: 150 mg/kg/day [2, 5, 9].\n- Embryo-fetal development study: 90 mg/kg/day for both maternal and developmental toxicity [1, 7, 10].\n\n**Dogs:**\n- 28-day repeat-dose toxicity study: 10 mg/kg/day [2, 6].\n- 13-week repeat-dose toxicity study: 15 mg/kg/day [2, 8].\n\n**Rabbits:**\n- Embryo-fetal development study: The study summary identified a NOAEL of 30 mg/kg/day for maternal and developmental toxicity (F0 females and F1 litters) [3]. However, the FDA determined the NOAEL for maternal toxicity in rabbits to be 15 mg/kg [1].",
       "citedPages": [
         77,
         61,
         76,
+        16,
         64,
         65,
         75,
@@ -710,7 +707,7 @@
         77
       ],
       "statedFact": true,
-      "citationPrecision": 0.2222222222222222,
+      "citationPrecision": 0.2,
       "citationRecall": 1,
       "refused": null
     },
@@ -720,14 +717,13 @@
       "kind": "answerable",
       "question": "What liver findings are reported, and at what doses?",
       "answerable": true,
-      "answer": "The following liver findings are reported in clinical and nonclinical studies: In Humans: At a dose of 600 mg BID, overall hepatotoxicity occurred in 37% of patients, and increased ALT/AST occurred in 32% [1]. Specific adverse events included increased AST (28%), increased ALT (25%), increased blood alkaline phosphatase (20%), increased blood bilirubin (3.3%), mixed liver injury (0.3%), increased GGT (0.3%), increased liver function test (0.3%), increased conjugated bilirubin (0.3%), and increased hepatic enzyme (0.3%) [1]. Shifts in AST and ALT occurred in 50% and 43% of patients, respectively [2]. Additionally, one patient on study therapy experienced Grade 3 mixed liver injury, Grade 3 AST elevation, Grade 2 ALT elevation, Grade 2 alkaline phosphatase elevation, hepatomegaly, and moderately active hepatitis with hepatocyte injury on liver biopsy [2]. In Rats: At 150 mg/kg/day, findings included mild biliary epithelial vacuolation (with no significant findings at 10 or 30 mg/kg) [4], increased liver weight [6], increased liver-to-body-weight ratios [10], increased AST [6], and increased alkaline phosphatase in females [8]. At 270 mg/kg/day, findings included pale foci on the liver in one female sacrificed in extremis, focal or multifocal pale tan areas in the liver in three females at scheduled necropsy, and masses and multifocal tan nodules in the liver in another female [3]. At 300 mg/kg/day, increases in serum AST were observed (corresponding to skeletal muscle degeneration) [10].",
+      "answer": "Based on the provided documents, liver findings are reported in both clinical and non-clinical studies at specific doses:\n\n**Clinical Findings (Adagrasib 600 mg BID):**\n* **Overall Hepatotoxicity:** Occurred in 37% of patients, with 7% being Grade 3 or 4.\n* **Specific Events:** Included increased AST (28%), increased ALT (25%), increased blood alkaline phosphatase (20%), increased blood bilirubin (3.3%), mixed liver injury (0.3%), increased GGT (0.3%), increased liver function test (0.3%), increased conjugated bilirubin (0.3%), and increased hepatic enzyme (0.3%).\n* **ALT/AST Elevations:** 32% of patients had increased ALT/AST (5% Grade 3 and 0.5% Grade 4). Laboratory shifts in AST and ALT occurred in 50% and 43% of patients, respectively.\n* **Drug-Induced Liver Injury (DILI):** One patient experienced mixed liver injury consistent with DILI, which included Grade 3 AST, Grade 2 ALT, and Grade 2 alkaline phosphatase elevations, along with hepatomegaly, portal hypertension, and a liver biopsy showing moderately active hepatitis with hepatocyte injury.\n\n**Non-Clinical (Rat) Findings:**\n* **At 270 mg/kg/day (Embryo/Fetal Development Study):** Female rats exhibited pale foci, focal or multifocal pale tan areas, masses, and multifocal tan nodules in the liver.\n* **At 150 mg/kg/day (13-Week Study):** Findings included increased AST, increased liver organ weight, and mild biliary epithelial vacuolation.\n* **At ≥ 150 mg/kg/day (13-Week Study):** Increased liver-to-body weight ratios were observed.",
       "citedPages": [
         182,
         183,
         75,
         70,
         64,
-        68,
         63
       ],
       "goldPages": [
@@ -735,7 +731,7 @@
         64
       ],
       "statedFact": true,
-      "citationPrecision": 0.2857142857142857,
+      "citationPrecision": 0.3333333333333333,
       "citationRecall": 1,
       "refused": null
     },
@@ -745,11 +741,13 @@
       "kind": "answerable",
       "question": "does this drug damage the liver?",
       "answerable": true,
-      "answer": "According to the documents, adagrasib is associated with hepatotoxicity and potential liver injury in both clinical and animal studies. In a pooled clinical safety population of 366 patients, overall hepatotoxicity occurred in 37% of patients, with 7% experiencing Grade 3 or 4 hepatotoxicity, and drug-induced liver injury (reported as \"mixed liver injury\") was reported in 0.3% of patients. While no cases of drug-induced liver injury met Hy's Law criteria, there was one reported case of \"mixed liver injury\" that was consistent with drug-induced liver injury related to adagrasib, where a liver biopsy revealed moderately active hepatitis with hepatocyte injury. Consequently, hepatotoxicity has been included in the Warnings and Precautions section of the U.S. Prescribing Information. In animal studies in rats, liver-related findings included pale foci, focal or multifocal pale tan areas, masses, and multifocal tan nodules in the liver at 270 mg/kg/day, as well as mild biliary epithelial vacuolation, increased liver weight, and increased AST at 150 mg/kg/day.",
+      "answer": "The documents do not provide a definitive verdict on whether the drug damages the liver, but they report several clinical and non-clinical findings related to liver function and hepatotoxicity:\n\n**Clinical Findings:**\n- Overall hepatotoxicity occurred in 37% of patients in the pooled safety population, with 7% experiencing Grade 3 or 4 events. Hepatotoxicity led to dose reductions or interruptions in 12% of patients and treatment discontinuation in 0.5% of patients.\n- Elevations in liver enzymes were common. Shifts in aspartate aminotransferase (AST) and alanine aminotransferase (ALT) occurred in 50% and 43% of patients, respectively, with 4.2% and 4.5% experiencing Grade 3 or 4 shifts.\n- No events of drug-induced liver injury met the criteria for Hy's Law.\n- One patient (0.3%) experienced a Grade 3 \"mixed liver injury\" that did not meet Hy's Law criteria but was deemed by the investigator to be consistent with drug-induced liver injury related to adagrasib. A liver biopsy for this patient revealed moderately active hepatitis with hepatocyte injury.\n- Based on FDA analysis, hepatotoxicity has been included in the Warnings and Precautions section of the U.S. Prescribing Information.\n\n**Non-Clinical Findings:**\n- In a 13-week rat study, doses of 150 mg/kg/day resulted in increased liver weight and mild biliary epithelial vacuolation.\n- In a rat embryo/fetal development study, doses of 270 mg/kg/day resulted in test article-related findings of focal/multifocal pale tan areas, masses, and multifocal tan nodules in the liver.",
       "citedPages": [
         183,
         182,
+        181,
         75,
+        177,
         70,
         64
       ],
@@ -758,7 +756,7 @@
         64
       ],
       "statedFact": true,
-      "citationPrecision": 0.2,
+      "citationPrecision": 0.14285714285714285,
       "citationRecall": 0.5,
       "refused": null
     },
@@ -768,7 +766,7 @@
       "kind": "answerable",
       "question": "What NOAEL was set, and in which study?",
       "answerable": true,
-      "answer": "The documents identify multiple NOAELs (No Observed Adverse Effect Levels) across different studies: 1. In Study DPN0371 (Oral Gavage Study for Effects on Pre- and Postnatal Development, Including Maternal Function with fedratinib in Rats), the NOAEL for F0 maternal toxicity was set at 30 mg/kg/day (180 mg/m2/day). 2. In Study TX-09-101348-057 (Study for Effects on Embryo-Fetal Development in Rats), the NOAEL for maternal toxicity and developmental toxicity was set at 3 mg/kg/day.",
+      "answer": "The provided documents report the following No Observed Adverse Effect Levels (NOAELs):\n\n* A NOAEL of 30 mg/kg/day (180 mg/m2/day) for F0 maternal toxicity was set in the \"Oral Gavage Study for Effects on Pre- and Postnatal Development, Including Maternal Function with fedratinib in Rats\" (Study DPN0371).\n* A NOAEL of 3 mg/kg/day for maternal and developmental toxicity was set in the \"Study for Effects on Embryo-Fetal Development in Rats\" (Study TX-09-101348-057).",
       "citedPages": [
         84,
         83,
@@ -789,18 +787,19 @@
       "kind": "answerable",
       "question": "no observed adverse effect level",
       "answerable": true,
-      "answer": "The documents report the following No Observed Adverse Effect Levels (NOAELs) for fedratinib:\n\n- In the pre- and postnatal development study in rats (Study DPN0371), the NOAEL for F0 maternal toxicity is 30 mg/kg/day (180 mg/m2/day).\n- In the embryo-fetal development study in rats (Study TX-09-101348-057), the NOAEL for maternal toxicity and developmental toxicity is 3 mg/kg/day.",
+      "answer": "The provided documents report the following No Observed Adverse Effect Levels (NOAEL) and No Observed Effect Levels (NOEL) from animal studies:\n\n* **Rat Embryo-Fetal Development Study:** The NOAEL for both maternal and developmental toxicity was 3 mg/kg/day.\n* **Rat Prenatal and Postnatal Development Study:** The NOAEL for F0 maternal toxicity was 30 mg/kg/day (180 mg/m2/day), and the NOEL for F1 pup development was 10 mg/kg/day (60 mg/m2/day).\n* **Rabbit Embryo-Fetal Development Study:** The NOEL for maternal and developmental toxicity was 30 mg/kg/day.",
       "citedPages": [
         83,
         79,
-        84
+        84,
+        82
       ],
       "goldPages": [
         79,
         83
       ],
       "statedFact": true,
-      "citationPrecision": 0.6666666666666666,
+      "citationPrecision": 0.5,
       "citationRecall": 1,
       "refused": null
     },
@@ -810,7 +809,7 @@
       "kind": "answerable",
       "question": "What liver findings are reported, and at what doses?",
       "answerable": true,
-      "answer": "The following liver findings are reported across nonclinical and clinical studies: 1) 6-Month Rat Toxicity Study (Doses: 3, 10, or 30 mg/kg/day): At the high dose (30 mg/kg/day), findings included hypertrophy of bile duct epithelial cells in the liver and increases in alkaline phosphatase (ALP) and GGT indicating liver toxicity [2, 3]. At the low dose (3 mg/kg/day), minimal periductal inflammation in the liver of females was observed [1]. Minimal to mild liver inflammation occurred at different dose levels at low incidence [2, 3]. 2) 9-Month Dog Toxicity Study (Doses: 2, 6, or 20/15 mg/kg/day): At the mid dose (6 mg/kg/day) and high dose (20/15 mg/kg/day), findings included increased liver weights, multi-organ inflammation including the liver, and increases in liver enzymes (AST, ALT, ALP) with decreases in total bilirubin corresponding to centrilobular degeneration, congestion, and hematopoiesis in the liver (statistically significant at the high dose) [1, 3, 6]. (Note: One passage also refers to these changes occurring at 10 and 30 mg/kg/day [3]). On Day 272, male liver weight increased by 9% at 2 mg/kg/day and by 28% at 20/15 mg/kg/day, while female liver weight decreased by 11% at 2 mg/kg/day [5]. 3) 1-Month Rat Toxicity Study (Doses: 5, 30, or 80 mg/kg/day): The liver (specifically bile ducts) was a main target organ, and hepatocellular hypertrophy was observed [7]. 4) Human Clinical Studies: Increased liver enzymes (AST and ALT) were reported in >= 10% of patients at 400 mg and 500 mg daily doses [4, 8, 11, 13]. At 400 mg, laboratory abnormalities included increased ALT (58% All Grades, 4% Grades 3/4), increased AST (64% All Grades, 2% Grades 3/4), increased blood bilirubin (39% All Grades, 3% Grades 3/4), and increased alkaline phosphatase (64% All Grades, 2% Grades 3/4) [9]. At 500 mg, abnormalities included increased ALT (49% All Grades, 4% Grades 3/4), increased AST (52% All Grades, 3% Grades 3/4), increased blood bilirubin (32% All Grades, 1% Grades 3/4), and increased alkaline phosphatase (57% All Grades, 1% Grades 3/4) [9]. Additionally, one patient on 500 mg/day experienced likely hepatic encephalopathy with concomitant portal hypertension and liver dysfunction [10].",
+      "answer": "The documents report the following liver findings across nonclinical studies and clinical trials:\n\n**Nonclinical Findings**\n*   **Rats (6-month study at 0, 3, 10, or 30 mg/kg/day):** High-dose (30 mg/kg/day) rats showed increases in alkaline phosphatase (ALP) and γ-glutamyltransferase (GGT) indicative of liver toxicity, along with bile duct hypertrophy (observed in 8/20 males and 20/20 females at the high dose) [1, 2, 3]. Minimal to mild liver inflammation occurred at different dose levels at a low incidence, such as minimal periductal inflammation in low-dose females [1, 2, 3].\n*   **Rats (1-month impurity study at 5, 30, or 80 mg/kg):** The liver (bile ducts) was a target organ, and hepatocellular hypertrophy was observed [7].\n*   **Dogs (9-month study at 0, 2, 6, or 20/15 mg/kg/day):** Mid-dose (6 mg/kg/day) and high-dose (20/15 mg/kg/day) dogs exhibited increases in AST, ALT, and ALP, and decreases in total bilirubin. These changes corresponded with liver findings of centrilobular degeneration, congestion, and hematopoiesis, which were statistically significant at the high dose [1, 3, 6]. Moribund dogs at the high dose showed increased liver weights and multi-organ inflammation that included the liver [1, 3]. At Day 272, liver weights were increased by 9% at 2 mg/kg and 28% at 20/15 mg/kg in males, and decreased by 11% at 2 mg/kg in females [5].\n\n**Clinical Findings**\n*   Increased liver enzymes (AST and ALT) were common treatment-emergent adverse events reported in ≥10% of patients [4, 8, 11, 13].\n*   Specific laboratory abnormalities reported during treatment included [9]:\n    *   **ALT increased:** 58% (4% Grade 3/4) at 400 mg; 49% (4% Grade 3/4) at 500 mg.\n    *   **AST increased:** 64% (2% Grade 3/4) at 400 mg; 52% (3% Grade 3/4) at 500 mg.\n    *   **Blood bilirubin increased:** 39% (3% Grade 3/4) at 400 mg; 32% (1% Grade 3/4) at 500 mg.\n    *   **Alkaline phosphatase increased:** 64% (2% Grade 3/4) at 400 mg; 57% (1% Grade 3/4) at 500 mg.\n*   One patient evaluated for Wernicke encephalopathy had a case confounded by likely hepatic encephalopathy, noted alongside concomitant portal hypertension and liver dysfunction [10].",
       "citedPages": [
         71,
         68,
@@ -839,7 +838,7 @@
       "kind": "answerable",
       "question": "does this drug damage the liver?",
       "answerable": true,
-      "answer": "Yes, animal and clinical studies indicate that the drug (fedratinib) causes liver toxicity and damage. In animal studies, the liver was identified as a target organ of toxicity in both rats and dogs. In rats, repeat-dose studies showed liver toxicity indicated by increases in alkaline phosphatase (ALP) and γ-glutamyltransferase (GGT), along with bile duct hypertrophy and minimal to mild liver inflammation. In dogs, findings included increased liver enzymes (AST, ALT, ALP) corresponding with centrilobular degeneration, congestion, hematopoiesis, increased liver weight, and liver inflammation. In human clinical trials, increased liver enzymes (AST and ALT) were common adverse reactions and major laboratory findings. Liver function test (LFT) abnormalities or elevations in AST, ALT, or total bilirubin required dose monitoring, interruptions, reductions, or treatment withdrawal.",
+      "answer": "Whether the drug damages the liver is not a question about the documents. However, the documents report the following findings regarding the liver:\n\nIn animal studies, the liver was identified as a target organ of toxicity [4]. In rats, high doses caused increases in alkaline phosphatase (ALP) and γ-glutamyltransferase (GGT) (indicating liver toxicity), bile duct hypertrophy, and minimal to mild liver inflammation [1, 3, 10]. In dogs, findings included increased liver enzymes (AST, ALT, ALP), decreased total bilirubin, centrilobular degeneration, congestion, hematopoiesis, and liver inflammation [1, 3].\n\nIn human clinical trials, increased liver enzymes (AST and ALT) were reported as common adverse events and major laboratory findings in patients treated with 400 mg of fedratinib [13, 15]. Clinical trial protocols included guidelines for more frequent monitoring and dose interruptions or reductions if patients experienced severe liver enzyme elevations, such as Grade 3 or higher increases in ALT, AST, or total bilirubin [2, 5, 7].",
       "citedPages": [
         59,
         116,
@@ -865,7 +864,7 @@
       "kind": "answerable",
       "question": "Were the toxicology findings reversible?",
       "answerable": true,
-      "answer": "In a 1-month repeat-dose toxicity study in rats conducted to qualify an impurity, most microscopic findings in the target organs (which included bone marrow, liver, lymphoid tissues, lungs, heart, non-glandular stomach, skeletal muscle, and hepatocellular hypertrophy) resolved after a 4-week recovery period, with findings limited to minimal submucosal edema in the non-glandular stomach in males at 30 mg/kg. The documents do not otherwise state whether the toxicological findings from the main repeat-dose studies in rats or dogs were reversible.",
+      "answer": "In a 1-month repeat-dose oral toxicity study in rats that included a 4-week recovery period, microscopic findings after the recovery period were limited to minimal submucosal edema in the non-glandular stomach in males at the 30 mg/kg dose.",
       "citedPages": [
         85,
         60
@@ -885,7 +884,7 @@
       "kind": "answerable",
       "question": "What NOAEL was set, and in which study?",
       "answerable": true,
-      "answer": "Several NOAELs (no observed adverse effect levels) were established across different studies: (1) In the 39-week monkey repeat-dose toxicity study, the NOAEL for liver toxicity was 15 mg/kg/day in both sexes. (2) In rabbits, the NOAEL for embryofetal development was 3 mg/kg/day. (3) In a pre- and postnatal toxicity study in pregnant rats (TAK-385/00007 and TAK-385/00110), the NOAEL for F0 dams, development in F1 pups/animals, reproductive function in F1 animals, and early embryonic development of F2 embryos was 1000 mg/kg/day.",
+      "answer": "The documents report several NOAELs (no observed adverse effect levels) established across different studies:\n\n- **39-week monkey repeat-dose toxicity study:** The NOAEL for liver toxicity was set at 15 mg/kg/day in both sexes.\n- **Rabbit study:** The NOAEL for embryofetal development was set at 3 mg/kg/day.\n- **Pre- and postnatal toxicity study in pregnant rats (TAK-385/00007 and TAK-385/00110):** The NOAEL for F0 dams, development and reproductive function in F1 animals, and early embryonic development of F2 embryos was set at 1000 mg/kg/day.",
       "citedPages": [
         54,
         63,
@@ -906,7 +905,7 @@
       "kind": "answerable",
       "question": "no observed adverse effect level",
       "answerable": true,
-      "answer": "The documents identify several no observed adverse effect levels (NOAELs) for relugolix: 1) In animal toxicity studies, systemic exposures at the NOAEL are generally significantly higher than expected clinical exposures. 2) In the 39-week monkey repeat-dose toxicity study, the NOAEL for liver toxicity is 15 mg/kg/day in both sexes, which is associated with a mean combined sex end-of-study AUC0-24 of 5198 ng.h/mL. 3) In rabbits, the NOAEL for embryofetal development is 3 mg/kg/day (AUC0-24 = 25 ng.hr/mL). 4) In rats, the NOAEL for F0 dams, development in F1 pups/animals, reproductive function in F1 animals, and early embryonic development of F2 embryos is 1000 mg/kg/day.",
+      "answer": "The documents provide the following information regarding the no observed adverse effect level (NOAEL) for relugolix in animal studies:\n\n*   **General Toxicity:** Systemic exposures at the NOAEL in animal toxicity studies are generally significantly higher than the expected clinical exposures [2].\n*   **Liver Toxicity (Monkeys):** In a 39-week repeat-dose toxicity study in monkeys, the NOAEL for liver toxicity was 15 mg/kg/day in both sexes, which corresponds to an exposure (AUC0-24) of 5198 ng.hr/mL [2, 4].\n*   **Embryofetal Development (Rabbits):** The NOAEL for embryofetal development in rabbits was 3 mg/kg/day (AUC0-24 = 25 ng·hr/mL) [3].\n*   **Pre- and Postnatal Toxicity (Rats):** In pregnant rats, the NOAEL for F0 dams, F1 pup development and reproductive function, and F2 early embryonic development was 1000 mg/kg/day [3].",
       "citedPages": [
         54,
         63,
@@ -927,7 +926,7 @@
       "kind": "answerable",
       "question": "What liver findings are reported, and at what doses?",
       "answerable": true,
-      "answer": "The following liver findings are reported across different species and doses: In Monkeys: (1) At 15 mg/kg/day, this dose was identified as the no observed adverse effect level (NOAEL) for liver toxicity [2, 3]. (2) At ≥ 50 mg/kg/day, liver toxicity was observed, characterized by elevated liver enzymes (AST and ALT), bile plug formation, diffuse fatty change of hepatocytes, mononuclear cell foci, and yellowish-brown pigment deposition in Kupffer cells [1, 2, 6]. In a 39-week study at 50 mg/kg/day, findings included elevated AST and ALT, dark/brownish liver changes, and post-recovery histopathology showing slight diffuse fatty change of hepatocytes, slight mononuclear cell foci, and slight to severe yellowish-brown pigment deposition in Kupffer cells [7, 14]. (3) At 100 mg/kg/day, liver toxicity was noted in a 4-week study, including elevated liver enzymes with AST up to 4.3-fold and ALT up to 15.7-fold [3, 6]. In Rats: (1) Following a single oral dose of radiolabeled relugolix, the highest radioactivity was observed in the liver, among other organs [1]. (2) At 30 mg/kg/day, minimal scattered hepatocyte vacuolation was observed in one female [4]. (3) At 100 mg/kg/day, minimal focal hemorrhage was observed in one female [4]. (4) At 300 mg/kg/day, minimal scattered hepatocyte vacuolation was observed in one female, along with a small absolute liver weight increase of 10% in females [4]. (5) At 2000 mg/kg/day, increased liver enzymes were reported in a 4-week study [1]. In Rabbits: (1) At 1 mg/kg/day, liver discoloration was reported in 1 of 20 dams [8]. (2) At 9 mg/kg/day, abnormal liver lobation was reported in 1 fetus [9]. In Humans (at the recommended clinical dose of 120 mg daily): Increased ALT and AST levels (hepatic transaminase elevations) were reported as adverse reactions in patients with advanced prostate cancer [1, 5, 11, 16]. In study MVT-601-3201, ALT increased was reported in 4.2% of patients, AST increased in 2.7% of patients, and ALT and/or AST ≥ 3× ULN in 1.4% of patients [5, 16]. Other reported events included abnormal hepatic function (0.5%), liver disorder (0.3%), and increased transaminases (0.3%) [5]. One patient discontinued due to increased ALT [5]. No evidence of drug-induced liver injury was observed [11, 16].",
+      "answer": "The documents report the following liver findings across different species and doses:\n\n**Monkeys**\n*   **15 mg/kg/day:** This dose is considered the No Observed Adverse Effect Level (NOAEL) for liver toxicity in monkeys [2, 3].\n*   **50 mg/kg/day:** Findings included liver toxicity characterized by increased liver enzymes (AST and ALT), dark/brownish liver changes, bile plug formation, diffuse fatty change of hepatocytes, mononuclear cell foci, and slight to severe yellowish-brown pigment deposition in Kupffer cells [1, 2, 6, 7, 13, 14]. While increased liver enzymes and bile plugs showed reversibility, other histopathology changes were still present at the end of the recovery period [1, 2, 7].\n*   **100 mg/kg/day:** Elevated liver enzymes were reported, with AST up to 4.3 times and ALT up to 15.7 times the baseline/control [3].\n\n**Rats**\n*   **10 mg/kg/day:** Minimal scattered hepatocyte vacuolation was observed in males [4].\n*   **30 mg/kg/day:** Minimal focal hemorrhage was observed in males [4].\n*   **300 mg/kg/day:** A 10% increase in absolute liver weight was noted in females [4].\n*   **2000 mg/kg/day:** Increased liver enzymes were reported in a 4-week study [1].\n\n**Rabbits**\n*   **1 mg/kg/day:** Liver discoloration was noted in 1 out of 20 pregnant dams [8].\n*   **9 mg/kg/day:** Abnormal liver lobation was reported in one fetus [9].\n\n**Humans (Clinical Studies)**\n*   **120 mg daily (Recommended Dose):** Increased ALT and AST levels were reported among the most common adverse reactions [1, 2]. In the pivotal phase 3 study, hepatic safety adverse events occurred in 7.6% of patients receiving relugolix. These included increased ALT (4.2%), increased AST (2.7%), abnormal hepatic function (0.5%), liver disorder (0.3%), and increased transaminases (0.3%) [5, 11, 16]. \n*   Elevations of ALT and/or AST ≥ 3 times the upper limit of normal (ULN) were reported in 1.4% of patients, and one patient discontinued the study drug due to increased ALT [5, 16]. \n*   The documents note that no evidence of drug-induced liver injury was observed [11, 16].",
       "citedPages": [
         33,
         55,
@@ -939,6 +938,7 @@
         61,
         62,
         200,
+        53,
         49,
         176
       ],
@@ -947,7 +947,7 @@
         48
       ],
       "statedFact": true,
-      "citationPrecision": 0.16666666666666666,
+      "citationPrecision": 0.15384615384615385,
       "citationRecall": 1,
       "refused": null
     },
@@ -957,24 +957,21 @@
       "kind": "answerable",
       "question": "does this drug damage the liver?",
       "answerable": true,
-      "answer": "Based on the provided documents, the drug's effects on the liver have been evaluated in both animal and human studies:\n\n**Animal Studies:**\n* **Monkeys:** Relugolix caused liver toxicity at doses of 50 mg/kg/day (approximately 53 times the human exposure at the recommended dose) [2, 7]. This toxicity was characterized by elevated liver enzymes (AST and ALT), bile plug/thrombus formation, diffuse fatty change of hepatocytes, mononuclear cell foci, subcapsular fibrosis, and yellowish-brown pigment deposition in Kupffer cells [2, 7, 11, 12, 15]. While elevated liver enzymes and bile plugs showed reversibility after a recovery period, other histopathological changes persisted [2, 7]. The no observed adverse effect level (NOAEL) for liver toxicity in monkeys was determined to be 15 mg/kg/day [3].\n* **Rats:** Increased liver enzymes were reported at a dose of 2000 mg/kg/day in a 4-week study [7].\n\n**Human Clinical Trials:**\n* **Transaminase Elevations:** Hepatic transaminase elevations (specifically increased ALT and AST) were reported in a higher proportion of patients in the relugolix group compared to the leuprolide group (7.6% vs. 5.5% in study MVT-601-3201) [1, 5, 9]. Increased ALT is considered an adverse drug reaction [5].\n* **Clinical Interest Elevations:** The proportion of patients with transaminase elevations of clinical interest (ALT and/or AST ≥ 3\u0018 ULN) was similar between the relugolix group (1.4%) and the leuprolide group (1.3%) [1, 5].\n* **Drug-Induced Liver Injury:** No evidence of drug-induced liver injury was observed in the clinical studies [5, 9].",
+      "answer": "The documents do not provide a definitive conclusion on whether the drug damages the human liver, but they report the following findings regarding liver safety:\n\n**Animal Studies**\nIn animal toxicity studies, the principal adverse effects of relugolix involved the liver, including liver enzyme elevations with and without histopathological correlates [3]. In monkeys, relugolix caused liver toxicity at doses of 50 mg/kg/day, which included elevated liver enzymes, bile plug formation, diffuse fatty change of hepatocytes, mononuclear cell foci, and yellowish-brown pigment deposition in Kupffer cells [2, 7]. While the increased liver enzymes and bile plugs showed reversibility, other liver histopathology changes were still present at the end of a 13-week recovery period [2]. Increased liver enzymes were also observed in rats given 2000 mg/kg/day [7].\n\n**Clinical Studies**\nIn clinical trials with advanced prostate cancer patients, increased ALT and AST levels were reported among the most common adverse reactions [7], and increased ALT is considered an adverse drug reaction [5]. Overall hepatic safety adverse events (such as increased ALT and AST) were reported for a higher proportion of patients in the relugolix group (7.6%) compared to the leuprolide control group (5.5%) [1, 9]. \n\nHowever, the incidence of adverse events of clinical interest (ALT and/or AST ≥ 3× the upper limit of normal) was similar between the relugolix (1.4%) and leuprolide (1.3%) groups [1, 5, 9]. The documents state that no evidence of drug-induced liver injury was observed in the clinical studies [5, 9].",
       "citedPages": [
         174,
         55,
         54,
         176,
         33,
-        200,
-        51,
-        52,
-        49
+        200
       ],
       "goldPages": [
         33,
         48
       ],
       "statedFact": true,
-      "citationPrecision": 0.1111111111111111,
+      "citationPrecision": 0.16666666666666666,
       "citationRecall": 0.5,
       "refused": null
     },
@@ -984,7 +981,7 @@
       "kind": "answerable",
       "question": "Were the toxicology findings reversible?",
       "answerable": true,
-      "answer": "Based on the nonclinical studies, the reversibility of toxicology and pharmacological findings varied. In monkeys, liver and phospholipidosis (PLD) findings showed signs of recovery after a 13-week period without the drug, with improvements seen in liver enzymes and bile plugs, although some liver histopathology changes persisted [1, 2]. Monkeys also showed reversibility in clinical chemistry parameters [14]. In female monkeys, treatment-related effects such as the cessation of menses [8, 9] and reduced ovary weight [14] were reversible. In male GnRH receptor knock-in mice, the suppressive effects of the drug were mostly reversible, with prostate weight and serum testosterone levels showing recovery (though testosterone recovery was variable); however, testes weight did not recover within 28 days of stopping treatment [3, 6, 10].",
+      "answer": "The documents indicate that toxicology findings showed varying degrees of reversibility depending on the specific effect:\n\n* **Liver Toxicity:** Liver findings in monkeys exhibited some reversibility following a 13-week recovery period. Increased liver enzymes and bile plugs were reversible, but other liver histopathology changes were still present at the end of the recovery period [1, 2].\n* **Phospholipidosis (PLD):** PLD findings demonstrated evidence of reversibility in the monkey study [1, 2].\n* **Male Reproductive and Hormonal Effects:** In male knock-in mice, the suppressive effects on prostate and seminal vesicle weights were reversible after discontinuation, but decreased testes weight did not recover within 28 days of drug withdrawal [3, 6, 10]. The suppression of serum testosterone levels showed variable reversibility [3, 6].\n* **Female Reproductive Effects:** In monkeys, the cessation of menses and decreased ovary weights were reversible [8, 9, 14].\n* **Clinical Chemistry:** Changes in clinical chemistry parameters (such as AST, ALT, and cholesterol) exhibited reversibility [14].",
       "citedPages": [
         55,
         33,
@@ -1010,7 +1007,7 @@
       "kind": "answerable",
       "question": "What NOAEL was set, and in which study?",
       "answerable": true,
-      "answer": "The following NOAELs (No Observed Adverse Effect Levels) were established in different studies: 1) 300 mg/kg/day in the 4-week repeated-dose toxicology study in rats (Study DCC-2618-04-0004); 2) 100 mg/kg/day in the 13-week oral gavage toxicity study in rats (Study DCC-2618-04-0006); 3) 5 mg/kg/day (maternal NOAEL) in the pivotal embryo-fetal development study in rats (Study DCC-2618-04-0013); 4) 5 mg/kg/day in the 13-week repeated-dose toxicology study in dogs (Study DCC-2618-04-0007); and 5) 7 mg/kg/day in the 4-week repeated-dose toxicology study in dogs (Study ripretinib-04-0005).",
+      "answer": "The documents report several No Observed Adverse Effect Levels (NOAELs) established across different studies:\n\n* **4-Week Repeated-Dose Toxicology Study in Rats (Study DCC-2618-04-0004):** 300 mg/kg/day.\n* **13-Week Repeated-Dose Toxicology Study in Rats (Study DCC-2618-04-0006):** 100 mg/kg/day.\n* **4-Week Repeated-Dose Toxicology Study in Dogs (Study ripretinib-04-0005):** 7 mg/kg/day.\n* **13-Week Repeated-Dose Toxicology Study in Dogs (Study DCC-2618-04-0007):** 5 mg/kg/day.\n* **Pivotal Embryo-Fetal Development Study in Rats (Study DCC-2618-04-0013):** A maternal NOAEL of 5 mg/kg/day was identified.",
       "citedPages": [
         50,
         57,
@@ -1032,10 +1029,8 @@
       "kind": "answerable",
       "question": "no observed adverse effect level",
       "answerable": true,
-      "answer": "The documents define NOAEL as the no observed adverse effect level. The following NOAEL values are reported for ripretinib: 1) In rats: the NOAEL was 300 mg/kg/day in the 4-week repeated-dose study (Study DCC-2618-04-0004), 100 mg/kg/day in the 13-week repeated-dose study (Study DCC-2618-04-0006), and the maternal NOAEL was 5 mg/kg/day in pregnant rats in the embryo-fetal development study (Study DCC-2618-04-0013). 2) In dogs: the NOAEL was 7 mg/kg/day in the 4-week repeated-dose study (Study ripretinib-04-0005) and 5 mg/kg/day in the 13-week repeated-dose study (Study DCC-2618-04-0007).",
+      "answer": "The documents report the no observed adverse effect level (NOAEL) for ripretinib across several animal studies:\n\n- **Rats:** The NOAEL was 300 mg/kg/day in a 4-week repeated-dose toxicology study and 100 mg/kg/day in a 13-week study. In pregnant rats, the maternal NOAEL was 5 mg/kg/day.\n- **Dogs:** The NOAEL was 7 mg/kg/day in a 4-week repeated-dose toxicology study and 5 mg/kg/day in a 13-week study.",
       "citedPages": [
-        14,
-        51,
         57,
         50,
         59,
@@ -1046,7 +1041,7 @@
         53
       ],
       "statedFact": true,
-      "citationPrecision": 0.3333333333333333,
+      "citationPrecision": 0.5,
       "citationRecall": 1,
       "refused": null
     },
@@ -1056,7 +1051,7 @@
       "kind": "answerable",
       "question": "What liver findings are reported, and at what doses?",
       "answerable": true,
-      "answer": "The following liver-related findings are reported in animal and human studies:\n\n**Animal Studies:**\n* **Hepatocyte Changes (Dogs):** Minimal cytoplasmic rarefaction of hepatocytes was observed at doses of 20 and 75 mg/kg/day, while no significant microscopic changes were noted at 7 mg/kg/day [12].\n* **Liver Blood Vessels:** Partially reversible minimal to moderate hypertrophy/hyperplasia of blood vessels in the liver was observed at doses of ≥ 100 mg/kg/day [5].\n* **ALT, ALP, and Bilirubin Changes:** \n  * Minimally higher alanine aminotransferase (ALT) activity was reported in males at ≥ 30 mg/kg/day and in females at ≥ 100 mg/kg/day [3].\n  * Minimally increased alkaline phosphatase (ALP) activity was seen in females at 300 mg/kg/day [3].\n  * Minimally to mildly higher total bilirubin concentration was observed in females at ≥ 30 mg/kg/day [3].\n  * Minimally lower ALP activity was noted in males at 300 mg/kg/day and in females at 100 mg/kg/day [3].\n* **DNA Damage:** No DNA strand breaks were induced in the liver at doses up to 600 mg/kg/day [14].\n\n**Human Studies (typically evaluated at the therapeutic dose of 150 mg once daily [6, 16]):**\n* **Hyperbilirubinemia / Increased Bilirubin:** Hyperbilirubinemia occurred in 16% of patients in the ripretinib arm compared to 2.3% in the placebo arm (and 18% in the ISS) [1]. Increased bilirubin was a Grade 1-3 laboratory abnormality with an incidence at least 5% higher in the ripretinib arm than the placebo arm [6]. Additionally, increased blood bilirubin led to dose interruptions in 2 patients (2.4%) in the ripretinib arm [8].\n* **Transaminitis:** Abnormal liver transaminases (AST and ALT increased) occurred at a frequency of 7% in the ripretinib arm, which was similar to the placebo arm [1, 6].\n* **Liver Failure:** No cases of liver failure were reported in the ripretinib arm, placebo arm, or ISS [1, 6].\n* **Placebo Arm Findings:** Increased gamma-glutamyltransferase led to dose interruption in one patient in the placebo arm [8].",
+      "answer": "The documents report the following liver-related findings in humans and animals:\n\n**Clinical (Human) Findings:**\n*   **Hyperbilirubinemia:** The frequency of hyperbilirubinemia (including increased blood bilirubin and jaundice) was 16% in the ripretinib arm compared to 2.3% in the placebo arm [1]. The incidence of Grade 1-3 increased bilirubin was at least 5% higher in the ripretinib arm than in the placebo arm [6]. Increased blood bilirubin led to dose interruption in 2 patients (2.4%) receiving ripretinib [8].\n*   **Transaminitis:** The frequency of abnormal liver transaminases (increased AST and ALT) was 7% in the ripretinib arm, which was similar to the frequency observed in the placebo arm [1, 6].\n*   **Liver Failure:** No cases of liver failure were reported in the ripretinib arm, placebo arm, or the Integrated Summary of Safety (ISS) [1, 6].\n\n**Non-Clinical (Animal) Findings:**\n*   **Dogs (4-week study):** Minimal cytoplasmic rarefaction of hepatocytes was observed at doses of 20 and 75 mg/kg/day. No significant microscopic changes were noted at 7 mg/kg/day [12].\n*   **Other Animal Studies:** \n    *   Minimally higher alanine aminotransferase (ALT) activity was observed in males at doses $\\ge$ 30 mg/kg/day and in females at $\\ge$ 100 mg/kg/day [3].\n    *   Minimally increased alkaline phosphatase (ALP) activity was noted in females at 300 mg/kg/day [3].\n    *   Minimally to mildly higher total bilirubin concentration was observed in females at $\\ge$ 30 mg/kg/day [3].\n    *   Partially reversible minimal to moderate hypertrophy/hyperplasia of blood vessels in the liver occurred at doses $\\ge$ 100 mg/kg/day [5].\n*   **Genotoxicity:** In an in vivo combined micronucleus and comet assay, ripretinib did not induce DNA strand breaks in the liver when tested at doses up to 600 mg/kg/day [14].",
       "citedPages": [
         175,
         55,
@@ -1064,8 +1059,33 @@
         185,
         151,
         59,
+        63
+      ],
+      "goldPages": [
+        55,
+        56
+      ],
+      "statedFact": true,
+      "citationPrecision": 0.2857142857142857,
+      "citationRecall": 1,
+      "refused": null
+    },
+    {
+      "id": "qinlock-liver-b",
+      "document": "qinlock",
+      "kind": "answerable",
+      "question": "does this drug damage the liver?",
+      "answerable": true,
+      "answer": "The documents report the following findings regarding the liver in animal studies and clinical trials:\n\n**Animal Studies**\n* Ripretinib did not induce DNA strand breaks in the liver when tested up to 600 mg/kg/day [1].\n* Histopathology revealed partially reversible minimal to moderate hypertrophy/hyperplasia of blood vessels in the liver at doses ≥ 100 mg/kg/day [9]. \n* Clinical chemistry showed minimally higher alanine aminotransferase (ALT) activity and minimally to mildly higher total bilirubin concentrations, though the bilirubin increase was considered likely unrelated to the microscopic liver findings [10].\n\n**Clinical Trials**\n* Laboratory measurements of ALT, AST, alkaline phosphatase (ALP), and total bilirubin were evaluated for the potential risk of drug-induced liver injury and potential Hy’s Law cases [3].\n* **Liver Failure:** No cases of liver failure were reported in the ripretinib arm, the placebo arm, or the Integrated Summary of Safety (ISS) [2, 6].\n* **Transaminitis:** The frequency of abnormal liver transaminases (increased AST and ALT) was similar in the ripretinib arm (7%) compared to the placebo arm [2, 6]. Grade 3 or 4 increased AST was reported in 2.4% of the ripretinib group and 2.3% of the placebo group [13].\n* **Hyperbilirubinemia:** The frequency of hyperbilirubinemia was higher in the ripretinib arm (16%) compared to the placebo arm (2.3%) [2]. Increased bilirubin was identified as a Grade 1-3 laboratory abnormality with an incidence at least 5% higher in the ripretinib arm than in the placebo arm [6].\n* **Liver Function Analysis:** Treatment-emergent adverse events under the Higher Level Term \"liver function analysis\" occurred in 21% of patients in the ripretinib arm compared to 7% in the placebo arm [14].",
+      "citedPages": [
         63,
-        81
+        175,
+        145,
+        185,
+        56,
+        55,
+        155,
+        156
       ],
       "goldPages": [
         55,
@@ -1077,36 +1097,12 @@
       "refused": null
     },
     {
-      "id": "qinlock-liver-b",
-      "document": "qinlock",
-      "kind": "answerable",
-      "question": "does this drug damage the liver?",
-      "answerable": true,
-      "answer": "In animal studies, ripretinib did not induce DNA strand breaks in the liver at doses up to 600 mg/kg/day [1]. However, histopathology in animals showed partially reversible minimal to moderate hypertrophy/hyperplasia of blood vessels in the liver (as well as lungs and/or mesenteric lymph nodes) at doses of 100 mg/kg/day or higher [9], along with minimally higher alanine aminotransferase (ALT) and alkaline phosphatase (ALP) activity in some dose groups [10]. In clinical trials, there were no reported cases of liver failure in the ripretinib arm, placebo arm, or the Integrated Summary of Safety (ISS) [2]. Serious adverse reactions such as liver failure and transaminitis were either not observed in the ripretinib arm or occurred at frequencies similar to the placebo arm [6]. Specifically, the frequency of abnormal liver transaminases (based on increased AST and ALT) was similar in the ripretinib arm (7%) compared to the placebo arm [2]. The safety and pharmacokinetics of the drug in patients with moderate or severe hepatic impairment remain unknown [7].",
-      "citedPages": [
-        63,
-        175,
-        185,
-        84,
-        56,
-        55
-      ],
-      "goldPages": [
-        55,
-        56
-      ],
-      "statedFact": true,
-      "citationPrecision": 0.3333333333333333,
-      "citationRecall": 1,
-      "refused": null
-    },
-    {
       "id": "nubeqa-reversible-a",
       "document": "nubeqa",
       "kind": "answerable",
       "question": "Were the toxicology findings reversible?",
       "answerable": true,
-      "answer": "In general, toxicology findings observed after repeated administration of darolutamide were either completely or partially reversible following a 4-week recovery period in rats and an 8-week recovery period in dogs [2]. Specifically:\n\n* **Male Reproductive Organs**: Effects on male reproductive organs were still observed in male rats following a 4-week recovery period, but were reversible following an 8-week recovery period in dogs [4]. In a 13-week dog study, microscopic findings in these organs were trending towards recovery [1].\n* **26-Week Rat Study**:\n  * Clinical signs resolved by the end of the 4-week recovery period [7].\n  * Hematological changes were reversible, except for decreases in absolute and percentage monocytes in high-dose females [7].\n  * Clinical chemistry changes were reversible, except for increases in aspartate aminotransferase and glutamate dehydrogenase in high-dose males [10].\n  * Organ weight changes were not observed at the end of the recovery period [10].\n* **39-Week Dog Study**:\n  * Clinical signs were reversible, and food consumption normalized [9].\n  * Body weight decreases were still observed in high-dose males and females during or at the end of the recovery period [9].\n  * Hematology and clinical chemistry changes were reversible or trending towards recovery, except for a 22% increase in triglyceride levels in high-dose males, a 21% decrease in fibrinogen in high-dose females, and a 24% decrease in urine pH in high-dose males [6].\n  * Gross pathology findings resolved, except for small thymus and dark testes in high-dose males [11].\n  * Organ weight changes were reversible or trending towards recovery, except for increased adrenal and lung weights in males, and increased spleen weight in females [11].\n  * Histopathology findings were reversible except for minimal liver necrosis (high-dose female), marked tubular atrophy in testes (high-dose male), minimal to slight lymphoid cell infiltration in the prostate gland (high-dose male), and moderate epithelium cell degeneration/regeneration of epididymides (high-dose male) [3].\n* **13-Week Dog Study**:\n  * Several histopathology findings remained at the end of the recovery period in high-dose animals, including adrenal gland hemorrhage, rectum erosion, increased spleen pigment deposit, mononuclear cell infiltrations (brain, lung, parotid gland), mesenteric lymph node congestion/hemorrhage, thymus atrophy, esophagus glandular dilation, and decreased mammary gland acinar development [5].\n* **Safety Pharmacology**: In an intravenous safety pharmacology study in dogs, one dog displayed a reversible AV nodal abnormality (complete AV block) that resolved after 45 minutes, though PQ and PR interval durations remained prolonged [16].",
+      "answer": "Toxicology findings observed after repeated administration were either completely or partially reversible following a 4-week recovery period in rats and an 8-week recovery period in dogs. Many microscopic findings, hematology parameters, clinical chemistry changes, and organ weights were reversible or trending towards recovery at the end of the recovery periods, and clinical signs and food consumption normalized.\n\nHowever, several findings were not fully reversible at the end of the recovery periods. Notable exceptions included:\n\n*   **Reproductive Organs:** Effects on male reproductive organs were reversible in dogs after an 8-week recovery, but were still observed in male rats after a 4-week recovery. Specific irreversible histopathology included marked tubular atrophy in the testes, lymphoid cell infiltration in the prostate gland, and epithelium cell degeneration/regeneration of the epididymides. Dark testes were also observed in gross pathology.\n*   **Other Histopathology:** Minimal liver necrosis, adrenal gland hemorrhage, rectum erosion, increased spleen pigment, mononuclear cell infiltrations (in the brain, lung, and parotid gland), mesenteric lymph node congestion/hemorrhage, thymus atrophy, esophagus glandular dilation, and decreased acinar development of the mammary gland.\n*   **Laboratory Parameters:** Decreases in absolute and percentage monocytes, decreased fibrinogen, decreased urine pH, and increases in triglycerides, aspartate aminotransferase, and glutamate dehydrogenase.\n*   **Gross Pathology and Organ Weights:** Small thymus, and increased relative weights of the adrenal gland, lung, and spleen.\n*   **Body Weight:** Decreased body weight was still observed in high-dose male and female dogs at the end of the recovery period.",
       "citedPages": [
         50,
         29,
@@ -1117,15 +1113,14 @@
         42,
         45,
         43,
-        47,
-        34
+        47
       ],
       "goldPages": [
         29,
         30
       ],
       "statedFact": true,
-      "citationPrecision": 0.18181818181818182,
+      "citationPrecision": 0.2,
       "citationRecall": 1,
       "refused": null
     },
@@ -1135,7 +1130,7 @@
       "kind": "answerable",
       "question": "What NOAEL was set, and in which study?",
       "answerable": true,
-      "answer": "A NOAEL for maternal toxicity of 0.25 mg/kg/day was set in the study titled \"An Oral (Gavage) Study of the Effects of KPT-330 on Embryo/Fetal Development in Rats\" (Study number KNC-G-13-008).",
+      "answer": "A NOAEL for maternal toxicity of 0.25 mg/kg/day was set in the study titled \"An Oral (Gavage) Study of the Effects of KPT-330 on Embryo/Fetal Development in Rats\" (Study number: KNC-G-13-008).",
       "citedPages": [
         40
       ],
@@ -1153,7 +1148,7 @@
       "kind": "answerable",
       "question": "no observed adverse effect level",
       "answerable": true,
-      "answer": "In an oral gavage embryo-fetal development study of KPT-330 in rats (Study KNC-G-13-008), the no observed adverse effect level (NOAEL) for maternal toxicity was 0.25 mg/kg/day, with a gestational day (GD) 17 AUClast value of 0.121 μg•h/mL and Cmax value of 0.034 μg/mL.",
+      "answer": "In an oral embryo-fetal development study in rats, the no observed adverse effect level (NOAEL) for maternal toxicity was 0.25 mg/kg/day. This dose corresponded to a GD 17 AUClast value of 0.121 μg•h/mL and a Cmax value of 0.034 μg/mL.",
       "citedPages": [
         40
       ],
@@ -1171,7 +1166,7 @@
       "kind": "answerable",
       "question": "Were the toxicology findings reversible?",
       "answerable": true,
-      "answer": "According to repeat-dose oral toxicity studies in rats and monkeys, the toxicological effects were somewhat reversible, with the exception of the effects on male reproductive tissues. Specifically, severe reductions in the weights of the testes and epididymides in high-dose rats persisted through the recovery period.",
+      "answer": "According to the 13-week repeat-dose oral toxicity studies in rats and monkeys, the toxicology findings were \"somewhat reversible,\" with the exception of effects on male reproductive tissues. Specifically, in rats, severe reductions in the weights of the testes and epididymides in high-dose animals persisted through the 4-week recovery period.",
       "citedPages": [
         30,
         36
@@ -1191,7 +1186,7 @@
       "kind": "answerable",
       "question": "What liver findings are reported, and at what doses?",
       "answerable": true,
-      "answer": "Based on the provided documents, liver findings and their associated doses are reported as follows. In Cynomolgus Monkeys (13-Week Oral Toxicity Study): At all dose levels (100, 300, and 600 mg/kg/day), liver weights were increased compared to controls [1]. At 300 mg/kg/day, 4/8 animals had discoloration of the liver and prominent lobular architecture, correlating microscopically with hypertrophy of centrilobular hepatocytes, Kupffer cell hypertrophy/pigmentation, and bile duct hyperplasia [1]. In recovery animals at 300 mg/kg/day, 1/4 had liver discoloration correlating with Kupffer cell pigmentation and bile duct hyperplasia [1]. Also at 300 mg/kg/day, increased levels of AST, ALT, ALP, and triglycerides occurred [2, 4, 5], and bile duct hyperplasia was noted at terminal and recovery sacrifices [2]. Microscopic pathology at doses of 300 mg/kg/day and above included hypertrophy and hyperplasia of the liver and bile duct [5]. At 600 mg/kg/day, 6/7 animals had discoloration of the liver and prominent lobular architecture, correlating microscopically with hypertrophy of centrilobular hepatocytes, Kupffer cell hypertrophy/pigmentation, and bile duct hyperplasia [1]. Increased levels of AST, ALT, ALP, and triglycerides occurred at 600 mg/kg/day [2, 4, 5], with AST, ALT, and ALP remaining elevated in recovery animals [5]. Bile duct hyperplasia was noted at terminal and recovery sacrifices at 600 mg/kg/day [2], and histopathology changes in the liver were reported in a female sacrificed in moribund condition on Day 83 [4, 5]. In Rats: Following a single oral dose of 50 mg/kg, high mean Cmax values were observed in the liver [7]. At 300 and 600 mg/kg/day, increased liver weights and gross pathology findings of enlargement and masses occurred, which correlated with the metastasis of lymphoma to the liver [3, 5, 12]. At 600 mg/kg/day, bilirubin levels were increased 3-fold in males and 1.7-fold in females compared to controls [10]. In Embryo-Fetal Development: At 400 mg/kg, a large liver malformation was reported [6]. In Humans (Clinical Studies): At 800 mg BID, laboratory abnormalities included increased alkaline phosphatase (23% all grades, 1.7% Grade 3-4), increased aspartate aminotransferase (AST) (18% all grades, 3.5% Grade 3-4), and increased alanine aminotransferase (ALT) (14% all grades, 3.4% Grade 3-4) [15]. Tazemetostat exposure was a significant predictor of Grade 3+ hepatotoxicity, though the risk is expected to be low at 800 mg BID [14]. Mild hepatic impairment (total bilirubin > 1 to 1.5 x ULN or AST > ULN) had no clinically meaningful effect on exposure, and no dose adjustment is recommended [9].",
+      "answer": "The documents report the following liver-related findings across various doses: Animal Studies: At all dose levels (100, 300, and 600 mg/kg), the liver was identified as a target organ, liver weights increased compared to controls, and there were dose-dependent increases in AST, ALT, and ALP [1, 2, 4, 5, 8]. At 300 mg/kg, findings included liver discoloration, prominent lobular architecture, hypertrophy of centrilobular hepatocytes, Kupffer cell hypertrophy/pigmentation, and bile duct hyperplasia [1, 2, 5]. Increased organ weights also correlated with lymphoma metastasis in the liver at 300 mg/kg and 600 mg/kg [3, 12]. At 400 mg/kg, a 'large liver' malformation was reported in one instance [6]. At 600 mg/kg, monkeys exhibited liver discoloration, prominent lobular architecture, hypertrophy of centrilobular hepatocytes, Kupffer cell hypertrophy/pigmentation, and bile duct hyperplasia [1, 2, 5]. AST, ALT, and ALP remained elevated in 600 mg/kg recovery animals, and one female sacrificed in a moribund condition had histopathological changes in the liver [4, 5]. In 600 mg/kg rats, bilirubin increased 3-fold in males and 1.7-fold in females, which was reversible in recovery [10]. Clinical Findings: At the 800 mg BID dosage, exposure-safety analyses showed that drug exposure is a significant predictor of Grade 3 or higher hepatotoxicity, though the risk is expected to be low [14]. In clinical Cohort 5, laboratory abnormalities included increased alkaline phosphatase (23% all grades; 1.7% Grade 3-4), increased AST (18% all grades; 3.5% Grade 3-4), and increased ALT (14% all grades; 3.4% Grade 3-4) [15].",
       "citedPages": [
         55,
         53,
@@ -1199,8 +1194,7 @@
         54,
         33,
         66,
-        45,
-        91,
+        57,
         49,
         51,
         90,
@@ -1211,7 +1205,7 @@
         49
       ],
       "statedFact": true,
-      "citationPrecision": 0.16666666666666666,
+      "citationPrecision": 0.18181818181818182,
       "citationRecall": 1,
       "refused": null
     },
@@ -1221,13 +1215,17 @@
       "kind": "answerable",
       "question": "does this drug damage the liver?",
       "answerable": true,
-      "answer": "According to the provided documents, the drug has shown several effects on the liver in both animal and human studies. In monkey studies, the liver was identified as a target organ, showing dose-dependent increases in liver enzymes (AST, ALT, and ALP), increased liver weights, liver discoloration, prominent lobular architecture, and microscopic findings of centrilobular hepatocyte hypertrophy, Kupffer cell hypertrophy/pigmentation, and liver and bile duct hypertrophy and hyperplasia. Histopathology changes in the liver were also noted in a monkey sacrificed in a moribund condition. In human clinical studies, tazemetostat exposure was predictive for the occurrence of ≥ Grade 3 hepatotoxicity, and increased ALT, AST, and bilirubin were reported as adverse events, with ALT and AST increases leading to dose interruptions in some patients.",
+      "answer": "The documents do not provide a definitive verdict on whether the drug causes liver damage, but they report several liver-related findings from clinical and nonclinical studies:\n\n**Clinical Findings**\n* Exposure to tazemetostat was predictive for the occurrence of Grade 3 or higher hepatotoxicity [16]. \n* In clinical study EZH-202, adverse events leading to dose interruption included increased alanine aminotransferase (ALT) in 3% of patients and increased aspartate aminotransferase (AST) in 3% of patients [9]. \n* Increased bilirubin was reported as an adverse event in 1.6% of patients [9].\n\n**Animal Toxicology (Monkeys)**\n* In a 13-week study in cynomolgus monkeys, the liver was identified as a target organ [6]. \n* Monkeys exhibited dose-dependent increases in AST, ALT, and alkaline phosphatase (ALP) [5, 6, 8]. \n* Gross pathology and organ weight assessments showed increased liver weights, liver discoloration, and prominent lobular architecture [1]. \n* Microscopic findings included hypertrophy of centrilobular hepatocytes, Kupffer cell hypertrophy and pigmentation, and bile duct hyperplasia [1, 6, 8]. \n* One female monkey that was sacrificed in a moribund condition exhibited histopathological changes in the liver, among other organs [5, 8].\n\n**Other Animal Findings**\n* In a rat distribution study, the liver was among the tissues where the highest mean Cmax values were observed [13]. \n* In animal toxicology studies, increased organ weights correlated with lymphoma metastases in the liver [4, 7]. \n* In a fetal study, a \"large liver\" malformation was observed in one fetus at a 400 mg/kg dose [3].",
       "citedPages": [
         55,
+        66,
+        50,
         54,
         53,
+        51,
         33,
         131,
+        45,
         78
       ],
       "goldPages": [
@@ -1235,7 +1233,7 @@
         49
       ],
       "statedFact": true,
-      "citationPrecision": 0.16666666666666666,
+      "citationPrecision": 0.1,
       "citationRecall": 0.5,
       "refused": null
     },
@@ -1245,13 +1243,13 @@
       "kind": "answerable",
       "question": "Were the toxicology findings reversible?",
       "answerable": true,
-      "answer": "Some toxicology findings were reversible, while others persisted or remained elevated during recovery periods. In rats, hematology, clinical chemistry, and urinalysis findings (including increased bilirubin, turbidity, and unequally-sized globules) were reversible with no notable changes in recovery animals [1]. In another rat study, clinical chemistry findings (increased chloride, calcium, and phosphorus) were also reversible [2]. Additionally, changes in reticulocytes and WBCs in rats were reversible [4]. However, in the 13-week monkey study, dose-dependent increases in AST, ALT, and ALP remained elevated in the 600 mg/kg/day recovery animals [4]. Furthermore, bile duct hyperplasia was observed at both terminal and recovery sacrifices in mid- and high-dose monkeys [9], and liver discoloration correlating with Kupffer cell pigmentation and bile duct hyperplasia was still present in 1 of 4 recovery animals [10].",
+      "answer": "The documents indicate that some toxicology findings were reversible, while others were not.\n\n**Reversible Findings:**\n- Hematology parameters (including changes in reticulocytes and white blood cells), clinical chemistry changes, and urinalysis findings in rats were reversible, with no notable changes observed in recovery animals [1, 2, 4].\n\n**Persistent or Irreversible Findings:**\n- In a 13-week monkey study, dose-dependent increases in AST, ALT, and ALP remained elevated in the 600 mg/kg/day recovery animals [4]. \n- Bile duct hyperplasia was observed at recovery sacrifices in mid- and high-dose monkeys [9].\n- In a rat toxicity study, multiple animals were found dead or had to be euthanized early during the recovery phase [14].",
       "citedPages": [
         49,
         75,
         33,
         53,
-        55
+        72
       ],
       "goldPages": [
         33,
@@ -1268,7 +1266,7 @@
       "kind": "answerable",
       "question": "Were the toxicology findings reversible?",
       "answerable": true,
-      "answer": "The toxicology findings in rats and dogs were generally fully or partially reversible with a recovery period, though several specific findings persisted or were not reversible. General toxicities, reproductive organ changes, and clinical chemistry changes in both species were generally fully or partially reversible, and gross pathology findings in the oral cavity of dogs recovered during the recovery period. However, some findings did not fully reverse: in rats, skin abnormalities persisted, decreased mean body weight and body weight gain in 5 mg/kg females were not reversible, and increased white blood cells in 10 mg/kg males and decreased reticulocytes in females were still observed during the recovery period. In dogs, monocyte changes in 0.25 and 0.5 mg/kg males did not show evidence of recovery, cholesterol changes in 1 mg/kg females were not reversible, and clinical signs and ophthalmoscopy findings showed only partial recovery.",
+      "answer": "The toxicology findings in rats and dogs were generally fully or partially reversible with a recovery period, though some specific effects persisted or were not reversible.\n\n**Fully or Partially Reversible Findings:**\n*   Main toxicities in rats and dogs, including changes in the gastrointestinal tract, reproductive system, hematological system, and squamous epithelium, were fully or partially reversible [2].\n*   Reproductive organ changes, such as decreased organ weights and microscopic changes (e.g., atrophy and decreased epithelial thickness) in rats and dogs, were generally reversible [3].\n*   In dogs, ophthalmoscopy findings and clinical signs showed partial recovery [5, 12], and gross pathology findings in the oral cavity recovered during the recovery period [13].\n*   Decreases in body weight and feed consumption in rats showed evidence of recovery or partial recovery, with the exception of 5 mg/kg females [9].\n*   Increases in fibrinogen (coagulation) in both rats and dogs were reversible [5, 10].\n*   Clinical chemistry changes in both species were generally fully or partially reversible, with isolated exceptions [5, 10].\n\n**Findings Lacking Evidence of Recovery (Not Reversible):**\n*   In rats, skin abnormalities persisted throughout the recovery period [9].\n*   Decreases in mean body weight and body weight gain in 5 mg/kg female rats were not reversible [9].\n*   Certain hematology findings in rats (increased white blood cells in 10 mg/kg males and decreased reticulocytes in females) were still observed during the recovery period [9].\n*   In dogs, changes in monocytes for 0.25 and 0.5 mg/kg males did not show evidence of recovery [5].\n*   Clinical chemistry changes in cholesterol for 1 mg/kg female dogs were not reversible [5].",
       "citedPages": [
         61,
         75,
@@ -1302,7 +1300,7 @@
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 1
+      "citationOverlap": 0.7777777777777777
     },
     {
       "id": "nipo-noael-c",
@@ -1316,7 +1314,7 @@
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.8095238095238096
+      "citationOverlap": 0.888888888888889
     },
     {
       "id": "nipo-reversible-b",
@@ -1344,28 +1342,28 @@
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.7333333333333334
+      "citationOverlap": 1
     },
     {
       "id": "tur-liver-a",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.7777777777777777
+      "citationOverlap": 1
     },
     {
       "id": "tur-liver-b",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 1
+      "citationOverlap": 0.9259259259259259
     },
     {
       "id": "tur-liver-c",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.7777777777777777
+      "citationOverlap": 0.8666666666666667
     },
     {
       "id": "tur-liver-d",
@@ -1407,14 +1405,14 @@
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.9047619047619048
+      "citationOverlap": 0.888888888888889
     },
     {
       "id": "slynd-nonclinical-b",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.9259259259259259
+      "citationOverlap": 0.9166666666666666
     },
     {
       "id": "slynd-noael-unanswerable",
@@ -1435,14 +1433,14 @@
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 1
+      "citationOverlap": 0.7619047619047619
     },
     {
       "id": "lumakras-liver-b",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.9259259259259259
+      "citationOverlap": 0.7575757575757575
     },
     {
       "id": "lumakras-reversible-a",
@@ -1470,28 +1468,28 @@
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 1
+      "citationOverlap": 0.5
     },
     {
       "id": "trikafta-noael-a",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.8333333333333334
+      "citationOverlap": 1
     },
     {
       "id": "trikafta-noael-b",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.5833333333333334
+      "citationOverlap": 0.8333333333333334
     },
     {
       "id": "trikafta-reversible-a",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.6666666666666666
+      "citationOverlap": 1
     },
     {
       "id": "krazati-noael-a",
@@ -1505,14 +1503,14 @@
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 1
+      "citationOverlap": 0.9333333333333332
     },
     {
       "id": "krazati-liver-a",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.9166666666666666
+      "citationOverlap": 1
     },
     {
       "id": "krazati-liver-b",
@@ -1533,7 +1531,7 @@
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.8333333333333334
+      "citationOverlap": 1
     },
     {
       "id": "inrebic-liver-a",
@@ -1547,14 +1545,14 @@
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 1
+      "citationOverlap": 0.8666666666666667
     },
     {
       "id": "inrebic-reversible-a",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.7777777777777777
+      "citationOverlap": 1
     },
     {
       "id": "orgovyx-noael-a",
@@ -1568,21 +1566,21 @@
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.8333333333333334
+      "citationOverlap": 1
     },
     {
       "id": "orgovyx-liver-a",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 1
+      "citationOverlap": 0.9523809523809524
     },
     {
       "id": "orgovyx-liver-b",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.9333333333333332
+      "citationOverlap": 0.8333333333333334
     },
     {
       "id": "orgovyx-reversible-a",
@@ -1610,21 +1608,21 @@
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.7083333333333334
+      "citationOverlap": 1
     },
     {
       "id": "qinlock-liver-b",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.75
+      "citationOverlap": 1
     },
     {
       "id": "nubeqa-reversible-a",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 1
+      "citationOverlap": 0.9333333333333332
     },
     {
       "id": "xpovio-noael-a",
@@ -1645,28 +1643,28 @@
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 1
+      "citationOverlap": 0.7777777777777777
     },
     {
       "id": "tazverik-liver-a",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 0.9487179487179488
+      "citationOverlap": 1
     },
     {
       "id": "tazverik-liver-b",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 1
+      "citationOverlap": 0.7333333333333334
     },
     {
       "id": "tazverik-reversible-a",
       "runs": 3,
       "sameAnswerable": true,
       "sameFact": true,
-      "citationOverlap": 1
+      "citationOverlap": 0.8666666666666667
     },
     {
       "id": "exkivity-reversible-a",
