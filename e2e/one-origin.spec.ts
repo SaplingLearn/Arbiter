@@ -15,7 +15,12 @@ test("the landing page renders at the root", async ({ page }) => {
   await page.goto("/");
 
   await expect(page).toHaveTitle(/ARBITER/i);
-  await expect(page.getByRole("link", { name: "Arbiter", exact: true })).toBeVisible();
+  /* The wordmark's accessible name is "Arbiter, back to top" - it carries what the
+     link DOES as well as what it says, which is right for a logo that is also a
+     navigation control. `exact: true` on "Arbiter" was written against the header
+     this one replaced. Anchored at the start rather than pinned to the whole string,
+     so rewording the purpose half does not fail a test about the page rendering. */
+  await expect(page.getByRole("link", { name: /^Arbiter\b/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /open the app/i }).first()).toBeVisible();
 });
 
