@@ -20,6 +20,10 @@ export default defineConfig({
     // Spread the defaults rather than replacing them: writing the list out by
     // hand would silently drop vitest's exclusions for dist/ and .idea/ and let
     // a built copy of a test be collected twice.
-    exclude: [...configDefaults.exclude, "e2e/**"],
+    /* `.claude/worktrees/**` holds sibling checkouts the harness creates. They contain
+       a full copy of this repo, so vitest collects THEIR tests too - fifteen failures
+       that belong to another branch's work-in-progress and say nothing about this one.
+       Excluded rather than deleted, because the worktree is somebody's live workspace. */
+    exclude: [...configDefaults.exclude, "e2e/**", ".claude/worktrees/**"],
   },
 });

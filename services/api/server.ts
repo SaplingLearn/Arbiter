@@ -6,12 +6,13 @@ import { DeliberationService } from "./deliberation-service.js";
 import { FileStore } from "./store.js";
 import type { Position } from "./deliberation.js";
 import type { CoveringFinding, EvidenceChecklist, Modality } from "./inventory.js";
-import { ADJUDICATOR_PROMPT_PATH, handleAdjudicate, type AdjudicateRequest } from "./adjudicate.js";
+import { ADJUDICATOR_PROMPT_PATH, type AdjudicateRequest } from "./adjudicate.js";
 import { handleAsk } from "./ask.js";
 import { handleSummarise } from "./summarise.js";
 import { buildIndex, search } from "./retrieval.js";
 import { completeFromEnv, providerFor, resolveModel } from "./interpret.js";
 import { stubComplete } from "./probe.js";
+import { adjudicateConsensus, runsFrom } from "./consensus.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
 import { AuthStore, normaliseEmail, type PublicUser } from "./auth.js";
 import { DEMO_TEAM } from "./seed-demo.js";
@@ -562,13 +563,25 @@ export function makeHandler(deps: ServerDeps) {
             // The stub is free, so it is not charged. `live` is null exactly when the
             // answer will be stubbed and labelled `source: "stub"`.
             if (overBudget(live)) return;
-            const out = await handleAdjudicate(request, live ?? stubComplete(request), deps.prompt);
+
+            /* ADJUDICATED MORE THAN ONCE, because it is not deterministic. Measured:
+               turalio's package returned do_not_advance three times and cannot_conclude
+               twice on byte-identical input at temperature 0. A single call there is a
+               coin, and it returns the same confident prose whichever way it lands.
+               The stub is deterministic by construction, so it runs once - three
+               identical stub answers would report a unanimity that means nothing. */
+            const runs = live === null ? 1 : runsFrom(process.env);
+            const { response: out, consensus } = await adjudicateConsensus(
+              request, live ?? stubComplete(request), deps.prompt, runs);
             if (out.status !== 200) return json(res, out.status, out.body);
             const r = deps.service.adjudicate(caseId, out.body, (body as { at: string }).at, live === null ? "stub" : "model");
-            // `source` travels with the adjudication so a stub can never be read as
-            // a result downstream, the same discipline probe.ts applies.
+            /* `source` travels with the adjudication so a stub can never be read as
+               a result downstream, the same discipline probe.ts applies - and
+               `consensus` travels with it for the same reason. A 2-of-3 verdict and a
+               3-of-3 verdict are different objects and the reader of a safety record is
+               exactly who should be told which one they have. */
             return r.ok
-              ? json(res, 200, { adjudication: out.body, source: live === null ? "stub" : "live" })
+              ? json(res, 200, { adjudication: out.body, source: live === null ? "stub" : "live", consensus })
               : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
           }
           case "sign": {
