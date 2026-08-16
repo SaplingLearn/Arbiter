@@ -16,14 +16,14 @@ import { stubComplete } from "./probe.js";
 import { adjudicateConsensus, runsFrom } from "./consensus.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
 import { AuthStore, normaliseEmail, type PublicUser } from "./auth.js";
-import { DEMO_TEAM } from "./seed-demo.js";
+import { DEMO_PASSWORD, DEMO_TEAM, seedDemoTeam } from "./seed-demo.js";
 import { DocumentStore, MAX_BYTES } from "./documents.js";
 import { LibraryStore } from "./library.js";
 import { can, denial, type CaseAction } from "./access.js";
 import { InviteStore } from "./invites.js";
 import { LoginThrottle } from "./throttle.js";
 import { ModelBudget, budgetFrom } from "./spend.js";
-import { loadEnv } from "./env.js";
+import { envFileInUse, loadEnv } from "./env.js";
 
 /**
  * The deliberation API.
@@ -788,9 +788,30 @@ if (invokedDirectly) {
   // Before anything reads configuration. A missing .env is not an error - every value
   // has a working default and the product runs with none of them set.
   loadEnv();
+  const envFile = envFileInUse();
   const HOST = bindHost();
   const port = Number(process.env["PORT"] ?? 8787);
   const deps = buildDeps("results/deliberation-log.jsonl");
+
+  /**
+   * Seed the demonstration team on boot, when asked to and only into an EMPTY store.
+   *
+   * `npm run seed:demo` still exists and does the same thing. This exists because a
+   * shared configuration file is handed to someone who has not read the README, and a
+   * product that boots to a sign-in screen with no accounts looks broken rather than
+   * unseeded. The variable lives in the shared file, so opting in is something the
+   * person distributing it did deliberately.
+   *
+   * TWO GUARDS, because this creates real accounts with a published password. It runs
+   * only when the variable is set, and only when there are no accounts at all - so it
+   * can never add a demo team beside real users, and never resurrects one that was
+   * deliberately deleted while the flag was off.
+   */
+  if ((process.env["ARBITER_DEMO_SEED"] ?? "") === "1" && deps.auth.list().length === 0) {
+    const report = seedDemoTeam(deps.auth, Date.now());
+    console.log(`Seeded ${String(report.created.length)} demonstration accounts (ARBITER_DEMO_SEED=1). Shared password: ${DEMO_PASSWORD}`);
+    console.log("Real accounts on the real authentication path. Delete results/deliberation-log.jsonl.users.json before this holds anything that matters.");
+  }
   createServer((req, res) => { void makeHandler(deps)(req, res); }).listen(port, HOST, () => {
     console.log(`ARBITER deliberation API on http://${HOST}:${port}`);
     const adjudicationModel = resolveModel("adjudication");
@@ -808,10 +829,13 @@ if (invokedDirectly) {
     console.log(`Adjudication: ${completeFromEnv(process.env, "adjudication") === null ? `STUB (no credentials for ${adjudicationModel}) - responses are labelled source:stub` : `LIVE ${named("adjudication")}`}`);
     console.log(`Ask & summary: ${named("ask")}`);
     console.log(`Short calls:  ${named("short")}`);
+    // Which file the configuration came from. A shared `.env.share` that was never
+    // renamed used to be indistinguishable from no configuration at all.
+    console.log(`Config: ${envFile ?? "no .env or .env.share found - defaults only"}`);
     console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token.`);
     console.log(HOST === "127.0.0.1"
       ? "Bound to loopback. This process terminates no TLS; set ARBITER_HOST only behind a proxy that does."
       : `WARNING: bound to ${HOST}, not loopback. This process terminates no TLS - it must sit behind a proxy that does. Model calls are capped at ${budgetFrom(process.env)} per account per 10 minutes.`);
-    if (deps.auth.list().length === 0) console.log("No accounts yet. Run `npm run seed:demo` to create the demonstration team.");
+    if (deps.auth.list().length === 0) console.log("No accounts yet. Run `npm run seed:demo`, or set ARBITER_DEMO_SEED=1, to create the demonstration team.");
   });
 }

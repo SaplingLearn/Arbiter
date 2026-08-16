@@ -183,7 +183,9 @@ npm run dev                # http://localhost:5173
 
 One command, one origin. The landing page is at `/`, the product at `/deliberation/`, the API at `/api`. `ARBITER_PORT=4173 npm run dev` moves the whole group if something already holds 5173.
 
-The demo team is already seeded - five accounts, whose shared password is printed in `services/api/seed-demo.ts` because the fixture is the secrecy, not the check.
+The demo team is five accounts whose shared password is printed in `services/api/seed-demo.ts`, because the fixture is the secrecy, not the check. A fresh clone has none of them - the account store is gitignored - so create them with `npm run seed:demo`, or set `ARBITER_DEMO_SEED=1` and let the first boot do it. The banner prints the account count either way, so a forgotten demo team is visible rather than silent.
+
+Configuration is read from `.env`, or from `.env.share` if there is no `.env`. The second name exists so a file prepared for somebody else works where it lands: an unread share file and no credentials at all look identical from the outside, and that ambiguity was worth a line of code to remove. The banner names the file it read.
 
 ### It runs with no credentials, and says so
 
