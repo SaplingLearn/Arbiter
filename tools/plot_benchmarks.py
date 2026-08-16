@@ -179,9 +179,15 @@ def fig_ten(out: Path) -> None:
              f"{MODEL} · bars are point estimates, whiskers are 95% Wilson score intervals · "
              f"blue = Ask, violet = Verdict",
              ha="left", fontsize=9.5, color=MUTED)
+    # Computed, not typed. This sentence names two specific rates, and a hardcoded
+    # pair goes stale the first time the fixture grows - which it did.
+    v_k, v_n = verdict_rows[0][1], verdict_rows[0][2]
+    a_k, a_n = ask_rows[0][1], ask_rows[0][2]
+    v_lo = wilson(v_k, v_n)[0] * 100
+    a_lo = wilson(a_k, a_n)[0] * 100
     fig.text(0.012, 0.022,
-             "Every rate carries its n. 8/8 and 77/81 are both 'high' and only one is a measurement: "
-             "the first has a lower bound of 68%, the second 88%.\n"
+             f"Every rate carries its n. {v_k}/{v_n} and {a_k}/{a_n} are both 'high' and only one is a "
+             f"measurement: the first has a lower bound of {v_lo:.0f}%, the second {a_lo:.0f}%.\n"
              f"Counterfactual sensitivity (the verdict result a system ignoring the evidence cannot fake): "
              f"{cf['sensitivity'] * 100:.1f}%  {cf['passed']}/{len(cf['rows'])}  "
              f"CI {cf['interval'][0] * 100:.0f}–{cf['interval'][1] * 100:.0f}%, {cf['stuck']} stuck.",
