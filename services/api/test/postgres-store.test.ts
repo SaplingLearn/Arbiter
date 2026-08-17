@@ -1,8 +1,8 @@
 import pg from "pg";
-import { readFile } from "node:fs/promises";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PostgresStore } from "../postgres-store.js";
 import { databaseUrl } from "../db.js";
+import { migrationSql } from "./postgres-fixture.js";
 import { GENESIS, MemoryStore, verifyChain, type LogEntry, type LogKind } from "../store.js";
 import { canonicalJson } from "../canonical.js";
 import type { DeliberationCase } from "../deliberation.js";
@@ -50,7 +50,12 @@ const testUrl = (): string => {
   return u.toString();
 };
 
-const MIGRATION = new URL("../../../supabase/migrations/0001_init.sql", import.meta.url);
+/* THE SCHEMA COMES FROM `migrationSql()`, NOT FROM A PATH SPELLED OUT HERE. This file
+   held `new URL(".../0001_init.sql")`, which was correct while that was the only
+   migration and became a lie the moment there was a second: this suite would have gone on
+   building a database with the tables of one day and none added since, while production
+   and the other store suites applied all of them. `postgres-fixture.ts` is the single
+   place that knows where migrations live and what order they go in. */
 
 /** Ordinary canonical timestamps, for the tests that are not about timestamps. The
  *  awkward spellings live in their own test near the bottom of this file. */
@@ -66,11 +71,11 @@ const kase = (caseId: string, over: Partial<DeliberationCase> = {}): Deliberatio
 });
 
 describe.skipIf(ADMIN_URL === "")("PostgresStore", () => {
-  let migration = "";
+  let migration: string[] = [];
   let pool: pg.Pool;
 
   beforeAll(async () => {
-    migration = await readFile(MIGRATION, "utf8");
+    migration = await migrationSql();
 
     const admin = new pg.Client({ connectionString: ADMIN_URL });
     await admin.connect();
@@ -118,7 +123,8 @@ describe.skipIf(ADMIN_URL === "")("PostgresStore", () => {
    */
   beforeEach(async () => {
     await pool.query("drop schema public cascade; create schema public;");
-    await pool.query(migration);
+    // In order, one file at a time, so a later migration sees the earlier one's tables.
+    for (const sql of migration) await pool.query(sql);
   });
 
   it("starts empty", async () => {

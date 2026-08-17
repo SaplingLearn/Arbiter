@@ -11,6 +11,7 @@ import { AuthStore } from "../auth.js";
 import { DocumentStore } from "../documents.js";
 import { LibraryStore } from "../library.js";
 import { InviteStore } from "../invites.js";
+import { ShareStore } from "../share.js";
 import { LoginThrottle } from "../throttle.js";
 import { ModelBudget } from "../spend.js";
 import { seedDemoTeam, DEMO_PASSWORD } from "../seed-demo.js";
@@ -27,6 +28,11 @@ const FINDINGS: CoveringFinding[] = [
   { id: "f-hep", label: "Human hepatocyte", assertion: "toxic", detail: "Signal at 10uM.", covers: ["M1"] },
   { id: "f-rat", label: "Rat 28-day", assertion: "safe", detail: "Clean at 3x.", covers: ["M5"] },
 ];
+
+/** Comfortably over ShareStore's 32-byte floor. Not read from the environment - this
+ *  suite never calls `shareSecret()`, it hands the value straight to `ServerDeps` so
+ *  publishing is on for every test in this file regardless of what is exported. */
+const SHARE_SECRET = "arbiter-test-share-secret-do-not-use-in-production";
 
 let server: Server;
 let base: string;
@@ -65,6 +71,8 @@ beforeAll(async () => {
     documents: await DocumentStore.open(mkdtempSync(join(tmpdir(), "arb-docs-"))),
     library: new LibraryStore({ cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib-")) }),
     invites: await InviteStore.open(null),
+    shares: await ShareStore.open(null),
+    shareSecret: SHARE_SECRET,
     throttle: new LoginThrottle(),
     // Deliberately generous: this suite drives many model-calling routes in one run and
     // the cap is not what any of these cases are measuring. `spend.test.ts` measures it.
@@ -99,6 +107,14 @@ const call = async (
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   return { status: res.status, body: res.status === 204 ? null : await res.json() };
+};
+
+/** No `authorization` header, ever - the whole point of the public route is that it
+ *  works without one. */
+const fetchPublic = async (path: string): Promise<{ status: number; body: any }> => {
+  const res = await fetch(`${base}${path}`);
+  const text = await res.text();
+  return { status: res.status, body: text === "" ? null : JSON.parse(text) };
 };
 
 const position = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -330,6 +346,232 @@ describe("cases, with access control", () => {
     } finally {
       await new Promise<void>((r) => alt.close(() => r()));
     }
+  });
+
+  /**
+   * The verdict, and the document made from it. Both run against `c1`, which the case
+   * above leaves adjudicated and signed.
+   */
+  it("serves the adjudication to a participant, not only to whoever ran it", async () => {
+    // It used to live in one browser's React state. A participant reaching the verdict
+    // stage saw an empty screen, and the owner lost it on reload. `view` carries it, so
+    // this is the request the stage already makes rather than a route of its own.
+    const r = await call("GET", "/api/cases/c1/view", "bea");
+    expect(r.status).toBe(200);
+    expect(r.body.adjudication).not.toBeNull();
+    expect(["stub", "live"]).toContain(r.body.adjudicationSource);
+    expect(r.body.signature.agreesWithAdjudication).toBe(false);
+    expect(r.body.signature.reason).toBe("Holding for a margin.");
+  });
+
+  it("assembles the record for any team member, not just the convener", async () => {
+    const r = await call("GET", "/api/cases/c1/report", "bea");
+    expect(r.status).toBe(200);
+    // The reader's own words and the convener's override, in one object - the pieces
+    // the reveal, the evidence stage and the record each hold separately.
+    expect(r.body.positions.map((p: { reasoning: string }) => p.reasoning)).toContain("Because.");
+    expect(r.body.signature.reason).toBe("Holding for a margin.");
+    expect(r.body.signature.agreesWithAdjudication).toBe(false);
+    expect(r.body.compoundLabel).toBe("TAK-994");
+    expect(r.body.inventory.entries.length).toBeGreaterThan(0);
+    expect(r.body.audit.headHash).toEqual(expect.any(String));
+    // Assembled FOR the caller: the document says who produced it.
+    expect(r.body.generatedBy.id).toBe(uid["bea"]);
+  });
+
+  it("keeps the record away from an account that is not on the case", async () => {
+    const r = await call("GET", "/api/cases/c1/report", "outsider");
+    expect(r.status).toBe(404);
+  });
+
+  it("refuses a report on a case with no adjudication, and says what is missing", async () => {
+    // A PDF titled "deliberation record" with a blank verdict reads as a panel that
+    // concluded nothing, which is not what an un-adjudicated case means.
+    const opened = await call("POST", "/api/cases", "owner", {
+      caseId: "c-report-open", compoundLabel: "Unadjudicated", context: "",
+      participantEmails: [EMAIL["ann"]], findings: FINDINGS,
+    });
+    expect(opened.status).toBe(201);
+
+    const r = await call("GET", "/api/cases/c-report-open/report", "ann");
+    expect(r.status).toBe(409);
+    expect(r.body.error).toBe("no_adjudication");
+    expect(r.body.detail).toContain("still open");
+
+    // And the stage that would draw it says the same thing without raising: "not
+    // adjudicated yet" is the ordinary state of an open case, not an error.
+    const none = await call("GET", "/api/cases/c-report-open/view", "ann");
+    expect(none.status).toBe(200);
+    expect(none.body.adjudication).toBeNull();
+  });
+
+  describe("publishing a record", () => {
+    // FIRST IN THE BLOCK, DELIBERATELY: this is the one assertion in this describe
+    // that needs c1 UNpublished to mean anything, and every test after it leaves a
+    // live link behind. Everything below runs against c1, which "runs the rest of the
+    // flow for the owner" above leaves adjudicated and signed.
+    it("tells the convener whether a link exists, so the page knows to draw the QR", async () => {
+      const before = await call("GET", "/api/cases/c1/share", "owner");
+      expect(before.body.published).toBe(false);
+      await call("POST", "/api/cases/c1/share", "owner", {});
+      const after = await call("GET", "/api/cases/c1/share", "owner");
+      expect(after.body.published).toBe(true);
+      expect(after.body.url).toContain("/r/c1/");
+    });
+
+    it("says sharing is enabled when the deployment has a secret configured", async () => {
+      const r = await call("GET", "/api/cases/c1/share", "owner");
+      expect(r.body.enabled).toBe(true);
+    });
+
+    it("says sharing is disabled when the deployment has no secret, so the page can withhold the control rather than let a press of it 501", async () => {
+      // A second handler over the same auth and service, with only `shareSecret`
+      // swapped to null - the "sharing is off" deployment shape, same pattern as the
+      // document-store swap above.
+      const handler = makeHandler({ ...deps, shareSecret: null });
+      const alt = createServer((req, res) => { void handler(req, res); });
+      await new Promise<void>((r) => alt.listen(0, "127.0.0.1", r));
+      try {
+        const res = await fetch(`http://127.0.0.1:${(alt.address() as AddressInfo).port}/api/cases/c1/share`, {
+          headers: { authorization: `Bearer ${tok["owner"]}` },
+        });
+        const body = await res.json() as { enabled: boolean; published: boolean; url: string | null };
+        expect(body.enabled).toBe(false);
+        expect(body.published).toBe(false);
+        expect(body.url).toBeNull();
+      } finally {
+        await new Promise<void>((r) => alt.close(() => r()));
+      }
+    });
+
+    it("refuses a participant reading the publish state - the only guard between them and the capability URL, since a GET has no ternary arm above it", async () => {
+      const r = await call("GET", "/api/cases/c1/share", "bea");
+      expect(r.status).toBe(403);
+    });
+
+    /**
+     * A STORE THAT THROWS MUST ANSWER 500, NOT TAKE THE PROCESS DOWN - and this is the
+     * one assertion that can tell those apart from outside.
+     *
+     * `handleShare` and `handleReport` were synchronous until the Postgres stores made
+     * them async, and the four call sites kept their bare `return`. A returned promise
+     * does not hand its rejection to the handler's own catch: it goes to
+     * `void makeHandler(deps)(req, res)`, which is an unhandled rejection, and with no
+     * `process.on("unhandledRejection")` anywhere here that is Node terminating the
+     * process - every in-flight request dies and this one never gets a reply at all.
+     * `return await` at each site is what routes it to the 500 below.
+     *
+     * Nothing else in this file makes a store throw, which is exactly why the omission
+     * survived a typecheck, a lint and 89 passing tests. Reachable in production on
+     * either backing: a Postgres pool timeout, or `ShareStore.persist`'s
+     * `writeFileSync` hitting ENOSPC.
+     */
+    it("answers 500 when the share store throws, rather than dropping the request and the process", async () => {
+      const exploding = {
+        get: () => { throw new Error("connection terminated unexpectedly"); },
+        publish: () => { throw new Error("connection terminated unexpectedly"); },
+        revoke: () => { throw new Error("connection terminated unexpectedly"); },
+      };
+      const handler = makeHandler({ ...deps, shares: exploding });
+      const alt = createServer((req, res) => { void handler(req, res); });
+      await new Promise<void>((r) => alt.listen(0, "127.0.0.1", r));
+      const at = `http://127.0.0.1:${(alt.address() as AddressInfo).port}`;
+      try {
+        // All three methods, because all three reach the store through their own call
+        // site and each one had to be fixed separately.
+        for (const method of ["GET", "POST", "DELETE"]) {
+          const res = await fetch(`${at}/api/cases/c1/share`, {
+            method,
+            headers: { authorization: `Bearer ${tok["owner"]}`, "content-type": "application/json" },
+            ...(method === "POST" ? { body: "{}" } : {}),
+          });
+          expect(res.status, `${method} /share`).toBe(500);
+          expect((await res.json() as { error: string }).error).toBe("internal");
+        }
+      } finally {
+        await new Promise<void>((r) => alt.close(() => r()));
+      }
+    });
+
+    it("refuses a participant, who may read it but not publish it", async () => {
+      // The body is checked, not just the status. handleShare's own denial() check
+      // would produce the same 403 on its own - the "error": "forbidden" key can only
+      // come from the router's action-ternary gate (server.ts), which is the outer of
+      // the two independent checks this route requires. Losing that key here would not
+      // catch the router arm being deleted; the status alone would still pass.
+      const r = await call("POST", "/api/cases/c1/share", "bea", {});
+      expect(r.status).toBe(403);
+      expect(r.body.error).toBe("forbidden");
+    });
+
+    it("refuses a participant trying to revoke, the same way it refuses publishing", async () => {
+      const r = await call("DELETE", "/api/cases/c1/share", "bea");
+      expect(r.status).toBe(403);
+      expect(r.body.error).toBe("forbidden");
+    });
+
+    it("publishes for the convener and hands back a URL carrying the token", async () => {
+      const r = await call("POST", "/api/cases/c1/share", "owner", {});
+      expect(r.status).toBe(201);
+      expect(r.body.url).toContain("/r/c1/");
+      expect(r.body.token).toMatch(/^[A-Za-z0-9_-]+$/);
+    });
+
+    it("returns the same URL on a second press, so a printed QR keeps working", async () => {
+      const first = await call("POST", "/api/cases/c1/share", "owner", {});
+      const again = await call("POST", "/api/cases/c1/share", "owner", {});
+      expect(again.body.url).toBe(first.body.url);
+    });
+
+    it("serves the record to a stranger holding the token", async () => {
+      const pub = await call("POST", "/api/cases/c1/share", "owner", {});
+      const r = await fetchPublic(`/api/public/report/c1/${pub.body.token as string}`);
+      expect(r.status).toBe(200);
+      expect(r.body.compoundLabel).toBe("TAK-994");
+      expect(r.body.positions.length).toBeGreaterThan(0);
+    });
+
+    it("puts no email address anywhere in the public body", async () => {
+      const pub = await call("POST", "/api/cases/c1/share", "owner", {});
+      const r = await fetchPublic(`/api/public/report/c1/${pub.body.token as string}`);
+      expect(JSON.stringify(r.body)).not.toContain("@");
+    });
+
+    it("refuses a token that does not match", async () => {
+      await call("POST", "/api/cases/c1/share", "owner", {});
+      const r = await fetchPublic("/api/public/report/c1/not-the-token");
+      expect(r.status).toBe(404);
+    });
+
+    it("refuses every token once the link is revoked, which is what reaches printed paper", async () => {
+      const pub = await call("POST", "/api/cases/c1/share", "owner", {});
+      const token = pub.body.token as string;
+      expect((await fetchPublic(`/api/public/report/c1/${token}`)).status).toBe(200);
+
+      const gone = await call("DELETE", "/api/cases/c1/share", "owner");
+      expect(gone.status).toBe(200);
+      expect((await fetchPublic(`/api/public/report/c1/${token}`)).status).toBe(404);
+    });
+
+    it("mints a different token when republished, leaving the revoked one dead", async () => {
+      const first = await call("POST", "/api/cases/c1/share", "owner", {});
+      await call("DELETE", "/api/cases/c1/share", "owner");
+      const second = await call("POST", "/api/cases/c1/share", "owner", {});
+
+      expect(second.body.token).not.toBe(first.body.token);
+      expect((await fetchPublic(`/api/public/report/c1/${first.body.token as string}`)).status).toBe(404);
+      expect((await fetchPublic(`/api/public/report/c1/${second.body.token as string}`)).status).toBe(200);
+    });
+
+    it("refuses a case nobody published", async () => {
+      // c-report-open, not c1: c1 already has a live link by this point in the block,
+      // so a wrong token against it only re-exercises "refuses a token that does not
+      // match" above. c-report-open was opened earlier in this describe and never
+      // published, so this is the one test in the suite that reaches verifyToken's
+      // `link === null` branch rather than its "token does not match a live link" one.
+      const r = await fetchPublic("/api/public/report/c-report-open/anything");
+      expect(r.status).toBe(404);
+    });
   });
 });
 

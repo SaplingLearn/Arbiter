@@ -1,6 +1,12 @@
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+
+// ESM has no `__dirname`; this is the standard recovery, and it is why `resolve` is
+// imported from node:path rather than reused from anything Vite exposes.
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 /**
  * Deliberately NOT apps/web's config.
@@ -15,7 +21,27 @@ import tailwindcss from "@tailwindcss/vite";
  * requests and no CORS configuration exists to get wrong.
  */
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    /* `/r/:caseId/:token` is a real path, not a hash route, because it is what a QR code
+       carries and what somebody pastes into a chat. In dev Vite must be told which HTML
+       answers it; production static serving does not exist yet on this line of work -
+       see the comment in services/api/server.ts where it would go, and why it is not
+       there. Rewriting `req.url` rather than adding a second `server.proxy` entry,
+       because Vite's own middleware - the part that turns `public.html`'s
+       `<script src="/src/public.tsx">` into a served module - only runs for requests it
+       recognises as HTML, and it recognises them by path, not by content negotiation. */
+    {
+      name: "arbiter-public-report",
+      configureServer(server) {
+        server.middlewares.use((req, _res, next) => {
+          if (req.url?.startsWith("/r/") === true) req.url = "/public.html";
+          next();
+        });
+      },
+    },
+  ],
   /**
    * Relative, so the bundle works wherever it is mounted - at the root, or under
    * the /app/ subpath apps/landing links to. The default "/" would emit absolute
@@ -25,8 +51,39 @@ export default defineConfig({
    * Safe with this app's hash routing: every route is a fragment, so the document
    * is always index.html and a relative asset path never resolves against a
    * deeper directory. apps/web sets the same thing for its own reason.
+   *
+   * NOT SAFE FOR public.html, which `/r/:caseId/:token` serves two real path
+   * segments deep - a relative reference from that document would resolve against
+   * `/r/<caseId>/` and 404. The first fix tried was `<base href="/">` on that one
+   * document, and it was wrong in a way that mattered more than the 404: a `<base>`
+   * override changes the resolution target of EVERY relative URL on the page, not
+   * just the ones this config controls, and `report.tsx` prints several - "Back to
+   * the verdict", the sheet pager - as fragment-only hrefs. Those normally resolve
+   * against the current URL, so clicking one is an ordinary hash change. Under a
+   * `<base href="/">` they resolve against `/` instead, which is a DIFFERENT path
+   * than `/r/<caseId>/<token>` - so the browser does a real navigation, off the
+   * public page and onto whatever answers `/`. That is `index.html` once a static
+   * host is wired up, and `index.html` signs its visitor in as AUTO_EMAIL on load.
+   * One stray link would have turned an anonymous reader into an authenticated
+   * session. `renderBuiltUrl` below fixes the same 404 by rewriting only the
+   * ASSET references this build controls, and touches nothing already on the page.
    */
   base: "./",
+  experimental: {
+    /**
+     * Only public.html's OWN references get rewritten to an absolute path; index.html's
+     * stay relative, unchanged, for the subpath-mounting reason above. `hostId` is the
+     * HTML file doing the referencing - Vite calls this for every `<script>`/`<link>`
+     * it injects into an entry, as well as for assets imported from JS - so this checks
+     * which entry is asking rather than assuming every HTML file wants the same answer.
+     * Returning `undefined` for everything else falls through to the default `base`
+     * behaviour untouched.
+     */
+    renderBuiltUrl(filename, { hostId, hostType }) {
+      if (hostType === "html" && hostId === "public.html") return `/${filename}`;
+      return undefined;
+    },
+  },
   server: {
     port: 5174,
     // Bound to the IPv4 loopback explicitly. Left to itself Vite binds ::1 only, and
@@ -37,5 +94,15 @@ export default defineConfig({
     host: "127.0.0.1",
     proxy: { "/api": { target: `http://127.0.0.1:${process.env["API_PORT"] ?? 8787}`, changeOrigin: false } },
   },
-  build: { outDir: "dist" },
+  build: {
+    outDir: "dist",
+    rollupOptions: {
+      input: {
+        // Two entries, two bundles. The public one must not contain the app shell -
+        // see the note at the top of src/public.tsx.
+        main: resolve(__dirname, "index.html"),
+        public: resolve(__dirname, "public.html"),
+      },
+    },
+  },
 });

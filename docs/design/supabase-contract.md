@@ -203,3 +203,45 @@ must move together.
 - **CI runs a `postgres:17` service.** Without it the Postgres suites `skipIf` themselves
   out and the entire implementation sits in the repository with a green check over code
   that never ran. Storage is still not covered there; that needs the full stack.
+
+---
+
+## What arrived after this contract
+
+This document describes the migration as it was designed and shipped in `0001_init.sql`.
+It is not the running schema — the migrations directory is, in order. What has been added
+since:
+
+**`share_links`, in `0002_share_links.sql`.** Publishing a deliberation record to a
+tokenised URL a stranger can open. Five columns: `case_id` (primary key), `version`,
+`created_by`, `created_at`, `revoked_at`.
+
+**It holds no token, and that is the property to protect.** The URL carries
+`HMAC-SHA256(ARBITER_SHARE_SECRET, "caseId:version")`, derived on every request from two
+columns that are not secret — so a dump of this table yields no working link without the
+deployment's secret, which lives in the environment. Storing the token plaintext puts live
+capability URLs in a backup; storing a digest cannot be reversed into the URL a printed QR
+code has to be re-rendered from. **Do not add a token column, a digest of one, or the
+secret.** Any of them would be replayable from a dump, and every test would still pass.
+
+**`version` is what makes revocation reach paper.** It is half the HMAC preimage. Revoke
+increments it and every QR already printed stops resolving; publish must never reset it,
+or the killed link comes back. `check (version >= 1)` is in the migration for that reason
+rather than for tidiness, and the shared store contract
+(`services/api/test/share-store-contract.ts`) pins the rule from the other end.
+
+**Moving backings without rotating the secret resurrects revoked tokens.** This is the one
+place the share store is *not* backing-agnostic, and it is a consequence of holding no
+token: `share_links` starts empty and nothing backfills the file store's versions, so a
+case that was revoked on files is unknown in Postgres, gets re-published at version 1, and
+under an unchanged `ARBITER_SHARE_SECRET` that is byte-identical to the token the revoke
+killed. Rotate the secret when changing backings — it invalidates everything, which is the
+fail-safe direction — or copy the rows across first. Written up at length at the foot of
+`0002_share_links.sql`.
+
+**A new table is a new file.** `0001_init.sql` has been applied to deployed databases, so
+editing it would leave this repository describing a schema no running cluster has. The
+test fixture applies every `.sql` in the directory in filename order, which is also what a
+deployment does — and `migrationSql()` in `services/api/test/postgres-fixture.ts` is the
+single place that knows that, because two suites used to hold their own hardcoded path to
+`0001_init.sql` and would have gone on building a schema no deployment has.

@@ -118,6 +118,19 @@ restartPolicyMaxRetries = 10
 #   SUPABASE_BUCKET=documents      default is `documents`; it must exist and be PRIVATE
 #   ARBITER_MODEL_BUDGET=30        model calls per account per 10 minutes; see above
 #
+#   ARBITER_SHARE_SECRET=<48 random bytes, base64>
+#     TURNS PUBLISHING ON. Unset, a convener is never offered "Publish this record" and
+#     the route answers 501 naming this variable - the rest of the product is unaffected,
+#     which is the deliberate fail-closed shape. Set, it must be at least 32 bytes or the
+#     process REFUSES TO START: a short secret produces share URLs that look unguessable
+#     and are not, and nothing downstream would ever reveal that. Generate one with
+#     `openssl rand -base64 48`.
+#
+#     ROTATING IT INVALIDATES EVERY PUBLISHED LINK AT ONCE, including QR codes already
+#     printed onto paper, because the secret is the only thing making a token
+#     unforgeable. There is no per-link rotation. The banner prints `Share: on` or
+#     `Share: off` at boot so which one this deployment is doing is never a guess.
+#
 # FOR LIVE AI, one of:
 #
 #   GEMINI_API_KEY=AQ...           (with ARBITER_GEMINI_HOST if not the default)

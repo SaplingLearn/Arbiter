@@ -1,13 +1,14 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DocumentStore, MAX_BYTES, type StoredDocument, type UploadResult } from "../documents.js";
 import { SupabaseDocumentStore, TEMP_PREFIX } from "../supabase-documents.js";
+import { migrationSql } from "./postgres-fixture.js";
 
 /**
  * AGAINST THE REAL STACK, OR NOT AT ALL.
@@ -99,12 +100,14 @@ describe.skipIf(!LIVE)("SupabaseDocumentStore, against a live Postgres and Stora
     await admin.end();
 
     pool = new pg.Pool({ connectionString: testUrl() });
-    // Read and executed through `pg` rather than piped into psql: there is no shell
-    // redirect available here, and `pg`'s simple query protocol runs a multi-statement
-    // string as one batch - which is what the migration is. Resolved against this file
-    // rather than the working directory so it does not depend on where vitest was started.
-    const migration = await readFile(new URL("../../../supabase/migrations/0001_init.sql", import.meta.url), "utf8");
-    await pool.query(migration);
+    // Executed through `pg` rather than piped into psql: there is no shell redirect
+    // available here, and `pg`'s simple query protocol runs a multi-statement string as one
+    // batch - which is what a migration is.
+    //
+    // EVERY migration, from `postgres-fixture.ts`, not a path to `0001_init.sql` spelled
+    // out here. That path was correct while there was one migration and became a lie the
+    // moment there was a second, leaving this suite building a schema no deployment has.
+    for (const sql of await migrationSql()) await pool.query(sql);
 
     storage = createClient(SUPABASE_URL!, SERVICE_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
     // The bucket may already exist from a previous run; its contents may not survive into

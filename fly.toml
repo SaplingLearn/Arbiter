@@ -178,6 +178,16 @@ primary_region = "iad"
 # The access boundary this product enforces is in access.ts and it is enforced in the
 # server process; a service-role key in a browser deletes it entirely.
 #
+# To let conveners publish a record to a tokenised URL:
+#
+#   fly secrets set ARBITER_SHARE_SECRET="$(openssl rand -base64 48)"
+#
+# Unset, publishing is off and the control is never offered - fail-closed, and the rest
+# of the product is unaffected. Set, it must be at least 32 bytes or the process refuses
+# to start. Rotating it invalidates every published link at once, including QR codes
+# already printed onto paper; there is no per-link rotation. The banner says `Share: on`
+# or `Share: off` at boot.
+#
 # And for live AI, one of:
 #
 #   fly secrets set ANTHROPIC_API_KEY='sk-ant-...' ARBITER_MODEL='claude-sonnet-5'

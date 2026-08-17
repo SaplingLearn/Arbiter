@@ -47,4 +47,41 @@ describe("case stages", () => {
     render(<Steps {...base} marks={0} />);
     expect(screen.getByRole("link", { name: /Read & mark/ })).toHaveTextContent("0");
   });
+
+  /**
+   * The report is a stage you can SEE before you can open it.
+   *
+   * It used to be reachable only from inside the verdict block, so on a case that had
+   * not been adjudicated there was no trace of it anywhere and nothing said why. A
+   * locked tab with its reason on it is how this strip already answers that question
+   * for the reveal.
+   */
+  describe("the report stage", () => {
+    it("is locked until the case has been adjudicated, and says so", () => {
+      render(<Steps {...base} />);
+      const tab = screen.getByRole("link", { name: /Report/ });
+      expect(tab).toHaveAttribute("aria-disabled", "true");
+      expect(tab).toHaveAttribute("title", "Opens once the case has been adjudicated");
+    });
+
+    it("stays locked after the reveal, because a reveal is not an adjudication", () => {
+      // A report with an empty verdict reads as a panel that concluded nothing.
+      render(<Steps {...base} revealed />);
+      expect(screen.getByRole("link", { name: /Report/ })).toHaveAttribute("aria-disabled", "true");
+    });
+
+    it("opens once there is an adjudication to print", () => {
+      render(<Steps {...base} revealed adjudicated />);
+      const tab = screen.getByRole("link", { name: /Report/ });
+      expect(tab).not.toHaveAttribute("aria-disabled");
+      expect(tab).toHaveAttribute("href", "#/case/c1/report");
+    });
+
+    it("comes last, after the record", () => {
+      render(<Steps {...base} />);
+      const labels = screen.getAllByRole("link").map((a) => a.textContent);
+      expect(labels.at(-2)).toContain("Record");
+      expect(labels.at(-1)).toContain("Report");
+    });
+  });
 });

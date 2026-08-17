@@ -44,6 +44,32 @@ export interface CaseView extends BlindView {
   signature: Signature | null;
 }
 
+/**
+ * `stub` or `live`, from the adjudicated log entry, and THE ONLY RULE IN THE CODEBASE
+ * THAT DECIDES THIS.
+ *
+ * `server.ts` records the provenance as the ACTOR of the entry - "stub" when no model was
+ * called, "model" when one was - so the fact is already in the chain for every
+ * adjudication ever written, including the seeded ones. Reading it back costs nothing and
+ * cannot drift from the entry it describes.
+ *
+ * FAILS TOWARD `stub`, for anything that is not exactly "model" and for a missing entry
+ * alike, and the asymmetry is the whole reason this is one function. The two errors are
+ * not equivalent: labelling a real adjudication a stub makes a reader trust it less than
+ * they should, while labelling a stub as a model's judgment puts words that are explicitly
+ * not a finding about a compound onto a safety record as though they were one. Only the
+ * second one gets quoted.
+ *
+ * There were briefly two versions of this - `view`'s treated any unrecognised actor as
+ * live, the report's treated only "model" as live - and they arrived from two branches
+ * that merged without a conflict. Every writer passes exactly "stub" or "model", so
+ * nothing observable differed; what differed was which answer a future third writer would
+ * have got, on two screens that both claim to describe the same adjudication.
+ */
+function sourceOf(entry: LogEntry | undefined): "stub" | "live" {
+  return entry?.actorId === "model" ? "live" : "stub";
+}
+
 export class DeliberationService {
   constructor(
     private readonly store: DeliberationStore,
@@ -358,8 +384,12 @@ export class DeliberationService {
    */
   private async adjudicationSource(caseId: string): Promise<"stub" | "live"> {
     const entry = [...await this.store.entries(caseId)].reverse().find((e) => e.kind === "adjudicated");
-    return entry === undefined || entry.actorId === "stub" ? "stub" : "live";
+    return sourceOf(entry);
   }
+
+  /* `sourceOf` is a module-level function below rather than another method, because what
+     makes it safe is that there is exactly one of it - and a second method beside this
+     one is how there came to be two rules in the first place. */
 
   async reveal(caseId: string, by: string, at: string, mode: "all_in" | "close_early"): Promise<Result<DeliberationCase>> {
     const c = await this.store.getCase(caseId);
@@ -446,6 +476,47 @@ export class DeliberationService {
     await this.store.append({ at, kind: "adjudicated", caseId, actorId, payload: adjudication });
     await this.store.putCase(next.value);
     return next;
+  }
+
+  /**
+   * The adjudication as it was attached, for everybody who was not the person that ran it.
+   *
+   * WHY THIS IS A ROUTE AND NOT CLIENT STATE. The adjudication used to exist only in
+   * the browser of whoever pressed the button: it came back in the POST response, was
+   * held in React state, and was never fetched again. So a participant opening the
+   * verdict stage saw nothing at all, and the owner lost it on reload - the case said
+   * "adjudicated" and the screen for it was blank. Nothing was broken; it had simply
+   * never been readable by anyone else.
+   *
+   * NO NEW DISCLOSURE. The `audit` route already returns the adjudicated entry whole
+   * to every reader of the case, so this exposes nothing that was not reachable; it
+   * exposes it in the shape a screen can render rather than as a log entry a client
+   * would have to dig through.
+   *
+   * WHERE `source` COMES FROM: `sourceOf`, the SAME function `view` reads it through.
+   * That shared call is a correction rather than tidiness. Two branches fixed the same
+   * bug - the verdict living only in the tab that pressed Adjudicate - and each brought
+   * its own provenance rule: `view`'s said anything that is not literally "stub" is live,
+   * this one's said only literally "model" is live. Opposite defaults for an unrecognised
+   * actor, and they auto-merged without a conflict, so the verdict screen and the printed
+   * record could have disagreed about whether a safety adjudication came from a model.
+   * One rule, in one place, is the only version of this that cannot drift.
+   */
+  async adjudication(caseId: string): Promise<{
+    adjudication: unknown;
+    source: "stub" | "live";
+    at: string | null;
+    signature: Signature | null;
+  } | null> {
+    const c = await this.store.getCase(caseId);
+    if (c === null || c.adjudication === null) return null;
+    const entry = (await this.store.entries(caseId)).filter((e) => e.kind === "adjudicated").at(-1);
+    return {
+      adjudication: c.adjudication,
+      source: sourceOf(entry),
+      at: entry?.at ?? null,
+      signature: c.signature,
+    };
   }
 
   async signOff(caseId: string, s: Signature): Promise<Result<DeliberationCase>> {
