@@ -33,14 +33,29 @@ import { wilson } from "./verdict-eval.js";
  *     about a rule that should have been set aside, or `does_not_apply` about the rule
  *     that decides, is how conflict resolution goes wrong while looking right.
  *
- *   4 GAP RECALL     `missing` cannot name a field that is present, but nothing forces
- *     it to name every field that is absent. Silence is the failure mode.
- *
- *   5 STABILITY      same evidence, same position. Measured at 3:3 on turalio before
+ *   4 STABILITY      same evidence, same position. Measured at 3:3 on turalio before
  *     consensus; this runs through `adjudicateConsensus`, which is now the product path.
+ *     Keyed by nothing, so it is the most trustworthy of the four.
  *
- * SCORED PER CASE, NOT POOLED. Averaging five different things into one number is how a
- * weak metric hides behind a strong one.
+ * GAP RECALL WAS THE FIFTH AND IS NO LONGER SCORED. It was listed here on the reasoning
+ * that "`missing` cannot name a field that is present, but nothing forces it to name
+ * every field that is absent, and silence is the failure mode". The first half is right
+ * and the second is not, because three things compound to make silence impossible to
+ * observe. The absent fields are handed to the model by the prompt, which renders
+ * `{{absent}}` as "<field> - blocks: <what it blocks>", so the names AND their
+ * justifications are supplied. `missing.field` is enum-constrained to exactly that list,
+ * so an invented gap has nowhere to go. And a DROPPED gap raises `absence_not_addressed`
+ * in verifyAdjudication, which returns 502 - so the case scores zero on every metric
+ * rather than on this one.
+ *
+ * There is therefore no path where an adjudication is scored and gap recall alone is
+ * false: among cases that score at all it is 100% by construction. That is a genuine
+ * guarantee about the schema and the validator, and it is worth stating - but stated as
+ * a rate it reads as a fifth success and flatters the four beside it. It is reported as
+ * a guarantee and excluded from the scored metrics.
+ *
+ * SCORED PER CASE, NOT POOLED. Averaging different things into one number is how a weak
+ * metric hides behind a strong one - which is exactly what gap recall was doing.
  */
 
 interface Case {
@@ -126,8 +141,22 @@ if (invokedDirectly) {
   if (complete === null) { console.error(`No credentials for ${model}.`); process.exit(2); }
   const runs = runsFrom(process.env);
 
+  /**
+   * `tests*` records whether the CASE could fail the metric at all.
+   *
+   * Three of the five pass vacuously when the fixture has nothing for them to check:
+   * `prose` compares the reasoning against `absent` fields, so a case with no absent
+   * fields cannot over-claim one; `gaps` subtracts the named gaps from `expectMissing`,
+   * so an empty `expectMissing` is satisfied by naming nothing; and `rule` short-circuits
+   * to true when `decidingRule` is null. Counting those as passes inflates both the rate
+   * and, worse, the DENOMINATOR - 8/8 claims a sample of eight where four cases were
+   * silent. Scoring over the cases that actually exercise a metric is the difference
+   * between "100% of 8" and "100% of 4", and those carry Wilson lower bounds of 68% and
+   * 51%.
+   */
   type Row = {
     id: string; verdict: boolean; prose: boolean; rule: boolean; gaps: boolean; stable: boolean;
+    testsProse: boolean; testsRule: boolean; testsGaps: boolean;
     got: string; want: string; violations: string[]; missedGaps: string[]; ruleGot: string | null;
     agreement: number;
   };
@@ -142,6 +171,8 @@ if (invokedDirectly) {
     const { response, consensus } = await adjudicateConsensus(req, complete, prompt, runs);
     if (response.status !== 200) {
       rows.push({ id: c.id, verdict: false, prose: false, rule: false, gaps: false, stable: false,
+        testsProse: c.absent.length > 0, testsRule: c.decidingRule !== null,
+        testsGaps: c.expectMissing.length > 0,
         got: "error", want: c.expectVerdict, violations: [], missedGaps: [], ruleGot: null, agreement: 0 });
       console.log(`  ${c.id.padEnd(30)} ERROR`);
       continue;
@@ -167,7 +198,10 @@ if (invokedDirectly) {
 
     const stable = consensus !== null && !consensus.split;
 
-    rows.push({ id: c.id, verdict, prose, rule, gaps, stable, got, want: c.expectVerdict,
+    rows.push({ id: c.id, verdict, prose, rule, gaps, stable,
+      testsProse: absentFields.length > 0, testsRule: c.decidingRule !== null,
+      testsGaps: c.expectMissing.length > 0,
+      got, want: c.expectVerdict,
       violations, missedGaps, ruleGot, agreement: consensus?.agreement ?? 0 });
 
     const mark = (b: boolean): string => (b ? "ok" : "XX");
@@ -178,26 +212,71 @@ if (invokedDirectly) {
   }
 
   const n = rows.length;
-  const pct = (k: number): string => {
-    const [lo, hi] = wilson(k, n);
-    return `${(k / n * 100).toFixed(1).padStart(6)}%  ${String(`${k}/${n}`).padStart(6)}  [${(lo * 100).toFixed(0)}-${(hi * 100).toFixed(0)}]`;
+  /** Score over the cases that can actually fail the metric. See the Row docstring. */
+  const pctOf = (k: number, d: number): string => {
+    if (d === 0) return "     -   no case exercises this metric";
+    const [lo, hi] = wilson(k, d);
+    return `${(k / d * 100).toFixed(1).padStart(6)}%  ${String(`${k}/${d}`).padStart(6)}  [${(lo * 100).toFixed(0)}-${(hi * 100).toFixed(0)}]`;
   };
+  const pct = (k: number): string => pctOf(k, n);
+
+  const proseCases = rows.filter((r) => r.testsProse);
+  const ruleCases = rows.filter((r) => r.testsRule);
+  const gapsCases = rows.filter((r) => r.testsGaps);
+
   const score = {
     verdict: rows.filter((r) => r.verdict).length,
-    prose: rows.filter((r) => r.prose).length,
-    rule: rows.filter((r) => r.rule).length,
-    gaps: rows.filter((r) => r.gaps).length,
+    prose: proseCases.filter((r) => r.prose).length,
+    rule: ruleCases.filter((r) => r.rule).length,
+    gaps: gapsCases.filter((r) => r.gaps).length,
     stable: rows.filter((r) => r.stable).length,
   };
+  const tested = { prose: proseCases.length, rule: ruleCases.length, gaps: gapsCases.length };
 
   console.log(`\nadjudicator - ${model}, ${n} cases, consensus of ${runs}`);
   console.log(`  1 verdict is right          ${pct(score.verdict)}`);
-  console.log(`  2 prose stays in evidence   ${pct(score.prose)}`);
-  console.log(`  3 names the deciding rule   ${pct(score.rule)}`);
-  console.log(`  4 names every gap           ${pct(score.gaps)}`);
-  console.log(`  5 runs agreed (unanimous)   ${pct(score.stable)}`);
+  console.log(`  2 prose stays in evidence   ${pctOf(score.prose, tested.prose)}`);
+  console.log(`  3 names the deciding rule   ${pctOf(score.rule, tested.rule)}`);
+  console.log(`  4 runs agreed (unanimous)   ${pct(score.stable)}`);
+  console.log(`\n  Metrics 2 and 3 are scored over the cases that can FAIL them, not all ${n}:`);
+  console.log(`    prose  ${n - tested.prose} case(s) have no absent field to over-claim`);
+  console.log(`    rule   ${n - tested.rule} case(s) have no deciding rule keyed, which short-circuits to pass`);
+  console.log(`  Counting those would inflate the denominator, which is the more misleading half.`);
+
+  /**
+   * GAP RECALL IS NOT A SCORED METRIC, and reporting it as one was the mistake.
+   *
+   * It cannot fail, for three reasons that compound. The absent fields are handed to the
+   * model in the prompt - the template renders `{{absent}}` as "<field> - blocks: <what
+   * it blocks>", so both the name AND the justification are supplied. `missing.field` is
+   * then enum-constrained to exactly that list, so an invented gap is structurally
+   * impossible. And a DROPPED gap raises `absence_not_addressed` in verifyAdjudication,
+   * which returns 502 - so the case scores zero on ALL FIVE metrics rather than on this
+   * one. There is no path where an adjudication is scored and this metric alone is false.
+   *
+   * That is a guarantee worth stating and a measurement worth deleting. It says the
+   * schema and the validator work, which the other metrics already depend on; it says
+   * nothing about the adjudicator's judgement. Left in the table it reads as a fifth
+   * success and inflates the impression of the other four.
+   */
+  const droppedGap = rows.filter((r) => r.testsGaps && !r.gaps).length;
+  console.log(`\n  GAP RECALL is reported as a guarantee, not a rate: ${score.gaps}/${tested.gaps} named,`);
+  console.log(`  ${droppedGap} dropped. It cannot fail - the gaps and their justifications are in the`);
+  console.log(`  prompt, missing.field is enum-constrained to exactly that list so an invented gap is`);
+  console.log(`  impossible, and a dropped one fails the whole adjudication rather than this metric.`);
 
   writeFileSync(`results/model-comparison/verdict-five-${model}.json`,
-    JSON.stringify({ model, cases: n, runs, score, rows }, null, 2), "utf8");
+    JSON.stringify({
+      model, cases: n, runs, score, tested,
+      // Named so a reader of the JSON cannot mistake gap recall for a scored metric.
+      scoredMetrics: ["verdict", "prose", "rule", "stable"],
+      guaranteedNotMeasured: {
+        gaps: "Cannot fail. The absent fields and their justifications are supplied in the prompt, "
+          + "missing.field is enum-constrained to exactly that list so an invented gap is impossible, "
+          + "and a dropped gap raises absence_not_addressed and fails the whole adjudication rather "
+          + "than this metric. Reported as a guarantee, never as a rate.",
+      },
+      rows,
+    }, null, 2), "utf8");
   console.log(`\nWritten to results/model-comparison/verdict-five-${model}.json`);
 }

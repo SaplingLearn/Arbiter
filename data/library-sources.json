@@ -73,6 +73,91 @@
       "path": "data/raw/approval-packages/exkivity-215310-multidiscipline.pdf"
     },
     {
+      "name": "ponatinib",
+      "label": "Iclusig (ponatinib) - FDA NDA 203469 pharmacology review - BOXED: arterial occlusion + hepatotoxicity",
+      "path": "data/raw/approval-packages/ponatinib-203469-pharmreview.pdf"
+    },
+    {
+      "name": "regorafenib",
+      "label": "Stivarga (regorafenib) - FDA NDA 203085 pharmacology review - BOXED: fatal hepatotoxicity",
+      "path": "data/raw/approval-packages/regorafenib-203085-pharmreview.pdf"
+    },
+    {
+      "name": "obeticholic",
+      "label": "Ocaliva (obeticholic acid) - FDA NDA 207999 pharmacology review - BOXED: hepatic decompensation; WITHDRAWN from the US market",
+      "path": "data/raw/approval-packages/obeticholic-207999-pharmreview.pdf"
+    },
+    {
+      "name": "tolvaptan",
+      "label": "Jynarque (tolvaptan) - FDA NDA 204441 pharmacology review - BOXED: serious liver injury, REMS",
+      "path": "data/raw/approval-packages/tolvaptan-204441-pharmreview.pdf"
+    },
+    {
+      "name": "teriflunomide",
+      "label": "Aubagio (teriflunomide) - FDA NDA 202992 pharmacology review - BOXED: hepatotoxicity + embryofetal toxicity",
+      "path": "data/raw/approval-packages/teriflunomide-202992-pharmreview.pdf"
+    },
+    {
+      "name": "trabectedin",
+      "label": "Yondelis (trabectedin) - FDA NDA 207953 pharmacology review - hepatotoxicity including hepatic failure",
+      "path": "data/raw/approval-packages/trabectedin-207953-pharmreview.pdf"
+    },
+    {
+      "name": "mipomersen",
+      "label": "Kynamro (mipomersen) - FDA NDA 203568 pharmacology review - BOXED: hepatotoxicity, REMS; WITHDRAWN 2019; antisense oligonucleotide",
+      "path": "data/raw/approval-packages/mipomersen-203568-pharmreview.pdf"
+    },
+    {
+      "name": "ivosidenib",
+      "label": "Tibsovo (ivosidenib) - FDA NDA 211192 multi-disciplinary review - BOXED: differentiation syndrome",
+      "path": "data/raw/approval-packages/ivosidenib-211192-multidiscipline.pdf"
+    },
+    {
+      "name": "enasidenib",
+      "label": "Idhifa (enasidenib) - FDA NDA 209606 multi-disciplinary review - BOXED: differentiation syndrome",
+      "path": "data/raw/approval-packages/enasidenib-209606-multidiscipline.pdf"
+    },
+    {
+      "name": "gilteritinib",
+      "label": "Xospata (gilteritinib) - FDA NDA 211349 multi-disciplinary review - differentiation syndrome",
+      "path": "data/raw/approval-packages/gilteritinib-211349-multidiscipline.pdf"
+    },
+    {
+      "name": "lorlatinib",
+      "label": "Lorbrena (lorlatinib) - FDA NDA 210868 multi-disciplinary review - hepatotoxicity and CNS effects",
+      "path": "data/raw/approval-packages/lorlatinib-210868-multidiscipline.pdf"
+    },
+    {
+      "name": "fostamatinib",
+      "label": "Tavalisse (fostamatinib) - FDA NDA 209299 multi-disciplinary review - hepatotoxicity",
+      "path": "data/raw/approval-packages/fostamatinib-209299-multidiscipline.pdf"
+    },
+    {
+      "name": "tucatinib",
+      "label": "Tukysa (tucatinib) - FDA NDA 213411 multi-disciplinary review - hepatotoxicity",
+      "path": "data/raw/approval-packages/tucatinib-213411-multidiscipline.pdf"
+    },
+    {
+      "name": "alpelisib",
+      "label": "Piqray (alpelisib) - FDA NDA 212526 multi-disciplinary review - severe hyperglycaemia, SJS",
+      "path": "data/raw/approval-packages/alpelisib-212526-multidiscipline.pdf"
+    },
+    {
+      "name": "zanubrutinib",
+      "label": "Brukinsa (zanubrutinib) - FDA NDA 213217 multi-disciplinary review - haemorrhage, second malignancies",
+      "path": "data/raw/approval-packages/zanubrutinib-213217-multidiscipline.pdf"
+    },
+    {
+      "name": "erdafitinib",
+      "label": "Balversa (erdafitinib) - FDA NDA 212018 multi-disciplinary review - ocular toxicity",
+      "path": "data/raw/approval-packages/erdafitinib-212018-multidiscipline.pdf"
+    },
+    {
+      "name": "pralsetinib",
+      "label": "Gavreto (pralsetinib) - FDA NDA 213721 multi-disciplinary review - pneumonitis, hepatotoxicity",
+      "path": "data/raw/approval-packages/pralsetinib-213721-multidiscipline.pdf"
+    },
+    {
       "name": "tak994",
       "label": "TAK-994 (narcolepsy) - extracted findings, no source PDF",
       "path": null

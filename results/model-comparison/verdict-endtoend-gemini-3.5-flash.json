@@ -1,0 +1,42 @@
+{
+  "model": "gemini-3.5-flash",
+  "runs": 3,
+  "scored": 2,
+  "sensitivity": {
+    "k": 0,
+    "n": 0
+  },
+  "specificity": {
+    "k": 2,
+    "n": 2
+  },
+  "extraction": {
+    "meanProposed": 3,
+    "meanGaps": 7,
+    "checklistItems": 12
+  },
+  "rows": [
+    {
+      "id": "exkivity",
+      "expectFlag": false,
+      "outcomeTier": "none",
+      "proposed": 4,
+      "detectedGaps": 6,
+      "discarded": 2,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": true
+    },
+    {
+      "id": "inrebic",
+      "expectFlag": false,
+      "outcomeTier": "none",
+      "proposed": 2,
+      "detectedGaps": 8,
+      "discarded": 2,
+      "verdict": "cannot_conclude",
+      "flagged": false,
+      "correct": true
+    }
+  ]
+}

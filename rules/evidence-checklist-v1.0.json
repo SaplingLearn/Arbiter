@@ -11,6 +11,12 @@
       "appliesTo": [
         "small_molecule",
         "biologic"
+      ],
+      "searchTerms": [
+        "human hepatocyte",
+        "primary human hepatocytes",
+        "HepaRG",
+        "in vitro human liver"
       ]
     },
     {
@@ -21,7 +27,14 @@
       "appliesTo": [
         "small_molecule"
       ],
-      "whyNotApplicable": "A monoclonal antibody does not enter hepatocytes or interact with bile-salt export pumps; transporter inhibition is a small-molecule liability."
+      "whyNotApplicable": "A monoclonal antibody does not enter hepatocytes or interact with bile-salt export pumps; transporter inhibition is a small-molecule liability.",
+      "searchTerms": [
+        "BSEP",
+        "bile salt export pump",
+        "transporter inhibition",
+        "OATP",
+        "MRP2"
+      ]
     },
     {
       "id": "M3",
@@ -31,7 +44,13 @@
       "appliesTo": [
         "small_molecule"
       ],
-      "whyNotApplicable": "An antibody is catabolised to amino acids by normal protein turnover. There is no cytochrome-P450 metabolism and therefore no reactive metabolite to trap."
+      "whyNotApplicable": "An antibody is catabolised to amino acids by normal protein turnover. There is no cytochrome-P450 metabolism and therefore no reactive metabolite to trap.",
+      "searchTerms": [
+        "reactive metabolite",
+        "covalent binding",
+        "glutathione",
+        "GSH adduct"
+      ]
     },
     {
       "id": "M4",
@@ -41,7 +60,12 @@
       "appliesTo": [
         "small_molecule"
       ],
-      "whyNotApplicable": "Mitochondrial toxicity assays measure a small molecule crossing into the mitochondrion. A 150 kDa protein does not get there."
+      "whyNotApplicable": "Mitochondrial toxicity assays measure a small molecule crossing into the mitochondrion. A 150 kDa protein does not get there.",
+      "searchTerms": [
+        "mitochondrial",
+        "oxygen consumption",
+        "mitochondrial toxicity"
+      ]
     },
     {
       "id": "M5",
@@ -51,6 +75,17 @@
       "appliesTo": [
         "small_molecule",
         "biologic"
+      ],
+      "searchTerms": [
+        "repeat-dose toxicity",
+        "target organs of toxicity",
+        "hepatocellular",
+        "liver weight",
+        "ALT",
+        "AST",
+        "bile duct hyperplasia",
+        "13-week",
+        "26-week"
       ]
     },
     {
@@ -61,7 +96,13 @@
       "appliesTo": [
         "small_molecule"
       ],
-      "whyNotApplicable": "QSAR and structural-alert models are trained on small-molecule chemistry. An antibody has no scoreable structure, and a model run outside its applicability domain is exactly what rule R4 exists to exclude."
+      "whyNotApplicable": "QSAR and structural-alert models are trained on small-molecule chemistry. An antibody has no scoreable structure, and a model run outside its applicability domain is exactly what rule R4 exists to exclude.",
+      "searchTerms": [
+        "QSAR",
+        "structural alert",
+        "in silico",
+        "applicability domain"
+      ]
     },
     {
       "id": "C1",
@@ -71,6 +112,15 @@
       "appliesTo": [
         "small_molecule",
         "biologic"
+      ],
+      "searchTerms": [
+        "maximum recommended human dose",
+        "MRHD",
+        "recommended human dose",
+        "clinical dose",
+        "proposed clinical dose",
+        "mg/day",
+        "once daily"
       ]
     },
     {
@@ -81,6 +131,16 @@
       "appliesTo": [
         "small_molecule",
         "biologic"
+      ],
+      "searchTerms": [
+        "NOAEL",
+        "HNSTD",
+        "exposure margin",
+        "safety margin",
+        "times the MRHD",
+        "times the clinical exposure",
+        "fold the human exposure",
+        "AUC comparison"
       ]
     },
     {
@@ -91,6 +151,13 @@
       "appliesTo": [
         "small_molecule",
         "biologic"
+      ],
+      "searchTerms": [
+        "hepatocellular",
+        "cholestatic",
+        "necrosis",
+        "steatosis",
+        "injury pattern"
       ]
     },
     {
@@ -101,6 +168,14 @@
       "appliesTo": [
         "small_molecule",
         "biologic"
+      ],
+      "searchTerms": [
+        "recovery period",
+        "reversible",
+        "reversibility",
+        "did not reverse",
+        "recovery arm",
+        "persisted"
       ]
     },
     {
@@ -111,6 +186,14 @@
       "appliesTo": [
         "small_molecule",
         "biologic"
+      ],
+      "searchTerms": [
+        "patient population",
+        "indication",
+        "incidence",
+        "frequency of",
+        "patients treated",
+        "prevalence"
       ]
     },
     {
@@ -121,9 +204,18 @@
       "appliesTo": [
         "small_molecule",
         "biologic"
+      ],
+      "searchTerms": [
+        "dosing duration",
+        "chronic dosing",
+        "duration of treatment",
+        "continuous daily",
+        "until disease progression",
+        "treatment duration"
       ]
     }
   ],
   "_whyAppliesTo": "Some questions do not arise for some kinds of drug, and reporting them as gaps is the same false alarm as flagging an approved BSEP inhibitor. A monoclonal antibody is catabolised to amino acids, so it has no reactive metabolite; it does not interact with hepatobiliary transporters; and QSAR models are built for small molecules. Those are NOT unanswered questions, they are questions that do not apply, and an inventory that cannot tell the difference teaches people to ignore it. Regulators already make this distinction explicitly - this document's own genotoxicity section reads 'No genotoxicity studies were conducted with nipocalimab. This is considered acceptable.' An item with no appliesTo applies to EVERYTHING: a checklist author who forgets the field gets the question asked rather than silently dropped.",
-  "_whyNotApplicableText": "Rendered INSTEAD of whatItBlocks when an item does not apply. They answer different questions - whatItBlocks says what goes wrong when a question is unanswered, which is the wrong sentence entirely for a question that does not arise. Showing the gap text beside an n/a badge made four non-issues read as four untested liabilities, which is the false alarm the state was added to prevent."
+  "_whyNotApplicableText": "Rendered INSTEAD of whatItBlocks when an item does not apply. They answer different questions - whatItBlocks says what goes wrong when a question is unanswered, which is the wrong sentence entirely for a question that does not arise. Showing the gap text beside an n/a badge made four non-issues read as four untested liabilities, which is the false alarm the state was added to prevent.",
+  "_searchTermsNote": "searchTerms widen the RETRIEVAL query in extract.ts and are never shown to a reader. The field text is written for a person reading a checklist; a regulatory review uses different words for the same fact - 'Projected human daily dose' against 'the maximum recommended human dose (MRHD) for ADPKD is 120 mg/day'. Four of the six consequence items returned nothing for that reason on every drug in the corpus, which empties consequenceBasis, which the adjudicator prompt requires to produce cannot_conclude - so every end-to-end verdict was an abstention caused by vocabulary rather than by evidence. Every term here was taken from how the documents actually phrase the dimension. Widening the query cannot create a wrong finding: a proposal still has to carry a verbatim quote and a page and be judged against the field, so a bad passage costs a discarded proposal."
 }

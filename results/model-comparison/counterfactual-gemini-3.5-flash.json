@@ -1,0 +1,74 @@
+{
+  "model": "gemini-3.5-flash",
+  "pairs": 6,
+  "passed": 5,
+  "sensitivity": 0.8333333333333334,
+  "interval": [
+    0.4364905634363539,
+    0.9699474141282696
+  ],
+  "stuck": 0,
+  "baseOnly": 0,
+  "rows": [
+    {
+      "id": "human-finding-flips",
+      "edit": "The single human-cell finding is inverted from toxic to safe. Nothing else changes.",
+      "baseWant": "do_not_advance",
+      "baseGot": "cannot_conclude",
+      "flipWant": "advance",
+      "flipGot": "advance",
+      "pass": false,
+      "stuck": false
+    },
+    {
+      "id": "exposure-moves-the-finding",
+      "edit": "The same toxic finding moves from 1.1x projected human Cmax to 60x. Only the multiple changes.",
+      "baseWant": "do_not_advance",
+      "baseGot": "do_not_advance",
+      "flipWant": "advance",
+      "flipGot": "advance",
+      "pass": true,
+      "stuck": false
+    },
+    {
+      "id": "reversibility-flips",
+      "edit": "Damage at clinical exposure either reverses on withdrawal or does not. One clause changes.",
+      "baseWant": "advance",
+      "baseGot": "advance",
+      "flipWant": "do_not_advance",
+      "flipGot": "do_not_advance",
+      "pass": true,
+      "stuck": false
+    },
+    {
+      "id": "the-margin-appears",
+      "edit": "An exposure margin is either established or absent. The findings themselves are word-for-word identical.",
+      "baseWant": "cannot_conclude",
+      "baseGot": "cannot_conclude",
+      "flipWant": "advance",
+      "flipGot": "advance",
+      "pass": true,
+      "stuck": false
+    },
+    {
+      "id": "the-conflict-resolves",
+      "edit": "Two human findings contradict each other, or the second one agrees with the first. One assertion changes.",
+      "baseWant": "cannot_conclude",
+      "baseGot": "cannot_conclude",
+      "flipWant": "do_not_advance",
+      "flipGot": "do_not_advance",
+      "pass": true,
+      "stuck": false
+    },
+    {
+      "id": "domain-becomes-valid",
+      "edit": "A QSAR prediction is either outside its stated applicability domain or inside it, with a measured study behind it.",
+      "baseWant": "cannot_conclude",
+      "baseGot": "cannot_conclude",
+      "flipWant": "do_not_advance",
+      "flipGot": "do_not_advance",
+      "pass": true,
+      "stuck": false
+    }
+  ]
+}
