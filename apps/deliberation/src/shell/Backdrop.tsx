@@ -211,16 +211,28 @@ export function Backdrop({ route, catalogue, mine = [], focusKey }: {
    * Keyed on the joined keys, not on array identity: App re-fetches into a new array on
    * every poll and the contents are almost always the same.
    */
-  const names = [...catalogue.map((c) => c.name), ...mine.map((c) => c.caseId)].join(",");
+  /**
+   * ON THE LIBRARY LIST THE FIELD IS THE LIST, AND NOWHERE ELSE IS IT.
+   *
+   * The library page draws a table of the library's cases with the Archive behind it,
+   * and a reader counts one against the other - that is the whole reason the field
+   * stopped being a fixed forty-two over a catalogue of six. Adding the reader's own
+   * cases to it broke exactly that: six rows in the table, ten bodies behind them, and
+   * nothing on screen to explain the four extra.
+   *
+   * Everywhere else it is the union, because everywhere else the requirement is the
+   * opposite one: a case being looked at needs a body of its own to be flown into, and
+   * a case somebody opened themselves has no row in the library to be counted against.
+   */
+  const onLibraryList = route.name === "cases";
+  const names = [String(onLibraryList), ...catalogue.map((c) => c.name), ...mine.map((c) => c.caseId)].join(",");
   useEffect(() => {
-    const subjects = mergeSubjects(
-      catalogue.map((c) => ({ key: c.name, usable: c.usable })),
-      mine.map((c) => c.caseId),
-    );
+    const shelf = catalogue.map((c) => ({ key: c.name, usable: c.usable }));
+    const subjects = onLibraryList ? shelf : mergeSubjects(shelf, mine.map((c) => c.caseId));
     wantedSubjects.current = subjects;
     atmoRef.current?.populate(subjects);
-    // `catalogue` and `mine` are the values read and `names` is the identity that
-    // decides when to read them. Listing the arrays here instead would rebuild the
+    // `catalogue`, `mine` and the route are the values read; `names` is the identity
+    // that decides when to read them. Listing the arrays here instead would rebuild the
     // field on every poll that returned the same cases.
   }, [names]);
 

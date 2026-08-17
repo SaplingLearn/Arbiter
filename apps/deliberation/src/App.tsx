@@ -95,6 +95,10 @@ export function App(): ReactElement {
 
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
+  /** What a case action is doing right now, or null. See `act` - this is the only
+   *  thing standing between a ninety-second adjudication and a button that reads as
+   *  broken. */
+  const [busy, setBusy] = useState<string | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [findingError, setFindingError] = useState<string | null>(null);
@@ -254,7 +258,23 @@ export function App(): ReactElement {
     return <Opening error={fatal} />;
   }
 
-  const act = (fn: () => Promise<unknown>): void => {
+  /**
+   * Run a case action, and SAY THAT IT IS RUNNING.
+   *
+   * This used to be the same function without `label`, which meant that for the whole
+   * length of an action the screen was identical to the screen before it. On most
+   * actions that is a tenth of a second and nobody notices. On adjudication it is not:
+   * `consensus.ts` runs the adjudicator THREE times, they are sequential, and a live
+   * run measured 102 SECONDS end to end. For a minute and a half the button stayed
+   * enabled, nothing moved, and the only reasonable conclusion a person can draw is
+   * that the button is broken - so they press it again, and each press spends three
+   * more model calls against a budget of thirty.
+   *
+   * The label is what is happening, in words, because "loading" on a ninety-second wait
+   * tells a reader nothing about whether to keep waiting.
+   */
+  const act = (fn: () => Promise<unknown>, label = "Working…"): void => {
+    setBusy(label);
     void (async () => {
       try {
         await fn();
@@ -262,6 +282,10 @@ export function App(): ReactElement {
         await loadMine(token);
       } catch (e) {
         setFatal(e instanceof Error ? e.message : String(e));
+      } finally {
+        // In `finally`: a failed adjudication that left the screen saying it was still
+        // adjudicating would be the same defect one layer down.
+        setBusy(null);
       }
     })();
   };
@@ -515,10 +539,21 @@ export function App(): ReactElement {
             one - so the states that used to render this button could only buy an
             error. The API refuses them too, now before it spends anything. */}
         {view.status === "locked" && isOwner && (
-          <button className="primary" style={{ alignSelf: "flex-start" }}
-            onClick={() => act(() => api.adjudicate(token, caseId, new Date().toISOString()))}>
-            Adjudicate across the positions
-          </button>
+          <div className="stack">
+            <button className="primary" style={{ alignSelf: "flex-start" }}
+              /* DISABLED WHILE IT RUNS. Three model calls, sequential, measured at 102
+                 seconds live - long enough that an enabled button reads as one that did
+                 nothing, and every extra press spends three more calls of a thirty-call
+                 budget on an answer nobody is waiting for. */
+              disabled={busy !== null}
+              onClick={() => act(
+                () => api.adjudicate(token, caseId, new Date().toISOString()),
+                "Adjudicating. The adjudicator runs three times and the verdict is the majority of the three, so this takes a minute or two.",
+              )}>
+              {busy === null ? "Adjudicate across the positions" : "Adjudicating…"}
+            </button>
+            {busy !== null && <div className="note working">{busy}</div>}
+          </div>
         )}
         {view.adjudication !== null && (
           <Verdict adjudication={view.adjudication} source={view.adjudicationSource ?? "stub"}

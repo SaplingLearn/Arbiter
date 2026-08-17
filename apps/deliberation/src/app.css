@@ -831,6 +831,30 @@ button.danger:hover { border-color: var(--stop-line); color: var(--stop); }
 .err { color: var(--stop); font-size: 13.5px; margin-top: var(--s3); }
 .ok { color: var(--go); }
 
+/* SOMETHING IS RUNNING, AND IT IS GOING TO TAKE A WHILE.
+
+   A bar rather than a spinner, and an indeterminate one rather than a percentage. The
+   work behind this is three sequential model calls with no progress to report - a
+   percentage would have to be invented, and an invented percentage on a safety tool is
+   the wrong habit to start. What the bar has to say is only "this is still running",
+   which is exactly what was missing: a live adjudication takes about 102 seconds, and
+   for all of it the screen was identical to the screen before the click. */
+.note.working { position: relative; overflow: hidden; }
+.note.working::after {
+  content: ""; position: absolute; left: 0; bottom: 0; height: 2px; width: 35%;
+  background: var(--accent);
+  animation: sweep 1.5s ease-in-out infinite;
+}
+@keyframes sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(386%); }
+}
+/* A moving bar is the one thing here that must not move for a reader who has asked for
+   less motion. The note still says what is happening; it just stops sweeping. */
+@media (prefers-reduced-motion: reduce) {
+  .note.working::after { animation: none; width: 100%; opacity: .5; }
+}
+
 /* ---- tables -------------------------------------------------------------- */
 .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-lg); background-color: var(--paper); }
 table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 480px; }
