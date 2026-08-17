@@ -338,7 +338,7 @@ describe("Verdict", () => {
   /** The props every one of these cases shares, so a new one does not have to restate
    *  the session. Overridden per test where the case is about who is reading. */
   const verdict = (over: Partial<Parameters<typeof Verdict>[0]> = {}): ReturnType<typeof render> =>
-    render(<Verdict adjudication={adj} source="live" token="tok" caseId="case_1"
+    render(<Verdict adjudication={adj} source="live" caseId="case_1"
       canSign={true} signed={null} onSign={() => {}} {...over} />);
 
   it("marks a stub result as a stub, in the place a reader cannot miss", () => {
@@ -362,14 +362,21 @@ describe("Verdict", () => {
     expect(screen.getByText(/Human evidence is present/)).toBeInTheDocument();
   });
 
-  it("offers the report to a reader who cannot sign", () => {
+  it("offers the record to a reader who cannot sign", () => {
     // The people who most need to send this record are the ones who cannot show
-    // anybody the screen. Making it the convener's button would mean everybody else
+    // anybody the screen. Making it the convener's control would mean everybody else
     // asks the convener for a copy, and what gets sent in that situation is a
     // screenshot - which carries the verdict and drops the dissent.
     verdict({ canSign: false });
-    expect(screen.getByRole("button", { name: /Download the report/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Open the printable record/ })).toBeEnabled();
     expect(screen.queryByRole("button", { name: /Sign the record/ })).toBeNull();
+  });
+
+  it("links to the record rather than pushing a file at the reader", () => {
+    // A file in a downloads folder has to be opened before anybody can check it, and
+    // by then it has usually already been forwarded.
+    const { container } = verdict();
+    expect(container.querySelector('a[href="#/case/case_1/report"]')).not.toBeNull();
   });
 
   it("does not offer a sign form to somebody the server will refuse", () => {
@@ -388,18 +395,6 @@ describe("Verdict", () => {
     expect(screen.getByText("Margin is 40x.")).toBeInTheDocument();
     // Signed is signed: the form does not come back for the person who used it.
     expect(screen.queryByRole("button", { name: /Sign the record/ })).toBeNull();
-  });
-
-  it("says why a report could not be produced rather than failing silently", async () => {
-    vi.stubGlobal("fetch", () => Promise.resolve({
-      ok: false, status: 503,
-      headers: { get: () => null },
-      json: () => Promise.resolve({ error: "no_pdf_renderer", detail: "No Chromium binary on this machine." }),
-    }));
-    verdict();
-    fireEvent.click(screen.getByRole("button", { name: /Download the report/ }));
-    expect(await screen.findByText(/No Chromium binary on this machine/)).toBeInTheDocument();
-    vi.unstubAllGlobals();
   });
 
   it("blocks an override with no reason, and allows agreement without one", () => {

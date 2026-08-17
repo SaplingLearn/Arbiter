@@ -1,7 +1,8 @@
 import { useState, type ReactElement } from "react";
-import { api, ApiError, downloadReport, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
+import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
 import { Reviewer, collidingInitials } from "./Reviewer.js";
 import { initials } from "./Layout.js";
+import { href } from "./router.js";
 
 /**
  * The screens of the deliberation, in the order §3.5 fixes them:
@@ -640,76 +641,49 @@ export function Reveal({ view, unanimity, nameOf, seats }: {
 
 /** -------------------------------------------------------------- the report */
 /**
- * Take the whole case away as one document.
+ * The way through to the printable record.
  *
- * ANY TEAM MEMBER, not just the convener. The people who most need this are the ones
- * who cannot show anybody the screen: a reviewer forwarding the panel's reasoning to a
- * programme lead, somebody filing what was decided, the person who inherits the
- * compound in two years. Making it the owner's button would mean everyone else asks
- * the owner for a copy, and what actually gets sent in that situation is a screenshot -
- * which carries the verdict, drops the dissent, and can be checked against nothing.
+ * A LINK, NOT A DOWNLOAD. It used to fetch a finished PDF and push it at the reader as
+ * a file. A file in a downloads folder has to be opened before anybody can check it,
+ * and by then it has usually already been forwarded - so this opens the document on a
+ * page instead, where the reader can see what they are about to send. Printing it is
+ * the browser's own dialog, which everybody already knows and which has "Save as PDF"
+ * in it.
  *
- * THE FILE IS BUILT BY THE SERVER, from the record rather than from this screen. What
- * is on this tab is what the viewer has loaded; the document has to hold the positions,
- * the evidence, the chain and the signature, and half of that is not on this page. A
- * client-side print would also quietly print whatever the reader's session could see,
- * which is not the same thing as what the case holds.
+ * ANY TEAM MEMBER, not just the convener. The people who most need to send this are the
+ * ones who cannot show anybody the screen: a reviewer forwarding the panel's reasoning
+ * to a programme lead, somebody filing what was decided, whoever inherits the compound
+ * in two years. Making it the convener's control would mean everybody else asks them
+ * for a copy, and what gets sent in that situation is a screenshot - which carries the
+ * verdict, drops the dissent, and can be checked against nothing.
  */
-function ReportButton({ token, caseId }: { token: string; caseId: string }): ReactElement {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const download = (): void => {
-    setBusy(true);
-    setError(null);
-    void (async () => {
-      try {
-        const { blob, filename } = await downloadReport(token, caseId);
-        // An object URL and a synthetic click, because the request carries a bearer
-        // token in a header and a plain <a href> cannot. Revoked afterwards: an
-        // un-revoked blob URL pins the whole PDF in memory for the life of the tab.
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      } catch (e) {
-        setError(e instanceof ApiError ? e.message : String(e));
-      } finally {
-        setBusy(false);
-      }
-    })();
-  };
-
+function ReportLink({ caseId }: { caseId: string }): ReactElement {
   return (
     <div className="panel sunken">
       <div>
         <h3>Take this away as a document</h3>
         <p className="hint">
-          One PDF holding the decision, every position in full, the adjudication, the
-          evidence it was decided on and the state of the record. Anyone on this case can
-          produce it. Nothing in it is summarised - a shorter document would be one that
-          chose which dissent to carry.
+          The decision, every position in full, the adjudication, the evidence it was
+          decided on and the state of the record - on one page you can read before you
+          send it, and print or save as a PDF from there. Anyone on this case can open it.
+          Nothing in it is summarised: a shorter document would be one that chose which
+          dissent to carry.
         </p>
       </div>
       <div className="btn-row">
-        <button className="ghost" onClick={download} disabled={busy}>
-          {busy ? "Printing…" : "Download the report"}
-        </button>
+        <a href={href({ name: "report", caseId })}>
+          <button className="ghost">Open the printable record</button>
+        </a>
       </div>
-      {error !== null && <div className="err">{error}</div>}
     </div>
   );
 }
 
 /** ------------------------------------------------------------------- verdict */
-export function Verdict({ adjudication, source, token, caseId, canSign, signed, onSign }: {
+export function Verdict({ adjudication, source, caseId, canSign, signed, onSign }: {
   adjudication: Adjudication; source: "stub" | "live";
-  /** For the report, which is fetched with the viewer's own session. */
-  token: string; caseId: string;
+  /** Which case the printable record belongs to. */
+  caseId: string;
   /** The convener signs; everyone else reads. §6.7 - a committee advises and one
    *  named individual decides, so this is false for most people who see this screen. */
   canSign: boolean;
@@ -796,7 +770,7 @@ export function Verdict({ adjudication, source, token, caseId, canSign, signed, 
         </p>
       )}
 
-      <ReportButton token={token} caseId={caseId} />
+      <ReportLink caseId={caseId} />
     </section>
   );
 }

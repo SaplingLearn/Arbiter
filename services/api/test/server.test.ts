@@ -301,19 +301,19 @@ describe("cases, with access control", () => {
     expect(r.body.signature.reason).toBe("Holding for a margin.");
   });
 
-  it("prints the record for any team member, not just the convener", async () => {
-    // ?format=html is the same document the PDF is printed from. The PDF itself needs
-    // a browser binary, which CI installs after this suite runs.
-    const res = await fetch(`${base}/api/cases/c1/report?format=html`, {
-      headers: { authorization: `Bearer ${tok["bea"]}` },
-    });
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toContain("text/html");
-    const html = await res.text();
-    // The reader's own words, and the convener's override, on one page.
-    expect(html).toContain("Because.");
-    expect(html).toContain("Holding for a margin.");
-    expect(html).toContain("ARBITER");
+  it("assembles the record for any team member, not just the convener", async () => {
+    const r = await call("GET", "/api/cases/c1/report", "bea");
+    expect(r.status).toBe(200);
+    // The reader's own words and the convener's override, in one object - the pieces
+    // the reveal, the evidence stage and the record each hold separately.
+    expect(r.body.positions.map((p: { reasoning: string }) => p.reasoning)).toContain("Because.");
+    expect(r.body.signature.reason).toBe("Holding for a margin.");
+    expect(r.body.signature.agreesWithAdjudication).toBe(false);
+    expect(r.body.compoundLabel).toBe("TAK-994");
+    expect(r.body.inventory.entries.length).toBeGreaterThan(0);
+    expect(r.body.audit.headHash).toEqual(expect.any(String));
+    // Assembled FOR the caller: the document says who produced it.
+    expect(r.body.generatedBy.id).toBe(uid["bea"]);
   });
 
   it("keeps the record away from an account that is not on the case", async () => {

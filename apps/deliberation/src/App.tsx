@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState, type ReactElement } from "react";
 import {
   api, ApiError, uploadDocument,
   type Adjudication, type AuditResult, type BlindView, type CaseListing,
-  type CaseSignature, type CaseSummary, type Finding, type Inventory, type LibrarySource,
-  type Person, type Refusal, type Roster, type StoredDocument, type UnanimityReport,
+  type CaseReport, type CaseSignature, type CaseSummary, type Finding, type Inventory,
+  type LibrarySource, type Person, type Refusal, type Roster, type StoredDocument,
+  type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
 import { AskPage, Dashboard, LibraryPage, NewCasePage } from "./pages.js";
@@ -12,6 +13,7 @@ import {
   Refused, Reveal, RosterPanel, Verdict, Waiting,
 } from "./screens.js";
 import { Read, ReadingRoom } from "./read.js";
+import { ReportPage } from "./report.js";
 import { caseIdOf, href, navigate, parseHash, type Route } from "./router.js";
 import "./app.css";
 
@@ -84,6 +86,18 @@ export function App(): ReactElement {
   const [inviteNotice, setInviteNotice] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [head, setHead] = useState({ compoundLabel: "", context: "", scope: null as string | null });
+
+  /**
+   * The printable record, fetched ONCE per visit rather than polled.
+   *
+   * Every other case route polls, because "has everyone answered yet" is the one piece
+   * of stale state that matters. A document is the opposite: it carries a "generated
+   * at" line and a reader is holding it still to read it, so re-fetching every three
+   * seconds would reshuffle the page under them and restamp the time they are about to
+   * print. Leaving and coming back is what re-reads it.
+   */
+  const [report, setReport] = useState<CaseReport | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
@@ -187,6 +201,26 @@ export function App(): ReactElement {
     const t = setInterval(() => { void loadCase(token, caseId); }, 3000);
     return () => clearInterval(t);
   }, [token, caseId, loadCase]);
+
+  /* The record, on arrival at its own route and nowhere else. Not part of `loadCase`:
+     every case route would then assemble a document nobody asked for. */
+  useEffect(() => {
+    if (token === null || caseId === null || route.name !== "report") return;
+    let live = true;
+    setReport(null);
+    setReportError(null);
+    void (async () => {
+      try {
+        const r = await api.report(token, caseId);
+        if (live) setReport(r);
+      } catch (e) {
+        // The service's own refusal, verbatim. "This case has not been adjudicated" is
+        // a sentence that tells the reader what to do; "something went wrong" is not.
+        if (live) setReportError(e instanceof ApiError ? e.message : String(e));
+      }
+    })();
+    return () => { live = false; };
+  }, [token, caseId, route.name]);
 
   /* Establish the session on arrival rather than asking for it. Runs once; a failure
      surfaces as a message on the opening panel, never as a login form. */
@@ -497,7 +531,7 @@ export function App(): ReactElement {
         )}
         {adjudication !== null && (
           <Verdict adjudication={adjudication.adjudication} source={adjudication.source}
-            token={token} caseId={caseId}
+            caseId={caseId}
             canSign={isOwner && view.status !== "signed"}
             signed={adjudication.signature === null ? null : {
               name: nameOf(adjudication.signature.by),
@@ -513,6 +547,30 @@ export function App(): ReactElement {
           <p className="ok">Signed. The record is closed, and every position in it is kept.</p>
         )}
       </div>,
+    );
+  }
+
+  /**
+   * The printable record.
+   *
+   * OUTSIDE `caseShell`, and that is the point of the page. The stage strip and the
+   * page head belong to working on a case; this is the case as a finished document,
+   * and the sheet is the subject. It carries its own way back rather than borrowing
+   * the strip's.
+   */
+  if (route.name === "report") {
+    return shell(
+      reportError !== null
+        ? <div className="empty">
+            <h3>There is no record to print yet</h3>
+            <p className="muted">{reportError}</p>
+            <div className="btn-row" style={{ justifyContent: "center" }}>
+              <a href={href({ name: "reveal", caseId })}><button className="ghost">Back to the verdict</button></a>
+            </div>
+          </div>
+        : report === null
+          ? <p className="muted">Assembling the record…</p>
+          : <ReportPage report={report} />,
     );
   }
 
