@@ -26,8 +26,40 @@
  * squatter is something you would rather not kill.
  */
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 const ENTRY_PORT = process.env["ARBITER_PORT"] ?? "5173";
+
+/**
+ * THE PYTHON THE UPLOAD PATH NEEDS, found rather than assumed.
+ *
+ * services/api shells out to data/prep/measure_pdf.py and extract_pdf_text.py for every
+ * document, and both need PyMuPDF. `documents.ts` already resolves the interpreter from
+ * PYTHON, defaulting to whatever `python` is on PATH - which on a machine whose system
+ * Python has no pip (and cannot get one: PEP 668 marks it externally managed) is a
+ * Python that will never have PyMuPDF in it.
+ *
+ * The failure was quiet and expensive to diagnose: every upload came back 422
+ * "unreadable - PyMuPDF is not installed", which reads as a bad DOCUMENT rather than a
+ * missing dependency, and two tests in the suite failed for the same reason on every
+ * developer machine without one.
+ *
+ * So: if a repo-local virtualenv exists and nothing has already set PYTHON, use it.
+ * An explicit PYTHON still wins - somebody who names an interpreter means it - and
+ * with no venv this changes nothing, which keeps `npm run dev` working on a checkout
+ * that never created one.
+ */
+function venvPython() {
+  if (process.env["PYTHON"] !== undefined) return null;
+  const candidate = process.platform === "win32"
+    ? join(".venv", "Scripts", "python.exe")
+    : join(".venv", "bin", "python");
+  return existsSync(candidate) ? candidate : null;
+}
+
+const PYTHON = venvPython();
+const CHILD_ENV = PYTHON === null ? process.env : { ...process.env, PYTHON };
 
 /**
  * On Windows `npm` is `npm.cmd`, a batch file, and `spawn("npm")` cannot find it -
@@ -74,7 +106,7 @@ function shutdown(code) {
 }
 
 for (const { name, args } of SERVERS) {
-  const child = spawn("npm", args, { stdio: ["ignore", "pipe", "pipe"], shell: USE_SHELL });
+  const child = spawn("npm", args, { stdio: ["ignore", "pipe", "pipe"], shell: USE_SHELL, env: CHILD_ENV });
   const tag = `[${name}]`.padEnd(8);
   const relay = (stream, out) =>
     stream.on("data", (chunk) => {
@@ -100,6 +132,8 @@ process.on("SIGTERM", () => shutdown(0));
 
 setTimeout(() => {
   console.log("");
+  // Said out loud, because a silently-chosen interpreter is how the last one hid.
+  if (PYTHON !== null) console.log(`Python   ${PYTHON}  (repo virtualenv, for the PDF path)`);
   console.log(`ARBITER  http://localhost:${ENTRY_PORT}/`);
   console.log(`         http://localhost:${ENTRY_PORT}/deliberation/  the product`);
   console.log(`         http://localhost:${ENTRY_PORT}/api            API`);
