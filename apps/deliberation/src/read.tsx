@@ -109,8 +109,17 @@ export function citationsFor(
 
 export function Read({ caseId, token, documentId, page, documents, findings, positions, people, seats }: {
   caseId: string;
-  /** Sent to pdf.js for the `/raw` fetch. See `PdfView` - it is not decoration. */
-  token: string;
+  /**
+   * The session bearer, needed HERE rather than only in api.ts because pdf.js issues
+   * its own request for the document bytes and never passes through that layer. See
+   * the note on `getDocument` in PdfView - it is not decoration.
+   *
+   * OPTIONAL, because the document strip and the empty state render without ever
+   * reaching a fetch, and the tests that cover those two states say so by omitting it.
+   * A missing token must therefore mean "send no header" rather than "send the word
+   * undefined as a credential".
+   */
+  token?: string;
   documentId?: string;
   page?: number;
   documents: StoredDocument[];
@@ -141,7 +150,9 @@ export function Read({ caseId, token, documentId, page, documents, findings, pos
 
   if (documents.length === 0) {
     return (
-      <section>
+      // One paragraph and nothing else, which is the state most exposed to the scene:
+      // there is no other object on the screen for the type to sit on.
+      <section className="glass">
         <p className="small muted">
           No documents on this case yet. Upload a study PDF on the Evidence stage and it will
           open here.
@@ -151,7 +162,19 @@ export function Read({ caseId, token, documentId, page, documents, findings, pos
   }
 
   return (
-    <section className="read">
+    /* ON A PLATE, the same one the evidence stage uses.
+
+       Everything here was bare type over a live WebGL field: the document strip, the
+       findings rail, and the paragraph explaining why a citation could not be placed.
+       `.glass` is the product's one surface that carries a ground - a low-alpha wash
+       with a blur behind it - and it exists precisely so prose stays legible over a lit
+       scene. This is the longest stretch of reading in the product, so it is the last
+       screen that should have been going without one.
+
+       ONE PLATE FOR THE SCREEN, not one per part. app.css puts the blur on containers
+       only, never on a row or a cell, because a dozen stacked blur layers buy nothing
+       the parent has not already bought. */
+    <section className="read glass">
       <nav aria-label="Case documents">
         {documents.map((d) => (
           <a key={d.id} className="ghost" aria-current={d.id === open?.id ? "true" : undefined}
@@ -167,10 +190,11 @@ export function Read({ caseId, token, documentId, page, documents, findings, pos
           </p>
         )
         : (
-          <PdfView caseId={caseId} token={token} document={open} highlights={highlights}
+          <PdfView caseId={caseId} document={open} highlights={highlights}
             unresolved={unresolvedCitations(findings, documents)}
             citers={citationsFor(positions ?? null, people ?? [], seats ?? {})}
             blind={(positions ?? null) === null}
+            {...(token === undefined ? {} : { token })}
             {...(page === undefined ? {} : { page })} />
         )}
     </section>
@@ -309,7 +333,7 @@ export function highlightRects(
 }
 
 function PdfView({ caseId, token, document: doc, page, highlights, unresolved, citers, blind }: {
-  caseId: string; token: string; document: StoredDocument; page?: number;
+  caseId: string; token?: string; document: StoredDocument; page?: number;
   highlights: Finding[]; unresolved: number;
   /** Who cited each finding, and why. Empty while the case is blind - see `Read`. */
   citers: (findingId: string) => Citation[];
@@ -396,7 +420,11 @@ function PdfView({ caseId, token, document: doc, page, highlights, unresolved, c
          */
         const loadingTask = getDocument({
           url: `/api/cases/${caseId}/documents/${doc.id}/raw`,
-          httpHeaders: { Authorization: `Bearer ${token}` },
+          // Omitted rather than sent empty when there is no token. `Bearer undefined`
+          // is a credential the server would have to reject, and a 401 carrying a
+          // header reads as an expired session rather than as a caller that never had
+          // one - the two are worth telling apart from the log alone.
+          ...(token === undefined ? {} : { httpHeaders: { Authorization: `Bearer ${token}` } }),
         });
         task = loadingTask;
         const loaded = await loadingTask.promise;

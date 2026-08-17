@@ -257,6 +257,36 @@ a { color: var(--accent); text-underline-offset: 3px; }
   right: calc(var(--hud-inset) + var(--hud-gutter));
   z-index: 50;
   display: flex; align-items: center; gap: var(--s5);
+  transition: transform .32s var(--ease), opacity .2s var(--ease);
+}
+
+/* IT LEAVES WHEN YOU ARE READING DOWN THE PAGE.
+   --------------------------------------------------------------------------
+   The header is fixed and the work scrolls under it, which is the arrangement
+   the file's header argues for - a product that hijacks the wheel is a product
+   nobody can use. The cost of that arrangement is this: on a long case table
+   the rows pass behind the navigation. So it goes up on the way down and comes
+   back the moment the reader turns around, which is what scrolling up means.
+
+   TRANSFORM AND OPACITY ONLY - the two properties a compositor can animate
+   without laying anything out again. There is a WebGL scene drawing behind this
+   and a frame is not free.
+
+   Far enough to clear its own top inset as well as its height, or the bottom
+   edge of the account row stays visible as a stripe against the bezel.
+
+   The state carries no `visibility` and needs none: `inert` on the element (see
+   Chrome.tsx) takes the whole subtree out of the tab order AND swallows pointer
+   events, so nothing invisible here is reachable by either route. */
+.hud-head[data-hidden="true"] {
+  transform: translateY(calc(-100% - var(--hud-inset) - var(--hud-gutter)));
+  opacity: 0;
+}
+
+/* The behaviour stays, the animation goes. A reader who has asked for less
+   motion still wants the navigation out from over the paragraph. */
+@media (prefers-reduced-motion: reduce) {
+  .hud-head { transition: none; }
 }
 
 .brand { display: inline-flex; flex-direction: column; gap: 6px; text-decoration: none; color: var(--ink); flex: none; }
@@ -666,14 +696,41 @@ label { font: 650 13.5px/1.5 var(--sans); color: var(--ink); }
    prose; a caret and a half-typed compound name over a moving scene are not,
    and this is the one surface where being wrong costs a reviewer their entry
    rather than their patience. Darker than paper, not lighter - the ink is
-   near-white, so contrast comes from taking light out of the ground. */
+   near-white, so contrast comes from taking light out of the ground.
+
+   0.78, UP FROM 0.46, AND THE OLD NUMBER MADE THAT COMMENT FALSE. Paper carries
+   0.50. A field at 0.46 covers LESS of what is behind it than the plate does, so
+   the two composite to within a couple of values of each other - and the moment
+   the position form was stood on a plate, the textarea vanished into it. There
+   was no box on the screen, only a slightly different dark. Alpha is what
+   decides this, not the channels: both grounds are near-black, so the one that
+   covers more is the one that reads as lower.
+
+   The rim goes up with it. A hairline at 0.15 is right for a plate edge against
+   a scene and disappears against another plate; a field has to be an OBJECT
+   somebody can see the extent of before they click into it. */
 input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
   width: 100%; font: 15px/1.5 var(--sans); color: var(--ink);
-  padding: 10px var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm);
-  background: rgba(2, 6, 20, 0.46); margin-top: var(--s2);
+  padding: 10px var(--s3); border: 1px solid rgba(213, 224, 255, 0.26); border-radius: var(--r-sm);
+  background: rgba(2, 6, 20, 0.78); margin-top: var(--s2);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
+  transition: border-color .18s var(--ease);
 }
+/* Two inputs inside one field are one answer in two parts - the outside claim and
+   where it came from - so they sit at the field's own rhythm rather than tight
+   against each other. This was an inline style on the second input, which no rule
+   in this file could reach. */
+.field input + input { margin-top: var(--s2); }
+
+/* What the form is about to record, immediately above the control that records it.
+   Ruled off because it is a summary of every answer above rather than another one:
+   at the same rhythm as the fields it read as one more thing to fill in. */
+.basis-line {
+  margin-top: var(--s5); padding-top: var(--s4);
+  border-top: 1px solid var(--line-soft);
+}
+
 input::placeholder, textarea::placeholder { color: var(--ink-3); }
 input:hover, textarea:hover, select:hover { border-color: var(--accent-line); }
 textarea { min-height: 116px; resize: vertical; }
@@ -821,6 +878,44 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
    thing being read and its citations are full-width evidence rows exactly as they
    are on every other screen in this app. Nothing here is shrunk to look like a
    messaging client. */
+/* THE DOCUMENT IS THE SUBJECT, SO IT GETS A ROW. It used to be a `.field` inside
+   `.pagehead .actions` at `min-width: 268px`, which in a flex row with `margin-left:
+   auto` meant it took every pixel the title did not - a 565px native select floating
+   below the lede, aligned to nothing, in the slot a page uses for its actions. It is
+   not an action: it is what every question, answer and citation on the page is about,
+   and changing it clears the thread. A strip states that; a corner does not. */
+.ask-scope {
+  display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5); align-items: flex-end;
+  justify-content: space-between;
+  border: 1px solid var(--line); border-left: 2px solid var(--accent-line);
+  border-radius: 0 var(--r) var(--r) 0;
+  background-color: var(--paper);
+  padding: var(--s4) var(--s5); margin-bottom: var(--s5);
+}
+/* CAPPED, and the cap is what the head could not give it. `select` is `width: 100%` by
+   the shared field rule, so the only thing that ever bounded this control was whatever
+   space the title left over. Here it is sized to its CONTENTS: the longest label in the
+   library is 65 characters ("Turalio (pexidartinib) - FDA NDA 211810 multi-disciplinary
+   review"), and a native select truncates under its own arrow rather than wrapping, so
+   a cap that clips the compound name off the end is worse than no cap at all. */
+.ask-scope-pick { display: flex; flex-direction: column; gap: var(--s2); flex: 1 1 440px; max-width: 620px; }
+.ask-scope-pick label {
+  font: 400 10.5px/1 var(--mono); text-transform: uppercase; letter-spacing: .09em;
+  color: var(--ink-3);
+}
+.ask-scope-pick select { margin-top: 0; }
+.ask-scope-meta { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; }
+/* The summary is a GHOST here, where it was primary in the chip row. There is one
+   primary action on this page and it is Ask; a second one, styled identically and
+   sitting above the send button, is why the composer read as two competing boxes. */
+.ask-scope-meta button.ghost { flex: none; }
+
+/* The way in, before there is a thread. Six full sentences used to wrap to three rows
+   of buttons INSIDE the composer, which made the box a reader types into mostly a wall
+   of other people's questions. */
+.ask-start { margin: var(--s5) 0; display: flex; flex-direction: column; gap: var(--s3); }
+.ask-start > .tiny { color: var(--ink-3); text-transform: uppercase; letter-spacing: .09em; }
+
 .thread { display: flex; flex-direction: column; gap: var(--s5); margin: var(--s6) 0; }
 .thread > div { display: flex; flex-direction: column; gap: var(--s3); }
 
@@ -836,6 +931,47 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
   padding: var(--s3) 0 var(--s3) var(--s5);
 }
 .turn.said p { max-width: 74ch; }
+
+/* ---- an answer, as structured prose --------------------------------------- */
+/* The model returns headings, bullets and bold now that the prompt asks for them, and
+   this is where that becomes typography rather than literal `##` in a paragraph.
+   STILL BLUEPRINT: a heading inside an answer is a mono eyebrow, not a second title
+   competing with the page's own, and a list is ruled rather than bulleted with a dot
+   the rest of this app never draws. */
+.md { display: flex; flex-direction: column; gap: var(--s3); max-width: 74ch; }
+.md > :first-child { margin-top: 0; }
+.md p { max-width: none; }
+.md-h {
+  font: 400 10.5px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .09em;
+  color: var(--ink-3); margin-top: var(--s3);
+}
+/* The one nesting step the parser keeps. Same object, one shade in. */
+.md-h-sub { text-transform: none; letter-spacing: .04em; font-size: 11.5px; color: var(--ink-2); }
+.md-list { display: flex; flex-direction: column; gap: var(--s2); padding-left: var(--s4); margin: 0; }
+/* A RULE DOWN THE SIDE, NOT A DISC. The turn itself is already a block of type with a
+   rule beside it; a nested bullet glyph is the chat-client furniture this surface
+   spent its whole design argument avoiding. */
+.md-list li { list-style: none; position: relative; padding-left: var(--s3); }
+/* Centred on the first LINE, not on the item. `top` is in em of the item's own font,
+   so it tracks the 1.7 line-height rather than drifting up as an item wraps. */
+.md-list li::before {
+  content: ""; position: absolute; left: 0; top: .82em;
+  width: 6px; border-top: 1px solid var(--accent);
+}
+.md-list ol, .md-list ul { margin-top: var(--s2); }
+/* Numbers are content in an ordered list - "the second study" is a reference somebody
+   can follow - so they are drawn rather than replaced by the rule above. */
+ol.md-list { counter-reset: md; }
+ol.md-list li::before {
+  content: counter(md) "."; counter-increment: md; border-top: 0;
+  top: 0; width: auto; font: 400 11.5px/1.7 var(--mono); color: var(--ink-3);
+}
+ol.md-list li { padding-left: var(--s5); }
+.md strong { font-weight: 650; color: var(--ink); }
+.md code {
+  font: 400 12.5px/1.5 var(--mono); background: var(--sunken);
+  border: 1px solid var(--line); border-radius: var(--r-sm); padding: 1px 5px;
+}
 /* Pending is a state, not an animation. The pulse says the request is live; with
    motion turned off the words alone still say it. */
 .turn.pending { border-left-color: var(--accent); }
@@ -870,15 +1006,31 @@ td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-sp
   padding: var(--s4) var(--s4) var(--s5);
   margin-inline: calc(var(--s4) * -1);
 }
-.composer-row { display: flex; gap: var(--s3); align-items: flex-end; }
+/* ONE ROW, ONE ACTION. The composer held a chip wall, a textarea and a send button,
+   and the send button was the smallest and dimmest thing in it - `button.primary`
+   renders `:disabled` as a transparent box with a hairline, which is the state it is
+   in every time the box is empty. So the loudest control in the composer was
+   "Summarise" and the quietest was the one the box is for. Suggestions moved out; the
+   summary moved to the scope bar; what is left is a question and a way to send it. */
+.composer-row { display: flex; gap: var(--s3); align-items: stretch; }
 .composer-row textarea { min-height: 0; margin-top: 0; }
-.composer-row button.primary { flex: none; }
-.composer-foot { display: flex; gap: var(--s4); align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
-.composer-foot .hint { margin-top: var(--s2); }
-.chips { display: flex; flex-wrap: wrap; gap: var(--s2); margin-bottom: var(--s3); }
+/* Matched to the box beside it rather than to its own text, so the two read as one
+   control. `align-items: flex-end` used to leave a 44px button against a 66px box. */
+.composer-row button.primary { flex: none; align-self: stretch; padding-inline: var(--s5); }
+.composer-foot {
+  display: flex; gap: var(--s3) var(--s5); align-items: baseline;
+  justify-content: space-between; flex-wrap: wrap; margin-top: var(--s3);
+}
+.composer-foot .hint { margin-top: 0; flex: 1 1 32ch; }
+.composer-foot .keys { display: flex; align-items: baseline; gap: var(--s4); flex: none; }
+.composer-foot .keys .tiny { color: var(--ink-3); }
+kbd {
+  font: 400 11px/1 var(--mono); color: var(--ink-2);
+  border: 1px solid var(--line); border-radius: 3px; padding: 2px 5px;
+  background: var(--sunken);
+}
+.chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .chips button.ghost { font-size: 13px; padding: 6px var(--s3); }
-
-.pagehead .actions .field { min-width: 268px; }
 
 /* ---- read & mark ----------------------------------------------------------- */
 /* The document strip and the open page sit in one section; the page itself splits
@@ -974,6 +1126,10 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 @media (max-width: 640px) {
   .turn.asked { max-width: 100%; }
   .composer-row { flex-direction: column; align-items: stretch; }
+  /* The picker takes the full width before the summary drops under it, so the control
+     never ends up narrower than the button that acts on the same document. */
+  .ask-scope-pick { max-width: none; flex-basis: 100%; }
+  .ask-scope-meta { width: 100%; justify-content: space-between; }
 }
 
 @media (prefers-reduced-motion: no-preference) {

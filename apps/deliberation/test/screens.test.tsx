@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { Documents, InventoryPanel, Refused, Reveal, RosterPanel, Verdict, Waiting, basisOf } from "../src/screens.js";
+import { Documents, InventoryPanel, PositionForm, Refused, Reveal, RosterPanel, Verdict, Waiting, basisOf } from "../src/screens.js";
 import type { Adjudication, BlindView, Inventory, Position, Roster } from "../src/api.js";
 
 const inv: Inventory = {
@@ -148,6 +148,42 @@ describe("Refused", () => {
     render(<Refused r={refusal} onBack={onBack} />);
     fireEvent.click(screen.getByRole("button", { name: "Back to the library" }));
     expect(onBack).toHaveBeenCalledOnce();
+  });
+});
+
+/**
+ * THE POSITION TAB, ON A PLATE.
+ *
+ * The evidence stage puts its prose on `.glass` - a translucent ground with a blur
+ * behind it - and stays readable over every scene because of it. This form did not:
+ * a heading, four labels, three explanatory paragraphs and a basis line, all sitting
+ * directly on a moving field. It is the most text-dense screen in the product after
+ * reading, and the one where being unable to read a sentence costs a reviewer their
+ * answer rather than their patience.
+ *
+ * Both states of the tab, not just the form. The route renders `Waiting` once you have
+ * sealed, so a plate on only one of them would vanish the moment you submit.
+ */
+describe("the position tab's ground", () => {
+  const view: BlindView = {
+    status: "open",
+    own: pos("ann"),
+    others: [{ participantId: "bea", submitted: false }],
+    revealed: null,
+  };
+
+  it("stands the position form on a glass plate", () => {
+    const { container } = render(
+      <PositionForm token="t" caseId="c1" findings={[]} onDone={() => {}} />,
+    );
+    expect(container.querySelector("section.glass")).not.toBeNull();
+  });
+
+  it("keeps the plate after you have sealed and are waiting", () => {
+    const { container } = render(
+      <Waiting nameOf={(id) => id} view={view} isOwner={false} onReveal={() => {}} />,
+    );
+    expect(container.querySelector("section.glass")).not.toBeNull();
   });
 });
 

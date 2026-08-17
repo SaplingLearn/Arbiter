@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_ADJUDICATION_MODEL, DEFAULT_SHORT_MODEL, buildComplete,
-  providerFor, resolveModel, SHAPE_ASK, type CallKind,
+  providerFor, resolveModel, SHAPE_ASK, SHAPE_INTERPRET, SHAPE_NAVIGATE,
+  type CallKind,
 } from "../interpret.js";
 
 const KINDS: CallKind[] = ["short", "adjudication", "ask", "summary"];
@@ -50,5 +51,40 @@ describe("the model this project runs on", () => {
     // ARBITER_GCP_PROJECT is what the URL is built from. Application default
     // credentials alone address no project.
     expect(buildComplete("gemini-3.5-flash", SHAPE_ASK, { GOOGLE_APPLICATION_CREDENTIALS_JSON: "{}" })).toBeNull();
+  });
+});
+
+/**
+ * A CEILING SIZED FOR THE VISIBLE OUTPUT IS TOO SMALL ONCE THINKING IS ON.
+ *
+ * SHAPE_ASK's own comment counts three occasions - 512, 2048, 4000 - and calls 16000
+ * the answer. It was, for the prompt it was measured against. It stopped being one when
+ * the prompt began asking for Markdown: headings, bullets and blank lines are more
+ * tokens of answer, and thinking shares the budget with them. Measured here, the
+ * identical question against the Turalio review came back `truncated: max_tokens too
+ * low` on three of four attempts - a 502 in the API, a bare "upstream" over the
+ * composer.
+ *
+ * So this guards the number that was observed to fail rather than a rule about thinking
+ * calls in general. SHAPE_ADJUDICATION sits at 16000 on its own measurement - zero
+ * truncation across 10 runs on the probe case - and its input is a bounded case rather
+ * than however many pages retrieval returned, so nothing here argues with it.
+ *
+ * maxOutputTokens is a CAP, not a reservation: nothing is spent by raising one, only by
+ * generating into it. That asymmetry is why the fix is always to raise it.
+ */
+describe("output ceilings against thinking", () => {
+  it("gives ask more room than the ceiling that was measured truncating", () => {
+    expect(SHAPE_ASK.thinkingBudget, "thinking is what overruns the ceiling").toBe(-1);
+    expect(SHAPE_ASK.maxOutputTokens).toBeGreaterThan(16000);
+  });
+
+  // The other half of the rule. These run with thinking off and answer in a few tokens;
+  // a large ceiling would buy nothing and would hide a runaway.
+  it("keeps the short calls small, because nothing is thinking on them", () => {
+    for (const shape of [SHAPE_NAVIGATE, SHAPE_INTERPRET]) {
+      expect(shape.thinkingBudget).toBe(0);
+      expect(shape.maxOutputTokens).toBeLessThanOrEqual(1024);
+    }
   });
 });
