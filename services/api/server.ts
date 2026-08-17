@@ -10,7 +10,7 @@ import { ADJUDICATOR_PROMPT_PATH, type AdjudicateRequest } from "./adjudicate.js
 import { handleAsk } from "./ask.js";
 import { handleSummarise } from "./summarise.js";
 import { buildIndex, search } from "./retrieval.js";
-import { completeFromEnv, providerFor, resolveModel } from "./interpret.js";
+import { completeFromEnv, providerFor, resolveModel, type CallKind, type Complete } from "./interpret.js";
 import { geminiEndpointLabel } from "./gemini.js";
 import { stubComplete } from "./probe.js";
 import { adjudicateConsensus, runsFrom } from "./consensus.js";
@@ -81,6 +81,25 @@ export interface ServerDeps {
   rules: AdjudicateRequest["rules"];
   prompt: { system: string[]; userTemplate: string[] };
   now?: () => number;
+  /**
+   * How the four paid routes get a completer. Defaults to the process environment,
+   * which is what the real server wants and what every caller had hard-coded.
+   *
+   * INJECTED BECAUSE A TEST SUITE MUST NOT SPEND MONEY, and this one silently did.
+   * `completeFromEnv` reads an ambient `GEMINI_API_KEY`, so on any machine with the
+   * developer's key exported - which is every machine that can run the product -
+   * `server.test.ts` was making three live adjudication calls per run against
+   * whichever host the environment implied. Tests never call `loadEnv`, so
+   * `ARBITER_GEMINI_HOST` was unset, `apiHost` fell through to its `vertex` default,
+   * and the key was rejected with "API keys are not supported by this API". That is
+   * the whole of the 502 the suite reported: not the adjudicator, not the quota, and
+   * not Google - an environment the test never meant to read.
+   *
+   * Returning null here is what selects the stub, so a suite that injects `() => null`
+   * is deterministic, free, and offline. The seam is the fix; the stub was always the
+   * intended test path.
+   */
+  complete?: (kind: CallKind) => Complete | null;
 }
 
 const ERROR_STATUS: Record<string, number> = {
@@ -195,6 +214,9 @@ export function makeHandler(deps: ServerDeps) {
        * unavailable anyway punishes the reader for the deployment's configuration. So
        * every caller passes `complete` and a null one is free.
        */
+      /** The one place a paid route resolves a completer. See `ServerDeps.complete`. */
+      const completer = deps.complete ?? ((kind: CallKind) => completeFromEnv(process.env, kind));
+
       const overBudget = (complete: unknown): boolean => {
         if (complete === null) return false;
         const wait = deps.budget.retryAfter(user.id, remote, now());
@@ -246,7 +268,7 @@ export function makeHandler(deps: ServerDeps) {
         // all - see summarise.ts for why a document-level question cannot be served by
         // a passage-level one.
         if (parts[3] === "summary") {
-          const complete = completeFromEnv(process.env, "summary");
+          const complete = completer("summary");
           if (overBudget(complete)) return;
           const out = await handleSummarise(
             deps.library.textFor(source.name),
@@ -264,7 +286,7 @@ export function makeHandler(deps: ServerDeps) {
           }]),
           String((body as { question?: unknown }).question ?? ""),
         );
-        const complete = completeFromEnv(process.env, "ask");
+        const complete = completer("ask");
         if (overBudget(complete)) return;
         const out = await handleAsk(body, passages, complete);
         return json(res, out.status, out.body);
@@ -543,7 +565,7 @@ export function makeHandler(deps: ServerDeps) {
               pages: deps.documents.textFor(d.id),
             }));
             const passages = search(buildIndex(corpus), String((body as { question?: unknown }).question ?? ""));
-            const complete = completeFromEnv(process.env, "ask");
+            const complete = completer("ask");
             if (overBudget(complete)) return;
             const out = await handleAsk(body, passages, complete);
             return json(res, out.status, out.body);
@@ -556,11 +578,23 @@ export function makeHandler(deps: ServerDeps) {
           case "adjudicate": {
             const request = deps.service.adjudicationRequest(caseId, deps.rules);
             if (request === null) return json(res, 404, { error: "no_case" });
+
+            /* ASKED BEFORE ANYTHING IS SPENT. This is three model calls out of a
+               daily twenty, and the state check used to happen after them: a case in
+               the wrong state cost 15% of a day's budget to be told 409. The check
+               inside `attachAdjudication` still runs and is still the one that
+               decides - a case can change while the model thinks. This one only
+               stops the bill. */
+            const ready = deps.service.readyToAdjudicate(caseId);
+            if (ready !== null && !ready.ok) {
+              return json(res, ERROR_STATUS[ready.error.kind] ?? 400, ready.error);
+            }
+
             // "adjudication", not the default "short". This route was the original
             // site of the shape bug: it handed interpret's 1024-token, thinking-off
             // closure to handleAdjudicate, which produces prose, citations and one
             // disclosure per registered rule.
-            const live = completeFromEnv(process.env, "adjudication");
+            const live = completer("adjudication");
             // The stub is free, so it is not charged. `live` is null exactly when the
             // answer will be stubbed and labelled `source: "stub"`.
             if (overBudget(live)) return;
@@ -575,7 +609,7 @@ export function makeHandler(deps: ServerDeps) {
             const { response: out, consensus } = await adjudicateConsensus(
               request, live ?? stubComplete(request), deps.prompt, runs);
             if (out.status !== 200) return json(res, out.status, out.body);
-            const r = deps.service.adjudicate(caseId, out.body, (body as { at: string }).at, live === null ? "stub" : "model");
+            const r = deps.service.adjudicate(caseId, out.body, (body as { at: string }).at, live === null ? "stub" : "model", consensus);
             /* `source` travels with the adjudication so a stub can never be read as
                a result downstream, the same discipline probe.ts applies - and
                `consensus` travels with it for the same reason. A 2-of-3 verdict and a

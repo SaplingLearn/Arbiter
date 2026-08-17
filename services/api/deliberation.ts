@@ -102,6 +102,21 @@ export interface DeliberationCase {
   positions: Position[];
   closedEarly: { by: string; at: string; nonResponders: string[] } | null;
   adjudication: unknown | null;
+  /**
+   * How much the adjudicator's runs agreed, when it ran more than once.
+   *
+   * STORED BESIDE THE ADJUDICATION because consensus.ts argues it must travel with
+   * it: a 2-of-3 verdict and a 3-of-3 verdict are different objects, and the reader
+   * of a safety record is exactly who should be told which one they have. It used to
+   * be computed, returned once in the POST response, and then dropped - so the
+   * distinction survived only until the page reloaded.
+   *
+   * Untyped for the same reason `adjudication` is: this layer is the state machine,
+   * and it holds the adjudicator's output without acquiring an opinion about its
+   * shape. Null on a stub, which runs once, and on every case adjudicated before
+   * this field existed.
+   */
+  consensus: unknown | null;
   signature: Signature | null;
 }
 
@@ -166,6 +181,7 @@ export function openCase(init: {
     positions: [],
     closedEarly: null,
     adjudication: null,
+    consensus: null,
     signature: null,
   };
 }
@@ -349,11 +365,32 @@ export function closeEarly(c: DeliberationCase, by: string, at: string): Result<
   return { ok: true, value: { ...c, status: "locked", closedEarly: { by, at, nonResponders } } };
 }
 
-export function attachAdjudication(c: DeliberationCase, adjudication: unknown): Result<DeliberationCase> {
+/**
+ * The precondition on its own, so it can be asked BEFORE the adjudicator runs.
+ *
+ * Split out of `attachAdjudication` because the caller needs the answer at a
+ * different moment than the state change does. Adjudicating costs three model calls
+ * against a daily allowance of twenty, and the route used to spend them and then
+ * discover the case was never eligible.
+ */
+export function canAdjudicate(c: DeliberationCase): Result<DeliberationCase> {
   if (c.status !== "locked") {
     return fail("not_locked", `Case ${c.caseId} is ${c.status}. Adjudication runs after reveal, never before - a model that answered first would drag the room the way a person would.`);
   }
-  return { ok: true, value: { ...c, status: "adjudicated", adjudication } };
+  return { ok: true, value: c };
+}
+
+export function attachAdjudication(
+  c: DeliberationCase,
+  adjudication: unknown,
+  consensus: unknown = null,
+): Result<DeliberationCase> {
+  // Asked again here, and this is the one that decides. The early check saves the
+  // calls; this one is the guarantee, because the case can change while the model is
+  // thinking - which for an adjudication is tens of seconds.
+  const ready = canAdjudicate(c);
+  if (!ready.ok) return ready;
+  return { ok: true, value: { ...c, status: "adjudicated", adjudication, consensus } };
 }
 
 /**
