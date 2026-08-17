@@ -60,6 +60,15 @@ export type LogKind =
   | "participant_added"
   | "participant_removed"
   | "case_described"
+  // A RECOGNISED DOCUMENT FILLED THE CASE IN, and the record says so. Uploading a
+  // document whose SHA-256 matches a prepared fixture seeds its findings and its
+  // positions, which is the difference between a demonstration that reaches the
+  // adjudication and one that spends twenty minutes typing. The entry goes in FIRST,
+  // naming the fixture, so a reader of the chain can never mistake seeded evidence
+  // for evidence somebody transcribed. Leaving it out would make the record of a
+  // demonstration indistinguishable from the record of a real deliberation, which is
+  // the one dishonest thing this product could produce.
+  | "demo_seeded"
   | "position_sealed"
   | "revealed"
   | "adjudicated"

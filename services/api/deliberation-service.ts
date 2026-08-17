@@ -9,6 +9,7 @@ import { absentForAdjudication, buildInventory, presentForAdjudication, type Cov
 import { commitmentFor, verifyChain, verifySeals, type DeliberationStore, type LogEntry, type LogKind } from "./store.js";
 import { visibleCases } from "./access.js";
 import type { AdjudicateRequest } from "./adjudicate.js";
+import type { DemoFixture } from "./demo-fixture.js";
 
 /**
  * The deliberation service: the state machine in deliberation.ts, joined to the
@@ -157,6 +158,132 @@ export class DeliberationService {
       return { ok: false, error: { kind: "duplicate_finding", detail: `This case already has a finding called "${finding.id}".` } };
     }
     return { ok: true, value: this.republish(caseId, [...current, finding], guard.value) };
+  }
+
+  /**
+   * Fill a case in from a recognised document: its findings, and one position per
+   * participant.
+   *
+   * BEST EFFORT, AND IT REPORTS WHAT IT DID. Every step is a normal call through the
+   * same guards a person's typing goes through - `addFinding` still refuses once
+   * somebody has answered, `submit` still refuses a citation to a finding that does
+   * not exist - so a case that is already part-way through is topped up rather than
+   * overwritten, and a step that is refused is counted rather than thrown. An upload
+   * must never fail because the convenience attached to it could not run.
+   *
+   * THE LOG ENTRY GOES FIRST. If seeding half-succeeds, the record still says a
+   * fixture was applied and names it. Writing the entry last would mean a partial
+   * seed that crashed looked like hand-typed evidence.
+   *
+   * ONE SEAT IS LEFT OPEN, AND THAT IS THE WHOLE DESIGN.
+   *
+   * The point of seeding is not to produce a finished case - it is to remove the wait
+   * for colleagues who are not in the room. So every participant except one is given a
+   * reading, and the remaining seat stays empty for the person actually driving. They
+   * write their own position, and only then does the reveal unlock, because the server
+   * still holds it until everybody has answered. A fixture that filled every seat
+   * would skip the one stage the product is most about.
+   *
+   * WHICH SEAT STAYS OPEN: the uploader's, when the uploader is on the panel, since
+   * they are the one at the keyboard. When they are not - the case owner is not a
+   * participant and cannot be one, the UI filters them out of its own panel list - it
+   * is the FIRST seat, which is seat 0 and the top row of the roster everywhere it is
+   * drawn. It was briefly the last seat, and that was a worse choice for the only
+   * reason that matters here: whoever is running this has to know which account to
+   * sign in as, and roster order is not the order the emails were typed in, so "the
+   * last one" meant looking it up. "The one at the top of the panel" does not.
+   *
+   * POSITIONS ARE DEALT IN ROSTER ORDER and cycled if the room is larger than the
+   * fixture. They are attributed to the accounts that hold them, because a position
+   * has to belong to somebody for the reveal to mean anything - and that attribution
+   * is exactly why the `demo_seeded` entry above it is not optional.
+   *
+   * NOBODY IS GIVEN A SECOND POSITION. `submitPosition` seals on first submit and
+   * refuses afterwards, so a participant who has already answered keeps their own
+   * answer and the fixture's is dropped.
+   */
+  seedFromFixture(
+    caseId: string, actorId: string, at: string, fixture: DemoFixture,
+  ): Result<{ findingsAdded: number; positionsSealed: number; leftOpenFor: string | null; skipped: string[] }> {
+    const c = this.store.getCase(caseId);
+    if (c === null) return { ok: false, error: { kind: "not_open", detail: `No case ${caseId}.` } };
+
+    this.store.append({
+      at, kind: "demo_seeded", caseId, actorId,
+      payload: {
+        fixture: fixture.label, sha256: fixture.sha256,
+        findings: fixture.findings.length, positions: fixture.positions.length,
+      },
+    });
+
+    const skipped: string[] = [];
+    let findingsAdded = 0;
+    // One publish, not one per finding: the evidence arrived as a single document and
+    // the record should say so. See `addFindings`.
+    const ev = this.addFindings(caseId, fixture.findings);
+    if (ev.ok) {
+      findingsAdded = ev.value.added.length;
+      for (const id of ev.value.duplicates) skipped.push(`finding ${id}: duplicate_finding`);
+    } else {
+      skipped.push(`findings: ${ev.error.kind}`);
+    }
+
+    const roster = this.store.getCase(caseId)?.participantIds ?? [];
+    // The uploader's seat when they hold one, otherwise the first. `?? null` rather
+    // than a bare index so an empty roster leaves nothing open rather than undefined.
+    const leftOpenFor = roster.includes(actorId) ? actorId : roster[0] ?? null;
+
+    let positionsSealed = 0;
+    roster
+      .filter((participantId) => participantId !== leftOpenFor)
+      .forEach((participantId, i) => {
+        const p = fixture.positions[i % fixture.positions.length];
+        if (p === undefined) return;
+        const r = this.submit(caseId, { ...p, participantId, submittedAt: at });
+        if (r.ok) positionsSealed++;
+        else skipped.push(`position ${participantId}: ${r.error.kind}`);
+      });
+
+    return { ok: true, value: { findingsAdded, positionsSealed, leftOpenFor, skipped } };
+  }
+
+  /**
+   * Several findings, published ONCE.
+   *
+   * `addFinding` re-publishes on every call - it appends a fresh `case_opened` (which
+   * is where the findings list actually lives) and a fresh `inventory_published` - so
+   * adding nine one at a time writes eighteen entries before anybody has said
+   * anything. Typed by hand that is a fair record of nine separate edits. Arriving
+   * together in one document it is not: it is one act, and the Record stage rendered
+   * it as twenty rows of noise above the events a reader came to see.
+   *
+   * Duplicates are skipped rather than refused, and reported, so a case that already
+   * holds some of these findings is topped up instead of rejected wholesale.
+   */
+  addFindings(caseId: string, findings: CoveringFinding[]): Result<{ inventory: Inventory; added: string[]; duplicates: string[] }> {
+    const guard = this.evidenceGuard(caseId);
+    if (!guard.ok) return guard;
+
+    const current = this.findingsOf(caseId);
+    const seen = new Set(current.map((f) => f.id));
+    const added: CoveringFinding[] = [];
+    const duplicates: string[] = [];
+    for (const f of findings) {
+      if (seen.has(f.id)) { duplicates.push(f.id); continue; }
+      seen.add(f.id);
+      added.push(f);
+    }
+    if (added.length === 0) {
+      return { ok: true, value: { inventory: this.inventory(caseId)!, added: [], duplicates } };
+    }
+    return {
+      ok: true,
+      value: {
+        inventory: this.republish(caseId, [...current, ...added], guard.value),
+        added: added.map((f) => f.id),
+        duplicates,
+      },
+    };
   }
 
   removeFinding(caseId: string, findingId: string): Result<Inventory> {

@@ -18,6 +18,7 @@ import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
 import { AuthStore, normaliseEmail, type PublicUser } from "./auth.js";
 import { DEMO_PASSWORD, DEMO_TEAM, seedDemoTeam } from "./seed-demo.js";
 import { DocumentStore, MAX_BYTES } from "./documents.js";
+import { fixtureForSha } from "./demo-fixture.js";
 import { LibraryStore } from "./library.js";
 import { can, denial, type CaseAction } from "./access.js";
 import { InviteStore } from "./invites.js";
@@ -504,9 +505,31 @@ export function makeHandler(deps: ServerDeps) {
             // 422, not 400: the request was well-formed and the DOCUMENT is the
             // problem. The measurement travels with the refusal so the uploader can
             // see why while they still have the file in front of them.
-            return r.ok
-              ? json(res, 201, { document: r.document, duplicateOf: r.duplicateOf ?? null })
-              : json(res, r.rejection.kind === "unreadable" ? 422 : 400, { error: r.rejection.kind, ...r.rejection });
+            if (!r.ok) {
+              return json(res, r.rejection.kind === "unreadable" ? 422 : 400, { error: r.rejection.kind, ...r.rejection });
+            }
+
+            /**
+             * A RECOGNISED DOCUMENT FILLS THE CASE IN.
+             *
+             * Matched on the SHA-256 the store already computed, never on the
+             * filename: the prepared findings quote page numbers that mean nothing in
+             * any other PDF, so a renamed file or a different review must match
+             * nothing and leave the case empty.
+             *
+             * SEEDING NEVER FAILS THE UPLOAD. The document is accepted either way -
+             * that is the thing the caller asked for, and it succeeded. A convenience
+             * that could turn a good upload into a 500 would be a worse trade than
+             * typing the findings by hand. So the outcome travels in the response as
+             * `seeded`, and a refusal inside it is a count, not a status code.
+             */
+            const fixture = fixtureForSha(r.document.sha256);
+            let seeded: unknown = null;
+            if (fixture !== null) {
+              const s = deps.service.seedFromFixture(caseId, user.id, new Date(now()).toISOString(), fixture);
+              seeded = s.ok ? { fixture: fixture.label, ...s.value } : { fixture: fixture.label, error: s.error.kind };
+            }
+            return json(res, 201, { document: r.document, duplicateOf: r.duplicateOf ?? null, seeded });
           }
           case "participants": {
             const b = body as { email: string };

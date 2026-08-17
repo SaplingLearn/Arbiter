@@ -885,6 +885,10 @@ const EVENT_LABEL: Record<string, string> = {
   participant_added: "Someone added to the panel",
   participant_removed: "Someone removed from the panel",
   case_described: "Case renamed or restated",
+  // Named plainly, and not softened. Anyone reading this record is entitled to know
+  // that these findings and positions came from a prepared fixture rather than from
+  // somebody reading the document - see the `demo_seeded` note in store.ts.
+  demo_seeded: "Prepared evidence seeded from a recognised document",
   position_sealed: "A position was sealed",
   revealed: "Positions revealed",
   adjudicated: "Adjudicated",
