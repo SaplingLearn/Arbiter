@@ -234,8 +234,22 @@ export const SHAPE_ADJUDICATION: CallShape = { maxOutputTokens: 16000, thinkingB
  * That is the third time on this project that a ceiling sized for the visible output
  * has been too small once thinking was on - measured at 512 and at 2048 before this.
  * Size these for thinking plus answer, never for the answer.
+ *
+ * 64000, AND 16000 WAS RIGHT UNTIL THE ANSWER GREW. This is the fifth time, and the
+ * first where the ceiling did not move but the output did: ask.ts began asking for
+ * Markdown, and headings, bullets and blank lines are more answer for the same
+ * question. Measured on this deployment, "What liver findings are reported, and at what
+ * doses?" against the 264-page Turalio review returned `truncated: max_tokens too low`
+ * on three of four attempts - 502 from the route, a bare `upstream` over the composer,
+ * and no answer at all for a question the retrieval had already served correctly.
+ *
+ * The number is SHAPE_SUMMARY's, for SHAPE_SUMMARY's reason: the answer is bounded by
+ * the prompt, so the only job left for this ceiling is to stop being the binding
+ * constraint on thinking. A cap is not a reservation - nothing is spent by raising one,
+ * only by generating into it - so there is no case for tuning it finely, and every
+ * previous attempt to do so is the list above.
  */
-export const SHAPE_ASK: CallShape = { maxOutputTokens: 16000, thinkingBudget: -1 };
+export const SHAPE_ASK: CallShape = { maxOutputTokens: 64000, thinkingBudget: -1 };
 
 /**
  * A summary of a WHOLE document, and the FOURTH time on this project that a ceiling
