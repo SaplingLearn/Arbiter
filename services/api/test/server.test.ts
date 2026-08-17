@@ -332,6 +332,22 @@ describe("cases, with access control", () => {
   });
 });
 
+/**
+ * What a seeding test costs, stated rather than left to the 5s default.
+ *
+ * `POST /api/demo` opens a real library case: it copies the regulatory review off
+ * disk, transcribes its findings and writes the opening links of the hash chain. One
+ * of these runs about 1.4s on its own and the two-opener test below does the whole
+ * thing TWICE, which is 3.5s before the machine is doing anything else.
+ *
+ * That fits inside the default alone and does not fit under a full run, where the
+ * suite's other files are competing for the same cores - so the failure moved with
+ * the size of the run rather than with anything in the code, which is the signature
+ * of a limit set too close rather than of a slow path worth chasing. It is stated
+ * here so a green file and a red suite stop being the same commit.
+ */
+const SEEDING = 30_000;
+
 describe("the case catalogue and demo seeding", () => {
   it("serves the catalogue to a signed-in caller", async () => {
     const r = await call("GET", "/api/cases-catalogue", "owner");
@@ -354,7 +370,7 @@ describe("the case catalogue and demo seeding", () => {
     const r = await call("POST", "/api/demo", "owner", { case: "slynd", participantIds: [uid["ann"]], at: "t" });
     expect(r.status).toBe(201);
     expect(r.body.documentScope).toContain("THE SAFETY STUDIES FOR THIS DRUG WERE NEVER RUN");
-  });
+  }, SEEDING);
 
   /**
    * OPENING A PREPARED CASE BRINGS ITS DOCUMENT WITH IT.
@@ -420,7 +436,7 @@ describe("the case catalogue and demo seeding", () => {
     } finally {
       await new Promise<void>((r) => srv.close(() => r()));
     }
-  });
+  }, SEEDING);
 
   /**
    * A source that cannot be read must not stop the case opening. The findings were
@@ -456,7 +472,7 @@ describe("the case catalogue and demo seeding", () => {
     } finally {
       await new Promise<void>((r) => srv.close(() => r()));
     }
-  });
+  }, SEEDING);
 
   it("gives each opener their own copy of a library case", async () => {
     // Regression. A fixed identifier meant the second person to open a library case
@@ -473,7 +489,7 @@ describe("the case catalogue and demo seeding", () => {
     expect((await call("GET", `/api/cases/${theirs.body.caseId}/view`, "ann")).status).toBe(200);
     // But not each other's.
     expect((await call("GET", `/api/cases/${mine.body.caseId}/view`, "outsider")).status).toBe(404);
-  });
+  }, SEEDING);
 
   it("re-opening a library case returns the copy you already have", async () => {
     const first = await call("POST", "/api/demo", "bea", { case: "slynd", at: "t" });
@@ -481,7 +497,7 @@ describe("the case catalogue and demo seeding", () => {
     expect(again.status).toBe(200);
     expect(again.body.alreadyOpen).toBe(true);
     expect(again.body.caseId).toBe(first.body.caseId);
-  });
+  }, SEEDING);
 });
 
 describe("the roster is on the record", () => {

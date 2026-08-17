@@ -50,12 +50,17 @@ const GLYPHS: Record<string, { width: number; rects: Rect[] }> = {
   },
   R: {
     width: W,
+    // THE LEG HAS TO STEP OUT. This glyph used to put the shoulder and the leg at the
+    // same x (both `W - S`), which stacks them into one unbroken right-hand stem — and a
+    // stem plus two bars is an A, not an R. The header read ARBITEA on every page that
+    // used it. The bowl is therefore pulled in by 2 units so the leg below it has
+    // somewhere to land, and the leg drops at the full width to make the step visible.
     rects: [
-      [0, 0, S, H],
-      [0, 0, W, S],
-      [W - S, 0, S, 8], // shoulder, stopping at the middle bar
-      [0, 5, W, S],
-      [W - S, 8, S, H - 8], // the leg
+      [0, 0, S, H], // left stem
+      [0, 0, W - 2, S], // top bar, narrowed to the bowl
+      [W - S - 2, 0, S, 8.5], // shoulder, stopping at the middle bar
+      [0, 5.5, W - 2, S], // middle bar, at B and E's height
+      [W - S, 8.5, S, H - 8.5], // the leg, out past the bowl
     ],
   },
   B: {

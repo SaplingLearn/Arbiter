@@ -1222,3 +1222,12 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
   .rule-row { grid-template-columns: 1fr; gap: var(--s2); }
   .rule-key { flex-direction: row; align-items: center; gap: var(--s3); }
 }
+
+/* A hairline between two kinds of claim in one panel: what the room said, and what
+   the record computes from it. Replaces a `marginTop: 32` inline style that no rule
+   in this file could reach - the same complaint button.primary carries. */
+.aside-rule { padding-top: var(--s5); border-top: 1px solid var(--line); }
+
+/* A file input is a control, not a block: without this the section's flex stretches
+   it to the full column and it reads as an empty field. */
+.upload { align-items: flex-start; }

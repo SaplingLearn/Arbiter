@@ -368,8 +368,11 @@ export function Documents({ docs, onUpload, busy, error }: {
   error: string | null;
 }): ReactElement {
   return (
-    <section>
-      <h2>Documents</h2>
+    /* No `<h2>Documents</h2>` here. Its only caller wraps it in
+       `<Section title="Documents">`, so the panel was printing the word twice, one
+       line under the other - invisible while nothing separated the two headings, and
+       plain the moment the section acquired any rhythm. */
+    <section className="section">
       <p className="muted">
         A PDF is measured before it is accepted. Two of the first five regulatory
         documents collected for this project were unusable - one was 48 pages of
@@ -378,16 +381,21 @@ export function Documents({ docs, onUpload, busy, error }: {
         refused here, while you still have it in front of you.
       </p>
 
-      <label htmlFor="pdf">Upload a study PDF</label>
-      <input id="pdf" type="file" accept="application/pdf"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f !== undefined) onUpload(f); }} />
+      {/* The label and its input are one control, so they are one child of the
+          section rather than two - otherwise the rhythm that separates blocks also
+          separates a field from its own label. */}
+      <div className="stack-s upload">
+        <label htmlFor="pdf">Upload a study PDF</label>
+        <input id="pdf" type="file" accept="application/pdf"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f !== undefined) onUpload(f); }} />
+      </div>
       {busy && <p className="small muted">Measuring…</p>}
       {error !== null && <div className="stub">{error}</div>}
 
       {docs.length === 0
         ? <p className="small muted">Nothing uploaded yet.</p>
         : (
-          <div className="inv" style={{ marginTop: 16 }}>
+          <div className="inv">
             {docs.map((d) => (
               <div className="inv-row" key={d.id}>
                 <div className={`state ${d.measurement.ok ? "present" : "absent"}`}>
@@ -477,7 +485,7 @@ export function InventoryPanel({ inv, documentScope }: { inv: Inventory; documen
   const na = inv.entries.filter((e) => e.state === "not_applicable").length;
 
   return (
-    <section>
+    <section className="section">
       <h2>What the documents contain</h2>
       <p className="muted">
         Published to everyone before anybody answers. No verdict, no score, no ranking -
@@ -705,35 +713,46 @@ export function Reveal({ view, unanimity, nameOf, seats }: {
   const collisions = collidingInitials(revealed.map((p) => nameOf(p.participantId)));
 
   return (
-    <section>
+    /* `.section`, for the reason the Refused panel above spells out: a bare `<section>`
+       is not a neutral wrapper in this app, it is no rhythm at all. Every child here is
+       `margin: 0`, so the heading sat flush on the first position and the four position
+       plates touched each other - they read as separated only because two adjacent 1px
+       borders make a 2px line, which is a coincidence of the border and not a layout. */
+    <section className="section">
       <h2>Every position, at once</h2>
-      {revealed.map((p) => (
-        <div className="pos" key={p.participantId}>
-          <div className="pos-head">
-            <Reviewer name={nameOf(p.participantId)} seat={seats[p.participantId] ?? null}
-              disambiguate={collisions.has(initials(nameOf(p.participantId)))} />
-            <strong>{nameOf(p.participantId)}</strong>
-            <span>{CALL_LABEL[p.call]}</span>
-            <span className={`basis ${basisOf(p)}`}>{basisOf(p)}</span>
+      <div className="stack">
+        {revealed.map((p) => (
+          <div className="pos" key={p.participantId}>
+            <div className="pos-head">
+              <Reviewer name={nameOf(p.participantId)} seat={seats[p.participantId] ?? null}
+                disambiguate={collisions.has(initials(nameOf(p.participantId)))} />
+              <strong>{nameOf(p.participantId)}</strong>
+              <span>{CALL_LABEL[p.call]}</span>
+              <span className={`basis ${basisOf(p)}`}>{basisOf(p)}</span>
+            </div>
+            <p>{p.reasoning}</p>
+            {p.citedFindingIds.length > 0 && <div className="mono muted">cites: {p.citedFindingIds.join(", ")}</div>}
+            {p.external.map((e, i) => (
+              <div className="small muted" key={i}>outside this case: “{e.claim}”{e.source !== undefined && ` - ${e.source}`}</div>
+            ))}
           </div>
-          <p>{p.reasoning}</p>
-          {p.citedFindingIds.length > 0 && <div className="mono muted">cites: {p.citedFindingIds.join(", ")}</div>}
-          {p.external.map((e, i) => (
-            <div className="small muted" key={i}>outside this case: “{e.claim}”{e.source !== undefined && ` - ${e.source}`}</div>
-          ))}
-        </div>
-      ))}
+        ))}
+      </div>
 
+      {/* Ruled off rather than pushed down by a `marginTop: 32` inline style, which was
+          the only thing separating these two blocks and was unreachable by any rule in
+          app.css. The rule earns its place: what the panel SAID and what the record
+          COMPUTES are different kinds of claim, and the second one is arithmetic. */}
       {unanimity !== null && unanimity.unanimous && (
-        <>
-          <h2 style={{ marginTop: 32 }}>Everyone agreed. That is not the same as being right.</h2>
+        <div className="aside-rule stack-s">
+          <h2>Everyone agreed. That is not the same as being right.</h2>
           <p className="muted small">
             Nothing below came from a model. Unanimity beside an unanswered question is a
             fact about the record, and it is checkable arithmetic.
           </p>
           {unanimity.concerns.map((c, i) => <div className="concern" key={i}>{c}</div>)}
           {unanimity.concerns.length === 0 && <p className="ok">No gaps and every position rests on cited evidence.</p>}
-        </>
+        </div>
       )}
     </section>
   );
@@ -901,7 +920,7 @@ export function Audit({ audit, nameOf }: {
 }): ReactElement {
   const clean = audit.chain.length === 0 && audit.seals.length === 0;
   return (
-    <section>
+    <section className="section">
       <h2>The record</h2>
       <p className={clean ? "ok" : "err"}>
         {clean
