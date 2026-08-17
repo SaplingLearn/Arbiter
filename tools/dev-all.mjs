@@ -28,6 +28,15 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { assertDeps } from "./check-deps.mjs";
+
+/**
+ * BEFORE ANYTHING IS SPAWNED, not after. A tree missing a dependency added on some
+ * other branch starts all three servers happily and only fails when a reader opens
+ * the surface that imports it - at which point the error names a source file and a
+ * line number, and points nowhere near the install. See tools/check-deps.mjs.
+ */
+assertDeps();
 
 const ENTRY_PORT = process.env["ARBITER_PORT"] ?? "5173";
 
