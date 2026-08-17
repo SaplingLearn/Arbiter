@@ -696,14 +696,41 @@ label { font: 650 13.5px/1.5 var(--sans); color: var(--ink); }
    prose; a caret and a half-typed compound name over a moving scene are not,
    and this is the one surface where being wrong costs a reviewer their entry
    rather than their patience. Darker than paper, not lighter - the ink is
-   near-white, so contrast comes from taking light out of the ground. */
+   near-white, so contrast comes from taking light out of the ground.
+
+   0.78, UP FROM 0.46, AND THE OLD NUMBER MADE THAT COMMENT FALSE. Paper carries
+   0.50. A field at 0.46 covers LESS of what is behind it than the plate does, so
+   the two composite to within a couple of values of each other - and the moment
+   the position form was stood on a plate, the textarea vanished into it. There
+   was no box on the screen, only a slightly different dark. Alpha is what
+   decides this, not the channels: both grounds are near-black, so the one that
+   covers more is the one that reads as lower.
+
+   The rim goes up with it. A hairline at 0.15 is right for a plate edge against
+   a scene and disappears against another plate; a field has to be an OBJECT
+   somebody can see the extent of before they click into it. */
 input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
   width: 100%; font: 15px/1.5 var(--sans); color: var(--ink);
-  padding: 10px var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm);
-  background: rgba(2, 6, 20, 0.46); margin-top: var(--s2);
+  padding: 10px var(--s3); border: 1px solid rgba(213, 224, 255, 0.26); border-radius: var(--r-sm);
+  background: rgba(2, 6, 20, 0.78); margin-top: var(--s2);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
+  transition: border-color .18s var(--ease);
 }
+/* Two inputs inside one field are one answer in two parts - the outside claim and
+   where it came from - so they sit at the field's own rhythm rather than tight
+   against each other. This was an inline style on the second input, which no rule
+   in this file could reach. */
+.field input + input { margin-top: var(--s2); }
+
+/* What the form is about to record, immediately above the control that records it.
+   Ruled off because it is a summary of every answer above rather than another one:
+   at the same rhythm as the fields it read as one more thing to fill in. */
+.basis-line {
+  margin-top: var(--s5); padding-top: var(--s4);
+  border-top: 1px solid var(--line-soft);
+}
+
 input::placeholder, textarea::placeholder { color: var(--ink-3); }
 input:hover, textarea:hover, select:hover { border-color: var(--accent-line); }
 textarea { min-height: 116px; resize: vertical; }

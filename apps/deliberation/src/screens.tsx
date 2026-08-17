@@ -478,26 +478,43 @@ export function PositionForm({ token, caseId, findings, onDone }: {
         see nobody - until everyone has answered.
       </p>
 
-      <label htmlFor="call">Your call</label>
-      <div className="rail" id="call">
-        {(["advance", "do_not_advance", "cannot_conclude"] as const).map((c) => (
-          <button key={c} type="button" className="persona" aria-pressed={call === c} onClick={() => setCall(c)}>
-            {CALL_LABEL[c]}
-          </button>
-        ))}
+      {/* `.field` and `.choice`, which is what the rest of the product's forms are
+          built from - see "Open a case". This was `.rail` and `.persona`, two classes
+          the redesign dropped and nothing replaced, so the three-way call button - the
+          single most important control in the product - rendered as three words run
+          together with no gap, no border and no pressed state. `.choice` carries the
+          layout and `button.ghost` carries the states, including aria-pressed. */}
+      <div className="field">
+        <label htmlFor="call">Your call</label>
+        <div className="choice" id="call">
+          {(["advance", "do_not_advance", "cannot_conclude"] as const).map((c) => (
+            <button key={c} type="button" className="ghost" aria-pressed={call === c} onClick={() => setCall(c)}>
+              {CALL_LABEL[c]}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <label htmlFor="why">Why. This is the part a later reader needs.</label>
-      <textarea id="why" value={reasoning} onChange={(e) => setReasoning(e.target.value)}
-        placeholder="The transporter result is real, but this assay overcalls for this class and the margin is 40x." />
+      <div className="field">
+        <label htmlFor="why">Why. This is the part a later reader needs.</label>
+        <textarea id="why" value={reasoning} onChange={(e) => setReasoning(e.target.value)}
+          placeholder="The transporter result is real, but this assay overcalls for this class and the margin is 40x." />
+      </div>
 
-      <label>What you are relying on, from this case</label>
-      <p className="small muted">
-        A selection, not free text. A selected citation points at a specific object, so
-        the check is arithmetic - and a typed one would have to be run through a model to
-        decide whether it referred to anything real, which would put a model in charge of
-        which dissent counts.
-      </p>
+      {/* The explanation belongs to the label above it, so it is a `.hint` inside the
+          field rather than a paragraph floating between two controls - the same shape
+          every field on the new-case form uses. A `.small.muted` here sat at the same
+          rhythm as the body copy and read as prose about the page rather than as
+          instructions for the control underneath it. */}
+      <div className="field">
+        <label>What you are relying on, from this case</label>
+        <span className="hint">
+          A selection, not free text. A selected citation points at a specific object, so
+          the check is arithmetic - and a typed one would have to be run through a model to
+          decide whether it referred to anything real, which would put a model in charge of
+          which dissent counts.
+        </span>
+      </div>
       {findings.map((f) => (
         <div className="cite" key={f.id}>
           <input type="checkbox" id={f.id} checked={cited.includes(f.id)} onChange={() => toggle(f.id)} />
@@ -508,18 +525,22 @@ export function PositionForm({ token, caseId, findings, onDone }: {
         </div>
       ))}
 
-      <label htmlFor="claim">Relying on something outside these documents? State it.</label>
-      <p className="small muted">
-        Not a weaker citation - an assertion not yet in evidence, and useful because
-        somebody can go and check it. It joins the missing-evidence list rather than
-        evaporating.
-      </p>
-      <input id="claim" type="text" value={claim} onChange={(e) => setClaim(e.target.value)}
-        placeholder="This assay overcalls for phenothiazines." />
-      <input type="text" value={source} onChange={(e) => setSource(e.target.value)}
-        placeholder="Source, if you have one (optional)" style={{ marginTop: 8 }} />
+      <div className="field">
+        <label htmlFor="claim">Relying on something outside these documents? State it.</label>
+        <span className="hint">
+          Not a weaker citation - an assertion not yet in evidence, and useful because
+          somebody can go and check it. It joins the missing-evidence list rather than
+          evaporating.
+        </span>
+        <input id="claim" type="text" value={claim} onChange={(e) => setClaim(e.target.value)}
+          placeholder="This assay overcalls for phenothiazines." />
+        <input type="text" value={source} onChange={(e) => setSource(e.target.value)}
+          aria-label="Source for the outside claim, optional"
+          placeholder="Source, if you have one (optional)" />
+      </div>
 
-      <p className="small">
+      {/* What the form is about to do, immediately above the button that does it. */}
+      <p className="small basis-line">
         Your position will be recorded as <span className={`basis ${basis}`}>{basis}</span>
         {basis === "unsupported" && " - which is allowed, is never deleted, and is visible to whoever signs."}
       </p>
@@ -680,9 +701,12 @@ export function Verdict({ adjudication, source, onSign }: {
         One named person. No quorum, no threshold, no consensus mechanism - a committee
         advises and an individual decides, and you may override this adjudication.
       </p>
-      <div className="rail">
-        <button type="button" className="persona" aria-pressed={agrees} onClick={() => setAgrees(true)}>Agree</button>
-        <button type="button" className="persona" aria-pressed={!agrees} onClick={() => setAgrees(false)}>Override</button>
+      {/* The same pair of dropped classes as the call control above, and the same
+          replacement: signing off on an adjudication is a two-way choice and it was
+          rendering as "AgreeOverride". */}
+      <div className="choice">
+        <button type="button" className="ghost" aria-pressed={agrees} onClick={() => setAgrees(true)}>Agree</button>
+        <button type="button" className="ghost" aria-pressed={!agrees} onClick={() => setAgrees(false)}>Override</button>
       </div>
       <label htmlFor="reason">{agrees ? "Anything to add (optional)" : "Why you are overriding - required"}</label>
       <textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
