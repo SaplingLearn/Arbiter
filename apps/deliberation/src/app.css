@@ -1149,3 +1149,85 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
   text-align: center;
 }
 .opening > div { max-width: 46ch; display: grid; gap: var(--s2); }
+
+/* ---- the adjudication ---------------------------------------------------- */
+/* THIS PANEL HAD NO RHYTHM OF ITS OWN, and in this stylesheet that means it had
+   none at all: `p` and every heading are `margin: 0`, so every vertical space in
+   the product comes from a `gap` on a flex parent. The verdict was a bare
+   `<section>` - `display: block`, `gap: normal` - so eight headings and fifteen
+   paragraphs stacked flush against each other into one wall of text.
+
+   It went unseen because the panel used to render only in the seconds after
+   somebody pressed Adjudicate. Serving the stored verdict is what put it in front
+   of every reader of every decided case, and the formatting had to catch up. */
+.verdict { display: flex; flex-direction: column; gap: var(--s6); }
+.verdict-group { display: flex; flex-direction: column; gap: var(--s3); }
+
+/* THE TWO QUESTIONS, SIDE BY SIDE, because that separation is the product's whole
+   claim: §0's defect was five approved drugs flagged on a mechanism finding alone.
+   Rendering them as one column of prose is the same conflation the engine made.
+   Two plates cannot be read as one answer. */
+/* `stretch`, not `start`: the two questions are equals, and a short mechanism answer
+   beside a long consequence one drew the shorter plate as the lesser of the pair. */
+.halves { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: var(--s4); align-items: stretch; }
+.half {
+  border: 1px solid var(--line); border-left: 3px solid var(--line);
+  background-color: var(--paper); padding: var(--s5); box-shadow: var(--e1);
+  display: flex; flex-direction: column; gap: var(--s3);
+}
+/* Colour lands on the CONSEQUENCE half only. A mechanism is not good or bad news -
+   it is a fact about chemistry - and tinting it green or red re-teaches exactly the
+   reflex this screen exists to break. One coloured thing on the page, and it is the
+   verdict. */
+.half.go { border-left-color: var(--go); }
+.half.stop { border-left-color: var(--stop); }
+.half .answer {
+  font-family: var(--display); font-size: 25px; line-height: 1.16;
+  letter-spacing: -.012em; max-width: none;
+}
+.half.go .answer { color: var(--go); }
+.half.stop .answer { color: var(--stop); }
+.half .ask { font-size: 13px; color: var(--ink-3); max-width: none; }
+.half .md { max-width: none; }
+.half .md p { font-size: 14.5px; }
+
+/* Rules and gaps reuse the evidence inventory's ruled rows. They are the same kind
+   of object - one line per registered item, present or not - and a second list
+   shape for them would say they were a different kind. */
+.rule-row {
+  display: grid; grid-template-columns: 148px 1fr; gap: var(--s4);
+  padding: var(--s4) var(--s5); border-top: 1px solid var(--line-soft); align-items: start;
+}
+.rule-row:first-child { border-top: 0; }
+.rule-key { display: flex; flex-direction: column; gap: var(--s2); align-items: flex-start; }
+.rule-key .ref { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); }
+.rule-row .md { max-width: none; }
+.rule-row .md p { font-size: 14px; color: var(--ink-2); }
+
+.gap-row {
+  padding: var(--s4) var(--s5); border-top: 1px solid var(--line-soft);
+  display: flex; flex-direction: column; gap: var(--s1);
+}
+.gap-row:first-child { border-top: 0; }
+.gap-row .field { font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+.gap-row .blocks { font-size: 13.5px; color: var(--ink-2); }
+
+/* The vote, when the runs disagreed. Mono because it is a measurement. */
+.split-note {
+  font: 400 12px/1.5 var(--mono); color: var(--open);
+  border-left: 2px solid var(--open-line); padding-left: var(--s3); max-width: none;
+}
+
+@media (max-width: 620px) {
+  .rule-row { grid-template-columns: 1fr; gap: var(--s2); }
+  .rule-key { flex-direction: row; align-items: center; gap: var(--s3); }
+}
+
+/* A hairline between two kinds of claim in one panel: what the room said, and what
+   the record computes from it. Replaces a `marginTop: 32` inline style that no rule
+   in this file could reach - the same complaint button.primary carries. */
+.aside-rule { padding-top: var(--s5); border-top: 1px solid var(--line); }
+
+/* A file input is a control, not a block: without this the section's flex stretches
+   it to the full column and it reads as an empty field. */
+.upload { align-items: flex-start; }
