@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { can, canRead, denial, isOwner, isParticipant, visibleCases, type CaseAction } from "../access.js";
+import { can, canRead, canShare, denial, isOwner, isParticipant, visibleCases, type CaseAction } from "../access.js";
 import { openCase, type DeliberationCase } from "../deliberation.js";
 
 const CASE = openCase({
@@ -7,7 +7,7 @@ const CASE = openCase({
   ownerId: "u_owner", participantIds: ["u_ann", "u_bea"],
 });
 
-const ACTIONS: CaseAction[] = ["read", "submit", "reveal", "adjudicate", "sign"];
+const ACTIONS: CaseAction[] = ["read", "submit", "reveal", "adjudicate", "sign", "share"];
 
 describe("membership", () => {
   it("recognises the owner and the participants", () => {
@@ -104,5 +104,30 @@ describe("canRead against every case status", () => {
       expect(canRead(c, "u_ann"), status).toBe(true);
       expect(canRead(c, "u_stranger"), status).toBe(false);
     }
+  });
+});
+
+describe("publishing a record", () => {
+  it("is the convener's to do, because publishing is not reading", () => {
+    expect(canShare(CASE, "u_owner")).toBe(true);
+  });
+
+  it("is refused to a participant, who may read the record but not publish it", () => {
+    expect(canShare(CASE, "u_ann")).toBe(false);
+  });
+
+  it("is refused to an account with nothing to do with the case", () => {
+    expect(canShare(CASE, "u_stranger")).toBe(false);
+  });
+
+  it("is routed the same way through `can`", () => {
+    expect(can(CASE, "u_owner", "share")).toBe(true);
+    expect(can(CASE, "u_ann", "share")).toBe(false);
+  });
+
+  it("denies a participant with the owner-only wording, never naming the case", () => {
+    const d = denial(CASE, "u_ann", "share");
+    expect(d?.detail).toContain("Only the decision owner");
+    expect(d?.detail).not.toContain("TAK-994");
   });
 });
