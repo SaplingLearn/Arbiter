@@ -1159,10 +1159,22 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
     display: none !important;
   }
 
-  html, body { background: #fff !important; }
-  .shell, .work, .work-col, .col, .rep-wrap {
+  /* PAGINATION IS THE WHOLE POINT, AND IT IS EASY TO LOSE.
+     A printed document is a stack of A4 sheets, not one very long one. Any ancestor
+     of the sheet that keeps a viewport height or clips its overflow collapses the
+     print to a single page with everything past the fold cut off - and the cut is
+     silent, because the preview on screen still scrolls perfectly. `.shell` already
+     carries `min-height: 100vh` for the screen, so the reset is not hypothetical; the
+     rest is a guard against the next wrapper that grows one. */
+  html, body {
+    background: #fff !important;
+    height: auto !important; min-height: 0 !important; overflow: visible !important;
+  }
+  .shell, .work, .work-col, .col, .rep-wrap, .report-sheet {
     display: block !important;
-    padding: 0 !important; margin: 0 !important; max-width: none !important; min-height: 0 !important;
+    padding: 0 !important; margin: 0 !important; max-width: none !important;
+    height: auto !important; min-height: 0 !important; max-height: none !important;
+    overflow: visible !important;
   }
 
   .report-sheet {
