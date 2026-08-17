@@ -22,8 +22,9 @@ import type { EvidenceChecklist, Modality } from "./inventory.js";
  *
  * ONE CHECKLIST ITEM AT A TIME, not one pass over the whole document. The checklist is
  * the question set the case is judged against, so a proposal that does not answer one of
- * its items has nowhere to go - and asking per item means the retrieval query is the
- * item's own field text, which is exactly what the lexical retriever is good at. It also
+ * its items has nowhere to go - and asking per item means the retrieval query is built
+ * from that item alone: its field text plus its `searchTerms`, which is exactly what the
+ * lexical retriever is good at. It also
  * makes an ABSENT item a first-class answer: a model that finds nothing for
  * "Reversibility on withdrawal" says so, and absent evidence is a finding in this product
  * rather than a silence.
