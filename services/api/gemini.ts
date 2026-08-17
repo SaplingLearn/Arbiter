@@ -141,6 +141,54 @@ export function geminiEndpointLabel(env: NodeJS.ProcessEnv = process.env): strin
     : "Vertex AI express, API key";
 }
 
+/**
+ * The schema as the chosen host will actually accept it.
+ *
+ * THE TWO HOSTS DO NOT TAKE THE SAME SCHEMA, and the comment below this function
+ * claimed for months that they did - "anyOf, nullable enums and
+ * additionalProperties:false; all three are accepted here". Two of those three are.
+ * `additionalProperties` is not a field of the Developer API's `response_schema`
+ * proto, so it rejects the REQUEST, before any model is selected:
+ *
+ *   400  Invalid JSON payload received. Unknown name "additionalProperties"
+ *        at 'generation_config.response_schema'
+ *
+ * Which made every AI surface in the project dead on that host at once - adjudicate,
+ * ask, interpret, extract and navigate all write `additionalProperties: false`, and
+ * all five got the same 400. It read as a model problem because handleAdjudicate
+ * reports every upstream fault as a bare `502 upstream`: a request that never reached
+ * a model is indistinguishable from a model that failed. Changing
+ * ARBITER_ADJUDICATION_MODEL could not have fixed it and three models were tried.
+ *
+ * STRIPPED HERE rather than in the schema builders, because the constraint is real
+ * and worth keeping wherever it is honoured: `additionalProperties: false` is what
+ * stops a model returning a field nobody asked for, Vertex enforces it, and the
+ * committed numbers were measured with it in force. Loosening the shared schemas to
+ * satisfy the weaker host would weaken the stronger one to buy nothing. So the
+ * schemas stay strict and the transport adapts, which is the direction that leaves
+ * one host improved and the other untouched.
+ *
+ * What the Developer API does INSTEAD: nothing. Undeclared properties are simply
+ * permitted there. Every field the project depends on is in `required`, so a missing
+ * field still fails; an extra field now arrives unremarked rather than rejected, and
+ * on the adjudicate path verifyAdjudication is what stands between that and a screen.
+ */
+export function responseSchemaFor(schema: unknown, env: NodeJS.ProcessEnv = process.env): unknown {
+  if (apiHost(env) !== "developer") return schema;
+  return withoutKeys(schema, ["additionalProperties"]);
+}
+
+/** Recursive, and copying rather than deleting - see the "does not mutate" test. */
+function withoutKeys(node: unknown, keys: string[]): unknown {
+  if (Array.isArray(node)) return node.map((n) => withoutKeys(n, keys));
+  if (node === null || typeof node !== "object") return node;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+    if (!keys.includes(k)) out[k] = withoutKeys(v, keys);
+  }
+  return out;
+}
+
 export function geminiComplete(
   model: string,
   shape: CallShape,
@@ -186,10 +234,12 @@ export function geminiComplete(
         generationConfig: {
           // Gemini's structured-output equivalent of Anthropic's
           // output_config.format. This project's schemas use anyOf, nullable enums
-          // and additionalProperties:false; all three are accepted here, so
-          // proposalSchema and adjudicationSchema cross over unchanged.
+          // and additionalProperties:false. The first two cross over unchanged on
+          // both hosts; the third is a Vertex-only field, which is why the schema
+          // goes through responseSchemaFor rather than straight in. See that
+          // function - sending it raw to the Developer API 400s the whole request.
           responseMimeType: "application/json",
-          responseSchema: schema,
+          responseSchema: responseSchemaFor(schema, env),
           maxOutputTokens: shape.maxOutputTokens,
           thinkingConfig: { thinkingBudget: shape.thinkingBudget },
           // DETERMINISTIC DECODING. Redesign spec 7.1 lists it first among the
