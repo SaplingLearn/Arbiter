@@ -11,6 +11,7 @@ import { AuthStore } from "../auth.js";
 import { DocumentStore } from "../documents.js";
 import { LibraryStore } from "../library.js";
 import { InviteStore } from "../invites.js";
+import { ShareStore } from "../share.js";
 import { LoginThrottle } from "../throttle.js";
 import { ModelBudget } from "../spend.js";
 import { seedDemoTeam, DEMO_PASSWORD } from "../seed-demo.js";
@@ -27,6 +28,11 @@ const FINDINGS: CoveringFinding[] = [
   { id: "f-hep", label: "Human hepatocyte", assertion: "toxic", detail: "Signal at 10uM.", covers: ["M1"] },
   { id: "f-rat", label: "Rat 28-day", assertion: "safe", detail: "Clean at 3x.", covers: ["M5"] },
 ];
+
+/** Comfortably over ShareStore's 32-byte floor. Not read from the environment - this
+ *  suite never calls `shareSecret()`, it hands the value straight to `ServerDeps` so
+ *  publishing is on for every test in this file regardless of what is exported. */
+const SHARE_SECRET = "arbiter-test-share-secret-do-not-use-in-production";
 
 let server: Server;
 let base: string;
@@ -64,6 +70,8 @@ beforeAll(async () => {
     documents: new DocumentStore(mkdtempSync(join(tmpdir(), "arb-docs-"))),
     library: new LibraryStore({ cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib-")) }),
     invites: new InviteStore(null),
+    shares: new ShareStore(),
+    shareSecret: SHARE_SECRET,
     throttle: new LoginThrottle(),
     // Deliberately generous: this suite drives many model-calling routes in one run and
     // the cap is not what any of these cases are measuring. `spend.test.ts` measures it.
@@ -98,6 +106,14 @@ const call = async (
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   return { status: res.status, body: res.status === 204 ? null : await res.json() };
+};
+
+/** No `authorization` header, ever - the whole point of the public route is that it
+ *  works without one. */
+const fetchPublic = async (path: string): Promise<{ status: number; body: any }> => {
+  const res = await fetch(`${base}${path}`);
+  const text = await res.text();
+  return { status: res.status, body: text === "" ? null : JSON.parse(text) };
 };
 
 const position = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -386,6 +402,84 @@ describe("cases, with access control", () => {
     const none = await call("GET", "/api/cases/c-report-open/view", "ann");
     expect(none.status).toBe(200);
     expect(none.body.adjudication).toBeNull();
+  });
+
+  describe("publishing a record", () => {
+    // FIRST IN THE BLOCK, DELIBERATELY: this is the one assertion in this describe
+    // that needs c1 UNpublished to mean anything, and every test after it leaves a
+    // live link behind. Everything below runs against c1, which "runs the rest of the
+    // flow for the owner" above leaves adjudicated and signed.
+    it("tells the convener whether a link exists, so the page knows to draw the QR", async () => {
+      const before = await call("GET", "/api/cases/c1/share", "owner");
+      expect(before.body.published).toBe(false);
+      await call("POST", "/api/cases/c1/share", "owner", {});
+      const after = await call("GET", "/api/cases/c1/share", "owner");
+      expect(after.body.published).toBe(true);
+      expect(after.body.url).toContain("/r/c1/");
+    });
+
+    it("refuses a participant, who may read it but not publish it", async () => {
+      const r = await call("POST", "/api/cases/c1/share", "bea", {});
+      expect(r.status).toBe(403);
+    });
+
+    it("publishes for the convener and hands back a URL carrying the token", async () => {
+      const r = await call("POST", "/api/cases/c1/share", "owner", {});
+      expect(r.status).toBe(201);
+      expect(r.body.url).toContain("/r/c1/");
+      expect(r.body.token).toMatch(/^[A-Za-z0-9_-]+$/);
+    });
+
+    it("returns the same URL on a second press, so a printed QR keeps working", async () => {
+      const first = await call("POST", "/api/cases/c1/share", "owner", {});
+      const again = await call("POST", "/api/cases/c1/share", "owner", {});
+      expect(again.body.url).toBe(first.body.url);
+    });
+
+    it("serves the record to a stranger holding the token", async () => {
+      const pub = await call("POST", "/api/cases/c1/share", "owner", {});
+      const r = await fetchPublic(`/api/public/report/c1/${pub.body.token as string}`);
+      expect(r.status).toBe(200);
+      expect(r.body.compoundLabel).toBe("TAK-994");
+      expect(r.body.positions.length).toBeGreaterThan(0);
+    });
+
+    it("puts no email address anywhere in the public body", async () => {
+      const pub = await call("POST", "/api/cases/c1/share", "owner", {});
+      const r = await fetchPublic(`/api/public/report/c1/${pub.body.token as string}`);
+      expect(JSON.stringify(r.body)).not.toContain("@");
+    });
+
+    it("refuses a token that does not match", async () => {
+      await call("POST", "/api/cases/c1/share", "owner", {});
+      const r = await fetchPublic("/api/public/report/c1/not-the-token");
+      expect(r.status).toBe(404);
+    });
+
+    it("refuses every token once the link is revoked, which is what reaches printed paper", async () => {
+      const pub = await call("POST", "/api/cases/c1/share", "owner", {});
+      const token = pub.body.token as string;
+      expect((await fetchPublic(`/api/public/report/c1/${token}`)).status).toBe(200);
+
+      const gone = await call("DELETE", "/api/cases/c1/share", "owner");
+      expect(gone.status).toBe(200);
+      expect((await fetchPublic(`/api/public/report/c1/${token}`)).status).toBe(404);
+    });
+
+    it("mints a different token when republished, leaving the revoked one dead", async () => {
+      const first = await call("POST", "/api/cases/c1/share", "owner", {});
+      await call("DELETE", "/api/cases/c1/share", "owner");
+      const second = await call("POST", "/api/cases/c1/share", "owner", {});
+
+      expect(second.body.token).not.toBe(first.body.token);
+      expect((await fetchPublic(`/api/public/report/c1/${first.body.token as string}`)).status).toBe(404);
+      expect((await fetchPublic(`/api/public/report/c1/${second.body.token as string}`)).status).toBe(200);
+    });
+
+    it("refuses a case nobody published", async () => {
+      const r = await fetchPublic("/api/public/report/c1/anything");
+      expect(r.status).toBe(404);
+    });
   });
 });
 

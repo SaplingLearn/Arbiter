@@ -25,6 +25,7 @@ import { InviteStore } from "./invites.js";
 import { LoginThrottle } from "./throttle.js";
 import { ModelBudget, budgetFrom } from "./spend.js";
 import { envFileInUse, loadEnv } from "./env.js";
+import { deriveToken, ShareStore, shareSecret, verifyToken } from "./share.js";
 
 /**
  * The deliberation API.
@@ -76,6 +77,9 @@ export interface ServerDeps {
   documents: DocumentStore;
   library: LibraryStore;
   invites: InviteStore;
+  shares: ShareStore;
+  /** Null when ARBITER_SHARE_SECRET is unset: publishing is off, everything else works. */
+  shareSecret: string | null;
   throttle: LoginThrottle;
   /** Caps the endpoints that cost money. See `spend.ts`. */
   budget: ModelBudget;
@@ -182,10 +186,37 @@ export function makeHandler(deps: ServerDeps) {
     }
 
     try {
-      // ---- auth, the only unauthenticated surface ---------------------------
+      // ---- auth, the first of two unauthenticated surfaces ----------------------
       if (parts[1] === "auth") {
         return handleAuth(deps, res, parts[2], method, body, bearer(req), now(),
           req.socket.remoteAddress ?? "unknown");
+      }
+
+      /**
+       * THE SECOND UNAUTHENTICATED SURFACE, and the only one that serves case data.
+       *
+       * Reached before the session is resolved, deliberately: a reader holding a share
+       * link has no account, and requiring one would defeat the QR on a printed page.
+       * What stands in for a session is the token - unforgeable without the secret,
+       * scoped to one case, and revocable - and what stands in for `visibleTo` is the
+       * public audience, which cuts the addresses before the body is built.
+       *
+       * 404, never 403, on every failure below. A 403 would confirm that a case exists
+       * and is published, which is the one fact an unauthenticated caller must not be
+       * able to probe for.
+       */
+      if (parts[1] === "public" && parts[2] === "report" && method === "GET") {
+        const caseId = parts[3] === undefined ? "" : decodeURIComponent(parts[3]);
+        const token = parts[4] ?? "";
+        if (deps.shareSecret === null) return json(res, 404, { error: "not_found" });
+
+        const link = deps.shares.get(caseId);
+        if (!verifyToken(deps.shareSecret, link, token)) return json(res, 404, { error: "not_found" });
+
+        const kase = deps.service.getCase(caseId);
+        if (kase === null) return json(res, 404, { error: "not_found" });
+
+        return handleReport(deps, res, kase, link!.createdBy, new Date(now()).toISOString(), "public");
       }
 
       // The catalogue names no case contents and no positions, so it is readable by
@@ -375,8 +406,14 @@ export function makeHandler(deps: ServerDeps) {
       // route does not implement was answered with a permission error instead of a
       // 405 - and a read-shaped request on a write-shaped path was checked against
       // the wrong rule. Anything that is not a known write is a read.
+      // "share" gets its own arm in BOTH mutating branches, not just a handler-level
+      // check. Any unrecognised tail falls through to "read" here, and a route added
+      // beside this one without an arm would be checked against the read rule instead
+      // of being denied - which is how a participant would get to publish a case they
+      // may only read. `handleShare` re-checks the same rule regardless; this is the
+      // gate that stops the request before the route is even reached.
       const action: CaseAction = method === "DELETE"
-        ? (tail === "findings" || tail === "participants" ? "adjudicate" : "read")
+        ? (tail === "findings" || tail === "participants" ? "adjudicate" : tail === "share" ? "share" : "read")
         : method !== "POST"
           ? "read"
           : tail === "findings" || tail === "participants" || tail === "describe" ? "adjudicate"
@@ -384,7 +421,8 @@ export function makeHandler(deps: ServerDeps) {
           : tail === "reveal" ? "reveal"
             : tail === "adjudicate" ? "adjudicate"
               : tail === "sign" ? "sign"
-                : "read";
+                : tail === "share" ? "share"
+                  : "read";
       if (!can(kase, user.id, "read")) return json(res, 404, { error: "no_case" });
       if (action !== "read") {
         const d = denial(kase, user.id, action);
@@ -504,7 +542,15 @@ export function makeHandler(deps: ServerDeps) {
            * has to ask them for a copy.
            */
           case "report":
-            return handleReport(deps, res, kase, user, new Date(now()).toISOString());
+            return handleReport(deps, res, kase, user.id, new Date(now()).toISOString());
+          /**
+           * Whether this case is published, and where. Convener only - the
+           * action switch above leaves GET resolved to "read" so a
+           * participant is not 404'd on the way in, but `handleShare` checks
+           * `denial(kase, user.id, "share")` itself before answering.
+           */
+          case "share":
+            return handleShare(deps, req, res, kase, user, method, new Date(now()).toISOString());
           default:
             return json(res, 404, { error: "not_found" });
         }
@@ -653,6 +699,8 @@ export function makeHandler(deps: ServerDeps) {
             const r = deps.service.signOff(caseId, { by: user.id, at: b.at, agreesWithAdjudication: b.agreesWithAdjudication, reason: b.reason });
             return r.ok ? json(res, 200, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
           }
+          case "share":
+            return handleShare(deps, req, res, kase, user, method, new Date(now()).toISOString());
           default:
             return json(res, 404, { error: "not_found" });
         }
@@ -674,6 +722,10 @@ export function makeHandler(deps: ServerDeps) {
         }
         const r = deps.service.removeParticipant(caseId, target, user.id, new Date(now()).toISOString());
         return r.ok ? json(res, 200, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
+      }
+
+      if (method === "DELETE" && tail === "share") {
+        return handleShare(deps, req, res, kase, user, method, new Date(now()).toISOString());
       }
 
       return json(res, 405, { error: "method_not_allowed" });
@@ -767,7 +819,8 @@ function handleAuth(
 }
 
 /**
- * The deliberation record, for whoever on the case asks for it.
+ * The deliberation record, for whoever on the case asks for it - or, with
+ * `audience: "public"`, for a stranger holding a share link and nobody else.
  *
  * IT REFUSES BEFORE IT IS A RECORD. A case with no adjudication has no verdict to
  * report, and a page titled "deliberation record" with a blank verdict is worse than no
@@ -780,10 +833,15 @@ function handleAuth(
  * PDF" in it, and needs no binary installed beside the API - so what crosses the wire
  * is the record, and the preview page in the app draws it with the product's own design
  * system rather than a second stylesheet imitating it.
+ *
+ * TAKES AN ID, NOT A USER. The authenticated route has a session and passes `user.id`;
+ * the public route has no session at all, only the share link's `createdBy` - and
+ * fabricating a `PublicUser` to satisfy a parameter this function only ever reads the
+ * id off of would be a lie sitting where a real session used to be.
  */
 function handleReport(
-  deps: ServerDeps, res: ServerResponse,
-  kase: DeliberationCase, user: PublicUser, generatedAt: string,
+  deps: ServerDeps, res: ServerResponse, kase: DeliberationCase,
+  generatedById: string, generatedAt: string, audience: "case" | "public" = "case",
 ): void {
   const record = deps.service.adjudication(kase.caseId);
   if (record === null) {
@@ -807,7 +865,7 @@ function handleReport(
     // by the same gate every other route does. It cannot return null here - the
     // adjudication above only exists on a case that has been revealed - but the empty
     // fallback keeps that an assumption rather than a crash.
-    positions: deps.service.view(kase.caseId, user.id)?.revealed ?? [],
+    positions: deps.service.view(kase.caseId, generatedById)?.revealed ?? [],
     inventory,
     findings: deps.service.adjudicationRequest(kase.caseId, deps.rules)?.findings ?? [],
     unanimity,
@@ -820,12 +878,82 @@ function handleReport(
     signature: record.signature,
     audit: { chainFailures: audit.chain.length, sealFailures: audit.seals.length, entries: audit.entries },
     person: (id) => deps.auth.get(id),
-    generatedById: user.id,
+    generatedById,
     generatedAt,
-    // This route sits behind an authenticated session, so the reader is already on the
-    // case: the addresses stay.
-    audience: "case",
+    // "case" unless the caller says otherwise, which is what every route above the
+    // public one wants: the reader is already on the case, so the addresses stay. The
+    // public route is the one caller that passes "public" - buildCaseReport is what
+    // actually cuts the emails, this is only which audience it cuts them for.
+    audience,
   }));
+}
+
+/**
+ * Where a published record lives.
+ *
+ * Built from the request's own Host so a link works from wherever the reader reached
+ * the product - localhost in development, the deployed host in production - rather than
+ * from a base URL somebody has to remember to configure per environment and will not.
+ */
+function shareUrl(req: IncomingMessage, caseId: string, token: string): string {
+  const proto = (req.headers["x-forwarded-proto"] as string | undefined) ?? "http";
+  const host = req.headers.host ?? "localhost";
+  return `${proto}://${host}/r/${encodeURIComponent(caseId)}/${token}`;
+}
+
+/**
+ * Publish, revoke, or report the status of a case's share link. One function for all
+ * three methods, because they share the one fact that actually matters: only the
+ * convener may touch a case's link, checked ONCE here rather than once per method -
+ * three copies of the same check are three places for a fourth method to slip past.
+ *
+ * A SECOND, INDEPENDENT CHECK. The action ternary above the call site already resolves
+ * a mutating "share" request to a check against `canShare` before this function is ever
+ * reached, so the line below repeats a decision the router already made. It is kept
+ * anyway: a route that trusted the router's word for it is exactly the shape of the bug
+ * this task exists to close, and a GET on this same route has no ternary arm to protect
+ * it at all - this is the only check standing between a participant and the publish
+ * state of a case they may merely read.
+ */
+function handleShare(
+  deps: ServerDeps, req: IncomingMessage, res: ServerResponse,
+  kase: DeliberationCase, user: PublicUser, method: string, at: string,
+): void {
+  const denied = denial(kase, user.id, "share");
+  if (denied !== null) return json(res, 403, denied);
+
+  if (method === "GET") {
+    const link = deps.shares.get(kase.caseId);
+    const live = link !== null && link.revokedAt === null && deps.shareSecret !== null;
+    return json(res, 200, {
+      published: live,
+      url: live ? shareUrl(req, kase.caseId, deriveToken(deps.shareSecret!, kase.caseId, link!.version)) : null,
+    });
+  }
+
+  /* REFUSED BEFORE ANYTHING IS WRITTEN when the deployment has no secret. 501, not
+     500: the server is working and this capability is switched off, and the message
+     names the variable rather than leaving an operator to guess which of the
+     environment's many settings is missing. */
+  if (deps.shareSecret === null) {
+    return json(res, 501, {
+      error: "sharing_disabled",
+      detail: "ARBITER_SHARE_SECRET is not set, so this deployment cannot publish records.",
+    });
+  }
+
+  if (method === "POST") {
+    const link = deps.shares.publish(kase.caseId, user.id, at);
+    const token = deriveToken(deps.shareSecret, kase.caseId, link.version);
+    return json(res, 201, { url: shareUrl(req, kase.caseId, token), token, createdAt: link.createdAt });
+  }
+
+  if (method === "DELETE") {
+    deps.shares.revoke(kase.caseId, at);
+    return json(res, 200, { revoked: true });
+  }
+
+  return json(res, 405, { error: "method_not_allowed" });
 }
 
 function handleDemo(deps: ServerDeps, res: ServerResponse, body: unknown, user: PublicUser, now: number): void {
@@ -931,6 +1059,10 @@ export function buildDeps(logPath: string): ServerDeps {
     documents: new DocumentStore("results/documents"),
     library: new LibraryStore(),
     invites: new InviteStore(`${logPath}.invites.json`),
+    shares: new ShareStore(`${logPath}.shares.json`),
+    // Throws on a short secret, and this runs at boot - a weak secret stops the
+    // process starting at all rather than silently producing guessable URLs.
+    shareSecret: shareSecret(process.env),
     throttle: new LoginThrottle(),
     budget: new ModelBudget(budgetFrom(process.env)),
     rules: probe.rules,
@@ -1009,6 +1141,11 @@ if (invokedDirectly) {
     // checkout's `.env` - or none - while the person reading the banner is looking at
     // the first. Both halves are needed to tell those apart.
     console.log(`Config: ${envFile ?? "no .env or .env.share found - defaults only"}  (in ${process.cwd()})`);
+    // Configuration that decides whether a capability exists should be visible at
+    // boot, the way the storage lines above already are.
+    console.log(`Share:  ${deps.shareSecret === null
+      ? "off - ARBITER_SHARE_SECRET is unset, so records cannot be published"
+      : "on - records can be published to a tokenised URL"}`);
     console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token.`);
     console.log(HOST === "127.0.0.1"
       ? "Bound to loopback. This process terminates no TLS; set ARBITER_HOST only behind a proxy that does."
