@@ -1,0 +1,87 @@
+import { StrictMode, useEffect, useState, type ReactElement } from "react";
+import { createRoot } from "react-dom/client";
+import { ReportPage } from "./report.js";
+import type { CaseReport } from "./api.js";
+import "./app.css";
+
+/**
+ * The record, to somebody who is not signed in.
+ *
+ * ITS OWN ENTRY POINT, and that is the security design rather than a build convenience.
+ * `App.tsx` authenticates on load from AUTO_EMAIL, so a public route inside that shell
+ * would sign its visitor in, and the only thing preventing it would be a condition
+ * somebody has to keep remembering. This bundle cannot sign anybody in because the code
+ * that does it is not in it - the same argument `access.ts` makes for writing rules that
+ * fail closed instead of open.
+ *
+ * NOTHING AUTHENTICATED IS IMPORTED HERE. Not App, not the bearer-token api client, not
+ * the case screens. If a future change needs one of them on this page, that is the
+ * signal to ask why, not to add the import. `./api.js` is imported for its TYPE only
+ * (`import type`), which Vite's esbuild transform erases at build time - the module
+ * that carries `/api/auth/login` as a string literal never ships in this bundle. See
+ * Step 8 of the task brief for the grep that proves it.
+ */
+
+export function parsePublicPath(path: string): { caseId: string; token: string } | null {
+  const parts = path.split("/").filter((p) => p !== "");
+  if (parts.length !== 3 || parts[0] !== "r") return null;
+  return { caseId: decodeURIComponent(parts[1]!), token: parts[2]! };
+}
+
+export function PublicReport({ caseId, token }: { caseId: string; token: string }): ReactElement {
+  const [report, setReport] = useState<CaseReport | null>(null);
+  const [dead, setDead] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(`/api/public/report/${encodeURIComponent(caseId)}/${token}`);
+        if (!res.ok) { setDead(true); return; }
+        setReport(JSON.parse(await res.text()) as CaseReport);
+      } catch { setDead(true); }
+    })();
+  }, [caseId, token]);
+
+  /* BOTH EFFECTS AT THE TOP, BEFORE ANY RETURN. React runs hooks in the same order on
+     every render, so a hook placed after an early return - as the loading and dead
+     states below would require if this one followed them - is a hook that sometimes
+     does not run at all, which React refuses outright. The `report !== null` guard
+     inside the effect body does the job the early return would have, without moving
+     the call itself. */
+  useEffect(() => {
+    if (report !== null) document.title = `${report.compoundLabel} - deliberation record`;
+  }, [report]);
+
+  /* ONE MESSAGE FOR EVERY FAILURE. Never published, wrong token, revoked and no such
+     case all read the same, because telling them apart is exactly the probe the 404 on
+     the server exists to refuse. */
+  if (dead) {
+    // NOT "revoked" - not "does not exist" - not any reason at all. Naming a reason
+    // would tell an outside reader something the server's own uniform 404 was built
+    // not to say: whether a case by this id ever existed, or only ever had this one
+    // token die. One sentence, true of every cause at once.
+    return (
+      <div className="empty">
+        <h3>This link is not valid</h3>
+        <p className="muted">
+          It may be out of date or mistyped. Ask whoever shared it for a current one.
+        </p>
+      </div>
+    );
+  }
+
+  if (report === null) return <p className="muted">Opening the record…</p>;
+
+  return <ReportPage report={report} publishedUrl={window.location.href} />;
+}
+
+function Boot(): ReactElement {
+  const at = parsePublicPath(window.location.pathname);
+  if (at === null) {
+    return <div className="empty"><h3>This link is not valid</h3></div>;
+  }
+  return <PublicReport caseId={at.caseId} token={at.token} />;
+}
+
+const host = document.getElementById("root");
+if (host !== null) createRoot(host).render(<StrictMode><Boot /></StrictMode>);

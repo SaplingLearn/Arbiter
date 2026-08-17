@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Not indexed: a published record is for whoever holds the link, and a search
+         engine is not that. This is courtesy rather than a control - the token is the
+         control - but a record that turns up in results is a surprise nobody wanted. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <!-- FORCES ASSET RESOLUTION BACK TO THE ROOT. index.html can afford `vite.config.ts`'s
+         `base: "./"` because every route in the signed-in app is a hash fragment, so the
+         DOCUMENT is always served from the same shallow path and "./assets/..." always
+         resolves from there. This document is different: the browser fetches its bytes
+         for a URL shaped like /r/<caseId>/<token> - two real path segments deep, and a
+         relative reference would resolve against /r/<caseId>/ and 404. A fixed root
+         anchor is what the QR's fixed URL shape actually requires. -->
+    <base href="/" />
+    <title>Deliberation record</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/public.tsx"></script>
+  </body>
+</html>
