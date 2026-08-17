@@ -1,5 +1,6 @@
 import { useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
+import { api, ApiError, type Adjudication, type BlindView, type Consensus, type Finding, type Inventory, type Position, type Refusal, type Roster, type Signature, type StoredDocument, type UnanimityReport } from "./api.js";
+import { Markdown } from "./markdown.js";
 import { Reviewer, collidingInitials } from "./Reviewer.js";
 import { initials } from "./Layout.js";
 
@@ -41,6 +42,53 @@ const POSITION_LABEL: Record<string, string> = {
   does_not_apply: "does not apply",
   cannot_determine: "cannot be determined from this package",
 };
+
+/**
+ * The verdict's colour, and it is the only colour on the panel.
+ *
+ * `open` for `cannot_conclude` rather than a fourth hue: declining to call it is a
+ * real answer (§0 says it is the one the engine owed irbesartan), so it gets the
+ * neutral the rest of the app already spends on "unresolved" - not a warning tint
+ * that would read as a soft no.
+ */
+const CALL_TONE: Record<string, string> = {
+  advance: "go",
+  do_not_advance: "stop",
+  cannot_conclude: "",
+};
+
+/**
+ * How loudly a rule row asks to be read - NOT whether its answer is good news.
+ *
+ * Deliberately not the go/stop pair the verdict uses. Green on "applies" would say a
+ * rule that bites is reassuring, and red on "does not apply" would say a rule that is
+ * simply irrelevant here is a problem; both are the category error this screen keeps
+ * having to undo. `accent` marks the rows that carry an argument, and the plain badge
+ * lets the rest recede without disappearing - every rule is still answered on screen.
+ */
+const POSITION_TONE: Record<string, string> = {
+  applies: "accent",
+  does_not_apply: "",
+  cannot_determine: "open",
+};
+
+/**
+ * Strip the separator this codebase put in front of the sentence itself.
+ *
+ * `adjudicate.ts` renders every recorded absence into the prompt as
+ * `${field} - blocks: ${whatItBlocks}`, and the model copies that string back
+ * wholesale, so `whyItMatters` arrives carrying our own delimiter. On screen the
+ * field is already its own line, which left every gap opening on a lowercase
+ * "blocks:" fragment.
+ *
+ * REMOVED HERE RATHER THAN IN THE PROMPT because the prompt's wording is measured -
+ * the adjudicator's behaviour was characterised against it - and no cosmetic defect
+ * is worth re-running that. This deletes a label, never a clause: the pattern is
+ * anchored, and text that does not start with it is passed through untouched.
+ */
+function withoutPromptLabel(s: string): string {
+  return s.replace(/^\s*blocks:\s*/i, "");
+}
 
 /** ------------------------------------------------------------------ inventory */
 /** -------------------------------------------------------------- the roster */
@@ -373,25 +421,48 @@ export function Documents({ docs, onUpload, busy, error }: {
  * no hashchange. Without a control here, the one obvious gesture for going back to the
  * list does nothing at all.
  */
+/**
+ * AND WHY IT CARRIES `section`, WHICH IS NOT DECORATION.
+ *
+ * `h2`, `h3` and `p` are all `margin: 0` in app.css - the whole app takes its vertical
+ * rhythm from a container, never from the type. A bare `<section>` is therefore not a
+ * neutral wrapper here, it is NO rhythm at all: this panel rendered as a solid block of
+ * text with the red refusal box wedged into the middle of it, touching the title above
+ * and the first heading below. Every other screen in this file that reads correctly is
+ * inside `.section` or a `Section`; this one was the exception and looked it.
+ *
+ * TWO SCALES, NOT ONE. `.section` alone spaces every child equally, which leaves each
+ * `h3` floating exactly as far from its own paragraph as from the block before it - so
+ * the headings stop owning their text and the panel reads as six unrelated lines. Each
+ * heading is paired with its body in a `.stack-s` instead, so the pairs sit 8px apart
+ * inside and 16px apart from each other, and the reader gets three groups rather than
+ * six items.
+ */
 export function Refused({ r, onBack }: { r: Refusal; onBack: () => void }): ReactElement {
   return (
-    <section>
+    <section className="section">
       <h2>{r.label}</h2>
       <div className="stub">
         This document cannot produce a case. The splitter refused it, and nothing here
         will quietly build one anyway.
       </div>
-      <h3>What data/prep/split_review.py said</h3>
-      <p className="mono">{r.splitterReason}</p>
-      <h3>Measured</h3>
-      <p>{r.measurement}</p>
-      <h3>Why it is on this list at all</h3>
-      <p className="muted">
-        Two of the four documents collected cannot be used, and that ratio is the
-        finding - it is what killed the plan to replay the drugs withdrawn for
-        hepatotoxicity. A picker showing only what worked would imply every document
-        works.
-      </p>
+      <div className="stack-s">
+        <h3>What data/prep/split_review.py said</h3>
+        <p className="mono">{r.splitterReason}</p>
+      </div>
+      <div className="stack-s">
+        <h3>Measured</h3>
+        <p>{r.measurement}</p>
+      </div>
+      <div className="stack-s">
+        <h3>Why it is on this list at all</h3>
+        <p className="muted">
+          Two of the four documents collected cannot be used, and that ratio is the
+          finding - it is what killed the plan to replay the drugs withdrawn for
+          hepatotoxicity. A picker showing only what worked would imply every document
+          works.
+        </p>
+      </div>
       <p className="mono small muted">{r.document}</p>
       <div className="btn-row">
         <button className="ghost" onClick={onBack}>Back to the library</button>
@@ -482,33 +553,56 @@ export function PositionForm({ token, caseId, findings, onDone }: {
   };
 
   return (
-    <section>
+    /* ON A PLATE, the same one the evidence stage uses. A heading, four labels, three
+       paragraphs of explanation and a basis line were sitting directly on a live scene.
+       `.glass` is the product's one surface that carries a ground, and this is the
+       screen where failing to read a sentence costs a reviewer their answer rather than
+       their patience - the fields already made that argument for themselves further
+       down in app.css, and the prose around them had no equivalent. */
+    <section className="glass">
       <h2>Your position</h2>
       <p className="muted">
         Sealed the moment you submit, and you cannot change it. Nobody sees it - and you
         see nobody - until everyone has answered.
       </p>
 
-      <label htmlFor="call">Your call</label>
-      <div className="rail" id="call">
-        {(["advance", "do_not_advance", "cannot_conclude"] as const).map((c) => (
-          <button key={c} type="button" className="persona" aria-pressed={call === c} onClick={() => setCall(c)}>
-            {CALL_LABEL[c]}
-          </button>
-        ))}
+      {/* `.field` and `.choice`, which is what the rest of the product's forms are
+          built from - see "Open a case". This was `.rail` and `.persona`, two classes
+          the redesign dropped and nothing replaced, so the three-way call button - the
+          single most important control in the product - rendered as three words run
+          together with no gap, no border and no pressed state. `.choice` carries the
+          layout and `button.ghost` carries the states, including aria-pressed. */}
+      <div className="field">
+        <label htmlFor="call">Your call</label>
+        <div className="choice" id="call">
+          {(["advance", "do_not_advance", "cannot_conclude"] as const).map((c) => (
+            <button key={c} type="button" className="ghost" aria-pressed={call === c} onClick={() => setCall(c)}>
+              {CALL_LABEL[c]}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <label htmlFor="why">Why. This is the part a later reader needs.</label>
-      <textarea id="why" value={reasoning} onChange={(e) => setReasoning(e.target.value)}
-        placeholder="The transporter result is real, but this assay overcalls for this class and the margin is 40x." />
+      <div className="field">
+        <label htmlFor="why">Why. This is the part a later reader needs.</label>
+        <textarea id="why" value={reasoning} onChange={(e) => setReasoning(e.target.value)}
+          placeholder="The transporter result is real, but this assay overcalls for this class and the margin is 40x." />
+      </div>
 
-      <label>What you are relying on, from this case</label>
-      <p className="small muted">
-        A selection, not free text. A selected citation points at a specific object, so
-        the check is arithmetic - and a typed one would have to be run through a model to
-        decide whether it referred to anything real, which would put a model in charge of
-        which dissent counts.
-      </p>
+      {/* The explanation belongs to the label above it, so it is a `.hint` inside the
+          field rather than a paragraph floating between two controls - the same shape
+          every field on the new-case form uses. A `.small.muted` here sat at the same
+          rhythm as the body copy and read as prose about the page rather than as
+          instructions for the control underneath it. */}
+      <div className="field">
+        <label>What you are relying on, from this case</label>
+        <span className="hint">
+          A selection, not free text. A selected citation points at a specific object, so
+          the check is arithmetic - and a typed one would have to be run through a model to
+          decide whether it referred to anything real, which would put a model in charge of
+          which dissent counts.
+        </span>
+      </div>
       {findings.map((f) => (
         <div className="cite" key={f.id}>
           <input type="checkbox" id={f.id} checked={cited.includes(f.id)} onChange={() => toggle(f.id)} />
@@ -519,18 +613,22 @@ export function PositionForm({ token, caseId, findings, onDone }: {
         </div>
       ))}
 
-      <label htmlFor="claim">Relying on something outside these documents? State it.</label>
-      <p className="small muted">
-        Not a weaker citation - an assertion not yet in evidence, and useful because
-        somebody can go and check it. It joins the missing-evidence list rather than
-        evaporating.
-      </p>
-      <input id="claim" type="text" value={claim} onChange={(e) => setClaim(e.target.value)}
-        placeholder="This assay overcalls for phenothiazines." />
-      <input type="text" value={source} onChange={(e) => setSource(e.target.value)}
-        placeholder="Source, if you have one (optional)" style={{ marginTop: 8 }} />
+      <div className="field">
+        <label htmlFor="claim">Relying on something outside these documents? State it.</label>
+        <span className="hint">
+          Not a weaker citation - an assertion not yet in evidence, and useful because
+          somebody can go and check it. It joins the missing-evidence list rather than
+          evaporating.
+        </span>
+        <input id="claim" type="text" value={claim} onChange={(e) => setClaim(e.target.value)}
+          placeholder="This assay overcalls for phenothiazines." />
+        <input type="text" value={source} onChange={(e) => setSource(e.target.value)}
+          aria-label="Source for the outside claim, optional"
+          placeholder="Source, if you have one (optional)" />
+      </div>
 
-      <p className="small">
+      {/* What the form is about to do, immediately above the button that does it. */}
+      <p className="small basis-line">
         Your position will be recorded as <span className={`basis ${basis}`}>{basis}</span>
         {basis === "unsupported" && " - which is allowed, is never deleted, and is visible to whoever signs."}
       </p>
@@ -557,7 +655,10 @@ export function Waiting({ view, isOwner, nameOf, onReveal }: {
   // only control on this screen.
   const sealed = view.own !== null;
   return (
-    <section>
+    // The other half of the position tab, and it carries the plate for the same reason
+    // the form does: this is what that tab becomes once you have sealed, so a ground on
+    // only one of them would disappear at the moment you submit.
+    <section className="glass">
       <h2>{sealed ? "Sealed. Waiting for the others." : "Waiting for the panel."}</h2>
       <p className="muted">
         This screen shows one bit per person, and that is all the server will send: not
@@ -639,64 +740,140 @@ export function Reveal({ view, unanimity, nameOf, seats }: {
 }
 
 /** ------------------------------------------------------------------- verdict */
-export function Verdict({ adjudication, source, onSign }: {
+/**
+ * PROSE GOES THROUGH `Markdown`, the same renderer the ask answers use.
+ *
+ * The adjudicator prompt does not request Markdown and this does not add such a
+ * request: `SHAPE_ADJUDICATION` is 16,000 tokens measured with zero truncation across
+ * ten runs, and inviting longer prose would spend that headroom on decoration. This
+ * is the defensive half only. Models emit `**bold**`, hyphen bullets and blank-line
+ * paragraphs unprompted, and a raw `<p>` renders every one of them as literal syntax
+ * in the middle of a safety verdict. `Markdown` builds React elements from strings
+ * and never touches innerHTML, so it is strictly safer than the interpolation it
+ * replaces as well as strictly more readable.
+ */
+export function Verdict({ adjudication, source, consensus = null, signature = null, onSign }: {
   adjudication: Adjudication; source: "stub" | "live";
+  consensus?: Consensus | null;
+  /** Present once the case is signed, which closes the record: the form becomes the
+   *  fact of who signed and what they said. */
+  signature?: Signature | null;
   onSign: (agrees: boolean, reason: string) => void;
 }): ReactElement {
   const [reason, setReason] = useState("");
   const [agrees, setAgrees] = useState(true);
 
+  const verdict = adjudication.consequence.verdict;
+
   return (
-    <section>
-      <h2>The adjudication</h2>
-      {source === "stub" && (
-        <div className="stub">
-          STUB - no model was called. The wiring is real; the words below are not a
-          judgment about this compound and must not be quoted as one.
+    <section className="verdict">
+      <div className="verdict-group">
+        <h2>The adjudication</h2>
+        {source === "stub" && (
+          <div className="stub">
+            STUB - no model was called. The wiring is real; the words below are not a
+            judgment about this compound and must not be quoted as one.
+          </div>
+        )}
+      </div>
+
+      <div className="halves">
+        <div className="half">
+          <span className="eyebrow">Mechanism</span>
+          <p className="answer">{adjudication.mechanism.present ? "Present" : "Not established"}</p>
+          <p className="ask">Is there a route to liver injury?</p>
+          {adjudication.mechanism.pathway !== null && (
+            <div className="md"><Markdown>{adjudication.mechanism.pathway}</Markdown></div>
+          )}
+        </div>
+
+        <div className={`half ${CALL_TONE[verdict] ?? ""}`}>
+          <span className="eyebrow">Consequence</span>
+          <p className="answer">{CALL_LABEL[verdict] ?? verdict}</p>
+          <p className="ask">Is it severe enough to stop?</p>
+          <div className="md"><Markdown>{adjudication.consequence.reasoning}</Markdown></div>
+          {/* A verdict that only two of three runs reached is a different object from
+              one they all reached, and this is the only place a reader could learn
+              which they are holding. Silent on a unanimous run: an unbroken "3 of 3"
+              on every case teaches people to stop reading the line that matters. */}
+          {consensus !== null && consensus.split && (
+            <p className="split-note">
+              Split across runs: {consensus.votes} of {consensus.runs} agreed
+              ({Object.entries(consensus.distribution)
+                .map(([v, n]) => `${CALL_LABEL[v] ?? v} ${n}`).join(", ")}).
+              The most cautious answer wins a tie.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="verdict-group">
+        <h3>Every rule, answered</h3>
+        <div className="inv">
+          {adjudication.ruleDisclosure.map((d) => (
+            <div key={d.ruleId} className="rule-row">
+              <div className="rule-key">
+                <span className="ref">{d.ruleId}</span>
+                <span className={`badge ${POSITION_TONE[d.position] ?? ""}`}>
+                  {POSITION_LABEL[d.position] ?? d.position}
+                </span>
+              </div>
+              <div className="md"><Markdown>{d.reasoning}</Markdown></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {adjudication.missing.length > 0 && (
+        <div className="verdict-group">
+          <h3>Still unanswered</h3>
+          <div className="inv">
+            {adjudication.missing.map((m, i) => (
+              <div key={i} className="gap-row">
+                <span className="field">{m.field}</span>
+                <span className="blocks">{withoutPromptLabel(m.whyItMatters)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      <h3>Mechanism - is there a route to liver injury?</h3>
-      <p>{adjudication.mechanism.present ? "Present." : "Not established."} {adjudication.mechanism.pathway}</p>
-
-      <h3>Consequence - is it severe enough to stop?</h3>
-      <p><strong>{CALL_LABEL[adjudication.consequence.verdict] ?? adjudication.consequence.verdict}</strong></p>
-      <p>{adjudication.consequence.reasoning}</p>
-
-      <h3>Every rule, answered</h3>
-      {adjudication.ruleDisclosure.map((d) => (
-        <p key={d.ruleId} className="small">
-          <span className="mono">{d.ruleId}</span> - {POSITION_LABEL[d.position] ?? d.position}. {d.reasoning}
-        </p>
-      ))}
-
-      {adjudication.missing.length > 0 && (
-        <>
-          <h3>Still unanswered</h3>
-          {adjudication.missing.map((m, i) => <p key={i} className="small">{m.field} - {m.whyItMatters}</p>)}
-        </>
-      )}
       {adjudication.nextExperiment !== null && (
-        <>
+        <div className="verdict-group">
           <h3>What would settle it</h3>
-          <p>{adjudication.nextExperiment}</p>
-        </>
+          <div className="md"><Markdown>{adjudication.nextExperiment}</Markdown></div>
+        </div>
       )}
 
-      <h2 style={{ marginTop: 32 }}>Sign</h2>
-      <p className="muted">
-        One named person. No quorum, no threshold, no consensus mechanism - a committee
-        advises and an individual decides, and you may override this adjudication.
-      </p>
-      <div className="rail">
-        <button type="button" className="persona" aria-pressed={agrees} onClick={() => setAgrees(true)}>Agree</button>
-        <button type="button" className="persona" aria-pressed={!agrees} onClick={() => setAgrees(false)}>Override</button>
-      </div>
-      <label htmlFor="reason">{agrees ? "Anything to add (optional)" : "Why you are overriding - required"}</label>
-      <textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
-      <button className="primary" disabled={!agrees && reason.trim() === ""} onClick={() => onSign(agrees, reason)}>
-        Sign the record
-      </button>
+      {signature !== null ? (
+        <div className="verdict-group">
+          <h2>Signed</h2>
+          <p>
+            <strong>{signature.agreesWithAdjudication ? "Agreed with" : "Overrode"} this adjudication.</strong>
+          </p>
+          {signature.reason.trim() !== "" && <div className="md"><Markdown>{signature.reason}</Markdown></div>}
+        </div>
+      ) : (
+        <div className="verdict-group">
+          <h2>Sign</h2>
+          <p className="muted">
+            One named person. No quorum, no threshold, no consensus mechanism - a committee
+            advises and an individual decides, and you may override this adjudication.
+          </p>
+          {/* The same pair of dropped classes as the call control above, and the same
+              replacement: signing off on an adjudication is a two-way choice and it was
+              rendering as "AgreeOverride". */}
+          <div className="choice">
+            <button type="button" className="ghost" aria-pressed={agrees} onClick={() => setAgrees(true)}>Agree</button>
+            <button type="button" className="ghost" aria-pressed={!agrees} onClick={() => setAgrees(false)}>Override</button>
+          </div>
+          <label htmlFor="reason">{agrees ? "Anything to add (optional)" : "Why you are overriding - required"}</label>
+          <textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+          <button className="primary" disabled={!agrees && reason.trim() === ""} onClick={() => onSign(agrees, reason)}>
+            Sign the record
+          </button>
+        </div>
+      )}
     </section>
   );
 }

@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { Documents, InventoryPanel, Refused, Reveal, RosterPanel, Verdict, Waiting, basisOf } from "../src/screens.js";
+import { Documents, InventoryPanel, PositionForm, Refused, Reveal, RosterPanel, Verdict, Waiting, basisOf } from "../src/screens.js";
 import type { Adjudication, BlindView, Inventory, Position, Roster } from "../src/api.js";
 
 const inv: Inventory = {
@@ -32,6 +32,15 @@ const biologicInv: Inventory = {
 const pos = (id: string, over: Partial<Position> = {}): Position => ({
   participantId: id, call: "advance", reasoning: "Because.",
   citedFindingIds: [], external: [], submittedAt: "t", ...over,
+});
+
+/** A view with the post-reveal fields empty, which is what every screen below is
+ *  about: none of them renders a verdict, and spelling out four nulls in each
+ *  fixture would say only that they still do not. */
+const blind = (over: Partial<BlindView>): BlindView => ({
+  status: "open", own: null, others: [], revealed: null,
+  adjudication: null, adjudicationSource: null, consensus: null, signature: null,
+  ...over,
 });
 
 describe("InventoryPanel", () => {
@@ -151,13 +160,45 @@ describe("Refused", () => {
   });
 });
 
+/**
+ * THE POSITION TAB, ON A PLATE.
+ *
+ * The evidence stage puts its prose on `.glass` - a translucent ground with a blur
+ * behind it - and stays readable over every scene because of it. This form did not:
+ * a heading, four labels, three explanatory paragraphs and a basis line, all sitting
+ * directly on a moving field. It is the most text-dense screen in the product after
+ * reading, and the one where being unable to read a sentence costs a reviewer their
+ * answer rather than their patience.
+ *
+ * Both states of the tab, not just the form. The route renders `Waiting` once you have
+ * sealed, so a plate on only one of them would vanish the moment you submit.
+ */
+describe("the position tab's ground", () => {
+  const view: BlindView = blind({
+    own: pos("ann"),
+    others: [{ participantId: "bea", submitted: false }],
+  });
+
+  it("stands the position form on a glass plate", () => {
+    const { container } = render(
+      <PositionForm token="t" caseId="c1" findings={[]} onDone={() => {}} />,
+    );
+    expect(container.querySelector("section.glass")).not.toBeNull();
+  });
+
+  it("keeps the plate after you have sealed and are waiting", () => {
+    const { container } = render(
+      <Waiting nameOf={(id) => id} view={view} isOwner={false} onReveal={() => {}} />,
+    );
+    expect(container.querySelector("section.glass")).not.toBeNull();
+  });
+});
+
 describe("Waiting", () => {
-  const view: BlindView = {
-    status: "open",
+  const view: BlindView = blind({
     own: pos("ann", { reasoning: "MY-OWN-REASONING" }),
     others: [{ participantId: "bea", submitted: true }, { participantId: "cal", submitted: false }],
-    revealed: null,
-  };
+  });
 
   it("shows one bit per person and never another position's content", () => {
     const { container } = render(<Waiting nameOf={(id) => id} view={view} isOwner={false} onReveal={() => {}} />);
@@ -230,14 +271,14 @@ describe("basisOf", () => {
 
 describe("Reveal", () => {
   const SEATS: Record<string, number> = { ann: 0, bea: 1, cal: 2 };
-  const view: BlindView = {
-    status: "locked", own: null, others: [],
+  const view: BlindView = blind({
+    status: "locked",
     revealed: [
       pos("ann", { citedFindingIds: ["f1"] }),
       pos("bea", { external: [{ claim: "Class effect.", source: "Smith 2019" }] }),
       pos("cal"),
     ],
-  };
+  });
 
   it("labels each position with what it rests on", () => {
     render(<Reveal nameOf={(id) => id} seats={SEATS} view={view} unanimity={null} />);
@@ -347,8 +388,12 @@ describe("Verdict", () => {
 
   it("answers mechanism and consequence as two separate questions", () => {
     render(<Verdict adjudication={adj} source="live" onSign={() => {}} />);
-    expect(screen.getByText(/is there a route to liver injury/)).toBeInTheDocument();
-    expect(screen.getByText(/is it severe enough to stop/)).toBeInTheDocument();
+    // Case-insensitive: the two questions moved out of their headings and into the
+    // plates they now label, so each one opens a sentence rather than following a dash.
+    expect(screen.getByText(/is there a route to liver injury/i)).toBeInTheDocument();
+    expect(screen.getByText(/is it severe enough to stop/i)).toBeInTheDocument();
+    // Two plates, so neither answer can be read as a gloss on the other.
+    expect(document.querySelectorAll(".half")).toHaveLength(2);
   });
 
   it("discloses every rule, including one that does not apply", () => {
@@ -370,5 +415,64 @@ describe("Verdict", () => {
     fireEvent.change(screen.getByLabelText(/Why you are overriding/), { target: { value: "Margin is 40x." } });
     fireEvent.click(screen.getByRole("button", { name: /Sign the record/ }));
     expect(onSign).toHaveBeenCalledWith(false, "Margin is 40x.");
+  });
+
+  /* THE SAME RENDERER THE ASK ANSWERS GET. The adjudicator prompt does not ask for
+     Markdown and this does not add such a request - `SHAPE_ADJUDICATION` is 16,000
+     tokens measured with zero truncation, and inviting longer prose would spend that
+     headroom for decoration. Models emit `**bold**` and bullets unprompted anyway,
+     and a `<p>` renders those as literal asterisks and hyphens. */
+  it("renders a reasoning paragraph as Markdown rather than as literal syntax", () => {
+    const md: Adjudication = {
+      ...adj,
+      consequence: {
+        ...adj.consequence,
+        reasoning: "The **margin** is unestablished.\n\n- No Cmax was projected\n- No NOAEL was set",
+      },
+    };
+    const { container } = render(<Verdict adjudication={md} source="live" onSign={() => {}} />);
+    expect(container.querySelectorAll("li")).toHaveLength(2);
+    // Not `querySelector("strong")`: the verdict label is itself a <strong> and comes
+    // first, so the bare query asserts on the wrong element and passes either way.
+    expect([...container.querySelectorAll("strong")].map((e) => e.textContent)).toContain("margin");
+    expect(container.textContent).not.toContain("**");
+  });
+
+  /* A SIGNED RECORD IS CLOSED. Offering the form again on a case that already carries
+     a signature invites a second one the state machine will refuse, and shows the
+     reader a live control where the record wants a fact. */
+  it("shows the signature on a signed case instead of asking for another", () => {
+    render(
+      <Verdict adjudication={adj} source="live" onSign={() => {}}
+        signature={{ by: "Ruth Okafor", at: "2026-08-14T10:00:00Z", agreesWithAdjudication: false, reason: "Margin is 40x." }} />,
+    );
+    expect(screen.queryByRole("button", { name: /Sign the record/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/Margin is 40x./)).toBeInTheDocument();
+    expect(screen.getByText(/Overrode/)).toBeInTheDocument();
+  });
+
+  /* OUR OWN DELIMITER, COMING BACK. adjudicate.ts renders each recorded absence into
+     the prompt as `${field} - blocks: ${whatItBlocks}`, and the model copies the whole
+     string - separator included - into `whyItMatters`. Every gap on screen therefore
+     opened with a lowercase "blocks:" fragment. Dropping it is not an edit to the
+     model's reasoning; it is removing a label this codebase wrote itself. */
+  it("drops the prompt's own separator from a recorded gap", () => {
+    const withPrefix: Adjudication = {
+      ...adj,
+      missing: [{ field: "Exposure margin", whyItMatters: "blocks: Rule R3 cannot be applied." }],
+    };
+    render(<Verdict adjudication={withPrefix} source="live" onSign={() => {}} />);
+    expect(screen.getByText("Rule R3 cannot be applied.")).toBeInTheDocument();
+    expect(screen.queryByText(/blocks:/)).not.toBeInTheDocument();
+  });
+
+  /* consensus.ts: a 2-of-3 verdict and a 3-of-3 verdict are different objects, and
+     the reader of a safety record is exactly who should be told which one they have. */
+  it("reports a split across the runs rather than presenting one draw as settled", () => {
+    render(
+      <Verdict adjudication={adj} source="live" onSign={() => {}}
+        consensus={{ runs: 3, votes: 2, agreement: 2 / 3, distribution: { cannot_conclude: 2, do_not_advance: 1 }, split: true }} />,
+    );
+    expect(screen.getByText(/2 of 3/)).toBeInTheDocument();
   });
 });

@@ -55,7 +55,7 @@ describe("openCase", () => {
     const wide = { caseId: "c", compoundLabel: "X", context: "", ownerId: "o", participantIds: ["ann"], findings: [{ id: "f1" }], at: "t" };
     const c = openCase(wide);
     expect(Object.keys(c).sort()).toEqual([
-      "adjudication", "caseId", "closedEarly", "compoundLabel", "context",
+      "adjudication", "caseId", "closedEarly", "compoundLabel", "consensus", "context",
       "ownerId", "participantIds", "positions", "seats", "signature", "status",
     ]);
   });

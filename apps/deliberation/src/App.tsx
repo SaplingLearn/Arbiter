@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import {
   api, ApiError, uploadDocument,
-  type Adjudication, type AuditResult, type BlindView, type CaseListing,
+  type AuditResult, type BlindView, type CaseListing,
   type CaseSummary, type Finding, type Inventory, type LibrarySource, type Person, type Refusal,
   type Roster, type StoredDocument, type UnanimityReport,
 } from "./api.js";
@@ -66,7 +66,11 @@ export function App(): ReactElement {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [view, setView] = useState<BlindView | null>(null);
   const [unanimity, setUnanimity] = useState<UnanimityReport | null>(null);
-  const [adjudication, setAdjudication] = useState<{ adjudication: Adjudication; source: "stub" | "live" } | null>(null);
+  /* NO `adjudication` STATE. It used to live here, written only by the POST that
+     produced it, and that was the whole of the bug: the verdict existed in the tab
+     that ran it and nowhere else. `view` carries it now - `act` reloads the case after
+     every action, so the freshly-adjudicated case arrives by the same path a reload
+     does, and there is one source of truth instead of two that disagree. */
   const [audit, setAudit] = useState<AuditResult | null>(null);
   const [docs, setDocs] = useState<StoredDocument[]>([]);
   const [roster, setRoster] = useState<Roster | null>(null);
@@ -460,14 +464,19 @@ export function App(): ReactElement {
     return caseShell(
       <div className="stack-l">
         <Reveal view={view} unanimity={unanimity} nameOf={nameOf} seats={roster?.seats ?? {}} />
-        {adjudication === null && view.status !== "signed" && isOwner && (
+        {/* `locked` and nothing else. Adjudicating spends three model calls out of a
+            daily twenty, and every other status already has a verdict or cannot take
+            one - so the states that used to render this button could only buy an
+            error. The API refuses them too, now before it spends anything. */}
+        {view.status === "locked" && isOwner && (
           <button className="primary" style={{ alignSelf: "flex-start" }}
-            onClick={() => act(async () => { setAdjudication(await api.adjudicate(token, caseId, new Date().toISOString())); })}>
+            onClick={() => act(() => api.adjudicate(token, caseId, new Date().toISOString()))}>
             Adjudicate across the positions
           </button>
         )}
-        {adjudication !== null && (
-          <Verdict adjudication={adjudication.adjudication} source={adjudication.source}
+        {view.adjudication !== null && (
+          <Verdict adjudication={view.adjudication} source={view.adjudicationSource ?? "stub"}
+            consensus={view.consensus} signature={view.signature}
             onSign={(agrees, reason) => act(() => api.sign(token, caseId, {
               at: new Date().toISOString(), agreesWithAdjudication: agrees, reason,
             }))} />

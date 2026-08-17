@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { createServer, type Server } from "node:http";
-import { mkdtempSync, readFileSync, unlinkSync } from "node:fs";
+import { mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AddressInfo } from "node:net";
@@ -70,6 +70,13 @@ beforeAll(async () => {
     budget: new ModelBudget(10_000),
     rules: RULES,
     prompt: PROMPT,
+    // NO MODEL, EVER, from this suite. Without this the routes read the ambient
+    // environment, and a developer with GEMINI_API_KEY exported - which is everyone
+    // who can run the product - had `npm test` making three live adjudication calls
+    // per run, against a host the tests never configured because they never load
+    // `.env`. It failed, it cost money on the days it did not, and the failure looked
+    // like a broken adjudicator. Null selects the stub, which is deterministic.
+    complete: () => null,
   };
   const handler = makeHandler(deps);
   server = createServer((req, res) => { void handler(req, res); });
@@ -285,6 +292,44 @@ describe("cases, with access control", () => {
     expect(audit.body.chain).toEqual([]);
     expect(audit.body.seals).toEqual([]);
   });
+
+  /* THE ORDER OF THESE TWO STEPS IS THE WHOLE TEST. One adjudication spends three
+     model calls against a free tier of twenty a day, and this route used to spend
+     them and THEN ask the state machine whether the case could be adjudicated at
+     all - so a case in the wrong state cost 15% of a day's budget to be told 409.
+
+     Not hypothetical, and one click away: with the verdict missing from the view, an
+     owner who reloaded an already-adjudicated case saw `Adjudicate` offered again,
+     and taking it bought nothing but an error. */
+  it("refuses a case that is not locked before it spends a model call", async () => {
+    expect((await call("POST", "/api/cases", "owner", {
+      caseId: "c-unlocked", compoundLabel: "Still open", context: "Nobody has answered yet.",
+      participantIds: [uid["ann"], uid["bea"]], findings: FINDINGS, at: "t",
+    })).status).toBe(201);
+
+    let calls = 0;
+    const handler = makeHandler({
+      ...deps,
+      complete: () => async () => { calls++; return {}; },
+    });
+    const alt = createServer((req, res) => { void handler(req, res); });
+    await new Promise<void>((r) => alt.listen(0, "127.0.0.1", r));
+    try {
+      const res = await fetch(
+        `http://127.0.0.1:${(alt.address() as AddressInfo).port}/api/cases/c-unlocked/adjudicate`,
+        {
+          method: "POST",
+          headers: { authorization: `Bearer ${tok["owner"]}`, "content-type": "application/json" },
+          body: JSON.stringify({ at: "t" }),
+        },
+      );
+      expect(res.status).toBe(409);
+      expect((await res.json() as { kind: string }).kind).toBe("not_locked");
+      expect(calls).toBe(0);
+    } finally {
+      await new Promise<void>((r) => alt.close(() => r()));
+    }
+  });
 });
 
 describe("the case catalogue and demo seeding", () => {
@@ -309,6 +354,108 @@ describe("the case catalogue and demo seeding", () => {
     const r = await call("POST", "/api/demo", "owner", { case: "slynd", participantIds: [uid["ann"]], at: "t" });
     expect(r.status).toBe(201);
     expect(r.body.documentScope).toContain("THE SAFETY STUDIES FOR THIS DRUG WERE NEVER RUN");
+  });
+
+  /**
+   * OPENING A PREPARED CASE BRINGS ITS DOCUMENT WITH IT.
+   *
+   * The case files carry findings transcribed out of a regulatory review, each with the
+   * page it came from, and the library manifest knows which file that review is. Until
+   * now those two facts never met: opening a case copied the findings and nothing else,
+   * so Read & mark said "No documents on this case yet" on every case anybody opened,
+   * and the reader - which joins a finding to a page THROUGH a document id - had
+   * nothing to join to. Every case had to be assembled by hand to be usable at all.
+   *
+   * The source goes through the same measured upload path a person's own file does, so
+   * a scanned or irrelevant source is refused here exactly as it would be there.
+   *
+   * The manifest is injected rather than read from disk: `data/raw/approval-packages/`
+   * is deliberately untracked - 100MB of retrievable regulatory PDFs - so a test that
+   * needed the real file would pass on a developer's machine and fail in CI.
+   */
+  it("attaches the source document and joins the findings to it", async () => {
+    const root = mkdtempSync(join(tmpdir(), "arb-src-"));
+    const path = join(root, "imaavy-assessment.pdf");
+    writeFileSync(path, readablePdfBytes("nipocalimab-source"));
+
+    const withSource = makeHandler({
+      ...deps,
+      documents: new DocumentStore(mkdtempSync(join(tmpdir(), "arb-docs2-"))),
+      library: new LibraryStore({
+        cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib2-")),
+        sources: [{ name: "nipocalimab", label: "Imaavy - assessment report", path }],
+      }),
+    });
+    const srv = createServer((req, res) => { void withSource(req, res); });
+    await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));
+    const at = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
+
+    const ask = async (method: string, p: string, body?: unknown) => {
+      const res = await fetch(`${at}${p}`, {
+        method,
+        headers: { "content-type": "application/json", authorization: `Bearer ${tok["bea"]}` },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      return { status: res.status, body: (await res.json()) as any };
+    };
+
+    try {
+      const opened = await ask("POST", "/api/demo", { case: "nipocalimab", at: "t" });
+      expect(opened.status).toBe(201);
+      const caseId = opened.body.caseId;
+
+      const docs = await ask("GET", `/api/cases/${caseId}/documents`);
+      expect(docs.status).toBe(200);
+      expect(docs.body, "the case should open holding its source review").toHaveLength(1);
+
+      const req = await ask("GET", `/api/cases/${caseId}/adjudication-request`);
+      const withPage = req.body.findings.filter((f: any) => f.sourcePage !== undefined);
+      expect(withPage.length).toBeGreaterThan(0);
+      // Every finding that names a page now names the document that page is in - which
+      // is the whole join the reading surface makes.
+      for (const f of withPage) {
+        expect(f.sourceDocumentId, `${f.id} should point at the attached document`)
+          .toBe(docs.body[0].id);
+      }
+    } finally {
+      await new Promise<void>((r) => srv.close(() => r()));
+    }
+  });
+
+  /**
+   * A source that cannot be read must not stop the case opening. The findings were
+   * transcribed by hand and stand on their own; the document is what a reader would
+   * LIKE to have beside them. Refusing the open would lose the case over the file.
+   */
+  it("still opens the case when the source document cannot be attached", async () => {
+    const root = mkdtempSync(join(tmpdir(), "arb-src-bad-"));
+    const path = join(root, "not-really.pdf");
+    writeFileSync(path, Buffer.from("this is not a pdf at all"));
+
+    const withBadSource = makeHandler({
+      ...deps,
+      documents: new DocumentStore(mkdtempSync(join(tmpdir(), "arb-docs3-"))),
+      library: new LibraryStore({
+        cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib3-")),
+        sources: [{ name: "slynd", label: "Slynd - review", path }],
+      }),
+    });
+    const srv = createServer((req, res) => { void withBadSource(req, res); });
+    await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));
+    const at = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
+
+    try {
+      const res = await fetch(`${at}/api/demo`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${tok["bea"]}` },
+        body: JSON.stringify({ case: "slynd", at: "t" }),
+      });
+      expect(res.status, "an unreadable source must not lose the case").toBe(201);
+      const body = (await res.json()) as any;
+      expect(body.inventory.entries.length).toBeGreaterThan(0);
+    } finally {
+      await new Promise<void>((r) => srv.close(() => r()));
+    }
   });
 
   it("gives each opener their own copy of a library case", async () => {
@@ -565,6 +712,69 @@ describe("raw document bytes", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/pdf");
     expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(0);
+  });
+
+  /**
+   * THE SAME PUBLIC REVIEW CAN SIT ON TWO CASES, and it has to.
+   *
+   * Dedup by content hash is right WITHIN a case - re-sending a file you already sent
+   * must not become a second document a second position can cite. Across cases it is
+   * wrong: two people opening the same prepared case are each holding their own copy
+   * of the same FDA review, and collapsing them hands the second person a document
+   * that belongs to the first person's case. `forCase` then returns nothing, and a
+   * finding pointing at it names a document that is not on the case it is filed under.
+   *
+   * That is the same defect the caseId suffix already fixed one level up: a prepared
+   * case is a starting point, not a shared room.
+   */
+  it("keeps the same bytes on each case that uploads them", async () => {
+    const send = (caseId: string, who: string) =>
+      fetch(`${base}/api/cases/${caseId}/documents`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/pdf", "x-filename": "shared-review.pdf",
+          authorization: `Bearer ${tok[who]}`,
+        },
+        body: readablePdfBytes("shared-across-cases"),
+      });
+
+    const made = await call("POST", "/api/cases", "owner", {
+      caseId: "c-second-holder", compoundLabel: "Another compound", context: "",
+      participantIds: [uid["ann"]], findings: FINDINGS, at: "2026-08-09T09:00:00Z",
+    });
+    expect(made.status).toBe(201);
+
+    const first = await send("c1", "owner");
+    expect(first.status).toBe(201);
+    const second = await send("c-second-holder", "owner");
+    expect(second.status).toBe(201);
+
+    const idOf = async (r: Response) => ((await r.json()) as { document: { id: string } }).document.id;
+    const a = await idOf(first);
+    const b = await idOf(second);
+    expect(a, "each case gets its own document record").not.toBe(b);
+
+    // And each is reachable only through the case that holds it.
+    expect((await raw("c1", a, "owner")).status).toBe(200);
+    expect((await raw("c-second-holder", b, "owner")).status).toBe(200);
+    expect((await raw("c-second-holder", a, "owner")).status).toBe(404);
+  });
+
+  // Within one case, the original behaviour stands: the same bytes twice is one
+  // document, not two things a position could cite separately.
+  it("still collapses a re-upload of the same file to one document", async () => {
+    const send = () => fetch(`${base}/api/cases/c1/documents`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/pdf", "x-filename": "again.pdf",
+        authorization: `Bearer ${tok["owner"]}`,
+      },
+      body: readablePdfBytes("same-case-twice"),
+    });
+    const one = (await (await send()).json()) as { document: { id: string } };
+    const two = (await (await send()).json()) as { document: { id: string }; duplicateOf?: string };
+    expect(two.document.id).toBe(one.document.id);
+    expect(two.duplicateOf).toBe(one.document.id);
   });
 
   // THE ENDPOINT'S ACTUAL USERS. The owner convenes and does not answer; it is the

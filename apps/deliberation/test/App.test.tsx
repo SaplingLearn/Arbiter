@@ -33,9 +33,35 @@ vi.mock("../src/api.js", async () => {
         { name: "turalio", label: "Turalio (giant cell tumour)", shape: "The most complete package here.", usable: true },
         { name: "tolcapone", label: "Tolcapone / Tasmar (1998 review)", shape: "REFUSED - scanned images.", usable: false },
       ]),
+      view: vi.fn(async () => SIGNED_VIEW),
+      inventory: vi.fn(async () => ({ checklistVersion: "1.0", modality: "small_molecule", entries: [], unmappedFindingIds: [] })),
+      adjudicationRequest: vi.fn(async () => ({ findings: [], absent: [] })),
+      documents: vi.fn(async () => []),
+      roster: vi.fn(async () => ({ participants: [], seats: {} })),
+      unanimity: vi.fn(async () => ({ unanimous: true, call: "advance", concerns: [] })),
+      audit: vi.fn(async () => ({ chain: [], seals: [], entries: [] })),
     },
   };
 });
+
+/** A case that was adjudicated and signed in some other session - which is every
+ *  signed case in the corpus, from the point of view of a browser opening it now. */
+const SIGNED_VIEW = {
+  status: "signed" as const,
+  own: null,
+  others: [],
+  revealed: [],
+  adjudication: {
+    mechanism: { present: true, pathway: "BSEP inhibition at 10uM.", citedFindingIds: [] },
+    consequence: { verdict: "do_not_advance", reasoning: "No exposure margin was established.", citedFindingIds: [] },
+    ruleDisclosure: [{ ruleId: "R1", position: "applies", reasoning: "Human evidence is present.", citedFindingIds: [] }],
+    missing: [],
+    nextExperiment: null,
+  },
+  adjudicationSource: "live" as const,
+  consensus: null,
+  signature: { by: "u1", at: "2026-08-14T10:00:00Z", agreesWithAdjudication: true, reason: "" },
+};
 
 // The backdrop imports `three` dynamically and draws nothing under jsdom. Stubbed so a
 // missing WebGL context is not what this file is measuring.
@@ -110,5 +136,31 @@ describe("a refusal does not pin the rest of the product", () => {
     // The catalogue, not the screen we were last looking at.
     expect(await screen.findByText(/Turalio/)).toBeInTheDocument();
     expect(screen.queryByText(/48 of 48 pages/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * THE VERDICT COMES FROM THE RECORD, NOT FROM THIS TAB'S MEMORY.
+ *
+ * `adjudication` used to be React state written only by the POST that produced it, so
+ * `Reveal & verdict` rendered the reveal and then stopped: empty on every signed case
+ * in the corpus, empty again for the owner the moment they refreshed, and empty for
+ * every participant who was not the person who pressed the button. The record held the
+ * adjudication the whole time - nothing served it, and nothing here asked.
+ */
+describe("the verdict of a case adjudicated in another session", () => {
+  it("renders from the stored record without anyone pressing Adjudicate", async () => {
+    window.location.hash = "#/case/c1/reveal";
+    render(<App />);
+    expect(await screen.findByText(/No exposure margin was established/)).toBeInTheDocument();
+    expect(screen.getByText(/Human evidence is present/)).toBeInTheDocument();
+  });
+
+  it("does not offer to adjudicate a case that already has a verdict", async () => {
+    // Three model calls out of a daily twenty, spent to be told the case is signed.
+    window.location.hash = "#/case/c1/reveal";
+    render(<App />);
+    await screen.findByText(/No exposure margin was established/);
+    expect(screen.queryByRole("button", { name: /Adjudicate across the positions/ })).not.toBeInTheDocument();
   });
 });

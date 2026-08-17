@@ -1,5 +1,5 @@
 import {
-  addParticipant, attachAdjudication, closeEarly, describeCase, externalClaimsAsGaps,
+  addParticipant, attachAdjudication, canAdjudicate, closeEarly, describeCase, externalClaimsAsGaps,
   lock, openCase, removeParticipant, sign,
   submitPosition, unanimityCheck, visibleTo,
   type BlindView, type DeliberationCase, type Position, type Result, type Signature,
@@ -27,6 +27,23 @@ import type { AdjudicateRequest } from "./adjudicate.js";
  * rule violation, because a rejected submission is an ordinary outcome that the
  * caller renders, not an exception.
  */
+/**
+ * What a viewer of a case gets: the blind view, plus what the case has decided.
+ *
+ * A WIDER TYPE THAN `BlindView`, and the split is the point. `BlindView` is produced
+ * by the pure layer and is the thing that must never leak a sealed position; these
+ * four fields are all post-reveal by construction, so they hang off it here rather
+ * than widening the type whose whole job is that one guarantee.
+ */
+export interface CaseView extends BlindView {
+  adjudication: unknown | null;
+  /** `stub` when no model was called. Carried so the screen can say so - the banner
+   *  is the difference between a demo and a claim about a compound. */
+  adjudicationSource: "stub" | "live" | null;
+  consensus: unknown | null;
+  signature: Signature | null;
+}
+
 export class DeliberationService {
   constructor(
     private readonly store: DeliberationStore,
@@ -295,9 +312,53 @@ export class DeliberationService {
       (c) => describeCase(c, compoundLabel, context));
   }
 
-  view(caseId: string, viewerId: string): BlindView | null {
+  /**
+   * The blind view, plus the things that only exist AFTER the reveal.
+   *
+   * COMPOSED HERE RATHER THAN IN `visibleTo`, because the source label is not on the
+   * case - it is the actor on the `adjudicated` entry, and deliberation.ts is pure
+   * and holds no log. This class is the one place that knows both, which is the
+   * reason it exists.
+   *
+   * SAFE AGAINST THE BLINDNESS RULE by construction rather than by a guard:
+   * `attachAdjudication` refuses any case that is not `locked`, and locking IS the
+   * reveal. So an adjudication cannot exist while positions are still sealed, and
+   * these three fields are null for the entire window that §6.2 protects.
+   *
+   * They are served to every viewer, not just the owner who ran the adjudication. A
+   * participant is being asked to live with the verdict; reading it is the minimum.
+   */
+  view(caseId: string, viewerId: string): CaseView | null {
     const c = this.store.getCase(caseId);
-    return c === null ? null : visibleTo(c, viewerId);
+    if (c === null) return null;
+    return {
+      ...visibleTo(c, viewerId),
+      // `?? null` rather than the bare field: cases persisted before `consensus`
+      // existed have no such key, and `undefined` disappears through JSON.stringify -
+      // so the API would omit the field entirely rather than report "not recorded".
+      adjudication: c.adjudication ?? null,
+      adjudicationSource: (c.adjudication ?? null) === null ? null : this.adjudicationSource(caseId),
+      consensus: c.consensus ?? null,
+      signature: c.signature ?? null,
+    };
+  }
+
+  /**
+   * `stub` or `live`, recovered from the log rather than stored twice.
+   *
+   * server.ts writes "stub" or "model" as the ACTOR of the adjudicated entry - the
+   * adjudicator is who acted - so the fact is already in the record for every
+   * adjudication ever written, including the seeded ones. Reading it back costs
+   * nothing and cannot drift from the entry it describes.
+   *
+   * A missing entry reads as `stub`, the cautious way round: labelling a real
+   * adjudication as a stub makes a reader trust it less than they should, and
+   * labelling a stub as real puts words that are explicitly not a judgment about a
+   * compound onto a safety record as though they were one.
+   */
+  private adjudicationSource(caseId: string): "stub" | "live" {
+    const entry = [...this.store.entries(caseId)].reverse().find((e) => e.kind === "adjudicated");
+    return entry === undefined || entry.actorId === "stub" ? "stub" : "live";
   }
 
   reveal(caseId: string, by: string, at: string, mode: "all_in" | "close_early"): Result<DeliberationCase> {
@@ -357,10 +418,29 @@ export class DeliberationService {
     };
   }
 
-  adjudicate(caseId: string, adjudication: unknown, at: string, actorId: string): Result<DeliberationCase> {
+  /**
+   * Whether adjudicating this case could succeed, asked before anything is spent.
+   *
+   * Null for a case that does not exist, which the caller already renders as 404.
+   */
+  readyToAdjudicate(caseId: string): Result<DeliberationCase> | null {
+    const c = this.store.getCase(caseId);
+    return c === null ? null : canAdjudicate(c);
+  }
+
+  /**
+   * `consensus` is stored, NOT logged into the entry payload.
+   *
+   * The `adjudicated` payload stays exactly the adjudication, because every record
+   * already written - including the seeded ones - has that shape, and the audit view
+   * reads it. Widening the payload would change what a hash covers for new entries
+   * and leave old ones needing a second reader. The case snapshot is the projection,
+   * so the projection is where a new field belongs.
+   */
+  adjudicate(caseId: string, adjudication: unknown, at: string, actorId: string, consensus: unknown = null): Result<DeliberationCase> {
     const c = this.store.getCase(caseId);
     if (c === null) return { ok: false, error: { kind: "not_locked", detail: `No case ${caseId}.` } };
-    const next = attachAdjudication(c, adjudication);
+    const next = attachAdjudication(c, adjudication, consensus);
     if (!next.ok) return next;
     this.store.append({ at, kind: "adjudicated", caseId, actorId, payload: adjudication });
     this.store.putCase(next.value);
