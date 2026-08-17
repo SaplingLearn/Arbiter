@@ -218,6 +218,47 @@ def fig_ten(out: Path) -> None:
     print(f"  wrote {out}")
 
 
+def fig_surface(rows, title: str, subtitle: str, colour: str, footnote: str, out: Path) -> None:
+    """One surface on its own, for a slide.
+
+    The combined board is right for a document, where a reader can sit with ten rows and
+    compare them. On a projector it is ten rows of small print, and the two halves are
+    measured on different fixtures anyway - 104 questions against 16 constructed cases -
+    so putting them on one axis invites exactly the comparison the denominators do not
+    support. Split, each surface gets room for readable type and its own caveat.
+    """
+    fig, ax = plt.subplots(figsize=(12.4, 5.6))
+    ys = list(range(len(rows)))[::-1]
+    vals = [k / n for _, k, n in rows]
+    los, his = zip(*[wilson(k, n) for _, k, n in rows])
+    err = [[v - lo for v, lo in zip(vals, los)], [hi - v for v, hi in zip(vals, his)]]
+
+    ax.barh(ys, vals, height=0.58, color=colour, edgecolor="none", zorder=2)
+    ax.errorbar(vals, ys, xerr=err, fmt="none", ecolor=INK, elinewidth=1.7,
+                capsize=7, capthick=1.7, zorder=3)
+
+    for idx, (y, (_label, k, n), v) in enumerate(zip(ys, rows, vals)):
+        ax.text(1.015, y, f"{v * 100:.1f}%   {k}/{n}   CI {los[idx] * 100:.0f}–{his[idx] * 100:.0f}",
+                va="center", ha="left", fontsize=11.5, color=INK, family="monospace")
+
+    ax.set_yticks(ys)
+    ax.set_yticklabels([r[0] for r in rows], fontsize=12.5, linespacing=1.45)
+    ax.set_xlim(0, 1.0)
+    ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0])
+    ax.set_xticklabels(["0", "25%", "50%", "75%", "100%"], fontsize=11)
+    ax.axvline(1.0, color=GRID, lw=1, zorder=1)
+    ax.grid(axis="x", color=GRID, lw=0.9)
+    style(ax)
+
+    fig.suptitle(title, x=0.012, ha="left", fontsize=20, color=INK, weight="bold", y=0.975)
+    fig.text(0.012, 0.895, subtitle, ha="left", fontsize=11, color=MUTED)
+    fig.text(0.012, 0.035, footnote, ha="left", fontsize=9.6, color=MUTED, linespacing=1.6)
+    fig.subplots_adjust(left=0.28, right=0.78, top=0.83, bottom=0.20)
+    fig.savefig(out, dpi=200, facecolor="white")
+    plt.close(fig)
+    print(f"  wrote {out}")
+
+
 def fig_topics(out: Path) -> None:
     """Metric 2 broken out by question topic - what explains the headline."""
     ask = load(f"model-comparison/ask-eval-{MODEL}.json")
@@ -336,5 +377,31 @@ if __name__ == "__main__":
     outdir = Path(sys.argv[1] if len(sys.argv) > 1 else "results/figures")
     outdir.mkdir(parents=True, exist_ok=True)
     fig_ten(outdir / "benchmarks-scoreboard.png")
+
+    ask_rows, verdict_rows, cf = gather()
+    n_docs = len({i["document"] for i in
+                  json.loads(Path("data/retrieval-eval.json").read_text(encoding="utf-8"))["items"]})
+    fig_surface(
+        ask_rows,
+        "Ask — reads the document, answers the question",
+        f"{MODEL} · {n_docs} FDA and EMA review documents · "
+        f"{ask_rows[0][2]} answerable questions, {ask_rows[3][2]} the document cannot answer",
+        CYAN,
+        "Bars are point estimates; whiskers are 95% Wilson score intervals. Every question carries a verbatim gold quote and its page,\n"
+        "and every unanswerable one was verified by searching the whole document and keeping only terms that returned zero hits.",
+        outdir / "benchmarks-ask.png",
+    )
+    fig_surface(
+        verdict_rows,
+        "Verdict — weighs the findings, takes a position",
+        f"{MODEL} · {verdict_rows[0][2]} constructed cases, each run 3 times · "
+        f"answers follow from the registered ruleset, not from opinion",
+        VIOLET,
+        f"Benchmarks 2 and 3 are scored over the {verdict_rows[1][2]} and {verdict_rows[2][2]} cases that can FAIL them; the rest declare no absent\n"
+        f"dimension or key no deciding rule, and counting them would inflate the sample rather than the rate. Benchmark 5 edits exactly\n"
+        f"one fact per pair and requires the verdict to move with it — {cf['stuck']} stuck, so it never anchored on its first read.",
+        outdir / "benchmarks-verdict.png",
+    )
+
     fig_topics(outdir / "benchmarks-ask-topics.png")
     fig_coverage(outdir / "benchmarks-coverage.png")
