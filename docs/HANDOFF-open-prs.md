@@ -5,8 +5,12 @@ Written 2026-08-17, for whoever picks this up. Sibling to `HANDOFF-evaluation.md
 that has since become `main`. Those two own the numbers and the reading surface; this one
 owns the open PRs and the branch topology underneath them.
 
-A previous session reconciled that topology and merged what was ready. Five PRs remain.
-Read all of this before touching anything.
+A previous session reconciled that topology and merged what was ready. #24 and #33 have
+since landed; **four remain** — #25, #27, #28, #30. Read all of this before touching
+anything.
+
+An earlier revision of this document said "five PRs" and listed five. There were six, and
+#25 was the one missing. Count against `gh pr list` rather than against this section.
 
 ---
 
@@ -54,7 +58,31 @@ Before claiming any PR is good, run it and report actual numbers:
 npm run typecheck && npm run lint && npm test
 ```
 
-Baseline at `0ad996e`: typecheck 0, lint 0, **985 passed / 67 files**.
+Baseline at `bf0e605` (current `main`): typecheck 0, lint 0, and **two** test numbers now,
+because #33 made the suite conditional on a database:
+
+| environment | result |
+|---|---|
+| no `DATABASE_URL` | 1048 passed / 76 skipped / 72 files |
+| Postgres + Storage | **1124 passed / 0 skipped / 72 files** |
+
+**A run without a database is not a verification of anything touching the stores.** 76
+tests skip, and a skipped suite and a passing suite are the same green. CI runs Postgres 17
+as a service so the Postgres suites execute there, but `supabase-documents.test.ts` needs
+the full Supabase stack and still skips in CI — `.github/workflows/ci.yml` says so out
+loud. Locally, `supabase start` and then:
+
+```
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
+SUPABASE_URL=http://127.0.0.1:54321 \
+SUPABASE_SERVICE_ROLE_KEY=<from `supabase status`> \
+npm test
+```
+
+The suites provision themselves — each creates and drops its own `arbiter_test_*_<pid>`
+database and applies `supabase/migrations/0001_init.sql` — so this does not touch the
+development database. Earlier baselines in this document's history were 985/67 at `0ad996e`
+and 993/68 after #24; both are superseded.
 
 ---
 
@@ -63,25 +91,56 @@ Baseline at `0ad996e`: typecheck 0, lint 0, **985 passed / 67 files**.
 Every finding below comes from a full per-PR review already performed. Trust them as a
 starting point, but re-verify anything you act on before you act on it.
 
-### #33 — "Put the record in Postgres and the product in a container" (AndresL230)
+### ~~#33 — "Put the record in Postgres and the product in a container"~~ — LANDED 2026-08-17
 
-Base `main`, 41 files, +6913/−569, 6 commits, CI green.
+Merged as `f4469a8`, joined to `main` in `bf0e605`. Absent `DATABASE_URL` the product runs
+on local files exactly as before; present, all four stores move together. `buildStores()`
+in `services/api/stores.ts` is the only place that asks, and it refuses to boot
+half-migrated — Postgres for the log with documents still on local disk would keep a
+record that cites evidence the next redeploy throws away.
 
-Swaps the file-backed stores for Postgres/Supabase: `postgres-store.ts`, `postgres-auth.ts`,
-`postgres-invites.ts`, `supabase-documents.ts`, plus `Dockerfile`, `fly.toml`,
-`railway.toml`, `supabase/migrations/0001_init.sql`. It ships contract tests
-(`auth-store-contract.ts`, `invite-store-contract.ts`, `postgres-fixture.ts`), which is the
-right shape for a storage swap.
+Two conflicts in `services/api/server.ts`, both from `main` moving underneath it. The
+findings route keeps `main`'s unanchored-quote guard and takes the PR's `await`, since
+`addFinding` is async now. The startup banner keeps `main`'s working-directory suffix on
+the Config line and the PR's Site/Record/Docs lines — and takes the PR's `accounts` for the
+Accounts line, because `auth.list()` returns a promise now and `HEAD`'s
+`deps.auth.list().length` would have printed `Accounts: undefined registered`.
 
-There is a known conflict in `services/api/server.ts` against the merged `main`. It is
-expected and understood — resolve it once, now that `main` carries everything.
+**What the review found.** The five concerns this section used to list were checked:
 
-**This PR has not been substantively reviewed.** Only its mechanics were checked. It
-replaces the entire persistence layer, so review it properly: data loss on migration, the
-hash-chained audit log surviving the move, connection and pool handling, secrets in
-`fly.toml` and `railway.toml`, and whether the atmosphere branch's seeding, document and
-library code paths were migrated too. Those landed on `main` *after* this branch was cut,
-so they may still be written against `FileStore`.
+- *The audit chain survives.* `PostgresStore.append` reuses `chainEntry` from `store.ts`
+  rather than reimplementing it, takes a global `pg_advisory_xact_lock` before reading the
+  tail, and stores `at` as `text` so the hash preimage round-trips byte-for-byte. The
+  transaction-scoped lock is also the right choice for the Supabase pooler both toml files
+  recommend.
+- *Pool handling is sound.* One pool per process, a connection timeout, an idle-error
+  listener so a background disconnect cannot take the process down.
+- *No committed secrets.* `fly.toml`, `railway.toml`, `supabase/config.toml` and
+  `.env.example` carry only placeholders and `env(...)` references.
+- *Hashes are compatible in both directions*, so the move is reversible — there are tests
+  pinning exactly that.
+- *The seeding path was migrated*, but see the defect below.
+
+**Verified against a live stack, not against the skips.** With no database: 1048 passed /
+76 skipped. With Postgres and Storage: **1124 passed / 0 skipped / 72 files**, measured in
+a clean worktree at the merge commit. typecheck 0, lint 0. The API boots on Postgres and
+serves an authenticated round trip; that is where both banner resolutions were confirmed
+against a running process rather than by reading them.
+
+**One defect found, not fixed, and it is not this PR's code.**
+`tools/seed-demo-documents.mjs --reset` is file-only: it deletes `results/*`, prints
+"Store cleared", and on a Postgres deployment leaves every row intact. The ordinary seeding
+path goes through the HTTP API and so follows whichever backing the server opened — only
+`--reset` reaches around it. This matters more than it looks, because §4's #27 entry names
+`--reset` as the *only* way to repair a duplicated seed. On Postgres that escape hatch now
+silently does nothing while reporting success.
+
+**One thing worth a second look**, unproven and non-blocking: `withTransaction` in
+`services/api/db.ts` calls `await client.query("ROLLBACK")` inside its own `catch`. If the
+ROLLBACK itself throws, its error replaces the original — and `release()` is called with no
+argument, so a client that may still hold an open transaction returns to the pool.
+`client.release(err)` is the usual remedy. Every other error path in this file is defended
+to a much higher standard, which is why this one stands out.
 
 ### ~~#24 — dev-server dependency preflight (Darkest-Teddy)~~ — LANDED 2026-08-17
 
@@ -155,6 +214,24 @@ Its new `CODENAME` table in `nav.ts` hand-duplicates `codename` from
 **Action:** cherry-pick `51abbfe` onto `main`, port the `role="group"` / `aria-labelledby`
 a11y delta plus its 4 tests, drop the rest.
 
+### #25 — all ten benchmarks, and toxic drugs in the corpus (Darkest-Teddy)
+
+**This entry is a placeholder, and the omission is the point.** The first version of this
+document opened by saying "five PRs remain" and then named five. Six were open. #25 was
+created 2026-08-16T15:32 — half a day *before* this was written — and a merge-tree analysis
+of it was sitting in the same scratchpad the rest of these findings came from. It was
+simply left out, and nothing in the document made that detectable.
+
+What is known, and no more: base `feat/product-in-the-atmosphere`, 31 files,
++12444/−441, `CONFLICTING`, last pushed 2026-08-17T01:21 — so it is actively being worked.
+The recorded conflict is in `.env.example`, which puts it in the same territory as #27 and
+#28. It touches `docs/HANDOFF-evaluation.md`, so it overlaps the evaluation work that
+document owns.
+
+**Action:** review it from scratch. Nothing here has been verified, and the size alone
+(+12444) means it is not a quick read. Treat every claim in this entry as metadata, because
+that is all it is.
+
 ### #27 — shared cases on boot, and models in git (Darkest-Teddy)
 
 **Two blockers, both semantic.**
@@ -203,13 +280,18 @@ and land cleanly on their own. The seeder needs a redesign, not a rebase.
 ## 7. Suggested order
 
 1. ~~**#24**~~ — done, `94ed8e4`.
-2. **#33** — resolve the `server.ts` conflict, review the persistence swap properly, merge.
-   Note that its conflict is now against a `main` that also carries #24.
+2. ~~**#33**~~ — done, `f4469a8`, joined in `bf0e605`.
 3. **#28** — cherry-pick the corner readout only.
 4. **#30** — author drops the duplicate adjudication transport, then merge.
 5. **#27** — split; land the env layering, redesign the seeder.
-6. Delete `feat/product-in-the-atmosphere`, and address the dependabot alerts.
+6. **#25** — review from scratch. Never assessed; see its entry.
+7. Delete `feat/product-in-the-atmosphere`, and address the dependabot alerts.
 
-`feat/product-in-the-atmosphere` no longer tracks `main` — #24 landed on `main` alone, so
-the two have diverged again by one merge. Retarget the remaining three PRs before that gap
-grows into the thing §1 describes.
+**`main` is now 15 commits ahead of `feat/product-in-the-atmosphere`, which is 0 ahead of
+it.** That is the §1 divergence starting over, and three of the four remaining PRs (#30,
+#27, #25) still target the atmosphere branch. Retarget them to `main` before the gap grows
+into something that needs reconciling rather than rebasing. #28 already points at `main`.
+
+Two items of `main` are worth knowing about when reading any conflict below: #24's
+dependency preflight and #33's Postgres swap both landed after every one of these branches
+was cut.
