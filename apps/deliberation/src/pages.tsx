@@ -332,89 +332,96 @@ export function NewCasePage({ token, people, onCreated }: {
         lede="Name the compound, the people who will answer, and the study documents. You can add more evidence afterwards."
       />
 
-      <form onSubmit={(e) => { void submit(e); }} style={{ maxWidth: 720 }}>
-        <div className="panel">
-          <div className="field">
-            <label htmlFor="compound">Compound</label>
-            <input id="compound" type="text" required value={compoundLabel}
-              onChange={(e) => setLabel(e.target.value)} placeholder="TAK-994, or your internal code" />
-          </div>
+      <form onSubmit={(e) => { void submit(e); }}>
+        {/* NOT STACKED. Opening a case is one decision made of three independent parts -
+            what the compound is, who answers, and what they read - and none of them is a
+            step that waits on the one above it. The first two share the top row and the
+            documents panel runs full width beneath; `.case-open` in app.css carries the
+            track sizing and the single breakpoint where the pair unstacks. */}
+        <div className="case-open">
+          <div className="panel">
+            <div className="field">
+              <label htmlFor="compound">Compound</label>
+              <input id="compound" type="text" required value={compoundLabel}
+                onChange={(e) => setLabel(e.target.value)} placeholder="TAK-994, or your internal code" />
+            </div>
 
-          <div className="field">
-            <label htmlFor="context">The decision in front of you</label>
-            <textarea id="context" value={context} onChange={(e) => setContext(e.target.value)}
-              placeholder="Indication, how long patients take it, and what you are deciding. For example: chronic daily dosing in otherwise healthy adults; whether to advance toward first-in-human." />
-            <span className="hint">
-              Everyone reads this before answering. Dosing duration and how sick the
-              patients are decide what counts as an acceptable signal, so say them.
-            </span>
-          </div>
+            <div className="field">
+              <label htmlFor="context">The decision in front of you</label>
+              <textarea id="context" value={context} onChange={(e) => setContext(e.target.value)}
+                placeholder="Indication, how long patients take it, and what you are deciding. For example: chronic daily dosing in otherwise healthy adults; whether to advance toward first-in-human." />
+              <span className="hint">
+                Everyone reads this before answering. Dosing duration and how sick the
+                patients are decide what counts as an acceptable signal, so say them.
+              </span>
+            </div>
 
-          <div className="field">
-            <label>Modality</label>
-            <span className="hint" style={{ marginTop: 0 }}>
-              Four of the twelve questions do not apply to an antibody - it has no
-              reactive metabolite and no structure a QSAR model can score - so this
-              decides which questions get asked at all.
-            </span>
-            <div className="choice">
-              <button type="button" className="ghost" aria-pressed={modality === "small_molecule"}
-                onClick={() => setModality("small_molecule")}>Small molecule</button>
-              <button type="button" className="ghost" aria-pressed={modality === "biologic"}
-                onClick={() => setModality("biologic")}>Biologic</button>
+            <div className="field">
+              <label>Modality</label>
+              <span className="hint" style={{ marginTop: 0 }}>
+                Four of the twelve questions do not apply to an antibody - it has no
+                reactive metabolite and no structure a QSAR model can score - so this
+                decides which questions get asked at all.
+              </span>
+              <div className="choice">
+                <button type="button" className="ghost" aria-pressed={modality === "small_molecule"}
+                  onClick={() => setModality("small_molecule")}>Small molecule</button>
+                <button type="button" className="ghost" aria-pressed={modality === "biologic"}
+                  onClick={() => setModality("biologic")}>Biologic</button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="panel" style={{ marginTop: 24 }}>
-          <div>
-            <h3>Who answers</h3>
-            <p className="hint">
-              They need an account already. Nobody can see anyone else's answer until
-              all of them are in - including you.
-            </p>
-          </div>
+          <div className="panel">
+            <div>
+              <h3>Who answers</h3>
+              <p className="hint">
+                They need an account already. Nobody can see anyone else's answer until
+                all of them are in - including you.
+              </p>
+            </div>
 
-          {people.length === 0
-            ? <p className="small muted">No other accounts yet. Ask a colleague to register first.</p>
-            : people.map((p) => (
-              <div className="cite" key={p.id}>
-                <input type="checkbox" id={`p-${p.id}`} checked={selected.includes(p.email)}
-                  onChange={() => toggle(p.email)} />
-                <label htmlFor={`p-${p.id}`}>
-                  <strong>{p.displayName}</strong>
-                  <div className="tiny muted mono">{p.email}</div>
-                </label>
-              </div>
-            ))}
-        </div>
-
-        {/* Documents, uploaded once the case exists - see `submit`. Optional here
-            because a case can be opened before the package arrives, and forcing a PDF
-            at this step would push people to open the case elsewhere and never come
-            back. */}
-        <div className="panel" style={{ marginTop: 24 }}>
-          <div className="field">
-            <label htmlFor="new-docs">Study documents (PDF)</label>
-            <input id="new-docs" type="file" accept="application/pdf,.pdf" multiple disabled={busy}
-              onChange={(e) => setFiles([...(e.target.files ?? [])])} />
-            <span className="hint">
-              Every document is measured before it is accepted. A scanned file with no
-              extractable text is refused rather than stored as though it were readable.
-              You can add more later.
-            </span>
-          </div>
-          {files.length > 0 && (
-            <div className="inv">
-              {files.map((f) => (
-                <div className="inv-row" key={f.name}>
-                  <div className="state present">{Math.round(f.size / 1024 / 1024 * 10) / 10} MB</div>
-                  <div className="tiny mono">{f.name}</div>
+            {people.length === 0
+              ? <p className="small muted">No other accounts yet. Ask a colleague to register first.</p>
+              : people.map((p) => (
+                <div className="cite" key={p.id}>
+                  <input type="checkbox" id={`p-${p.id}`} checked={selected.includes(p.email)}
+                    onChange={() => toggle(p.email)} />
+                  <label htmlFor={`p-${p.id}`}>
+                    <strong>{p.displayName}</strong>
+                    <div className="tiny muted mono">{p.email}</div>
+                  </label>
                 </div>
               ))}
+          </div>
+
+          {/* Documents, uploaded once the case exists - see `submit`. Optional here
+              because a case can be opened before the package arrives, and forcing a PDF
+              at this step would push people to open the case elsewhere and never come
+              back. */}
+          <div className="panel case-docs">
+            <div className="field">
+              <label htmlFor="new-docs">Study documents (PDF)</label>
+              <input id="new-docs" type="file" accept="application/pdf,.pdf" multiple disabled={busy}
+                onChange={(e) => setFiles([...(e.target.files ?? [])])} />
+              <span className="hint">
+                Every document is measured before it is accepted. A scanned file with no
+                extractable text is refused rather than stored as though it were readable.
+                You can add more later.
+              </span>
             </div>
-          )}
-          {uploading !== null && <div className="note">Uploading and measuring {uploading}…</div>}
+            {files.length > 0 && (
+              <div className="inv">
+                {files.map((f) => (
+                  <div className="inv-row" key={f.name}>
+                    <div className="state present">{Math.round(f.size / 1024 / 1024 * 10) / 10} MB</div>
+                    <div className="tiny mono">{f.name}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {uploading !== null && <div className="note">Uploading and measuring {uploading}…</div>}
+          </div>
         </div>
 
         <div className="btn-row">

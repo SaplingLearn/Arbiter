@@ -637,6 +637,28 @@ a.card:hover, button.card:hover { border-color: var(--ink-3); background-color: 
 .state.not_applicable { color: var(--ink-3); background: transparent; border-color: var(--line); border-style: dashed; }
 
 /* ---- forms --------------------------------------------------------------- */
+
+/* Open a case: the compound and the reviewers share the top row, the documents run
+   full width beneath them. Stacked in a 720px column all three ran past the fold and
+   the submit button sat below the scroll, so the form read as longer than it is.
+
+   TWO EXPLICIT TRACKS rather than the auto-fit that `.grid` uses. auto-fit sizes the
+   row to whatever fits, and inside .work-col at --col 1160px that is three - which
+   would pull the documents panel up into a third column instead of leaving it the row
+   below. The count here is a layout decision, not a function of the width.
+
+   The documents panel takes the full row because its content is the one part that
+   GROWS: every accepted upload adds an inv-row beneath the field, and a list that
+   extends belongs in the section that can extend with it. The two above it are fixed
+   in size and stretch to a common height - they are bordered, and ragged bottoms
+   across a row read as a bug rather than as content. */
+.case-open { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4); }
+.case-open > .case-docs { grid-column: 1 / -1; }
+/* Two 300px columns plus the gap need 616px of content box, which .work-col stops
+   having at about a 700px viewport. Narrower than that the pair unstacks rather than
+   squeezing a compound field and an email list into half of a phone. */
+@media (max-width: 700px) { .case-open { grid-template-columns: 1fr; } }
+
 .field { display: flex; flex-direction: column; margin-top: var(--s5); }
 .field:first-child { margin-top: 0; }
 label { font: 650 13.5px/1.5 var(--sans); color: var(--ink); }

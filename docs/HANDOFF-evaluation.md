@@ -64,12 +64,30 @@ project the provider-decision doc already records. Application Default Credentia
 already present — `gcloud auth application-default login` had been run previously. If
 auth has since expired, that command is the fix.
 
-### 1.2 There is no Vertex API key, and this is by design
+### 1.2 There is a key now — amended 2026-08-16
 
-Jack asked for "the key" and there isn't one. Vertex authenticates with ADC, not a key
-string. `.env.example` §2b explains this to end users. If you find yourself hunting for
-`VERTEX_API_KEY`, stop — the correct answer is `gcloud auth application-default login`
-plus a project id.
+This section used to read "there is no Vertex API key, and this is by design", on the
+grounds that Vertex authenticates with ADC rather than a key string. That was true of
+the code as written and it was the wrong answer to the question Jack was asking. ADC
+authenticates a **person**: every developer needs their own Google account with access
+to the project, and there is nothing to hand around. A team cannot share it.
+
+`services/api/gemini.ts` now accepts `GEMINI_API_KEY`. It is still a cloud credential —
+an `AQ.`-prefixed key is bound to a Google Cloud project and bills it — so this is not
+a personal free-tier key smuggled in beside the project's own auth.
+
+Two things follow, and both bite:
+
+- **The host is a second decision.** A key works against either
+  `aiplatform.googleapis.com` (Vertex express, `ARBITER_GEMINI_HOST=vertex`, the
+  default) or `generativelanguage.googleapis.com` (`=developer`). They serve
+  **different catalogues**. `gemini-2.5-flash-lite` — `DEFAULT_SHORT_MODEL` — is a 404
+  on the developer host. Measured, not assumed.
+- **A shared key is a shared budget.** `ARBITER_MODEL_BUDGET` is the only thing
+  bounding it, and `budgetFrom()` will not accept 0 as "off".
+
+ADC still works and is still the right default for a machine you own. The key exists
+for the case ADC cannot serve.
 
 ### 1.3 Environment variables that actually exist
 
@@ -77,7 +95,9 @@ Verified by grepping `ARBITER_[A-Z_]*` across `services`, `apps`, `packages`, `t
 
 | Variable | Default | Notes |
 |---|---|---|
-| `ARBITER_GCP_PROJECT` | — | **required for any live run** |
+| `ARBITER_GCP_PROJECT` | — | **required for any live run on ADC**; not needed when a key is set |
+| `GEMINI_API_KEY` | — | added 2026-08-16; sufficient on its own, see §1.2 |
+| `ARBITER_GEMINI_HOST` | `vertex` | `vertex` or `developer` — different model catalogues |
 | `ARBITER_MODEL` | `gemini-3.5-flash` | provider inferred from the name: `gemini-*` → Vertex, else Anthropic |
 | `ARBITER_ADJUDICATION_MODEL` | falls back to `ARBITER_MODEL` | |
 | `ARBITER_ASK_MODEL` | falls back to `ARBITER_MODEL` | |
@@ -86,8 +106,8 @@ Verified by grepping `ARBITER_[A-Z_]*` across `services`, `apps`, `packages`, `t
 | `ARBITER_MODEL_BUDGET` | 30 | model calls per account per 10 min — **the spend cap** |
 | `ARBITER_HOST` | `127.0.0.1` | |
 
-**`ARBITER_ADJUDICATION_RUNS` is missing from `.env.example`.** It was added with
-`consensus.ts` and the template was never updated. Small, worth fixing.
+**`ARBITER_ADJUDICATION_RUNS` was missing from `.env.example`.** It was added with
+`consensus.ts` and the template was never updated. Fixed 2026-08-16.
 
 ### 1.4 Use flash for everything
 
@@ -431,7 +451,7 @@ this project**, and it is a task for Jack or a colleague, not for you.
 
 **The consensus split flag is not surfaced in the UI.** §10.
 
-**`.env.example` is missing `ARBITER_ADJUDICATION_RUNS`.** §1.3.
+~~**`.env.example` is missing `ARBITER_ADJUDICATION_RUNS`.**~~ Fixed 2026-08-16. §1.3.
 
 ---
 

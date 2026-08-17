@@ -30,8 +30,33 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 
+/**
+ * The files this looks for, in order, when no path is given.
+ *
+ * `.env.share` is second because a file HANDED to someone should not need renaming
+ * before it works. That rename was the whole failure mode: `.env.share` sitting in the
+ * root does nothing, the service comes up on the stub, and "no credentials" and "the
+ * credentials are in a file I did not read" look identical from the banner. Reading it
+ * directly removes a step that had no purpose except to be forgotten.
+ *
+ * `.env` still wins when both exist, so a developer's own configuration is never
+ * silently replaced by a shared one that happens to be checked out beside it.
+ */
+export const ENV_FILES = [".env", ".env.share"] as const;
+
+/** Which of ENV_FILES is actually present, or null. The banner prints it. */
+export function envFileInUse(): string | null {
+  return ENV_FILES.find((f) => existsSync(f)) ?? null;
+}
+
 /** @returns how many variables were newly set. */
-export function loadEnv(path = ".env"): number {
+export function loadEnv(path?: string): number {
+  const resolved = path ?? envFileInUse();
+  if (resolved === null || resolved === undefined) return 0;
+  return loadEnvFile(resolved);
+}
+
+function loadEnvFile(path: string): number {
   if (!existsSync(path)) return 0;
 
   let applied = 0;

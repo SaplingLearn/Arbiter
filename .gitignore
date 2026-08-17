@@ -93,6 +93,11 @@ dist/
 *.tsbuildinfo
 .env
 .env.local
+# The hand-out copy. `.env.example` is the tracked template and holds no secret;
+# this one carries a live service-account key once section 1 is filled in, which
+# is the whole reason it exists as a separate file rather than as an edit to the
+# template.
+.env.share
 
 # Python
 __pycache__/
@@ -108,12 +113,21 @@ Thumbs.db
 .~lock.*#
 ~$*
 
-# Downloaded regulatory review PDFs. 21MB for four documents and growing, and every
-# one is retrievable from accessdata.fda.gov or ema.europa.eu by the URL recorded in
-# the spec. What must be tracked is the SPLIT output and the human manifest, not the
-# source PDFs - and data/prep/split_review.py refuses anything it cannot split, so a
-# missing source cannot silently become a hand-trimmed one.
-data/raw/approval-packages/
+# Regulatory review PDFs. TRACKED as of 2026-08-16, reversing the earlier decision.
+#
+# The old rule said they were retrievable from accessdata.fda.gov or ema.europa.eu by
+# the URL the spec records. In practice no URL is recorded anywhere - library-sources.json
+# names filenames and an NDA number, and there is no fetch script - so "retrievable"
+# meant a person hand-searching FDA's site for 35 documents. What a fresh clone actually
+# got was a Library where every entry read "cannot be searched: not in this checkout",
+# which is the product's central surface failing for a reason that looks like a bug.
+#
+# 363 MB, and that cost is accepted deliberately: the Ask surface is the thing being
+# demonstrated, and a demonstration nobody else can run is not one. Revisit with Git LFS
+# if the repository becomes unwieldy - the files are static, so LFS would fit them well.
+#
+# data/prep/split_review.py still refuses anything it cannot split, so a missing source
+# still cannot silently become a hand-trimmed one.
 
 # The DILIrank workbook was downloaded a second time into documents/. It is
 # byte-identical to the tracked data/raw/dilirank.xlsx (sha256 1ca1352ff727af68...),
