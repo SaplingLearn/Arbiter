@@ -90,6 +90,8 @@ A `ShareStore` following the pattern this branch already uses for accounts and i
 
 **Not a Postgres-backed store**, deliberately. The `stores.ts` abstraction with file and Postgres implementations lives on the unmerged Supabase branch (PR #33) and does not exist here. Writing `ShareStore` against an interface this branch does not have would be building for a merge that has not happened. When PR #33 lands, `ShareStore` joins `stores.ts` the same way the other four did — one constructor call moves — and the Postgres implementation and its migration are that merge's work, not this one's.
 
+> **Done, in the merge onto `main`.** PR #33 landed, and the paragraph above was the instruction for what happened next. `ShareStore` gained `ShareStoreApi` (declared in `services/api/postgres-share.ts`, as `AuthStoreApi` and `InviteStoreApi` are in theirs) and an async `ShareStore.open(path)`; `PostgresShareStore` and `supabase/migrations/0002_share_links.sql` are the Postgres half; `buildStores` returns it on both branches and `buildDeps` passes it to `ServerDeps.shares`. `shareSecret` stayed out of `buildStores` — which backing holds the links is a storage decision, whether the deployment can publish at all is not. The behaviour is one suite run against both implementations, in `services/api/test/share-store-contract.ts`; the estimate of "one constructor call moves" was optimistic by about a file and a half.
+
 ---
 
 ## 2. The public surface
@@ -176,6 +178,8 @@ The QR block is a `Block` like every other, so the paginator treats it as indivi
 **No container static-serving file, on this branch, at all.** A version of one was written for this task and removed before merge - see "The public surface" above for why, and `services/api/server.ts:74-91` for where it would go. It is PR #33's file to add, not this one's.
 
 No Postgres files and no migration: see Storage above — that layer is not on this branch.
+
+> **After the merge onto `main`:** the static serving arrived with PR #33 (`serveStatic`, behind `ARBITER_STATIC_DIR`) and was kept as it landed. `/r/:caseId/:token` is still **not** routed to `public.html`, so a share URL 404s on a deployed host — deliberately, for the two reasons recorded beside `staticRoot()` in `services/api/server.ts` and in the README: `serveStatic` has no rewrite table on purpose, and `public.html` needs a root mount that `tools/stage-site.mjs` does not give it. The Postgres files and the migration are listed in the Storage note above.
 
 ## Risks
 

@@ -575,10 +575,17 @@ export function PositionForm({ token, caseId, findings, onDone }: {
           the redesign dropped and nothing replaced, so the three-way call button - the
           single most important control in the product - rendered as three words run
           together with no gap, no border and no pressed state. `.choice` carries the
-          layout and `button.ghost` carries the states, including aria-pressed. */}
+          layout and `button.ghost` carries the states, including aria-pressed.
+
+          LABELLED BY, NOT `htmlFor`. A label's `for` names a labelable form control and
+          a div is not one, so `htmlFor="call"` pointed at nothing and this group - the
+          single most important control in the product - reached a screen reader with no
+          accessible name at all. Nothing failed: an unmatched `for` is not an error, it
+          is simply silent. `role="group"` with `aria-labelledby` is the arrangement that
+          actually carries "Your call" across. */}
       <div className="field">
-        <label htmlFor="call">Your call</label>
-        <div className="choice" id="call">
+        <label id="call-label">Your call</label>
+        <div className="choice" role="group" aria-labelledby="call-label">
           {(["advance", "do_not_advance", "cannot_conclude"] as const).map((c) => (
             <button key={c} type="button" className="ghost" aria-pressed={call === c} onClick={() => setCall(c)}>
               {CALL_LABEL[c]}

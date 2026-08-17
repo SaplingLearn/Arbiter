@@ -69,72 +69,56 @@ describe("verifying a token", () => {
   });
 });
 
-describe("the share store", () => {
-  it("has no link for a case nobody published", () => {
-    expect(new ShareStore().get("c1")).toBeNull();
-  });
-
-  it("publishes at version 1", () => {
-    const s = new ShareStore();
-    const l = s.publish("c1", "u-own", "2026-08-17T10:00:00.000Z");
-    expect(l.version).toBe(1);
-    expect(l.revokedAt).toBeNull();
-    expect(l.createdBy).toBe("u-own");
-  });
-
-  it("returns the same link when publishing an already-published case, so the printed QR keeps working", () => {
-    const s = new ShareStore();
-    const first = s.publish("c1", "u-own", "2026-08-17T10:00:00.000Z");
-    const again = s.publish("c1", "u-own", "2026-08-17T12:00:00.000Z");
-    expect(again.version).toBe(first.version);
-    expect(again.createdAt).toBe(first.createdAt);
-  });
-
-  it("revoking bumps the version and stamps the time", () => {
-    const s = new ShareStore();
-    s.publish("c1", "u-own", "2026-08-17T10:00:00.000Z");
-    const revoked = s.revoke("c1", "2026-08-17T11:00:00.000Z");
-    expect(revoked?.version).toBe(2);
-    expect(revoked?.revokedAt).toBe("2026-08-17T11:00:00.000Z");
-  });
-
-  it("republishing after a revoke mints a different token, and the dead one stays dead", () => {
-    const s = new ShareStore();
-    s.publish("c1", "u-own", "2026-08-17T10:00:00.000Z");
-    const dead = deriveToken(SECRET, "c1", 1);
-    s.revoke("c1", "2026-08-17T11:00:00.000Z");
-    const fresh = s.publish("c1", "u-own", "2026-08-17T12:00:00.000Z");
-
-    expect(fresh.revokedAt).toBeNull();
-    expect(fresh.version).toBe(2);
-    expect(verifyToken(SECRET, fresh, dead)).toBe(false);
-    expect(verifyToken(SECRET, fresh, deriveToken(SECRET, "c1", 2))).toBe(true);
-  });
-
-  it("revoking a case nobody published is not an error", () => {
-    expect(new ShareStore().revoke("c1", "2026-08-17T11:00:00.000Z")).toBeNull();
-  });
-
-  // Every construction elsewhere in this file passes no path, so `mkdirSync`,
-  // `readFileSync`, `writeFileSync` and the on-disk `{links: [...]}` shape were never
+/**
+ * The store's BEHAVIOUR is in `share-store-contract.ts` and runs from
+ * `postgres-share.test.ts` against both implementations. What stays here is the one
+ * thing only the file-backed store can be asked: whether a link survives the file.
+ */
+describe("the file-backed share store", () => {
+  // Every other construction of this store passes no path, so `mkdir`, `readFile`,
+  // `writeFileSync` and the on-disk `{links: [...]}` shape would otherwise never be
   // exercised - a break in any of them would drop every published link on the next
   // redeploy, silently, and a printed QR outlives the process that minted it. Same
   // shape as `AuthStore`'s and `InviteStore`'s own restart tests (auth.test.ts,
   // invites.test.ts): write through a real path, read the file back directly to pin
-  // its shape, then construct a second store from the same path and confirm the link
-  // - and the token it derives - survived the process boundary.
-  it("survives a restart, so a printed QR still resolves after a redeploy", () => {
+  // its shape, then open a second store from the same path and confirm the link - and
+  // the token it derives - survived the process boundary.
+  it("survives a restart, so a printed QR still resolves after a redeploy", async () => {
     const path = join(mkdtempSync(join(tmpdir(), "arb-share-")), "shares.json");
-    const first = new ShareStore(path);
-    first.publish("c1", "u-own", "2026-08-17T10:00:00.000Z");
+    const first = await ShareStore.open(path);
+    await first.publish("c1", "u-own", "2026-08-17T10:00:00.000Z");
 
     const onDisk = JSON.parse(readFileSync(path, "utf8")) as { links: ShareLink[] };
     expect(onDisk.links).toHaveLength(1);
     expect(onDisk.links[0]?.caseId).toBe("c1");
 
-    const second = new ShareStore(path);
-    const link = second.get("c1");
+    const second = await ShareStore.open(path);
+    const link = await second.get("c1");
     expect(link).not.toBeNull();
     expect(verifyToken(SECRET, link, deriveToken(SECRET, "c1", 1))).toBe(true);
+  });
+
+  // A revoke is the write whose loss is worst - it is the one that has to reach paper -
+  // and it is written by the same whole-file rewrite as a publish.
+  it("keeps a revocation across a restart, so a killed QR stays killed", async () => {
+    const path = join(mkdtempSync(join(tmpdir(), "arb-share-")), "shares.json");
+    const first = await ShareStore.open(path);
+    await first.publish("c1", "u-own", "2026-08-17T10:00:00.000Z");
+    await first.revoke("c1", "2026-08-17T11:00:00.000Z");
+
+    const link = await (await ShareStore.open(path)).get("c1");
+    expect(link!.revokedAt).toBe("2026-08-17T11:00:00.000Z");
+    expect(verifyToken(SECRET, link, deriveToken(SECRET, "c1", 1))).toBe(false);
+  });
+
+  // Nothing has written the file yet, so `open` has to cope with a directory that does
+  // not exist. `buildStores` points this at `results/deliberation-log.jsonl.shares.json`,
+  // and a container's first boot has no `results/` at all.
+  it("opens against a path in a directory that does not exist yet", async () => {
+    const path = join(mkdtempSync(join(tmpdir(), "arb-share-")), "nested", "shares.json");
+    const store = await ShareStore.open(path);
+    expect(await store.get("c1")).toBeNull();
+    await store.publish("c1", "u-own", "2026-08-17T10:00:00.000Z");
+    expect((await (await ShareStore.open(path)).get("c1"))!.version).toBe(1);
   });
 });

@@ -1,33 +1,118 @@
-import { cp, rm, access } from "node:fs/promises";
-import { resolve } from "node:path";
+import { cp, rm, access, readFile } from "node:fs/promises";
+import { resolve, sep } from "node:path";
 
 /**
  * Puts the product where the landing page says it is.
  *
- * apps/landing/src/links.ts defaults APP_URL to `/app/`, and nothing in the repo
- * built that, so the default was a promise no build kept: `npm run landing:build`
- * produced a page whose one link into the product 404s. It was invisible locally
- * only because .env.development overrides APP_URL to a dev server, so the dead
- * link existed exclusively in the builds an outside reader would ever see.
+ * apps/landing/src/links.ts holds one destination for the product and every "Open
+ * the app" CTA on the page reads it. Nothing in the repo built that destination, so
+ * the default was a promise no build kept: `npm run landing:build` produced a page
+ * whose one link into the product 404s. Nothing catches that on its own - a dead
+ * link on a marketing page is not a test failure anywhere, which is the reason
+ * links.ts exists at all.
  *
- * STAGES apps/deliberation, NOT apps/web. The redesign is the four-stage app with
- * the real API behind it; apps/web is the older seven-tab static artifact and is
- * still built and still submitted, but it is not what "Open The App" should mean.
+ * THE DESTINATION IS READ OUT OF links.ts RATHER THAN REPEATED HERE, because
+ * repeating it is how this script broke. It was written when APP_URL defaulted to
+ * `/app/` and it staged the client into `apps/landing/dist/app`; the default later
+ * moved to `/deliberation/` and this line did not follow. Two literals a directory
+ * apart with no test between them, and `npm run site:build` went back to producing a
+ * site where every CTA into the product 404s - the exact failure the script was
+ * written to prevent, reintroduced by the script itself. Derived, it cannot drift.
  *
- * A copy rather than a Vite `base` rewrite per deployment: apps/deliberation now
- * sets `base: "./"`, so the bundle is position-independent and this script only
- * has to decide where it lands.
+ * VITE_APP_URL is honoured for the same reason: `npm run site:build` runs the
+ * landing build in this process's environment, so an override is already baked into
+ * the page by the time this runs. Staging anywhere else would disagree with the page
+ * that was just built.
  *
- * WHAT THIS DOES NOT DO. It does not make /api exist. apps/deliberation is a
- * client for a service - the vite config says so - so a static host serving this
- * directory alone gives you a sign-in screen that cannot sign anybody in. The
- * arrangement that works is spec 10's: the API and this directory on one origin.
- * Staging the client is the half of that which is a build step; serving them
- * together is a deployment decision this repo does not currently encode anywhere.
+ * `/deliberation/` is also where `npm run dev` serves the client (tools/dev-all.mjs
+ * assigns the port, apps/landing/vite.config.ts server.proxy routes the path), so a
+ * built site and a dev session name the product by the same URL and a link that
+ * works in one works in the other.
+ *
+ * A copy rather than a Vite `base` rewrite per deployment: apps/deliberation sets
+ * `base: "./"`, so the bundle is position-independent and this script only has to
+ * decide where it lands.
+ *
+ * WHAT THIS DOES NOT DO. It does not make /api exist. apps/deliberation is a client for
+ * a service - its vite config says so - and it now signs itself in on load rather than
+ * showing a sign-in form, so a static host serving this directory ALONE gives you a page
+ * that fails on its first request instead of one that merely cannot get past the door.
+ *
+ * WHAT SERVES IT. `services/api` now does, when `ARBITER_STATIC_DIR` points at the
+ * directory this script writes - which is the arrangement the Dockerfile and fly.toml
+ * use, and it is what makes the one-origin requirement hold in production without a
+ * second process. Left unset, the API still answers 404 to anything outside /api, which
+ * is what the dev servers want: `npm run dev` fronts everything with Vite's proxy and
+ * must not have a second thing claiming those paths.
  */
 
+const LINKS = "apps/landing/src/links.ts";
+
+/**
+ * The URL the built page will actually use, in the same order links.ts resolves it:
+ * VITE_APP_URL if set, otherwise the literal default in the source.
+ *
+ * A regex over TypeScript is a blunt instrument, so it fails loudly rather than
+ * falling back to a guess. A guessed path here reproduces the dead link silently,
+ * which is worse than a build that stops and says which line it could not read.
+ */
+async function appUrl() {
+  const override = process.env["VITE_APP_URL"];
+  if (override !== undefined && override.trim() !== "") return override.trim();
+
+  const source = await readFile(LINKS, "utf8");
+  // BOUNDED TO THE APP_URL STATEMENT. `[\s\S]*?` crossed lines and semicolons, so on
+  // any links.ts where APP_URL has lost its `?? "..."` default and some LATER export
+  // still has one, the lazy match walked past the end of the statement and returned
+  // that unrelated literal. Measured on exactly that source: `/not-the-app/`. The
+  // script would then stage the client into the wrong directory and print success -
+  // the silent dead link this file exists to prevent, with the loud failure below
+  // never firing. Neither condition holds today; the bound is what keeps it that way.
+  const match = /APP_URL[^=;]*=[^;]*?\?\?\s*"([^"]+)"/.exec(source);
+  if (match === null) {
+    console.error(`Could not read APP_URL's default out of ${LINKS}.`);
+    console.error(`Expected \`... ?? "/some/path/"\`. Fix the pattern here, or set VITE_APP_URL.`);
+    process.exit(1);
+  }
+  return match[1];
+}
+
+const url = await appUrl();
+
+// An absolute URL is a supported configuration - links.ts says so - and it means the
+// client is served by something else entirely. Staging it into the landing build
+// would write a directory nothing on the page links to, so this is a no-op and says
+// why, rather than an error: the site that was just built is correct as it stands.
+if (!url.startsWith("/")) {
+  console.log(`APP_URL is ${url}, an absolute URL - the client is hosted elsewhere.`);
+  console.log(`Nothing staged. apps/landing/dist is the whole site in this arrangement.`);
+  process.exit(0);
+}
+
+const subpath = url.replace(/^\/+|\/+$/g, "");
+// `/` would resolve to apps/landing/dist itself, and the rm below would then delete
+// the landing page this script exists to complete.
+if (subpath === "") {
+  console.error(`APP_URL is "${url}", the site root. There is no subdirectory to stage into.`);
+  console.error(`The landing page and the client cannot both be the root of one build.`);
+  process.exit(1);
+}
+
 const client = resolve("apps/deliberation/dist");
-const dest = resolve("apps/landing/dist/app");
+const root = resolve("apps/landing/dist");
+const dest = resolve(root, subpath);
+
+/* THE `rm` BELOW DELETES `dest` RECURSIVELY, so `dest` has to be inside the build.
+   Stripping slashes does not make a path safe: `VITE_APP_URL=/../secrets/` survives it
+   as `../secrets` and resolves to a sibling of the build directory, which this script
+   would then delete and replace with a copy of the client. The empty-string check above
+   covers the site root and nothing else. Compared with a trailing separator so a
+   sibling whose name merely starts with the same characters cannot pass. */
+if (dest !== root && !dest.startsWith(`${root}${sep}`)) {
+  console.error(`APP_URL is "${url}", which resolves to ${dest} - outside ${root}.`);
+  console.error(`A staged path has to be a subdirectory of the landing build.`);
+  process.exit(1);
+}
 
 try {
   await access(client);
@@ -41,6 +126,6 @@ try {
 await rm(dest, { recursive: true, force: true });
 await cp(client, dest, { recursive: true });
 
-console.log(`staged  apps/deliberation/dist -> apps/landing/dist/app`);
-console.log(`APP_URL /app/ now resolves in the built site.`);
-console.log(`NOTE    this client needs /api on the same origin. Static alone is a sign-in screen.`);
+console.log(`staged  apps/deliberation/dist -> apps/landing/dist/${subpath}`);
+console.log(`APP_URL ${url} now resolves in the built site.`);
+console.log(`NOTE    this client needs /api on the same origin. Static alone is a page that cannot load a case.`);

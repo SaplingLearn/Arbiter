@@ -44,13 +44,39 @@ export interface CaseView extends BlindView {
   signature: Signature | null;
 }
 
+/**
+ * `stub` or `live`, from the adjudicated log entry, and THE ONLY RULE IN THE CODEBASE
+ * THAT DECIDES THIS.
+ *
+ * `server.ts` records the provenance as the ACTOR of the entry - "stub" when no model was
+ * called, "model" when one was - so the fact is already in the chain for every
+ * adjudication ever written, including the seeded ones. Reading it back costs nothing and
+ * cannot drift from the entry it describes.
+ *
+ * FAILS TOWARD `stub`, for anything that is not exactly "model" and for a missing entry
+ * alike, and the asymmetry is the whole reason this is one function. The two errors are
+ * not equivalent: labelling a real adjudication a stub makes a reader trust it less than
+ * they should, while labelling a stub as a model's judgment puts words that are explicitly
+ * not a finding about a compound onto a safety record as though they were one. Only the
+ * second one gets quoted.
+ *
+ * There were briefly two versions of this - `view`'s treated any unrecognised actor as
+ * live, the report's treated only "model" as live - and they arrived from two branches
+ * that merged without a conflict. Every writer passes exactly "stub" or "model", so
+ * nothing observable differed; what differed was which answer a future third writer would
+ * have got, on two screens that both claim to describe the same adjudication.
+ */
+function sourceOf(entry: LogEntry | undefined): "stub" | "live" {
+  return entry?.actorId === "model" ? "live" : "stub";
+}
+
 export class DeliberationService {
   constructor(
     private readonly store: DeliberationStore,
     private readonly checklist: EvidenceChecklist,
   ) {}
 
-  open(init: {
+  async open(init: {
     caseId: string;
     compoundLabel: string;
     context: string;
@@ -61,9 +87,9 @@ export class DeliberationService {
      *  case: a small molecule is asked every question. */
     modality?: Modality;
     at: string;
-  }): { case: DeliberationCase; inventory: Inventory } {
+  }): Promise<{ case: DeliberationCase; inventory: Inventory }> {
     const c = openCase(init);
-    this.store.append({
+    await this.store.append({
       at: init.at, kind: "case_opened", caseId: c.caseId, actorId: c.ownerId,
       // The findings go in WHOLE, not as a list of ids. They are published to every
       // participant anyway - the inventory is built from them - so nothing is
@@ -88,7 +114,7 @@ export class DeliberationService {
     // Findings can be corrected later, and a position must remain readable against
     // the account of the evidence its author actually saw. Recomputing would let a
     // later correction silently change what somebody was answering.
-    this.store.append({
+    await this.store.append({
       at: init.at, kind: "inventory_published", caseId: c.caseId, actorId: c.ownerId,
       payload: inventory,
     });
@@ -96,7 +122,7 @@ export class DeliberationService {
     this.findings.set(c.caseId, init.findings);
     this.inventories.set(c.caseId, inventory);
     this.modalities.set(c.caseId, init.modality ?? "small_molecule");
-    this.store.putCase(c);
+    await this.store.putCase(c);
     return { case: c, inventory };
   }
 
@@ -112,22 +138,22 @@ export class DeliberationService {
    * and it turned every citation into `unknown_finding_id` - an error that names
    * the participant for a fault that was the server's.
    */
-  private findingsOf(caseId: string): CoveringFinding[] {
+  private async findingsOf(caseId: string): Promise<CoveringFinding[]> {
     const cached = this.findings.get(caseId);
     if (cached !== undefined) return cached;
-    const opened = this.store.entries(caseId).filter((e) => e.kind === "case_opened").at(-1);
+    const opened = (await this.store.entries(caseId)).filter((e) => e.kind === "case_opened").at(-1);
     const recovered = ((opened?.payload as { findings?: CoveringFinding[] } | undefined)?.findings) ?? [];
     this.findings.set(caseId, recovered);
     return recovered;
   }
 
   /** The inventory as published. Never recomputed - see `open`. */
-  inventory(caseId: string): Inventory | null {
+  async inventory(caseId: string): Promise<Inventory | null> {
     const cached = this.inventories.get(caseId);
     if (cached !== undefined) return cached;
     // The LATEST publication, not the first: adding a finding appends a new one, and
     // reading the first would serve an inventory that has since been superseded.
-    const published = this.store.entries(caseId).filter((e) => e.kind === "inventory_published");
+    const published = (await this.store.entries(caseId)).filter((e) => e.kind === "inventory_published");
     const entry = published.at(-1);
     return entry === undefined ? null : (entry.payload as Inventory);
   }
@@ -148,30 +174,30 @@ export class DeliberationService {
    * positions. So the error is not "you cannot edit", it is "somebody has already
    * answered against this".
    */
-  addFinding(caseId: string, finding: CoveringFinding): Result<Inventory> {
-    const guard = this.evidenceGuard(caseId);
+  async addFinding(caseId: string, finding: CoveringFinding): Promise<Result<Inventory>> {
+    const guard = await this.evidenceGuard(caseId);
     if (!guard.ok) return guard;
 
-    const current = this.findingsOf(caseId);
+    const current = await this.findingsOf(caseId);
     if (current.some((f) => f.id === finding.id)) {
       return { ok: false, error: { kind: "duplicate_finding", detail: `This case already has a finding called "${finding.id}".` } };
     }
-    return { ok: true, value: this.republish(caseId, [...current, finding], guard.value) };
+    return { ok: true, value: await this.republish(caseId, [...current, finding], guard.value) };
   }
 
-  removeFinding(caseId: string, findingId: string): Result<Inventory> {
-    const guard = this.evidenceGuard(caseId);
+  async removeFinding(caseId: string, findingId: string): Promise<Result<Inventory>> {
+    const guard = await this.evidenceGuard(caseId);
     if (!guard.ok) return guard;
 
-    const current = this.findingsOf(caseId);
+    const current = await this.findingsOf(caseId);
     if (!current.some((f) => f.id === findingId)) {
       return { ok: false, error: { kind: "no_such_finding", detail: `No finding called "${findingId}" in this case.` } };
     }
-    return { ok: true, value: this.republish(caseId, current.filter((f) => f.id !== findingId), guard.value) };
+    return { ok: true, value: await this.republish(caseId, current.filter((f) => f.id !== findingId), guard.value) };
   }
 
-  private evidenceGuard(caseId: string): Result<DeliberationCase> {
-    const c = this.store.getCase(caseId);
+  private async evidenceGuard(caseId: string): Promise<Result<DeliberationCase>> {
+    const c = await this.store.getCase(caseId);
     if (c === null) return { ok: false, error: { kind: "not_open", detail: `No case ${caseId}.` } };
     if (c.status !== "open") {
       return { ok: false, error: { kind: "not_open", detail: `Case ${caseId} is ${c.status}. The evidence is fixed once a case closes.` } };
@@ -188,17 +214,17 @@ export class DeliberationService {
     return { ok: true, value: c };
   }
 
-  private republish(caseId: string, findings: CoveringFinding[], c: DeliberationCase): Inventory {
-    const modality = this.modalityOf(caseId);
+  private async republish(caseId: string, findings: CoveringFinding[], c: DeliberationCase): Promise<Inventory> {
+    const modality = await this.modalityOf(caseId);
     const inventory = buildInventory(findings, this.checklist, modality);
     // Appended, never rewritten: the log keeps every version of the inventory that
     // was ever published, and `inventory()` reads the latest. An edited entry would
     // break the chain, which is the point of the chain.
-    this.store.append({
+    await this.store.append({
       at: new Date(0).toISOString(), kind: "case_opened", caseId, actorId: c.ownerId,
       payload: { compoundLabel: c.compoundLabel, context: c.context, participantIds: c.participantIds, seats: c.seats, findings, modality },
     });
-    this.store.append({
+    await this.store.append({
       at: new Date(0).toISOString(), kind: "inventory_published", caseId, actorId: c.ownerId,
       payload: inventory,
     });
@@ -207,20 +233,20 @@ export class DeliberationService {
     return inventory;
   }
 
-  private modalityOf(caseId: string): Modality {
+  private async modalityOf(caseId: string): Promise<Modality> {
     const cached = this.modalities.get(caseId);
     if (cached !== undefined) return cached;
-    const opened = this.store.entries(caseId).find((e) => e.kind === "case_opened");
+    const opened = (await this.store.entries(caseId)).find((e) => e.kind === "case_opened");
     const m = (opened?.payload as { modality?: Modality } | undefined)?.modality ?? "small_molecule";
     this.modalities.set(caseId, m);
     return m;
   }
 
-  submit(caseId: string, p: Position): Result<DeliberationCase> {
-    const c = this.store.getCase(caseId);
+  async submit(caseId: string, p: Position): Promise<Result<DeliberationCase>> {
+    const c = await this.store.getCase(caseId);
     if (c === null) return { ok: false, error: { kind: "not_open", detail: `No case ${caseId}.` } };
 
-    const known = new Set(this.findingsOf(caseId).map((f) => f.id));
+    const known = new Set((await this.findingsOf(caseId)).map((f) => f.id));
     const next = submitPosition(c, p, known);
     if (!next.ok) return next;
 
@@ -229,26 +255,26 @@ export class DeliberationService {
     // without revealing an answer, which is what makes the blindness auditable
     // rather than merely asserted.
     const stored = next.value.positions.find((x) => x.participantId === p.participantId)!;
-    this.store.append({
+    await this.store.append({
       at: p.submittedAt, kind: "position_sealed", caseId, actorId: p.participantId,
       payload: { participantId: p.participantId, commitment: commitmentFor(stored) },
     });
-    this.store.putCase(next.value);
+    await this.store.putCase(next.value);
     return next;
   }
 
   /** The raw case, for the access check in the server. Deliberately not a view:
    *  access control asks who is named on the case, which is not a question about
    *  what a given viewer is allowed to see. */
-  getCase(caseId: string): DeliberationCase | null {
+  async getCase(caseId: string): Promise<DeliberationCase | null> {
     return this.store.getCase(caseId);
   }
 
   /** Cases this account is named on, owner or participant. Nothing else, ever -
    *  a list endpoint that leaked case labels would undo the access boundary in the
    *  one place people go looking. */
-  casesFor(userId: string): { caseId: string; compoundLabel: string; status: string; isOwner: boolean; submitted: number; of: number }[] {
-    return visibleCases(this.store.allCases(), userId).map((c) => ({
+  async casesFor(userId: string): Promise<{ caseId: string; compoundLabel: string; status: string; isOwner: boolean; submitted: number; of: number }[]> {
+    return visibleCases(await this.store.allCases(), userId).map((c) => ({
       caseId: c.caseId,
       compoundLabel: c.compoundLabel,
       status: c.status,
@@ -276,21 +302,21 @@ export class DeliberationService {
    * without reimplementing the allocation - the duplicated definition this project
    * keeps refusing.
    */
-  private mutate(
+  private async mutate(
     caseId: string, actorId: string, at: string, kind: LogKind,
     payload: (next: DeliberationCase) => unknown,
     f: (c: DeliberationCase) => Result<DeliberationCase>,
-  ): Result<DeliberationCase> {
-    const c = this.store.getCase(caseId);
+  ): Promise<Result<DeliberationCase>> {
+    const c = await this.store.getCase(caseId);
     if (c === null) return { ok: false, error: { kind: "not_open", detail: `No case ${caseId}.` } };
     const next = f(c);
     if (!next.ok) return next;
-    this.store.append({ at, kind, caseId, actorId, payload: payload(next.value) });
-    this.store.putCase(next.value);
+    await this.store.append({ at, kind, caseId, actorId, payload: payload(next.value) });
+    await this.store.putCase(next.value);
     return next;
   }
 
-  addParticipant(caseId: string, userId: string, actorId: string, at: string): Result<DeliberationCase> {
+  async addParticipant(caseId: string, userId: string, actorId: string, at: string): Promise<Result<DeliberationCase>> {
     // The SEAT goes in the entry, not just the participant id. Spec §3.1: "the
     // colours are recoverable from the audit chain alone, without needing the
     // database" - which is only true if the chain records which seat was handed out.
@@ -302,12 +328,12 @@ export class DeliberationService {
       (c) => addParticipant(c, userId));
   }
 
-  removeParticipant(caseId: string, userId: string, actorId: string, at: string): Result<DeliberationCase> {
+  async removeParticipant(caseId: string, userId: string, actorId: string, at: string): Promise<Result<DeliberationCase>> {
     return this.mutate(caseId, actorId, at, "participant_removed", () => ({ participantId: userId }),
       (c) => removeParticipant(c, userId));
   }
 
-  describe(caseId: string, compoundLabel: string, context: string, actorId: string, at: string): Result<DeliberationCase> {
+  async describe(caseId: string, compoundLabel: string, context: string, actorId: string, at: string): Promise<Result<DeliberationCase>> {
     return this.mutate(caseId, actorId, at, "case_described", () => ({ compoundLabel, context }),
       (c) => describeCase(c, compoundLabel, context));
   }
@@ -328,8 +354,8 @@ export class DeliberationService {
    * They are served to every viewer, not just the owner who ran the adjudication. A
    * participant is being asked to live with the verdict; reading it is the minimum.
    */
-  view(caseId: string, viewerId: string): CaseView | null {
-    const c = this.store.getCase(caseId);
+  async view(caseId: string, viewerId: string): Promise<CaseView | null> {
+    const c = await this.store.getCase(caseId);
     if (c === null) return null;
     return {
       ...visibleTo(c, viewerId),
@@ -337,7 +363,7 @@ export class DeliberationService {
       // existed have no such key, and `undefined` disappears through JSON.stringify -
       // so the API would omit the field entirely rather than report "not recorded".
       adjudication: c.adjudication ?? null,
-      adjudicationSource: (c.adjudication ?? null) === null ? null : this.adjudicationSource(caseId),
+      adjudicationSource: (c.adjudication ?? null) === null ? null : await this.adjudicationSource(caseId),
       consensus: c.consensus ?? null,
       signature: c.signature ?? null,
     };
@@ -356,23 +382,27 @@ export class DeliberationService {
    * labelling a stub as real puts words that are explicitly not a judgment about a
    * compound onto a safety record as though they were one.
    */
-  private adjudicationSource(caseId: string): "stub" | "live" {
-    const entry = [...this.store.entries(caseId)].reverse().find((e) => e.kind === "adjudicated");
-    return entry === undefined || entry.actorId === "stub" ? "stub" : "live";
+  private async adjudicationSource(caseId: string): Promise<"stub" | "live"> {
+    const entry = [...await this.store.entries(caseId)].reverse().find((e) => e.kind === "adjudicated");
+    return sourceOf(entry);
   }
 
-  reveal(caseId: string, by: string, at: string, mode: "all_in" | "close_early"): Result<DeliberationCase> {
-    const c = this.store.getCase(caseId);
+  /* `sourceOf` is a module-level function below rather than another method, because what
+     makes it safe is that there is exactly one of it - and a second method beside this
+     one is how there came to be two rules in the first place. */
+
+  async reveal(caseId: string, by: string, at: string, mode: "all_in" | "close_early"): Promise<Result<DeliberationCase>> {
+    const c = await this.store.getCase(caseId);
     if (c === null) return { ok: false, error: { kind: "not_open", detail: `No case ${caseId}.` } };
 
     const next = mode === "all_in" ? lock(c) : closeEarly(c, by, at);
     if (!next.ok) return next;
 
-    this.store.append({
+    await this.store.append({
       at, kind: "revealed", caseId, actorId: by,
       payload: { positions: next.value.positions, closedEarly: next.value.closedEarly },
     });
-    this.store.putCase(next.value);
+    await this.store.putCase(next.value);
     return next;
   }
 
@@ -385,16 +415,17 @@ export class DeliberationService {
    * rather than being dropped - which is the difference between a citation
    * requirement people work with and one they route around.
    */
-  adjudicationRequest(caseId: string, rules: AdjudicateRequest["rules"]): AdjudicateRequest | null {
-    const c = this.store.getCase(caseId);
-    const inv = this.inventory(caseId);
+  async adjudicationRequest(caseId: string, rules: AdjudicateRequest["rules"]): Promise<AdjudicateRequest | null> {
+    const c = await this.store.getCase(caseId);
+    const inv = await this.inventory(caseId);
     if (c === null || inv === null) return null;
+    const findings = await this.findingsOf(caseId);
 
     return {
       compoundLabel: c.compoundLabel,
       context: c.context,
       rules,
-      findings: this.findingsOf(caseId).map((f) => ({
+      findings: findings.map((f) => ({
         id: f.id, label: f.label, assertion: f.assertion, detail: f.detail,
         ...(f.sourceDocument === undefined ? {} : { sourceDocument: f.sourceDocument }),
         // The exact document join, and the client's ONLY reliable one. This route is
@@ -423,8 +454,8 @@ export class DeliberationService {
    *
    * Null for a case that does not exist, which the caller already renders as 404.
    */
-  readyToAdjudicate(caseId: string): Result<DeliberationCase> | null {
-    const c = this.store.getCase(caseId);
+  async readyToAdjudicate(caseId: string): Promise<Result<DeliberationCase> | null> {
+    const c = await this.store.getCase(caseId);
     return c === null ? null : canAdjudicate(c);
   }
 
@@ -437,13 +468,13 @@ export class DeliberationService {
    * and leave old ones needing a second reader. The case snapshot is the projection,
    * so the projection is where a new field belongs.
    */
-  adjudicate(caseId: string, adjudication: unknown, at: string, actorId: string, consensus: unknown = null): Result<DeliberationCase> {
-    const c = this.store.getCase(caseId);
+  async adjudicate(caseId: string, adjudication: unknown, at: string, actorId: string, consensus: unknown = null): Promise<Result<DeliberationCase>> {
+    const c = await this.store.getCase(caseId);
     if (c === null) return { ok: false, error: { kind: "not_locked", detail: `No case ${caseId}.` } };
     const next = attachAdjudication(c, adjudication, consensus);
     if (!next.ok) return next;
-    this.store.append({ at, kind: "adjudicated", caseId, actorId, payload: adjudication });
-    this.store.putCase(next.value);
+    await this.store.append({ at, kind: "adjudicated", caseId, actorId, payload: adjudication });
+    await this.store.putCase(next.value);
     return next;
   }
 
@@ -462,42 +493,45 @@ export class DeliberationService {
    * exposes it in the shape a screen can render rather than as a log entry a client
    * would have to dig through.
    *
-   * WHERE `source` COMES FROM. The server records the provenance in the log entry's
-   * actor - "stub" when no model was called, "model" when one was - so it is recovered
-   * from the chain rather than kept beside it. An adjudication whose entry cannot be
-   * found is reported as a stub: the two errors are not symmetrical, and labelling a
-   * stub as a model's judgment is the one that gets quoted.
+   * WHERE `source` COMES FROM: `sourceOf`, the SAME function `view` reads it through.
+   * That shared call is a correction rather than tidiness. Two branches fixed the same
+   * bug - the verdict living only in the tab that pressed Adjudicate - and each brought
+   * its own provenance rule: `view`'s said anything that is not literally "stub" is live,
+   * this one's said only literally "model" is live. Opposite defaults for an unrecognised
+   * actor, and they auto-merged without a conflict, so the verdict screen and the printed
+   * record could have disagreed about whether a safety adjudication came from a model.
+   * One rule, in one place, is the only version of this that cannot drift.
    */
-  adjudication(caseId: string): {
+  async adjudication(caseId: string): Promise<{
     adjudication: unknown;
     source: "stub" | "live";
     at: string | null;
     signature: Signature | null;
-  } | null {
-    const c = this.store.getCase(caseId);
+  } | null> {
+    const c = await this.store.getCase(caseId);
     if (c === null || c.adjudication === null) return null;
-    const entry = this.store.entries(caseId).filter((e) => e.kind === "adjudicated").at(-1);
+    const entry = (await this.store.entries(caseId)).filter((e) => e.kind === "adjudicated").at(-1);
     return {
       adjudication: c.adjudication,
-      source: entry?.actorId === "model" ? "live" : "stub",
+      source: sourceOf(entry),
       at: entry?.at ?? null,
       signature: c.signature,
     };
   }
 
-  signOff(caseId: string, s: Signature): Result<DeliberationCase> {
-    const c = this.store.getCase(caseId);
+  async signOff(caseId: string, s: Signature): Promise<Result<DeliberationCase>> {
+    const c = await this.store.getCase(caseId);
     if (c === null) return { ok: false, error: { kind: "no_adjudication", detail: `No case ${caseId}.` } };
     const next = sign(c, s);
     if (!next.ok) return next;
-    this.store.append({ at: s.at, kind: "signed", caseId, actorId: s.by, payload: s });
-    this.store.putCase(next.value);
+    await this.store.append({ at: s.at, kind: "signed", caseId, actorId: s.by, payload: s });
+    await this.store.putCase(next.value);
     return next;
   }
 
-  unanimity(caseId: string): UnanimityReport | null {
-    const c = this.store.getCase(caseId);
-    const inv = this.inventory(caseId);
+  async unanimity(caseId: string): Promise<UnanimityReport | null> {
+    const c = await this.store.getCase(caseId);
+    const inv = await this.inventory(caseId);
     return c === null || inv === null ? null : unanimityCheck(c, inv);
   }
 
@@ -509,13 +543,13 @@ export class DeliberationService {
    * over positions that never matched their commitments proves only that the
    * tampering was done tidily.
    */
-  audit(caseId: string): { chain: ReturnType<typeof verifyChain>; seals: ReturnType<typeof verifySeals>; entries: LogEntry[] } {
-    const c = this.store.getCase(caseId);
-    const entries = this.store.entries(caseId);
+  async audit(caseId: string): Promise<{ chain: ReturnType<typeof verifyChain>; seals: ReturnType<typeof verifySeals>; entries: LogEntry[] }> {
+    const c = await this.store.getCase(caseId);
+    const entries = await this.store.entries(caseId);
     return {
       // The WHOLE log, not this case's slice: a per-case slice has holes wherever
       // another case interleaved, and every link across a hole would read as broken.
-      chain: verifyChain(this.store.all()),
+      chain: verifyChain(await this.store.all()),
       seals: verifySeals(entries, c?.positions ?? []),
       entries,
     };

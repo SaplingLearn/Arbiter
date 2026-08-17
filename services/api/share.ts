@@ -1,6 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
+import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import type { ShareStoreApi } from "./postgres-share.js";
 
 /**
  * Publishing a record to a URL a stranger can open.
@@ -80,27 +82,49 @@ export function verifyToken(secret: string, link: ShareLink | null, token: strin
 }
 
 /**
- * Which cases are published. An in-memory map behind a JSON file, the same shape
- * `AuthStore` and `InviteStore` use on this branch.
+ * Which cases are published. An in-memory map behind a JSON file, the same shape - and
+ * the same `open()` split - `AuthStore`, `InviteStore` and `FileStore` use.
+ *
+ * `PostgresShareStore` is the other implementation of `ShareStoreApi`; `stores.ts`
+ * decides which one a process runs on, once.
  */
-export class ShareStore {
+export class ShareStore implements ShareStoreApi {
   private links = new Map<string, ShareLink>();
 
-  constructor(private readonly path: string | null = null) {
-    if (path !== null && existsSync(path)) {
-      const raw = JSON.parse(readFileSync(path, "utf8")) as { links: ShareLink[] };
+  /** Constructed empty, loaded by `open` - the same split, and for the same reason, as
+   *  `InviteStore` and `FileStore`. A link list that arrives one tick after the store
+   *  does is a store that reports nothing published, and "nobody has published this"
+   *  is a plausible answer here rather than an obviously broken one: the convener would
+   *  be offered "Publish this record" for a case that already has a printed QR on a
+   *  desk, and pressing it would mint a link at a version the paper does not carry. */
+  private constructor(private readonly path: string | null = null) {}
+
+  static async open(path: string | null = null): Promise<ShareStore> {
+    const store = new ShareStore(path);
+    await store.load();
+    return store;
+  }
+
+  private async load(): Promise<void> {
+    if (this.path === null) return;
+    if (existsSync(this.path)) {
+      const raw = JSON.parse(await readFile(this.path, "utf8")) as { links: ShareLink[] };
       for (const l of raw.links) this.links.set(l.caseId, l);
-    } else if (path !== null) {
-      mkdirSync(dirname(path), { recursive: true });
+    } else {
+      await mkdir(dirname(this.path), { recursive: true });
     }
   }
 
+  /** Synchronous, inside async callers, for the reason set out on `FileStore.putCase`:
+   *  it rewrites the whole file, so two writes racing across an await would leave the
+   *  older list on disk - and the loser could be a revoke, which is the one write here
+   *  whose loss re-animates a link somebody deliberately killed. */
   private persist(): void {
     if (this.path === null) return;
     writeFileSync(this.path, JSON.stringify({ links: [...this.links.values()] }, null, 2), "utf8");
   }
 
-  get(caseId: string): ShareLink | null {
+  async get(caseId: string): Promise<ShareLink | null> {
     return this.links.get(caseId) ?? null;
   }
 
@@ -112,7 +136,7 @@ export class ShareStore {
    * invalidate the paper on a colleague's desk. Re-issuing is what revoke-then-publish
    * is for, and it is a separate, deliberate act.
    */
-  publish(caseId: string, userId: string, at: string): ShareLink {
+  async publish(caseId: string, userId: string, at: string): Promise<ShareLink> {
     const existing = this.links.get(caseId);
     if (existing !== undefined && existing.revokedAt === null) return existing;
 
@@ -129,7 +153,7 @@ export class ShareStore {
     return link;
   }
 
-  revoke(caseId: string, at: string): ShareLink | null {
+  async revoke(caseId: string, at: string): Promise<ShareLink | null> {
     const existing = this.links.get(caseId);
     if (existing === undefined) return null;
     const revoked: ShareLink = { ...existing, version: existing.version + 1, revokedAt: at };
