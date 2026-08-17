@@ -71,6 +71,13 @@ beforeAll(async () => {
     budget: new ModelBudget(10_000),
     rules: RULES,
     prompt: PROMPT,
+    // NO MODEL, EVER, from this suite. Without this the routes read the ambient
+    // environment, and a developer with GEMINI_API_KEY exported - which is everyone
+    // who can run the product - had `npm test` making three live adjudication calls
+    // per run, against a host the tests never configured because they never load
+    // `.env`. It failed, it cost money on the days it did not, and the failure looked
+    // like a broken adjudicator. Null selects the stub, which is deterministic.
+    complete: () => null,
   };
   const handler = makeHandler(deps);
   server = createServer((req, res) => { void handler(req, res); });
@@ -285,6 +292,44 @@ describe("cases, with access control", () => {
     const audit = await call("GET", "/api/cases/c1/audit", "owner");
     expect(audit.body.chain).toEqual([]);
     expect(audit.body.seals).toEqual([]);
+  });
+
+  /* THE ORDER OF THESE TWO STEPS IS THE WHOLE TEST. One adjudication spends three
+     model calls against a free tier of twenty a day, and this route used to spend
+     them and THEN ask the state machine whether the case could be adjudicated at
+     all - so a case in the wrong state cost 15% of a day's budget to be told 409.
+
+     Not hypothetical, and one click away: with the verdict missing from the view, an
+     owner who reloaded an already-adjudicated case saw `Adjudicate` offered again,
+     and taking it bought nothing but an error. */
+  it("refuses a case that is not locked before it spends a model call", async () => {
+    expect((await call("POST", "/api/cases", "owner", {
+      caseId: "c-unlocked", compoundLabel: "Still open", context: "Nobody has answered yet.",
+      participantIds: [uid["ann"], uid["bea"]], findings: FINDINGS, at: "t",
+    })).status).toBe(201);
+
+    let calls = 0;
+    const handler = makeHandler({
+      ...deps,
+      complete: () => async () => { calls++; return {}; },
+    });
+    const alt = createServer((req, res) => { void handler(req, res); });
+    await new Promise<void>((r) => alt.listen(0, "127.0.0.1", r));
+    try {
+      const res = await fetch(
+        `http://127.0.0.1:${(alt.address() as AddressInfo).port}/api/cases/c-unlocked/adjudicate`,
+        {
+          method: "POST",
+          headers: { authorization: `Bearer ${tok["owner"]}`, "content-type": "application/json" },
+          body: JSON.stringify({ at: "t" }),
+        },
+      );
+      expect(res.status).toBe(409);
+      expect((await res.json() as { kind: string }).kind).toBe("not_locked");
+      expect(calls).toBe(0);
+    } finally {
+      await new Promise<void>((r) => alt.close(() => r()));
+    }
   });
 });
 

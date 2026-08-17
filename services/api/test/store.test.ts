@@ -247,7 +247,8 @@ describe("FileStore", () => {
     await a.putCase({
       caseId: "c", compoundLabel: "X", context: "", ownerId: "o", participantIds: ["ann"],
       seats: { ann: 0 },
-      status: "open", positions: [pos("ann")], closedEarly: null, adjudication: null, signature: null,
+      status: "open", positions: [pos("ann")], closedEarly: null, adjudication: null,
+      consensus: null, signature: null,
     });
     const reloaded = await (await FileStore.open(path)).getCase("c");
     expect(reloaded?.positions).toHaveLength(1);

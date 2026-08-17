@@ -119,6 +119,51 @@ describe("DeliberationService - the whole path with no model in it", () => {
     if (!r.ok) expect(r.error.kind).toBe("not_locked");
   });
 
+  /* THE VERDICT HAS TO SURVIVE A PAGE RELOAD, and for a long time it did not. The
+     adjudication was returned once, by the POST that produced it, and lived only in
+     the browser tab that made the call - so `Reveal & verdict` was empty on every
+     signed case in the corpus, and empty again for the owner the moment they
+     refreshed. The record held the adjudication the whole time; nothing served it. */
+  it("serves the stored adjudication to everyone on the case once there is one", async () => {
+    const svc = service();
+    await opened(svc);
+    await svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
+    await svc.submit("c1", pos("bea", { citedFindingIds: ["f-rodent"] }));
+    await svc.reveal("c1", "owner", "t", "all_in");
+    expect((await svc.view("c1", "ann"))?.adjudication).toBeNull();
+
+    await svc.adjudicate("c1", { consequence: { verdict: "do_not_advance" } }, "t", "model");
+
+    // Not just the owner who ran it: a participant reads the verdict they are being
+    // asked to live with.
+    for (const who of ["owner", "ann", "bea"]) {
+      const v = (await svc.view("c1", who))!;
+      expect(v.adjudication).toEqual({ consequence: { verdict: "do_not_advance" } });
+      expect(v.adjudicationSource).toBe("live");
+    }
+  });
+
+  /* A STUB MUST NEVER LOSE ITS LABEL ON THE WAY OUT. The seeded turalio record was
+     adjudicated by the stub, and rendering that text with the banner dropped would
+     put words that are explicitly not a judgment about a compound onto a signed
+     safety record as though they were one. */
+  it("keeps a signed case's adjudication readable, and keeps a stub labelled as one", async () => {
+    const svc = service();
+    await opened(svc);
+    await svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
+    await svc.submit("c1", pos("bea", { citedFindingIds: ["f-rodent"] }));
+    await svc.reveal("c1", "owner", "t", "all_in");
+    await svc.adjudicate("c1", { consequence: { verdict: "cannot_conclude" } }, "t", "stub");
+    await svc.signOff("c1", { by: "owner", at: "t", agreesWithAdjudication: false, reason: "Holding for a margin." });
+
+    const v = (await svc.view("c1", "ann"))!;
+    expect(v.status).toBe("signed");
+    expect(v.adjudication).toEqual({ consequence: { verdict: "cannot_conclude" } });
+    expect(v.adjudicationSource).toBe("stub");
+    expect(v.signature?.agreesWithAdjudication).toBe(false);
+    expect(v.signature?.reason).toBe("Holding for a margin.");
+  });
+
   it("reproduces the TAK-994 beat: everyone agrees, and the gap is named anyway", async () => {
     const svc = service();
     await opened(svc, ["ann", "bea", "cal"]);

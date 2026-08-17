@@ -127,11 +127,41 @@ export interface Position {
   submittedAt: string;
 }
 
+export interface Signature {
+  by: string;
+  at: string;
+  agreesWithAdjudication: boolean;
+  reason: string;
+}
+
+/** How much the adjudicator's runs agreed. See services/api/consensus.ts. */
+export interface Consensus {
+  runs: number;
+  votes: number;
+  agreement: number;
+  distribution: Record<string, number>;
+  split: boolean;
+}
+
 export interface BlindView {
   status: "open" | "locked" | "adjudicated" | "signed";
   own: Position | null;
   others: { participantId: string; submitted: boolean }[];
   revealed: Position[] | null;
+  /**
+   * The stored verdict, served to everyone on the case once there is one.
+   *
+   * ON THE VIEW rather than only in the POST response, which is what it used to be.
+   * The adjudication lived in the tab that ran it and nowhere else, so `Reveal &
+   * verdict` was empty on every signed case and empty again after any reload - and
+   * the owner was offered `Adjudicate` a second time, at three model calls a go.
+   * Null until the case is adjudicated, which cannot happen before the reveal.
+   */
+  adjudication: Adjudication | null;
+  /** `stub` means no model was called. The banner depends on it. */
+  adjudicationSource: "stub" | "live" | null;
+  consensus: Consensus | null;
+  signature: Signature | null;
 }
 
 export interface UnanimityReport {
@@ -354,7 +384,8 @@ export const api = {
     call<UnanimityReport>("GET", `/api/cases/${caseId}/unanimity`, token),
 
   adjudicate: (token: string, caseId: string, at: string) =>
-    call<{ adjudication: Adjudication; source: "stub" | "live" }>("POST", `/api/cases/${caseId}/adjudicate`, token, { at }),
+    call<{ adjudication: Adjudication; source: "stub" | "live"; consensus: Consensus | null }>(
+      "POST", `/api/cases/${caseId}/adjudicate`, token, { at }),
 
   ask: (token: string, caseId: string, question: string,
         history: { question: string; answer: string }[] = []) =>

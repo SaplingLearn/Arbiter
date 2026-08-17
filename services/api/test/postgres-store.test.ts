@@ -62,7 +62,7 @@ const event = (i: number, caseId = "c"): { at: string; kind: LogKind; caseId: st
 const kase = (caseId: string, over: Partial<DeliberationCase> = {}): DeliberationCase => ({
   caseId, compoundLabel: "ABC-123", context: "", ownerId: "owner", participantIds: ["ann"],
   seats: { ann: 0 }, status: "open", positions: [], closedEarly: null, adjudication: null,
-  signature: null, ...over,
+  consensus: null, signature: null, ...over,
 });
 
 describe.skipIf(ADMIN_URL === "")("PostgresStore", () => {
