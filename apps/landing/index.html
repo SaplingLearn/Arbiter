@@ -9,6 +9,14 @@
       content="A reasoning layer that adjudicates conflicting preclinical toxicity evidence, and returns a position with the argument that produced it and the evidence that would change it."
     />
 
+    <!-- THE MARK, INLINE. See apps/deliberation/index.html for why this is a data URI
+         and not a served file. Kept byte-identical to that one on purpose: the two
+         surfaces are one product, and a favicon that differs between them reads as two. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23020a18'/><g fill='%23d5e0ff' transform='translate(14,14) scale(0.72)'><path d='M0 20.16H79.77L100 40.39H0Z'/><path d='M0 59.61H37.77L58 79.84H0Z'/></g></svg>"
+    />
+
     <!-- The two faces the overture names: Space Grotesk for display, IBM Plex Mono for
          every label. preconnect to BOTH hosts, not just one: the CSS comes from
          fonts.googleapis.com but the font files come from fonts.gstatic.com, so warming

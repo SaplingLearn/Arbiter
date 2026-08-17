@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ARBITER - deliberation</title>
 
+    <!-- THE MARK, INLINE. An SVG data URI rather than a .ico or a served file: the icon
+         is two paths, it costs less than the request that would fetch it, and it cannot
+         404 in an environment that serves the bundle from somewhere other than the
+         document root. The mark is the logo's own ruling, inset to 72% so it is not
+         crowding the edges of a 16px square. The '#' in each colour has to be written
+         %23 - unescaped it starts a fragment and the icon silently renders black. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23020a18'/><g fill='%23d5e0ff' transform='translate(14,14) scale(0.72)'><path d='M0 20.16H79.77L100 40.39H0Z'/><path d='M0 59.61H37.77L58 79.84H0Z'/></g></svg>"
+    />
+
     <!-- The design system's two faces. Unlike apps/web, which is opened from the
          filesystem and must make zero subresource requests, this client is
          useless without its API - so a font request costs nothing it was not
