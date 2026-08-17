@@ -606,7 +606,16 @@ export class DeliberationService {
     const entry = this.store.entries(caseId).filter((e) => e.kind === "adjudicated").at(-1);
     return {
       adjudication: c.adjudication,
-      source: entry?.actorId === "model" ? "live" : "stub",
+      /* THROUGH `adjudicationSource`, NOT A SECOND RULE. This read `entry?.actorId ===
+         "model" ? "live" : "stub"` while `view()` read `actorId === "stub" ? "stub" :
+         "live"` - two implementations of one fact with OPPOSITE defaults, arrived at
+         independently by two branches and auto-merged without a conflict because they
+         sit in different methods. They agree on the two values server.ts writes today
+         and disagree on every other, so the day something else writes that entry the
+         printed record and the screen would label the same adjudication differently.
+         A safety record and the screen it was printed from may not disagree about
+         whether a model was called. */
+      source: this.adjudicationSource(caseId),
       at: entry?.at ?? null,
       signature: c.signature,
     };
