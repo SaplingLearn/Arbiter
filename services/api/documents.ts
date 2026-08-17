@@ -1,7 +1,9 @@
 import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { Readable } from "node:stream";
 import { stripBoilerplate } from "./pages.js";
 
 /**
@@ -74,8 +76,14 @@ export type UploadResult =
 export const MAX_BYTES = 80 * 1024 * 1024;
 
 /** Checked on the BYTES, not on the filename. An extension is a claim by the
- *  uploader; the header is a property of the file. */
-function looksLikePdf(bytes: Buffer): boolean {
+ *  uploader; the header is a property of the file.
+ *
+ *  EXPORTED so `supabase-documents.ts` shares this exact test rather than carrying its
+ *  own copy. Two spellings of "is this a PDF" is two answers to the question of what the
+ *  product accepts, and they would diverge the first time either was touched - with the
+ *  effect that whether a file is admitted depends on which store happens to be
+ *  configured, which is not a difference a deployment choice should be able to make. */
+export function looksLikePdf(bytes: Buffer): boolean {
   return bytes.length > 5 && bytes.subarray(0, 5).toString("latin1") === "%PDF-";
 }
 
@@ -147,30 +155,100 @@ export function measurePdf(path: string, python = process.env["PYTHON"] ?? "pyth
  */
 const hashKey = (caseId: string, sha256: string): string => `${caseId}\u0000${sha256}`;
 
-export class DocumentStore {
+/**
+ * What the server needs from a document store, and therefore what the two
+ * implementations have to agree on.
+ *
+ * NARROWER THAN `DocumentStore`, ON PURPOSE. `pathFor` is not here, and its absence is
+ * the whole reason this interface is written down: the file store can answer it by
+ * joining two strings, and `SupabaseDocumentStore` can only answer it by downloading an
+ * entire object to a temp file it would then never delete. Rather than let both stores
+ * carry a method one of them cannot honestly implement, the shared contract is the set
+ * the server actually calls - and `streamFor` is the member that replaced it.
+ *
+ * A store may of course have more; this is a floor, not a ceiling.
+ */
+export interface DocumentStoreApi {
+  upload(input: { caseId: string; filename: string; bytes: Buffer; uploadedBy: string; at: string }): Promise<UploadResult>;
+  forCase(caseId: string): Promise<StoredDocument[]>;
+  get(id: string): Promise<StoredDocument | null>;
+  streamFor(id: string): Promise<Readable | null>;
+  textFor(id: string, python?: string): Promise<{ page: number; text: string }[]>;
+}
+
+export class DocumentStore implements DocumentStoreApi {
   private docs = new Map<string, StoredDocument>();
   private byHash = new Map<string, string>();
 
-  constructor(private readonly root: string) {
-    mkdirSync(root, { recursive: true });
-    const index = join(root, "index.json");
+  /** Loaded by `open`, not by the constructor - see `FileStore` in store.ts for the
+   *  argument. It bites hardest here: an index that arrives a tick late is a store
+   *  that has forgotten every document it holds, so the next upload of an existing
+   *  file misses the dedup key and becomes a SECOND record of the same bytes, which
+   *  is precisely the thing this store's content hash exists to prevent. */
+  private constructor(private readonly root: string) {}
+
+  static async open(root: string): Promise<DocumentStore> {
+    const store = new DocumentStore(root);
+    await store.load();
+    return store;
+  }
+
+  private async load(): Promise<void> {
+    await mkdir(this.root, { recursive: true });
+    const index = join(this.root, "index.json");
     if (existsSync(index)) {
-      for (const d of JSON.parse(readFileSync(index, "utf8")) as StoredDocument[]) {
+      for (const d of JSON.parse(await readFile(index, "utf8")) as StoredDocument[]) {
         this.docs.set(d.id, d);
         this.byHash.set(hashKey(d.caseId, d.sha256), d.id);
       }
     }
   }
 
+  /** Synchronous inside async callers, as everywhere else in this layer: it rewrites
+   *  the whole index, and the write that loses a race is as likely to be the one
+   *  holding the new document as the old. */
   private persist(): void {
     writeFileSync(join(this.root, "index.json"), JSON.stringify([...this.docs.values()], null, 2), "utf8");
   }
 
-  pathFor(id: string): string {
+  /**
+   * Where the bytes are, as a filesystem path.
+   *
+   * Asynchronous although this implementation only joins two strings, because the
+   * Storage-backed implementation cannot answer it without a download: `measurePdf`
+   * and `textFor` shell out to Python with a PATH, and a Python script cannot be
+   * handed an object in a bucket. Leaving this one method synchronous would have made
+   * it the single call site that blocks the whole migration.
+   */
+  async pathFor(id: string): Promise<string> {
     return join(this.root, `${id}.pdf`);
   }
 
-  upload(input: { caseId: string; filename: string; bytes: Buffer; uploadedBy: string; at: string }): UploadResult {
+  /**
+   * The document's bytes, as a stream, or null if they are not there.
+   *
+   * THE SERVING PATH USES THIS AND NOT `pathFor`, and the distinction is what keeps the
+   * two stores interchangeable. `pathFor` is answerable here by joining two strings and
+   * is answerable in the Storage-backed store only by downloading the whole object to
+   * disk - so a serving path built on `pathFor` would have written an 80 MB temp file per
+   * document VIEW and never deleted it. That store's `pathFor` throws for exactly this
+   * reason; this is the method both can honestly implement.
+   *
+   * A STREAM, NOT A BUFFER. The reader turns pages in documents of a few hundred pages,
+   * and holding one whole in memory per concurrent viewer is how a 1 GB container dies
+   * under three people reading at once.
+   *
+   * Null rather than a thrown error, because the caller has to distinguish "no such
+   * document" from "the record exists and its bytes do not" BEFORE it commits a status
+   * line - once a 200 has gone out there is no taking it back.
+   */
+  async streamFor(id: string): Promise<Readable | null> {
+    const path = await this.pathFor(id);
+    if (!existsSync(path)) return null;
+    return createReadStream(path);
+  }
+
+  async upload(input: { caseId: string; filename: string; bytes: Buffer; uploadedBy: string; at: string }): Promise<UploadResult> {
     if (input.bytes.length > MAX_BYTES) {
       return { ok: false, rejection: { kind: "too_large", detail: `That file is ${(input.bytes.length / 1e6).toFixed(1)} MB. The limit is ${MAX_BYTES / 1e6} MB.` } };
     }
@@ -188,7 +266,7 @@ export class DocumentStore {
     }
 
     const id = `doc_${randomBytes(9).toString("hex")}`;
-    const path = this.pathFor(id);
+    const path = await this.pathFor(id);
     writeFileSync(path, input.bytes);
 
     const measurement = measurePdf(path);
@@ -210,13 +288,13 @@ export class DocumentStore {
     return { ok: true, document: doc };
   }
 
-  forCase(caseId: string): StoredDocument[] {
+  async forCase(caseId: string): Promise<StoredDocument[]> {
     return [...this.docs.values()]
       .filter((d) => d.caseId === caseId)
       .sort((a, b) => (a.uploadedAt < b.uploadedAt ? -1 : 1));
   }
 
-  get(id: string): StoredDocument | null {
+  async get(id: string): Promise<StoredDocument | null> {
     return this.docs.get(id) ?? null;
   }
 
@@ -235,7 +313,7 @@ export class DocumentStore {
    * which is true and is the honest failure. Throwing here would turn an unreadable
    * document into a 500 and tell the reader nothing about which document it was.
    */
-  textFor(id: string, python = process.env["PYTHON"] ?? "python"): { page: number; text: string }[] {
+  async textFor(id: string, python = process.env["PYTHON"] ?? "python"): Promise<{ page: number; text: string }[]> {
     const cache = join(this.root, `${id}.pages.json`);
     if (existsSync(cache)) {
       try {
@@ -245,7 +323,7 @@ export class DocumentStore {
       }
     }
 
-    const path = this.pathFor(id);
+    const path = await this.pathFor(id);
     if (!existsSync(path)) return [];
 
     try {

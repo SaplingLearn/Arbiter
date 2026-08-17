@@ -273,7 +273,7 @@ async function main(): Promise<void> {
   console.log(`Panel     : ${positions.map((p) => p.participantId).join(", ")}`);
   console.log(`Checklist : evidence-checklist v${checklist.version} (${checklist.items.length} questions)`);
 
-  const { inventory } = svc.open({
+  const { inventory } = await svc.open({
     caseId: CASE_ID, compoundLabel: kase.compoundLabel, context: kase.context,
     ownerId: OWNER, participantIds: positions.map((p) => p.participantId),
     findings: kase.findings, modality: kase.modality, at: T(0),
@@ -322,8 +322,8 @@ async function main(): Promise<void> {
 
   // ---- 2. The blind phase --------------------------------------------------
   console.log(bar("2. THE BLIND PHASE - positions are sealed as they arrive"));
-  const submit = (p: Position): void => {
-    const r = svc.submit(CASE_ID, p);
+  const submit = async (p: Position): Promise<void> => {
+    const r = await svc.submit(CASE_ID, p);
     if (!r.ok) throw new Error(`demo is wrong: ${r.error.detail}`);
     console.log(`  sealed  ${p.participantId.padEnd(24)} commitment ${commitmentFor(r.value.positions.at(-1)!).slice(0, 16)}…`);
   };
@@ -332,12 +332,12 @@ async function main(): Promise<void> {
   // answered and two have not, because a view taken once everyone is in would
   // demonstrate nothing - the interesting question is what a participant can see
   // about colleagues who HAVE already submitted.
-  submit(positions[0]!);
-  submit(positions[1]!);
+  await submit(positions[0]!);
+  await submit(positions[1]!);
 
   console.log(`\n  Paused here. ${positions[0]!.participantId} has submitted; ${positions[2]!.participantId} and ${positions[3]!.participantId} have not.`);
   console.log(`  What ${positions[1]!.participantId} can see at this moment:`);
-  const midView = svc.view(CASE_ID, positions[1]!.participantId)!;
+  const midView = (await svc.view(CASE_ID, positions[1]!.participantId))!;
   console.log(`    own       : ${midView.own?.call} - "${midView.own?.reasoning.slice(0, 52)}…"`);
   for (const o of midView.others) console.log(`    ${o.participantId.padEnd(26)}: ${o.submitted ? "submitted" : "not yet"}`);
   console.log(`    revealed  : ${midView.revealed === null ? "null - nothing of anyone else's position is returned at all" : "LEAK"}`);
@@ -345,11 +345,11 @@ async function main(): Promise<void> {
   console.log("  Not even a running tally of calls: a tally drags as hard as the positions do.");
   console.log(`  ${positions[0]!.participantId}'s answer is in the store and is not in that object.\n`);
 
-  submit(positions[2]!);
-  submit(positions[3]!);
+  await submit(positions[2]!);
+  await submit(positions[3]!);
 
   // ---- 3. Reveal -----------------------------------------------------------
-  const revealed = svc.reveal(CASE_ID, OWNER, T(5), "all_in");
+  const revealed = await svc.reveal(CASE_ID, OWNER, T(5), "all_in");
   if (!revealed.ok) throw new Error(revealed.error.detail);
   console.log(bar("3. REVEAL - everyone at once"));
   for (const p of revealed.value.positions) {
@@ -361,7 +361,7 @@ async function main(): Promise<void> {
   }
 
   // ---- 4. What the record says about itself --------------------------------
-  const u = svc.unanimity(CASE_ID)!;
+  const u = (await svc.unanimity(CASE_ID))!;
   const d = disagreementReport(revealed.value);
   console.log(bar(u.unanimous ? "4. UNANIMITY IS NOT CORRECTNESS" : "4. WHERE THE ROOM SPLIT, AND ON WHAT"));
   console.log("  No model ran to produce what follows. It is arithmetic over the record.\n");
@@ -408,7 +408,7 @@ async function main(): Promise<void> {
   // ---- 5. Adjudication -----------------------------------------------------
   // "adjudication", not the default "short" - same reason as server.ts and probe.ts.
   const live = completeFromEnv(process.env, "adjudication");
-  const req = svc.adjudicationRequest(CASE_ID, kase.rules)!;
+  const req = (await svc.adjudicationRequest(CASE_ID, kase.rules))!;
   console.log(bar(`5. ADJUDICATION  [${live === null ? "STUB - NO API KEY - NOT A RESULT" : "LIVE MODEL"}]`));
   console.log(`  Gaps handed to the adjudicator: ${req.absent.length}`);
   console.log(`  ...of which came from a participant's external claim: ${req.absent.filter((a) => a.field.startsWith("External claim")).length}`);
@@ -433,10 +433,10 @@ async function main(): Promise<void> {
     console.log("  else. Sections 1-4, 6 and 7 are real: deterministic code over real evidence.");
   }
 
-  svc.adjudicate(CASE_ID, res.body, T(6), live === null ? "stub" : "model");
+  await svc.adjudicate(CASE_ID, res.body, T(6), live === null ? "stub" : "model");
 
   // ---- 6. Sign -------------------------------------------------------------
-  const signed = svc.signOff(CASE_ID, {
+  const signed = await svc.signOff(CASE_ID, {
     by: OWNER, at: T(7), agreesWithAdjudication: false,
     reason: arg === "tak994"
       ? "Holding for an exposure margin and a reactive-metabolite study before first-in-human. The panel was unanimous and I am overriding it; the four positions and this reason stay on the record."
@@ -453,7 +453,7 @@ async function main(): Promise<void> {
   }
 
   // ---- 7. The audit --------------------------------------------------------
-  const audit = svc.audit(CASE_ID);
+  const audit = await svc.audit(CASE_ID);
   console.log(bar("7. THE AUDIT - what a sceptical participant can check for themselves"));
   console.log(`  Log entries : ${audit.entries.length}  (${audit.entries.map((e) => e.kind).join(" -> ")})`);
   console.log(`  Chain       : ${audit.chain.length === 0 ? "intact" : `${audit.chain.length} FAILURES`}`);
@@ -461,7 +461,7 @@ async function main(): Promise<void> {
 
   const tampered = revealed.value.positions.map((p, i) =>
     i === 3 ? { ...p, call: "do_not_advance" as const, reasoning: "I always had concerns." } : p);
-  const breaks = verifySeals(store.entries(CASE_ID), tampered);
+  const breaks = verifySeals(await store.entries(CASE_ID), tampered);
   console.log("\n  Demonstration - rewrite one position after the fact and re-run the check:");
   for (const b of breaks) console.log(`    CAUGHT: ${b.detail}`);
   console.log("\n  What that proves: no position was edited after sealing. What it does NOT");

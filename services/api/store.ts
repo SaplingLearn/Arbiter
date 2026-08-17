@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, writeFileSync } from "node:fs";
+import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { canonicalJson } from "./canonical.js";
 import type { DeliberationCase, Position } from "./deliberation.js";
@@ -21,8 +22,16 @@ import type { DeliberationCase, Position } from "./deliberation.js";
  *
  * The secondary reason is honest and smaller: no database server exists on the
  * machine this has to run on, and a demo that cannot start is not a product. The
- * `DeliberationStore` interface is the seam - a Postgres implementation satisfies it
- * without any caller changing, and the chain columns transfer as-is.
+ * `DeliberationStore` interface is the seam, and the chain columns transfer as-is.
+ *
+ * THAT SEAM COST A CALLER CHANGE AFTER ALL. This paragraph used to claim a Postgres
+ * implementation would satisfy the interface "without any caller changing". It was
+ * wrong, and wrong in the way that matters: every method here returned a value
+ * rather than a promise, and no database returns a row synchronously. So the
+ * interface below is asynchronous, and `DeliberationService`, `server.ts` and the
+ * tests were all made to await it - with File and Memory still the only
+ * implementations, deliberately, so the change is reviewable and CI stays green on a
+ * machine with no database. See docs/design/supabase-contract.md.
  *
  * WHAT THE CHAIN PROVES, AND WHAT IT DOES NOT.
  *
@@ -171,13 +180,23 @@ export function verifySeals(entries: LogEntry[], revealed: Position[]): SealBrea
   return breaks;
 }
 
+/**
+ * ASYNCHRONOUS, THOUGH NEITHER IMPLEMENTATION IN THIS FILE HAS ANYTHING TO AWAIT.
+ *
+ * That is the point of the shape rather than an accident of it. The two stores here
+ * hold their state in memory and could answer every one of these synchronously; the
+ * store this interface exists to admit cannot. Returning `LogEntry` instead of
+ * `Promise<LogEntry>` is a decision every caller inherits, and undoing it later means
+ * touching all of them at once - which is precisely the change this phase makes, and
+ * the reason it is a phase of its own.
+ */
 export interface DeliberationStore {
-  append(e: { at: string; kind: LogKind; caseId: string; actorId: string; payload: unknown }): LogEntry;
-  entries(caseId: string): LogEntry[];
-  all(): LogEntry[];
-  putCase(c: DeliberationCase): void;
-  getCase(caseId: string): DeliberationCase | null;
-  allCases(): DeliberationCase[];
+  append(e: { at: string; kind: LogKind; caseId: string; actorId: string; payload: unknown }): Promise<LogEntry>;
+  entries(caseId: string): Promise<LogEntry[]>;
+  all(): Promise<LogEntry[]>;
+  putCase(c: DeliberationCase): Promise<void>;
+  getCase(caseId: string): Promise<DeliberationCase | null>;
+  allCases(): Promise<DeliberationCase[]>;
 }
 
 /**
@@ -189,29 +208,48 @@ export class MemoryStore implements DeliberationStore {
   protected log: LogEntry[] = [];
   protected cases = new Map<string, DeliberationCase>();
 
-  append(e: { at: string; kind: LogKind; caseId: string; actorId: string; payload: unknown }): LogEntry {
+  /**
+   * The two mutations, factored out of their own async wrappers so that `FileStore`
+   * can reach them WITHOUT an await in between.
+   *
+   * `override async append() { const e = await super.append(x); appendFileSync(…) }`
+   * reads like the obvious subclass and is wrong: the await yields the event loop
+   * between the in-memory push and the file write, so a second append can push and
+   * write its own line first. The log in memory stays correctly ordered and the file
+   * on disk holds seq 1 before seq 0 - a chain that verifies in this process and
+   * fails `verifyChain` the moment anybody restarts and reads it back.
+   */
+  protected appendInMemory(e: { at: string; kind: LogKind; caseId: string; actorId: string; payload: unknown }): LogEntry {
     const entry = chainEntry(this.log.at(-1) ?? null, e);
     this.log.push(entry);
     return entry;
   }
 
-  entries(caseId: string): LogEntry[] {
-    return this.log.filter((e) => e.caseId === caseId);
-  }
-
-  all(): LogEntry[] {
-    return [...this.log];
-  }
-
-  putCase(c: DeliberationCase): void {
+  protected putCaseInMemory(c: DeliberationCase): void {
     this.cases.set(c.caseId, c);
   }
 
-  getCase(caseId: string): DeliberationCase | null {
+  async append(e: { at: string; kind: LogKind; caseId: string; actorId: string; payload: unknown }): Promise<LogEntry> {
+    return this.appendInMemory(e);
+  }
+
+  async entries(caseId: string): Promise<LogEntry[]> {
+    return this.log.filter((e) => e.caseId === caseId);
+  }
+
+  async all(): Promise<LogEntry[]> {
+    return [...this.log];
+  }
+
+  async putCase(c: DeliberationCase): Promise<void> {
+    this.putCaseInMemory(c);
+  }
+
+  async getCase(caseId: string): Promise<DeliberationCase | null> {
     return this.cases.get(caseId) ?? null;
   }
 
-  allCases(): DeliberationCase[] {
+  async allCases(): Promise<DeliberationCase[]> {
     return [...this.cases.values()];
   }
 }
@@ -233,16 +271,40 @@ export class MemoryStore implements DeliberationStore {
 export class FileStore extends MemoryStore {
   private readonly casesPath: string;
 
-  constructor(private readonly path: string) {
+  /**
+   * OPENED, NOT CONSTRUCTED - and the constructor is private so it cannot be done
+   * the other way.
+   *
+   * Both files used to be read here, in the constructor, which works exactly as long
+   * as reading them is synchronous. A constructor cannot await. The moment loading
+   * becomes asynchronous - and it has to, because the store this seam exists to admit
+   * loads over a socket - a `new FileStore(path)` hands back a store whose `log` is
+   * still empty and fills in some milliseconds later. The first append against that
+   * store chains to GENESIS on top of a file that already has entries in it: a chain
+   * forked by a race, which `verifyChain` then reports as tampering nobody did.
+   *
+   * So construction and loading are separated and only the factory is exported. A
+   * caller cannot hold a half-loaded store because there is no syntax for making one.
+   */
+  private constructor(private readonly path: string) {
     super();
     this.casesPath = `${path}.cases.json`;
-    mkdirSync(dirname(path), { recursive: true });
-    if (existsSync(path)) {
-      const text = readFileSync(path, "utf8");
+  }
+
+  static async open(path: string): Promise<FileStore> {
+    const store = new FileStore(path);
+    await store.load();
+    return store;
+  }
+
+  private async load(): Promise<void> {
+    await mkdir(dirname(this.path), { recursive: true });
+    if (existsSync(this.path)) {
+      const text = await readFile(this.path, "utf8");
       this.log = text.split("\n").filter((l) => l.trim() !== "").map((l) => JSON.parse(l) as LogEntry);
     }
     if (existsSync(this.casesPath)) {
-      const raw = JSON.parse(readFileSync(this.casesPath, "utf8")) as DeliberationCase[];
+      const raw = JSON.parse(await readFile(this.casesPath, "utf8")) as DeliberationCase[];
       // NORMALISED ON LOAD, because this file outlives the schema that wrote it.
       // Every case written before seats existed has no `seats` key, and the seat
       // transitions read it unguarded - `withParticipant(undefined, id)` throws on
@@ -254,14 +316,32 @@ export class FileStore extends MemoryStore {
     }
   }
 
-  override append(e: { at: string; kind: LogKind; caseId: string; actorId: string; payload: unknown }): LogEntry {
-    const entry = super.append(e);
+  /**
+   * THE WRITE STAYS SYNCHRONOUS INSIDE AN ASYNCHRONOUS METHOD, deliberately.
+   *
+   * `chainEntry` reads the current tail and the entry it produces must be the one
+   * that lands next. Anywhere an `await` sits between that read and that write, a
+   * second append can run in the gap: both compute from the same tail, both claim the
+   * same `seq`, and the second overwrites the first's link. `appendFileSync` cannot
+   * be interleaved by the event loop, so read-compute-write is atomic here without a
+   * lock, and it is atomic today - swapping in `fs/promises` to make the file access
+   * look consistent with the signature would introduce exactly that race.
+   *
+   * A database implementation has to buy the same property a different way, because
+   * it genuinely does await mid-sequence: `SELECT … FOR UPDATE` under a global
+   * advisory lock, per docs/design/supabase-contract.md. Global, not per case - the
+   * chain is global, so a per-case lock would let two cases fork it.
+   */
+  override async append(e: { at: string; kind: LogKind; caseId: string; actorId: string; payload: unknown }): Promise<LogEntry> {
+    const entry = this.appendInMemory(e);
     appendFileSync(this.path, `${JSON.stringify(entry)}\n`, "utf8");
     return entry;
   }
 
-  override putCase(c: DeliberationCase): void {
-    super.putCase(c);
+  /** Synchronous for the same reason `append` is: this serialises the whole map, so
+   *  two writes racing across an await would leave the older snapshot on disk. */
+  override async putCase(c: DeliberationCase): Promise<void> {
+    this.putCaseInMemory(c);
     writeFileSync(this.casesPath, JSON.stringify([...this.cases.values()], null, 2), "utf8");
   }
 }
