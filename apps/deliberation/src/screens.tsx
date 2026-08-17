@@ -356,25 +356,48 @@ export function Documents({ docs, onUpload, busy, error }: {
  * no hashchange. Without a control here, the one obvious gesture for going back to the
  * list does nothing at all.
  */
+/**
+ * AND WHY IT CARRIES `section`, WHICH IS NOT DECORATION.
+ *
+ * `h2`, `h3` and `p` are all `margin: 0` in app.css - the whole app takes its vertical
+ * rhythm from a container, never from the type. A bare `<section>` is therefore not a
+ * neutral wrapper here, it is NO rhythm at all: this panel rendered as a solid block of
+ * text with the red refusal box wedged into the middle of it, touching the title above
+ * and the first heading below. Every other screen in this file that reads correctly is
+ * inside `.section` or a `Section`; this one was the exception and looked it.
+ *
+ * TWO SCALES, NOT ONE. `.section` alone spaces every child equally, which leaves each
+ * `h3` floating exactly as far from its own paragraph as from the block before it - so
+ * the headings stop owning their text and the panel reads as six unrelated lines. Each
+ * heading is paired with its body in a `.stack-s` instead, so the pairs sit 8px apart
+ * inside and 16px apart from each other, and the reader gets three groups rather than
+ * six items.
+ */
 export function Refused({ r, onBack }: { r: Refusal; onBack: () => void }): ReactElement {
   return (
-    <section>
+    <section className="section">
       <h2>{r.label}</h2>
       <div className="stub">
         This document cannot produce a case. The splitter refused it, and nothing here
         will quietly build one anyway.
       </div>
-      <h3>What data/prep/split_review.py said</h3>
-      <p className="mono">{r.splitterReason}</p>
-      <h3>Measured</h3>
-      <p>{r.measurement}</p>
-      <h3>Why it is on this list at all</h3>
-      <p className="muted">
-        Two of the four documents collected cannot be used, and that ratio is the
-        finding - it is what killed the plan to replay the drugs withdrawn for
-        hepatotoxicity. A picker showing only what worked would imply every document
-        works.
-      </p>
+      <div className="stack-s">
+        <h3>What data/prep/split_review.py said</h3>
+        <p className="mono">{r.splitterReason}</p>
+      </div>
+      <div className="stack-s">
+        <h3>Measured</h3>
+        <p>{r.measurement}</p>
+      </div>
+      <div className="stack-s">
+        <h3>Why it is on this list at all</h3>
+        <p className="muted">
+          Two of the four documents collected cannot be used, and that ratio is the
+          finding - it is what killed the plan to replay the drugs withdrawn for
+          hepatotoxicity. A picker showing only what worked would imply every document
+          works.
+        </p>
+      </div>
       <p className="mono small muted">{r.document}</p>
       <div className="btn-row">
         <button className="ghost" onClick={onBack}>Back to the library</button>
