@@ -79,6 +79,13 @@ export async function freshDatabase(base: string): Promise<pg.Pool> {
 
   const mine = new URL(url);
   mine.pathname = `/${name}`;
+  /* CLOSED FIRST, BECAUSE `pool()` IGNORES ITS ARGUMENT ONCE A POOL EXISTS. It returns
+     the shared one without comparing connection strings, so a second `freshDatabase()`
+     in the same process would drop and recreate the right database, apply the migration
+     to it, and hand back a pool still pointed at the FIRST one - a suite passing or
+     failing against a database that is not the one it just built. Nothing calls it twice
+     today; this is what makes it safe when something does. */
+  await closePool();
   // `db.ts`'s pool, which is the one the stores under test would use in production, and
   // the one `closePool()` closes. A pool built here instead would keep the event loop
   // alive after the last assertion and the suite would hang rather than fail.

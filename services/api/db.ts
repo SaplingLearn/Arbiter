@@ -85,7 +85,25 @@ export function pool(url?: string): pg.Pool {
   if (connectionString === null) {
     throw new Error("DATABASE_URL is not set; the Postgres stores must not be constructed.");
   }
-  shared = new pg.Pool({ connectionString });
+  shared = new pg.Pool({
+    connectionString,
+    /* A REQUEST MUST NOT WAIT FOREVER FOR A CONNECTION. `pg`'s default is 0, which
+       means no timeout at all: if the database is unreachable, `withTransaction`'s
+       `connect()` never settles, the HTTP request never answers, and the client sees
+       a hang rather than an error. Ten seconds is long enough to ride out a failover
+       and short enough that a caller is told. */
+    connectionTimeoutMillis: 10_000,
+  });
+  /* `pg.Pool` EMITS "error" FOR CLIENTS THAT FAIL WHILE IDLE - a failover, a network
+     partition, a server-side termination. An EventEmitter with no "error" listener
+     throws, and this one is unhandled, so a connection dropped in the background takes
+     the whole process down. The pool discards the faulted client and makes a new one on
+     the next checkout, so there is nothing to do here but say so and stay up: exiting
+     would turn a transient blip into an outage. Errors during a live query are NOT
+     routed here - they reject that query's promise, where its caller handles them. */
+  shared.on("error", (err) => {
+    console.error("postgres: idle client error (pool will recover):", err.message);
+  });
   return shared;
 }
 

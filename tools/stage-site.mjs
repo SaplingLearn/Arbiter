@@ -1,5 +1,5 @@
 import { cp, rm, access, readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { resolve, sep } from "node:path";
 
 /**
  * Puts the product where the landing page says it is.
@@ -61,7 +61,14 @@ async function appUrl() {
   if (override !== undefined && override.trim() !== "") return override.trim();
 
   const source = await readFile(LINKS, "utf8");
-  const match = /APP_URL[^=]*=[\s\S]*?\?\?\s*"([^"]+)"/.exec(source);
+  // BOUNDED TO THE APP_URL STATEMENT. `[\s\S]*?` crossed lines and semicolons, so on
+  // any links.ts where APP_URL has lost its `?? "..."` default and some LATER export
+  // still has one, the lazy match walked past the end of the statement and returned
+  // that unrelated literal. Measured on exactly that source: `/not-the-app/`. The
+  // script would then stage the client into the wrong directory and print success -
+  // the silent dead link this file exists to prevent, with the loud failure below
+  // never firing. Neither condition holds today; the bound is what keeps it that way.
+  const match = /APP_URL[^=;]*=[^;]*?\?\?\s*"([^"]+)"/.exec(source);
   if (match === null) {
     console.error(`Could not read APP_URL's default out of ${LINKS}.`);
     console.error(`Expected \`... ?? "/some/path/"\`. Fix the pattern here, or set VITE_APP_URL.`);
@@ -92,7 +99,20 @@ if (subpath === "") {
 }
 
 const client = resolve("apps/deliberation/dist");
-const dest = resolve("apps/landing/dist", subpath);
+const root = resolve("apps/landing/dist");
+const dest = resolve(root, subpath);
+
+/* THE `rm` BELOW DELETES `dest` RECURSIVELY, so `dest` has to be inside the build.
+   Stripping slashes does not make a path safe: `VITE_APP_URL=/../secrets/` survives it
+   as `../secrets` and resolves to a sibling of the build directory, which this script
+   would then delete and replace with a copy of the client. The empty-string check above
+   covers the site root and nothing else. Compared with a trailing separator so a
+   sibling whose name merely starts with the same characters cannot pass. */
+if (dest !== root && !dest.startsWith(`${root}${sep}`)) {
+  console.error(`APP_URL is "${url}", which resolves to ${dest} - outside ${root}.`);
+  console.error(`A staged path has to be a subdirectory of the landing build.`);
+  process.exit(1);
+}
 
 try {
   await access(client);

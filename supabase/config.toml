@@ -115,7 +115,13 @@ port = 54324
 [storage]
 enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
-file_size_limit = "50MiB"
+#
+# MATCHED TO `MAX_BYTES` IN services/api/documents.ts, which is 80 MB. Left at the CLI's
+# 50MiB default, a document between the two limits passes every check the product makes -
+# size, PDF magic, the readability measurement - and then fails at Storage, so the upload
+# path reports a Storage error for a file the product said it would accept. If MAX_BYTES
+# moves, this moves with it.
+file_size_limit = "80MiB"
 
 # Uncomment to configure local storage buckets
 # [storage.buckets.images]

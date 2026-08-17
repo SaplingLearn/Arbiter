@@ -1,3 +1,4 @@
+import { closePool } from "./db.js";
 import type { AuthStoreApi } from "./postgres-auth.js";
 import { buildStores } from "./stores.js";
 
@@ -72,17 +73,27 @@ if (process.argv[1] !== undefined && process.argv[1].includes("seed-demo")) {
   // `npm run seed:demo` reported five accounts created into a file nothing loads, and
   // the product still booted with nobody able to sign in - a success message and an
   // empty product, which is the hardest pair of symptoms to connect.
-  const { auth } = await buildStores("results/deliberation-log.jsonl");
-  const report = await seedDemoTeam(auth, Date.now());
+  /* CLOSED IN A `finally`, BECAUSE AN OPEN POOL KEEPS THE EVENT LOOP ALIVE. On the
+     Postgres path `buildStores` creates the shared pool, and a CLI that leaves it open
+     prints its whole report and then hangs - at the end of a successful seed, which
+     reads as the seed itself being stuck. On the file path `closePool` is a no-op, so
+     this costs nothing there. In `finally` rather than after, so a failed seed exits
+     too instead of hanging on the way out of an error. */
+  try {
+    const { auth } = await buildStores("results/deliberation-log.jsonl");
+    const report = await seedDemoTeam(auth, Date.now());
 
-  console.log("ARBITER demonstration team");
-  console.log("=".repeat(60));
-  for (const e of report.created) console.log(`  created   ${e}`);
-  for (const e of report.alreadyPresent) console.log(`  existed   ${e}`);
-  console.log("");
-  console.log(`  Password (shared, for all five): ${DEMO_PASSWORD}`);
-  console.log("");
-  console.log("  Real accounts on the real authentication path. What is fake is the");
-  console.log("  secrecy of the password. Delete results/deliberation-log.jsonl.users.json");
-  console.log("  before this holds anything that matters.");
+    console.log("ARBITER demonstration team");
+    console.log("=".repeat(60));
+    for (const e of report.created) console.log(`  created   ${e}`);
+    for (const e of report.alreadyPresent) console.log(`  existed   ${e}`);
+    console.log("");
+    console.log(`  Password (shared, for all five): ${DEMO_PASSWORD}`);
+    console.log("");
+    console.log("  Real accounts on the real authentication path. What is fake is the");
+    console.log("  secrecy of the password. Delete results/deliberation-log.jsonl.users.json");
+    console.log("  before this holds anything that matters.");
+  } finally {
+    await closePool();
+  }
 }

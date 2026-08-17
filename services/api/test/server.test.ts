@@ -977,9 +977,20 @@ describe("GET /api/health", () => {
    * for. The number is the only reason this route returns a body at all.
    */
   it("reports an uptime that moves", async () => {
-    const first = await (await fetch(`${base}/api/health`)).json() as { uptimeSeconds: number };
-    expect(first.uptimeSeconds).toBeGreaterThanOrEqual(0);
-    expect(first.uptimeSeconds).toBeLessThan(60 * 60 * 24);
+    const read = async (): Promise<number> =>
+      ((await (await fetch(`${base}/api/health`)).json()) as { uptimeSeconds: number }).uptimeSeconds;
+
+    const first = await read();
+    expect(first).toBeGreaterThanOrEqual(0);
+    expect(first).toBeLessThan(60 * 60 * 24);
+
+    /* THE SECOND READING IS THE TEST. A single one inside a range passes just as well
+       against a hardcoded constant, and a constant is exactly the bug that would make
+       this route unable to tell "up" from "crash-looping and up again" - the one thing
+       it returns a body for. `uptimeSeconds` is whole seconds (`Math.round`), so the
+       wait has to clear a second for the value to be guaranteed to differ. */
+    await new Promise((r) => setTimeout(r, 1100));
+    expect(await read()).toBeGreaterThan(first);
   });
 
   /**

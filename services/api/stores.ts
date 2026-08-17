@@ -1,5 +1,5 @@
 import { AuthStore } from "./auth.js";
-import { databaseUrl } from "./db.js";
+import { databaseUrl, pool } from "./db.js";
 import { DocumentStore, type DocumentStoreApi } from "./documents.js";
 import { InviteStore } from "./invites.js";
 import { PostgresAuthStore, type AuthStoreApi } from "./postgres-auth.js";
@@ -17,10 +17,11 @@ import { SupabaseDocumentStore, bucketFrom, storageClientFrom } from "./supabase
  * not a degraded mode, it is a deployment whose record and whose identities disagree
  * about which machine they live on. One decision, taken here, applied to all four.
  *
- * FILES ARE THE DEFAULT, and that is not a hedge. `npm test`, `npm run e2e` and CI all
- * run with no database, and the product they exercise has to be the product. A default
- * that required Postgres would mean the suite either stopped running or started testing
- * something nobody deploys.
+ * FILES ARE THE DEFAULT, and that is not a hedge. `npm test` and `npm run e2e` run with
+ * no database, and the product they exercise has to be the product. A default that
+ * required Postgres would mean the suite either stopped running or started testing
+ * something nobody deploys. CI sets `DATABASE_URL` on its `npm test` step only, so the
+ * Postgres stores are exercised there without moving what anything else measures.
  */
 
 export interface Stores {
@@ -79,11 +80,20 @@ export async function buildStores(
 
   requireStorageConfig(env);
 
+  /* THE POOL IS BUILT FROM THE `env` THIS FUNCTION WAS GIVEN, and then handed to all
+     four stores. Each of them defaults to `pool()`, which reads `process.env` - so a
+     caller passing an `env` whose `DATABASE_URL` differs from the ambient one would
+     have selected the Postgres branch from one database and then connected to another,
+     or thrown "DATABASE_URL is not set" from inside a branch that only exists because
+     it was. Latent while every caller passes the real environment; the parameter is
+     what makes it reachable, so the parameter is what has to be honoured. */
+  const p = pool(url);
+
   return {
-    deliberation: new PostgresStore(),
-    auth: await PostgresAuthStore.open(),
-    invites: await PostgresInviteStore.open(),
-    documents: await SupabaseDocumentStore.open({ env }),
+    deliberation: new PostgresStore(p),
+    auth: await PostgresAuthStore.open(p),
+    invites: await PostgresInviteStore.open(p),
+    documents: await SupabaseDocumentStore.open({ env, pool: p }),
     // The host, never the connection string: it carries the password, and this line goes
     // to stdout, which on every host this runs on means the log aggregator.
     describe: `Postgres (${safeHost(url)}), documents in Supabase Storage bucket "${bucketFrom(env)}"`,

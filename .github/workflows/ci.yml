@@ -39,7 +39,12 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
+      # No step below needs authenticated Git. Left on, `actions/checkout` writes the
+      # job's token into .git/config, where `npm ci`'s dependency lifecycle scripts can
+      # read it - a credential handed to third-party code for no reason.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       # 22, MATCHING THE Dockerfile, and pinned together on purpose. `@supabase/supabase-js`
       # needs a global `WebSocket`, which Node has unflagged only from 22; on 20 the
       # Storage client throws inside `createClient` and the process dies before it

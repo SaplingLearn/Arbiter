@@ -395,7 +395,7 @@ tools/dev-all.mjs         `npm run dev`: every surface behind one port
 tools/stage-site.mjs      `npm run site:build`: the client, where links.ts points
 e2e/                      Playwright. Drives the unified server, not one app.
 
-Dockerfile                Node 20 AND Python 3.12 - the upload path forks an interpreter
+Dockerfile                Node 22 AND Python 3.12 - the upload path forks an interpreter
 fly.toml                  One worked deployment. No volume; state is in Supabase.
 supabase/migrations/      0001_init.sql. The log is append-only at the database.
 

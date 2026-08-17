@@ -26,8 +26,14 @@ deliberate: it keeps the change reviewable and keeps CI green without a database
 
 ## Configuration
 
-The file stores stay the default. Postgres is opt-in, so `npm test`, `npm run e2e` and CI
+The file stores stay the default. Postgres is opt-in, so `npm test` and `npm run e2e`
 keep working on a machine with no database.
+
+CI is the exception, and deliberately: `.github/workflows/ci.yml` runs a `postgres:17`
+service and sets `DATABASE_URL` on the `npm test` step alone, because the Postgres suites
+`skipIf` themselves out without it and a skipped suite is indistinguishable from a passing
+one in a green check. Every later step - the harness, the metrics, the golden comparison,
+`npm run e2e` - still runs on the file stores.
 
 | Variable | Meaning |
 |---|---|
