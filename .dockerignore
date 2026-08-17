@@ -1,0 +1,69 @@
+# What must NOT reach the build context.
+#
+# Not a mirror of .gitignore. That file answers "what should be committed"; this one
+# answers "what does the running service need", and the two disagree in both
+# directions - data/out/*.json is tracked and useless to the server, results/documents
+# is untracked and is somebody's uploaded safety data.
+
+# Rebuilt inside the image by `npm ci`, and copying it in is not merely wasteful: a
+# host node_modules holds binaries built for the host's libc, so a native module
+# compiled on a developer's machine would be copied over the one npm just installed.
+node_modules/
+**/node_modules/
+
+# History, not runtime. Also the largest thing in the context by a wide margin.
+.git/
+.github/
+.claude/
+
+# The Python interpreter the upload path uses is installed in the image, from the
+# pinned pymupdf below. A host virtualenv is the wrong platform's binaries and would
+# shadow it if PYTHON ever pointed at a relative path.
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# 21MB of regulatory review PDFs, each retrievable from accessdata.fda.gov or
+# ema.europa.eu by the URL the spec records. The library reports an absent file as
+# `askable: false` with a reason, so a deployment without them is a smaller surface
+# rather than a broken one - and shipping them into every image layer is the wrong
+# place to hold them.
+data/raw/
+
+# Runtime state, not inputs. results/ holds the log, the uploaded documents, the
+# account store with its password hashes, and the extraction caches. Baking any of it
+# into an image would ship one deployment's data to every other one; the server mkdirs
+# what it needs on boot.
+results/
+
+# Test artifacts: diagnostics for a single run.
+test-results/
+playwright-report/
+e2e/
+**/*.tsbuildinfo
+
+# Built by `npm run site:build` inside the image. A stale host build copied in would be
+# overwritten, but only after being copied, and only if the build succeeds.
+dist/
+**/dist/
+.vite/
+**/.vite/
+
+# CREDENTIALS. .env holds API keys and .env.share holds a service-account blob; an
+# image is copied, pushed and pulled by people who are not the person who wrote them.
+# The container takes its configuration from the environment instead. .env.example is
+# deliberately not listed - it is the tracked template and holds no secret.
+.env
+.env.local
+.env.share
+*.users.json
+
+# Tuning artefacts.
+apps/atmosphere/shots/
+apps/landing/shots/
+
+# Local editor and OS noise.
+.DS_Store
+Thumbs.db

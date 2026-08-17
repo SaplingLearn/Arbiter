@@ -1,5 +1,6 @@
 import { randomBytes, scryptSync, timingSafeEqual, createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
+import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 /**
@@ -30,12 +31,19 @@ import { dirname } from "node:path";
 
 /** Cost parameters. N=2^15 is the current OWASP floor for scrypt; r and p are the
  *  standard pairing. Stored per-record so raising them later does not invalidate
- *  every existing password - an old hash verifies under its own parameters. */
-const SCRYPT_N = 32768;
-const SCRYPT_R = 8;
-const SCRYPT_P = 1;
-const KEY_LEN = 64;
-const SALT_LEN = 16;
+ *  every existing password - an old hash verifies under its own parameters.
+ *
+ *  EXPORTED so `postgres-auth.ts` uses these values rather than its own copy of them.
+ *  Two spellings of the cost parameters is the specific duplication that must not exist
+ *  here: raise `SCRYPT_N` in one file and not the other, and which cost a password is
+ *  hashed at silently depends on which store the deployment happens to be running -
+ *  weaker on one of them, with nothing to see at either call site. The same argument
+ *  covers `hashPassword` itself, which is why it is exported too rather than reproduced. */
+export const SCRYPT_N = 32768;
+export const SCRYPT_R = 8;
+export const SCRYPT_P = 1;
+export const KEY_LEN = 64;
+export const SALT_LEN = 16;
 
 /** Sessions last a working day. Long enough that a deliberation is not interrupted
  *  half way through, short enough that a shared machine does not stay authenticated
@@ -100,7 +108,7 @@ function maxmemFor(params: User["params"]): number {
   return 2 * 128 * params.N * params.r;
 }
 
-function hashPassword(password: string, salt: string, params: User["params"]): string {
+export function hashPassword(password: string, salt: string, params: User["params"]): string {
   return scryptSync(password, salt, params.keyLen, {
     N: params.N, r: params.r, p: params.p, maxmem: maxmemFor(params),
   }).toString("hex");
@@ -141,21 +149,43 @@ export type AuthResult<T> = { ok: true; value: T } | { ok: false; error: AuthErr
  * having done something, which is why current NIST guidance drops composition rules
  * and keeps a length floor.
  */
-const MIN_PASSWORD = 12;
+export const MIN_PASSWORD = 12;
 
 /** Long enough to walk to somebody's desk, short enough that a stale token in a chat
  *  log is not a standing key to the account. */
 export const RESET_TTL_MS = 30 * 60 * 1000;
 
+/**
+ * ASYNCHRONOUS THROUGHOUT, though the file backing below has nothing to await on the
+ * read path. The identity row is one of the four stores moving to Postgres, and the
+ * shape of the interface is what every caller inherits - see store.ts for the full
+ * argument and docs/design/supabase-contract.md for the plan. The hashing is
+ * untouched by any of it: hashes transfer verbatim, so `hashPassword` and its
+ * per-record `params` stay exactly as they were.
+ */
 export class AuthStore {
   private users = new Map<string, User>();
   private byEmail = new Map<string, string>();
   private sessions = new Map<string, Session>();
   private resets = new Map<string, ResetToken>();
 
-  constructor(private readonly path: string | null = null) {
-    if (path !== null && existsSync(path)) {
-      const raw = JSON.parse(readFileSync(path, "utf8")) as { users: User[]; sessions: Session[]; resets?: ResetToken[] };
+  /** Private, and loading happens in `open`. Same reason as `FileStore`: a
+   *  constructor cannot await, so a store that loads asynchronously in one would hand
+   *  the caller an empty account list that fills in later - and an empty account list
+   *  is not an error here, it is a server with nobody registered on it. The failure
+   *  would look like a wiped user file rather than like a race. */
+  private constructor(private readonly path: string | null = null) {}
+
+  static async open(path: string | null = null): Promise<AuthStore> {
+    const store = new AuthStore(path);
+    await store.load();
+    return store;
+  }
+
+  private async load(): Promise<void> {
+    if (this.path === null) return;
+    if (existsSync(this.path)) {
+      const raw = JSON.parse(await readFile(this.path, "utf8")) as { users: User[]; sessions: Session[]; resets?: ResetToken[] };
       for (const u of raw.users) {
         this.users.set(u.id, u);
         this.byEmail.set(u.email, u.id);
@@ -164,11 +194,16 @@ export class AuthStore {
       // sign everybody out mid-deliberation. They still expire on their own clock.
       for (const s of raw.sessions) this.sessions.set(s.tokenHash, s);
       for (const r of raw.resets ?? []) this.resets.set(r.tokenHash, r);
-    } else if (path !== null) {
-      mkdirSync(dirname(path), { recursive: true });
+    } else {
+      await mkdir(dirname(this.path), { recursive: true });
     }
   }
 
+  /** Left synchronous inside the async methods that call it, on the same reasoning as
+   *  `FileStore.putCase`: this serialises all four maps into one file, so two writes
+   *  racing across an await would leave the older snapshot on disk - and the snapshot
+   *  that loses is as likely to be the one holding a new account as an expired
+   *  session. `writeFileSync` cannot be interleaved by the event loop. */
   private persist(): void {
     if (this.path === null) return;
     writeFileSync(this.path, JSON.stringify({
@@ -178,7 +213,7 @@ export class AuthStore {
     }, null, 2), "utf8");
   }
 
-  register(input: { email: string; displayName: string; password: string; now: number }): AuthResult<PublicUser> {
+  async register(input: { email: string; displayName: string; password: string; now: number }): Promise<AuthResult<PublicUser>> {
     const email = normaliseEmail(input.email);
     // Deliberately permissive: the only thing worth checking here is that it looks
     // like an address at all. Elaborate email regexes reject valid addresses and
@@ -219,7 +254,7 @@ export class AuthStore {
    * an unknown address makes "no such user" measurably faster than "wrong password",
    * which leaks the same fact through the clock instead of through the message.
    */
-  login(input: { email: string; password: string; now: number }): AuthResult<{ token: string; user: PublicUser }> {
+  async login(input: { email: string; password: string; now: number }): Promise<AuthResult<{ token: string; user: PublicUser }>> {
     const email = normaliseEmail(input.email);
     const userId = this.byEmail.get(email);
     const user = userId === undefined ? undefined : this.users.get(userId);
@@ -257,7 +292,7 @@ export class AuthStore {
    * Saying "no such user" here would turn the reset form into an account-enumeration
    * oracle, which is the same leak `login` avoids.
    */
-  requestReset(email: string, now: number): string | null {
+  async requestReset(email: string, now: number): Promise<string | null> {
     const id = this.byEmail.get(normaliseEmail(email));
     if (id === undefined) return null;
 
@@ -277,7 +312,7 @@ export class AuthStore {
    * reset a password is usually that somebody else may know the old one, and leaving
    * their session alive resets nothing.
    */
-  resetPassword(token: string, newPassword: string, now: number): AuthResult<PublicUser> {
+  async resetPassword(token: string, newPassword: string, now: number): Promise<AuthResult<PublicUser>> {
     const row = this.resets.get(tokenHashOf(token));
     if (row === undefined || row.usedAt !== null || Date.parse(row.expiresAt) <= now) {
       return { ok: false, error: { kind: "bad_reset_token", detail: "That reset link is not valid, or it has already been used." } };
@@ -302,7 +337,7 @@ export class AuthStore {
     return { ok: true, value: publicUser(updated) };
   }
 
-  resolve(token: string | null, now: number): AuthResult<PublicUser> {
+  async resolve(token: string | null, now: number): Promise<AuthResult<PublicUser>> {
     if (token === null || token.trim() === "") {
       return { ok: false, error: { kind: "no_session", detail: "Sign in first." } };
     }
@@ -322,29 +357,29 @@ export class AuthStore {
     return { ok: true, value: publicUser(user) };
   }
 
-  logout(token: string): void {
+  async logout(token: string): Promise<void> {
     this.sessions.delete(tokenHashOf(token));
     this.persist();
   }
 
-  findByEmail(email: string): PublicUser | null {
+  async findByEmail(email: string): Promise<PublicUser | null> {
     const id = this.byEmail.get(normaliseEmail(email));
     const u = id === undefined ? undefined : this.users.get(id);
     return u === undefined ? null : publicUser(u);
   }
 
-  get(id: string): PublicUser | null {
+  async get(id: string): Promise<PublicUser | null> {
     const u = this.users.get(id);
     return u === undefined ? null : publicUser(u);
   }
 
-  list(): PublicUser[] {
+  async list(): Promise<PublicUser[]> {
     return [...this.users.values()].map(publicUser).sort((a, b) => (a.email < b.email ? -1 : 1));
   }
 
   /** Sessions whose clock has run out, dropped on demand. Called on login so the
    *  file does not grow without bound on a long-lived server. */
-  pruneExpired(now: number): number {
+  async pruneExpired(now: number): Promise<number> {
     let dropped = 0;
     for (const [hash, s] of this.sessions) {
       if (Date.parse(s.expiresAt) <= now) {

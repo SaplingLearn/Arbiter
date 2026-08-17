@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { createServer, type Server } from "node:http";
-import { mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AddressInfo } from "node:net";
@@ -45,14 +45,14 @@ const EMAIL: Record<string, string> = {
 };
 
 beforeAll(async () => {
-  const auth = new AuthStore(null);
-  seedDemoTeam(auth, Date.now());
-  const outsider = auth.register({ email: "outsider@elsewhere.test", displayName: "Outsider", password: "outsider-password", now: Date.now() });
+  const auth = await AuthStore.open(null);
+  await seedDemoTeam(auth, Date.now());
+  const outsider = await auth.register({ email: "outsider@elsewhere.test", displayName: "Outsider", password: "outsider-password", now: Date.now() });
   if (!outsider.ok) throw new Error("fixture");
 
   for (const [handle, email] of Object.entries({ ...EMAIL, outsider: "outsider@elsewhere.test" })) {
     const password = handle === "outsider" ? "outsider-password" : DEMO_PASSWORD;
-    const r = auth.login({ email, password, now: Date.now() });
+    const r = await auth.login({ email, password, now: Date.now() });
     if (!r.ok) throw new Error(`fixture login failed for ${handle}`);
     tok[handle] = r.value.token;
     uid[handle] = r.value.user.id;
@@ -61,9 +61,10 @@ beforeAll(async () => {
   deps = {
     service: new DeliberationService(new MemoryStore(), CHECKLIST),
     auth,
-    documents: new DocumentStore(mkdtempSync(join(tmpdir(), "arb-docs-"))),
+    storage: "in-memory (test fixture)",
+    documents: await DocumentStore.open(mkdtempSync(join(tmpdir(), "arb-docs-"))),
     library: new LibraryStore({ cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib-")) }),
-    invites: new InviteStore(null),
+    invites: await InviteStore.open(null),
     throttle: new LoginThrottle(),
     // Deliberately generous: this suite drives many model-calling routes in one run and
     // the cap is not what any of these cases are measuring. `spend.test.ts` measures it.
@@ -335,7 +336,7 @@ describe("the case catalogue and demo seeding", () => {
 
     const withSource = makeHandler({
       ...deps,
-      documents: new DocumentStore(mkdtempSync(join(tmpdir(), "arb-docs2-"))),
+      documents: await DocumentStore.open(mkdtempSync(join(tmpdir(), "arb-docs2-"))),
       library: new LibraryStore({
         cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib2-")),
         sources: [{ name: "nipocalimab", label: "Imaavy - assessment report", path }],
@@ -389,7 +390,7 @@ describe("the case catalogue and demo seeding", () => {
 
     const withBadSource = makeHandler({
       ...deps,
-      documents: new DocumentStore(mkdtempSync(join(tmpdir(), "arb-docs3-"))),
+      documents: await DocumentStore.open(mkdtempSync(join(tmpdir(), "arb-docs3-"))),
       library: new LibraryStore({
         cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib3-")),
         sources: [{ name: "slynd", label: "Slynd - review", path }],
@@ -818,7 +819,11 @@ describe("raw document bytes", () => {
     // Simulate the index and the file on disk drifting apart: the document record
     // still exists, but its bytes do not - deleted externally, a migration gap, a
     // disk issue.
-    unlinkSync(deps.documents.pathFor(vanishingId));
+    // Through the concrete file store, not `deps.documents`, which is now typed as the
+    // narrower `DocumentStoreApi` and deliberately has no `pathFor` - the Storage-backed
+    // store cannot answer it. Reaching for the real class here is honest: this test is
+    // specifically about the FILE store's bytes going missing underneath its index.
+    unlinkSync(await (deps.documents as DocumentStore).pathFor(vanishingId));
 
     // The handler documents exactly this answer - 500 with `document_missing` - so
     // the test asserts it. "Any status in [400, 600)" passed for a 404, a 403 and a
@@ -903,5 +908,288 @@ describe("routing", () => {
       method: "POST", headers: { "content-type": "application/json" }, body: "{not json",
     });
     expect(res.status).toBe(400);
+  });
+});
+
+/**
+ * The health route, which exists so a deployment can be checked by something other than
+ * a TCP connect. fly.toml's check calls exactly this path.
+ */
+describe("GET /api/health", () => {
+  it("answers 200 with no bearer token, unlike every other route", async () => {
+    const res = await fetch(`${base}/api/health`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    const body = await res.json() as { ok: boolean; service: string; uptimeSeconds: number };
+    expect(body.ok).toBe(true);
+    expect(body.service).toBe("arbiter-api");
+    expect(typeof body.uptimeSeconds).toBe("number");
+  });
+
+  /**
+   * A check that only ever sees the healthy state cannot tell "up" from "crash-looping
+   * and up again", which is the failure a health check is most likely to be watching
+   * for. The number is the only reason this route returns a body at all.
+   */
+  it("reports an uptime that moves", async () => {
+    const first = await (await fetch(`${base}/api/health`)).json() as { uptimeSeconds: number };
+    expect(first.uptimeSeconds).toBeGreaterThanOrEqual(0);
+    expect(first.uptimeSeconds).toBeLessThan(60 * 60 * 24);
+  });
+
+  /**
+   * Being unauthenticated is the point, so it has to stay a route that says NOTHING
+   * about the deployment. A key name, a model, an account count or a database URL in
+   * here would be readable by anybody who can reach the port.
+   */
+  it("discloses nothing about the configuration", async () => {
+    const text = await (await fetch(`${base}/api/health`)).text();
+    expect(Object.keys(JSON.parse(text) as object).sort()).toEqual(["ok", "service", "uptimeSeconds"]);
+    for (const leak of ["gemini", "claude", "anthropic", "postgres", "key", "account", "user", "path", "dir"]) {
+      expect(text.toLowerCase(), leak).not.toContain(leak);
+    }
+  });
+});
+
+/**
+ * SERVING THE BUILT SITE FROM THE API PROCESS - the arrangement that puts the client and
+ * the API on one origin.
+ *
+ * The fixture below is the shape `npm run site:build` produces and nothing more: the
+ * landing page at the root, its own hashed bundle under `assets/`, and the deliberation
+ * client staged at `deliberation/` with a SEPARATE `assets/` of its own. That duplication
+ * is what several of these cases turn on - `/assets/x.js` and `/deliberation/assets/x.js`
+ * are different files belonging to different applications.
+ *
+ * A second handler over the same deps, rather than reconfiguring the shared one: every
+ * other test in this file asserts the unset behaviour, and the last case here asserts it
+ * explicitly against the original server.
+ */
+describe("the built site, behind ARBITER_STATIC_DIR", () => {
+  let siteBase: string;
+  let siteServer: Server;
+  let root: string;
+  /** A file OUTSIDE the served root, holding a string that must never appear in any
+   *  response body. Stands in for `.env` and the account store, which in a real
+   *  deployment sit two directories above `apps/landing/dist`. */
+  let secretPath: string;
+  const SECRET = "ARBITER_TEST_SECRET_a1b2c3d4";
+
+  const LANDING_HTML = "<!doctype html><title>landing</title><script src=\"/assets/landing-aaa.js\"></script>";
+  const CLIENT_HTML = "<!doctype html><title>deliberation client</title><script src=\"./assets/client-bbb.js\"></script>";
+
+  beforeAll(async () => {
+    const tmp = mkdtempSync(join(tmpdir(), "arb-site-"));
+    root = join(tmp, "dist");
+    mkdirSync(join(root, "assets"), { recursive: true });
+    mkdirSync(join(root, "deliberation", "assets"), { recursive: true });
+    writeFileSync(join(root, "index.html"), LANDING_HTML);
+    writeFileSync(join(root, "assets", "landing-aaa.js"), "export const which = 'landing';\n");
+    writeFileSync(join(root, "assets", "landing-aaa.css"), ":root{--which:landing}\n");
+    writeFileSync(join(root, "deliberation", "index.html"), CLIENT_HTML);
+    writeFileSync(join(root, "deliberation", "assets", "client-bbb.js"), "export const which = 'client';\n");
+    writeFileSync(join(root, "deliberation", "assets", "worker-ccc.mjs"), "export const which = 'worker';\n");
+    writeFileSync(join(root, "unknown.qqq"), "not a type this server knows\n");
+
+    // One directory up - the escape a traversal is trying to reach.
+    secretPath = join(tmp, "secret.env");
+    writeFileSync(secretPath, `DATABASE_URL=${SECRET}\n`);
+    // And a SIBLING whose name has the root as a prefix. `resolve(root + rel).startsWith(root)`
+    // - the obvious way to write the containment check - accepts this path, because
+    // "/tmp/x/dist-backup/..." really does start with "/tmp/x/dist".
+    mkdirSync(join(tmp, "dist-backup"), { recursive: true });
+    writeFileSync(join(tmp, "dist-backup", "secret.env"), `DATABASE_URL=${SECRET}\n`);
+
+    const handler = makeHandler({ ...deps, staticDir: root });
+    siteServer = createServer((req, res) => { void handler(req, res); });
+    await new Promise<void>((r) => siteServer.listen(0, "127.0.0.1", r));
+    siteBase = `http://127.0.0.1:${(siteServer.address() as AddressInfo).port}`;
+  });
+
+  afterAll(async () => { await new Promise<void>((r) => siteServer.close(() => r())); });
+
+  it("serves the landing page at the root", async () => {
+    const res = await fetch(`${siteBase}/`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(await res.text()).toBe(LANDING_HTML);
+  });
+
+  /**
+   * The one that decides whether the product is reachable at all. `/deliberation/` and
+   * `/deliberation` must both end at the STAGED CLIENT'S index.html - the landing page's
+   * is one directory up and is what a naive "serve root/index.html for a directory"
+   * would hand back.
+   */
+  it("lands /deliberation/ on the client's index.html, not the landing page's", async () => {
+    const res = await fetch(`${siteBase}/deliberation/`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toBe(CLIENT_HTML);
+    expect(html).not.toContain("<title>landing</title>");
+  });
+
+  /**
+   * WITHOUT THE TRAILING SLASH IT HAS TO REDIRECT, and serving the right document in
+   * place would be the subtler bug. apps/deliberation builds with `base: "./"`, so its
+   * index.html asks for `./assets/client-bbb.js`; resolved against `/deliberation` that
+   * is `/assets/client-bbb.js`, which in the real build is the LANDING page's directory -
+   * a 404 for this asset, or worse, somebody else's bundle. Resolved against
+   * `/deliberation/` it is `/deliberation/assets/client-bbb.js`, which is the file that
+   * was staged. The redirect is what makes the second thing true.
+   */
+  it("redirects /deliberation to /deliberation/ so relative assets resolve", async () => {
+    const res = await fetch(`${siteBase}/deliberation`, { redirect: "manual" });
+    expect(res.status).toBe(301);
+    expect(res.headers.get("location")).toBe("/deliberation/");
+
+    // Followed, it is the client - and the asset its html names now resolves.
+    expect(await (await fetch(`${siteBase}/deliberation`)).text()).toBe(CLIENT_HTML);
+    const asset = await fetch(`${siteBase}/deliberation/assets/client-bbb.js`);
+    expect(asset.status).toBe(200);
+    expect(await asset.text()).toContain("'client'");
+
+    // The same relative reference resolved WITHOUT the redirect. Nothing is there, which
+    // is precisely why the redirect is not cosmetic.
+    expect((await fetch(`${siteBase}/assets/client-bbb.js`)).status).toBe(404);
+  });
+
+  it("carries the query string across the redirect", async () => {
+    const res = await fetch(`${siteBase}/deliberation?invite=abc`, { redirect: "manual" });
+    expect(res.headers.get("location")).toBe("/deliberation/?invite=abc");
+  });
+
+  /**
+   * A `.js` bundle served as text/plain is refused by the browser as a module script, so
+   * the page loads and renders nothing - which reads as a failed build. The unknown
+   * extension is here to pin the FALLBACK: octet-stream downloads visibly, text/plain
+   * gets sniffed and rendered differently in each browser.
+   */
+  it("sets a content type per extension, and never falls back to text/plain", async () => {
+    const types: Record<string, string> = {
+      "/assets/landing-aaa.js": "text/javascript; charset=utf-8",
+      "/assets/landing-aaa.css": "text/css; charset=utf-8",
+      "/deliberation/assets/worker-ccc.mjs": "text/javascript; charset=utf-8",
+      "/index.html": "text/html; charset=utf-8",
+      "/unknown.qqq": "application/octet-stream",
+    };
+    for (const [path, type] of Object.entries(types)) {
+      const res = await fetch(`${siteBase}${path}`);
+      expect(res.status, path).toBe(200);
+      expect(res.headers.get("content-type"), path).toBe(type);
+    }
+  });
+
+  /**
+   * Vite hashes the filename of everything under `assets/`, so one URL there is one set
+   * of bytes forever and `immutable` skips no revalidation that could matter. index.html
+   * keeps its name across every deploy and NAMES those hashed files, so a cached copy
+   * points at assets the new deployment has deleted.
+   */
+  it("caches hashed assets immutably and index.html not at all", async () => {
+    const asset = await fetch(`${siteBase}/deliberation/assets/client-bbb.js`);
+    expect(asset.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+
+    for (const path of ["/", "/deliberation/", "/index.html"]) {
+      const res = await fetch(`${siteBase}${path}`);
+      expect(res.headers.get("cache-control"), path).toBe("no-cache");
+    }
+  });
+
+  it("revalidates index.html with an etag rather than resending it", async () => {
+    const first = await fetch(`${siteBase}/`);
+    const etag = first.headers.get("etag");
+    expect(etag).toMatch(/^"[0-9a-f]+-[0-9a-f]+"$/);
+    const second = await fetch(`${siteBase}/`, { headers: { "if-none-match": etag ?? "" } });
+    expect(second.status).toBe(304);
+    expect(await second.text()).toBe("");
+  });
+
+  /**
+   * PATH TRAVERSAL. This process's working directory is the repo root - the Dockerfile
+   * requires it - so an escape from `apps/landing/dist` reaches `.env`, the account store
+   * with its password hashes, and the deliberation log itself.
+   *
+   * The URL-encoded forms are the ones that matter and the reason a check has to run
+   * after decoding: `new URL()` collapses a literal `/../../x` while parsing, so that
+   * form never even looks dangerous, while `%2e%2e%2f` passes through it untouched and
+   * becomes `../` only once something reads it as a filename.
+   */
+  it("refuses every attempt to escape the static root", async () => {
+    // The escape target really is readable from disk, so a leak here is a leak and this
+    // test is not passing because the file happens to be missing.
+    expect(readFileSync(secretPath, "utf8")).toContain(SECRET);
+
+    const attempts = [
+      "/../../secret.env",                       // literal - URL() normalises this away
+      "/%2e%2e%2fsecret.env",                    // encoded, one level
+      "/%2e%2e%2f%2e%2e%2fsecret.env",           // encoded, two
+      "/%2E%2E%2Fsecret.env",                    // encoded, upper case
+      "/..%2fsecret.env",                        // half encoded
+      "/deliberation/%2e%2e%2f%2e%2e%2fsecret.env", // out of a subdirectory
+      "/%252e%252e%252fsecret.env",              // double encoded - must NOT decode twice
+      "/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+      // The sibling directory whose name has the root as a string prefix. A containment
+      // check written as `startsWith(root)` serves this one.
+      "/%2e%2e%2fdist-backup%2fsecret.env",
+    ];
+    for (const path of attempts) {
+      const res = await fetch(`${siteBase}${path}`);
+      expect(res.status, path).toBe(404);
+      expect(await res.text(), path).not.toContain(SECRET);
+    }
+  });
+
+  it("rejects a NUL byte and an invalid escape rather than passing them to the filesystem", async () => {
+    // A NUL truncates a path inside libc but not in a JavaScript string, so
+    // "index.html\0.png" can pass an extension check and open a different file.
+    expect((await fetch(`${siteBase}/index.html%00.png`)).status).toBe(400);
+    expect((await fetch(`${siteBase}/%zz`)).status).toBe(400);
+  });
+
+  /**
+   * NO SPA REWRITE. Both apps route on the fragment, so a missing file is a missing file
+   * and answering it with index.html at status 200 would hide a broken deploy behind a
+   * page that renders.
+   */
+  it("404s a file that is not there instead of rewriting to index.html", async () => {
+    const res = await fetch(`${siteBase}/assets/does-not-exist.js`);
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain("<!doctype html>");
+  });
+
+  it("serves HEAD with headers and no body, and refuses a write", async () => {
+    const head = await fetch(`${siteBase}/`, { method: "HEAD" });
+    expect(head.status).toBe(200);
+    expect(head.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(await head.text()).toBe("");
+
+    expect((await fetch(`${siteBase}/`, { method: "POST" })).status).toBe(405);
+  });
+
+  /**
+   * THE SITE MUST NOT SHADOW THE API. Both are on one origin now, and the client's very
+   * first request on load is a same-origin `/api` call - if the static branch swallowed
+   * it, every deployment would serve a page that cannot sign itself in.
+   */
+  it("still routes /api to the API, and still 401s it without a token", async () => {
+    expect((await fetch(`${siteBase}/api/health`)).status).toBe(200);
+    expect((await fetch(`${siteBase}/api/people`)).status).toBe(401);
+    const res = await fetch(`${siteBase}/api/people`, { headers: { authorization: `Bearer ${tok["ann"]}` } });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(await res.json())).toBe(true);
+  });
+
+  /**
+   * And with the variable unset - which is every development run, where apps/landing's
+   * Vite server owns these paths - nothing changed. `base` is the server the rest of this
+   * file drives, built with no staticDir at all.
+   */
+  it("leaves the unconfigured server answering 404 outside /api, exactly as before", async () => {
+    for (const path of ["/", "/index.html", "/deliberation/", "/assets/landing-aaa.js"]) {
+      const res = await fetch(`${base}${path}`);
+      expect(res.status, path).toBe(404);
+      expect(await res.json()).toEqual({ error: "not_found" });
+    }
   });
 });

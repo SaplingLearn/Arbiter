@@ -1,0 +1,177 @@
+# ARBITER on Fly.io.
+#
+# ONE CONCRETE EXAMPLE, not a recommendation. The hosting decision is not made in this
+# repo; this file exists because "deployable" is a claim worth being able to check, and
+# a config somebody can run is a stronger form of that claim than a paragraph saying it
+# would work. Any host that can run the Dockerfile and reach Supabase will do.
+#
+# WHAT IT ASSUMES: a Supabase project holding the schema in supabase/migrations, and
+# the four variables from docs/design/supabase-contract.md set as SECRETS rather than
+# as env below. See the `fly secrets` block at the bottom.
+#
+#   fly launch --no-deploy      # writes the app name and region into this file
+#   fly secrets set ...         # the block at the bottom
+#   fly deploy
+
+app = "arbiter"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# ---------------------------------------------------------------------------
+# NO [mounts] BLOCK, AND THAT IS THE POINT OF THE SUPABASE MIGRATION.
+#
+# What used to need a volume: results/deliberation-log.jsonl (the record itself),
+# results/deliberation-log.jsonl.users.json (the accounts, with their password hashes),
+# the invites sidecar, and results/documents (the uploaded PDFs). On an ephemeral
+# machine all four are wiped on every redeploy - which was fine for a demo and
+# disqualifying for anything else, and was the largest single piece of work in
+# deploying this.
+#
+# With DATABASE_URL and the Supabase Storage variables set, all four live outside the
+# machine and the filesystem holds nothing worth keeping. WITHOUT them the service
+# still starts and still works - the file stores are the default, deliberately, so CI
+# and a laptop need no database - and it is then exactly the ephemeral arrangement
+# described above. That failure is silent: a deployment missing DATABASE_URL looks
+# perfectly healthy right up to the first redeploy, when the record is gone.
+# ---------------------------------------------------------------------------
+
+[env]
+  # THE PROCESS ACCEPTS NO OUTSIDE TRAFFIC WITHOUT THIS. server.ts binds 127.0.0.1
+  # unless ARBITER_HOST says otherwise, because it terminates no TLS and a plaintext
+  # service on every interface is not something anybody should get by accident. In a
+  # container loopback means the machine talks only to itself: Fly's proxy connects to
+  # the machine's private address and gets nothing, and the deploy fails its health
+  # check with a listening, healthy-looking process inside.
+  #
+  # It is set here rather than left out because the condition the default protects is
+  # actually met: `force_https` below makes Fly's edge terminate TLS, and the hop from
+  # that edge to this process runs inside Fly's private network. The startup banner
+  # prints a WARNING whenever this is not loopback, and that warning is correct to keep
+  # printing - it is the reader's cue to check that something in front really is
+  # terminating TLS.
+  ARBITER_HOST = "0.0.0.0"
+
+  # server.ts reads PORT; internal_port below must agree with it.
+  PORT = "8787"
+
+  # THE SPEND CAP, AND WHAT MAKES THE PAID ENDPOINTS SAFE TO EXPOSE AT ALL. Four
+  # endpoints cost money - adjudication, ask, summary, describe - and every one of them
+  # is reachable by anyone holding an account. Without a cap, a public deployment is an
+  # open proxy to whoever's model quota it holds, and the bill is the first symptom.
+  # 30 per account per 10 minutes is the default; per-source is 6x that.
+  #
+  # TWO THINGS THIS CAP DOES NOT SURVIVE, both worth knowing before raising a machine
+  # count. The budget is in-process (spend.ts), so N machines is N times the cap for
+  # one account, and a machine that stops and starts resets its window. The record does
+  # not have that problem - the log's append serialises on a Postgres advisory lock
+  # across every writer - but the budget is not the record, and min_machines_running
+  # below is 1 for this reason as much as for latency.
+  ARBITER_MODEL_BUDGET = "30"
+
+  # Storage bucket for uploaded documents. Not a secret - it is a name, and the
+  # service-role key beside it is what grants access. Default is `documents`.
+  SUPABASE_BUCKET = "documents"
+
+  # THIS IS WHAT MAKES THE DEPLOYMENT ONE ORIGIN, and without it the machine serves an
+  # API and no website. The image already builds the site - `npm run site:build` in the
+  # Dockerfile writes the landing page to apps/landing/dist and stages the deliberation
+  # client into apps/landing/dist/deliberation - but server.ts only serves that directory
+  # when this names it; unset, it answers 404 to every path outside /api, which is the
+  # correct behaviour under `npm run dev` (Vite owns those paths there) and useless here.
+  #
+  # One origin is not a preference. apps/deliberation calls `/api/...` same-origin and
+  # this service sends no CORS headers of any kind, so a client served from a different
+  # host fails on the first request it makes, which it makes on load. The alternative was
+  # a proxy or a static host with a rewrite in front of both; this is the same
+  # arrangement with nothing extra to deploy.
+  #
+  # RELATIVE TO THE WORKING DIRECTORY, which the Dockerfile pins to /app and explains why
+  # it cannot move. A typo here is not silent - the startup banner prints a WARNING
+  # naming the directory it could not find.
+  ARBITER_STATIC_DIR = "apps/landing/dist"
+
+[http_service]
+  internal_port = 8787
+  # Fly's edge terminates TLS and this process terminates none, so plain http must not
+  # be an option a browser can be talked into: a bearer token over http is a bearer
+  # token in clear text.
+  force_https = true
+
+  # NOT auto-stopped. Suspending the machine between requests would be the cheaper
+  # setting and it costs two things here: the in-memory model budget and login
+  # throttle both reset on start, and a cold start pays for `tsx` compiling the service
+  # from TypeScript source on the first request rather than at boot.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+# AN HTTP CHECK NOW, BECAUSE THERE IS FINALLY SOMETHING HONEST TO CALL.
+#
+# This used to be a TCP connect, and the reason was written here as a limitation: there
+# was no unauthenticated route. server.ts 404'd anything whose first path segment was not
+# `api`, and everything under /api that is not /api/auth/* answers 401 without a bearer
+# token, so an http check would have had to be configured to treat a 404 or a 401 as
+# healthy - at which point it no longer distinguishes "the server is up" from "the server
+# is answering nonsense". A TCP connect claimed exactly what it verified and nothing more.
+#
+# server.ts now serves GET /api/health, unauthenticated, and that closes the gap: a 200
+# from it means the process accepted a connection, parsed a request, ran the request
+# handler and wrote a response. A TCP connect proves only that something bound the port -
+# which a process wedged before its first response still does, and which is precisely the
+# state a health check exists to catch. The body is small on purpose and names nothing
+# about the configuration, because this route is reachable by anyone who can reach the
+# machine.
+#
+# NO `port` KEY: a check nested under [http_service] runs against internal_port above, so
+# the two cannot drift apart the way a repeated literal would.
+[[http_service.checks]]
+  method = "GET"
+  path = "/api/health"
+  interval = "15s"
+  timeout = "2s"
+  grace_period = "20s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  # 1GB, NOT THE 256MB DEFAULT, and the number comes from two measured demands rather
+  # than from caution:
+  #
+  #   - An upload is buffered whole. readRaw() accumulates the request body in memory
+  #     and MAX_BYTES is 80 MB, so `Buffer.concat` at the end of one upload peaks near
+  #     160 MB before PyMuPDF has opened anything. The MuPDF process then loads the
+  #     same document again on the other side of the fork.
+  #   - scrypt is memory-hard on purpose. N=32768 needs ~33.5 MB per hash and auth.ts
+  #     asks Node for double that as headroom, so each concurrent login is ~67 MB - and
+  #     a failed login runs the hash too, deliberately, so that a wrong address is not
+  #     measurably faster than a wrong password.
+  #
+  # At 256 MB one upload arriving beside two sign-ins is an OOM kill, which reads as a
+  # crashed server rather than as an undersized machine.
+  memory = "1gb"
+
+# ---------------------------------------------------------------------------
+# SECRETS. None of these belong in this file - it is committed.
+#
+#   fly secrets set \
+#     DATABASE_URL='postgresql://postgres:...@db.<project>.supabase.co:5432/postgres' \
+#     SUPABASE_URL='https://<project>.supabase.co' \
+#     SUPABASE_SERVICE_ROLE_KEY='eyJ...'
+#
+# THE SERVICE ROLE KEY BYPASSES ROW-LEVEL SECURITY. It is the key that can read every
+# row in the project, and it must never be given a VITE_ name: Vite compiles anything
+# so named into the client bundle, where it is readable by anyone who loads the page.
+# The access boundary this product enforces is in access.ts and it is enforced in the
+# server process; a service-role key in a browser deletes it entirely.
+#
+# And for live AI, one of:
+#
+#   fly secrets set ANTHROPIC_API_KEY='sk-ant-...' ARBITER_MODEL='claude-sonnet-5'
+#   fly secrets set GEMINI_API_KEY='AQ...'
+#
+# With neither, adjudication runs against a stub that labels every response
+# `source: "stub"`, and ask and summary answer 503 {"error":"no_key"}. That is a
+# working deployment, not a broken one.
+# ---------------------------------------------------------------------------

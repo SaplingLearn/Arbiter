@@ -150,73 +150,112 @@ describe("verifySeals - the blindness audit", () => {
 });
 
 describe("MemoryStore", () => {
-  it("appends into one chain and filters by case on read", () => {
+  it("appends into one chain and filters by case on read", async () => {
     const s = new MemoryStore();
-    s.append({ at: "t0", kind: "case_opened", caseId: "a", actorId: "o", payload: {} });
-    s.append({ at: "t1", kind: "case_opened", caseId: "b", actorId: "o", payload: {} });
-    s.append({ at: "t2", kind: "signed", caseId: "a", actorId: "o", payload: {} });
-    expect(s.entries("a")).toHaveLength(2);
-    expect(verifyChain(s.all())).toEqual([]);
+    await s.append({ at: "t0", kind: "case_opened", caseId: "a", actorId: "o", payload: {} });
+    await s.append({ at: "t1", kind: "case_opened", caseId: "b", actorId: "o", payload: {} });
+    await s.append({ at: "t2", kind: "signed", caseId: "a", actorId: "o", payload: {} });
+    expect(await s.entries("a")).toHaveLength(2);
+    expect(verifyChain(await s.all())).toEqual([]);
   });
 
-  it("interleaves cases without breaking the chain", () => {
+  it("interleaves cases without breaking the chain", async () => {
     // The chain is global rather than per-case: a per-case chain lets a whole case
     // be deleted without leaving a hole.
     const s = new MemoryStore();
     for (let i = 0; i < 6; i++) {
-      s.append({ at: `t${i}`, kind: "position_sealed", caseId: i % 2 === 0 ? "a" : "b", actorId: "p", payload: { i } });
+      await s.append({ at: `t${i}`, kind: "position_sealed", caseId: i % 2 === 0 ? "a" : "b", actorId: "p", payload: { i } });
     }
-    expect(verifyChain(s.all())).toEqual([]);
-    expect(s.entries("a")).toHaveLength(3);
+    expect(verifyChain(await s.all())).toEqual([]);
+    expect(await s.entries("a")).toHaveLength(3);
+  });
+
+  /**
+   * THE APPEND MUST NOT BE INTERLEAVABLE, and this is the test that can fail if it
+   * is. Every other case here awaits each append in turn, which is exactly the
+   * pattern that hides the defect: fire six without awaiting between them and any
+   * implementation that yields between reading the tail and writing the entry
+   * produces two entries claiming the same `seq`, which `verifyChain` reports.
+   */
+  it("keeps one chain when six appends are issued without awaiting between them", async () => {
+    const s = new MemoryStore();
+    await Promise.all([0, 1, 2, 3, 4, 5].map((i) =>
+      s.append({ at: `t${i}`, kind: "position_sealed", caseId: "a", actorId: "p", payload: { i } })));
+    const all = await s.all();
+    expect(all.map((e) => e.seq)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(verifyChain(all)).toEqual([]);
   });
 });
 
 describe("FileStore", () => {
   const tmp = (): string => join(mkdtempSync(join(tmpdir(), "arbiter-store-")), "log.jsonl");
 
-  it("survives a restart with the chain intact", () => {
+  it("survives a restart with the chain intact", async () => {
     const path = tmp();
-    const a = new FileStore(path);
-    a.append({ at: "t0", kind: "case_opened", caseId: "c", actorId: "o", payload: { x: 1 } });
-    a.append({ at: "t1", kind: "position_sealed", caseId: "c", actorId: "ann", payload: { commitment: "abc" } });
+    const a = await FileStore.open(path);
+    await a.append({ at: "t0", kind: "case_opened", caseId: "c", actorId: "o", payload: { x: 1 } });
+    await a.append({ at: "t1", kind: "position_sealed", caseId: "c", actorId: "ann", payload: { commitment: "abc" } });
 
-    const b = new FileStore(path);
-    expect(b.all()).toHaveLength(2);
-    expect(verifyChain(b.all())).toEqual([]);
+    const b = await FileStore.open(path);
+    expect(await b.all()).toHaveLength(2);
+    expect(verifyChain(await b.all())).toEqual([]);
 
-    b.append({ at: "t2", kind: "signed", caseId: "c", actorId: "o", payload: {} });
-    expect(verifyChain(new FileStore(path).all())).toEqual([]);
+    await b.append({ at: "t2", kind: "signed", caseId: "c", actorId: "o", payload: {} });
+    expect(verifyChain(await (await FileStore.open(path)).all())).toEqual([]);
   });
 
-  it("keeps position plaintext out of the log file, so a mid-case export reveals nothing", () => {
+  /**
+   * THE FILE HAS TO BE LOADED BEFORE THE STORE IS USABLE, and only the factory can
+   * promise that. Loading used to happen in the constructor, which is impossible to
+   * keep once it awaits: the store would come back with an empty log and fill in a
+   * tick later, so the first append would chain to GENESIS on top of an existing
+   * file - a fork that reads as tampering.
+   *
+   * This asserts the property rather than the mechanism: open, then append, and the
+   * new entry must continue the chain rather than restart it.
+   */
+  it("has the whole log in hand before it hands the store back", async () => {
+    const path = tmp();
+    const a = await FileStore.open(path);
+    await a.append({ at: "t0", kind: "case_opened", caseId: "c", actorId: "o", payload: {} });
+    await a.append({ at: "t1", kind: "signed", caseId: "c", actorId: "o", payload: {} });
+
+    const b = await FileStore.open(path);
+    const next = await b.append({ at: "t2", kind: "signed", caseId: "c", actorId: "o", payload: {} });
+    expect(next.seq).toBe(2);
+    expect(next.prevHash).not.toBe(GENESIS);
+    expect(verifyChain(await (await FileStore.open(path)).all())).toEqual([]);
+  });
+
+  it("keeps position plaintext out of the log file, so a mid-case export reveals nothing", async () => {
     // The two-file split is load-bearing. A single file holding both would make
     // every export a reveal, and the blind phase would end the first time anyone
     // asked to see the audit trail.
     const path = tmp();
-    const s = new FileStore(path);
+    const s = await FileStore.open(path);
     const p = pos("ann", { reasoning: "SECRET-REASONING-TOKEN" });
-    s.append({
+    await s.append({
       at: p.submittedAt, kind: "position_sealed", caseId: "c", actorId: "ann",
       payload: { participantId: "ann", commitment: commitmentFor(p) },
     });
     expect(readFileSync(path, "utf8")).not.toContain("SECRET-REASONING-TOKEN");
   });
 
-  it("round-trips case state", () => {
+  it("round-trips case state", async () => {
     const path = tmp();
-    const a = new FileStore(path);
-    a.putCase({
+    const a = await FileStore.open(path);
+    await a.putCase({
       caseId: "c", compoundLabel: "X", context: "", ownerId: "o", participantIds: ["ann"],
       seats: { ann: 0 },
       status: "open", positions: [pos("ann")], closedEarly: null, adjudication: null, signature: null,
     });
-    const reloaded = new FileStore(path).getCase("c");
+    const reloaded = await (await FileStore.open(path)).getCase("c");
     expect(reloaded?.positions).toHaveLength(1);
     // The seat map survives the round trip too. The hand-written `seats: {}` this
     // fixture used to carry made every reload look migrated, which is exactly what
     // hid the missing-seats case below.
     expect(reloaded?.seats).toEqual({ ann: 0 });
-    expect(new FileStore(path).getCase("nope")).toBeNull();
+    expect(await (await FileStore.open(path)).getCase("nope")).toBeNull();
   });
 
   /**
@@ -229,7 +268,7 @@ describe("FileStore", () => {
    * anybody to any pre-existing case failed, with a message that named nothing. A
    * missing map is an EMPTY map.
    */
-  it("gives a case written before seats existed an empty seat map", () => {
+  it("gives a case written before seats existed an empty seat map", async () => {
     const path = tmp();
     // Written by hand, WITHOUT the field - a putCase() fixture would write the
     // current schema and could never reproduce the file this is about.
@@ -239,7 +278,7 @@ describe("FileStore", () => {
       closedEarly: null, adjudication: null, signature: null,
     }]), "utf8");
 
-    const loaded = new FileStore(path).getCase("legacy");
+    const loaded = await (await FileStore.open(path)).getCase("legacy");
     expect(loaded?.seats).toEqual({});
     // And the transition that used to throw now runs, handing out seat 0.
     expect(addParticipant(loaded!, "bea")).toEqual({

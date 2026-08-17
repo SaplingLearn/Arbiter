@@ -7,71 +7,71 @@ import { AuthStore } from "../auth.js";
 import { addParticipant, describeCase, openCase, removeParticipant, submitPosition, type Position } from "../deliberation.js";
 
 const AT = "2026-08-09T09:00:00Z";
-const store = (): InviteStore => new InviteStore(null);
+const store = (): Promise<InviteStore> => InviteStore.open(null);
 
 describe("InviteStore", () => {
-  it("records an invitation and finds it by case and by address", () => {
-    const s = store();
-    s.add({ email: "Ann@Lab.COM ", caseId: "c1", invitedBy: "u_owner", at: AT });
-    expect(s.forCase("c1").map((i) => i.email)).toEqual(["ann@lab.com"]);
-    expect(s.forEmail("ANN@lab.com")).toHaveLength(1);
+  it("records an invitation and finds it by case and by address", async () => {
+    const s = await store();
+    await s.add({ email: "Ann@Lab.COM ", caseId: "c1", invitedBy: "u_owner", at: AT });
+    expect((await s.forCase("c1")).map((i) => i.email)).toEqual(["ann@lab.com"]);
+    expect(await s.forEmail("ANN@lab.com")).toHaveLength(1);
   });
 
-  it("is idempotent, so one address cannot join a case twice", () => {
-    const s = store();
-    s.add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
-    s.add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
-    expect(s.forCase("c1")).toHaveLength(1);
+  it("is idempotent, so one address cannot join a case twice", async () => {
+    const s = await store();
+    await s.add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
+    await s.add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
+    expect(await s.forCase("c1")).toHaveLength(1);
   });
 
-  it("keeps invitations to different cases separate", () => {
-    const s = store();
-    s.add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
-    s.add({ email: "ann@lab.com", caseId: "c2", invitedBy: "u_o", at: AT });
-    expect(s.claim("ann@lab.com").sort()).toEqual(["c1", "c2"]);
+  it("keeps invitations to different cases separate", async () => {
+    const s = await store();
+    await s.add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
+    await s.add({ email: "ann@lab.com", caseId: "c2", invitedBy: "u_o", at: AT });
+    expect((await s.claim("ann@lab.com")).sort()).toEqual(["c1", "c2"]);
   });
 
-  it("drains on claim, so a second registration joins nothing", () => {
-    const s = store();
-    s.add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
-    expect(s.claim("ann@lab.com")).toEqual(["c1"]);
-    expect(s.claim("ann@lab.com")).toEqual([]);
+  it("drains on claim, so a second registration joins nothing", async () => {
+    const s = await store();
+    await s.add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
+    expect(await s.claim("ann@lab.com")).toEqual(["c1"]);
+    expect(await s.claim("ann@lab.com")).toEqual([]);
   });
 
-  it("returns nothing for an address nobody invited", () => {
-    expect(store().claim("stranger@lab.com")).toEqual([]);
+  it("returns nothing for an address nobody invited", async () => {
+    expect(await (await store()).claim("stranger@lab.com")).toEqual([]);
   });
 
-  it("revokes a pending invitation, and reports when there was none", () => {
-    const s = store();
-    s.add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
-    expect(s.revoke("ANN@lab.com", "c1")).toBe(true);
-    expect(s.forCase("c1")).toEqual([]);
-    expect(s.revoke("ann@lab.com", "c1")).toBe(false);
+  it("revokes a pending invitation, and reports when there was none", async () => {
+    const s = await store();
+    await s.add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
+    expect(await s.revoke("ANN@lab.com", "c1")).toBe(true);
+    expect(await s.forCase("c1")).toEqual([]);
+    expect(await s.revoke("ann@lab.com", "c1")).toBe(false);
   });
 
-  it("survives a restart", () => {
+  it("survives a restart", async () => {
     const path = join(mkdtempSync(join(tmpdir(), "arb-inv-")), "invites.json");
-    new InviteStore(path).add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
-    expect(new InviteStore(path).forCase("c1")).toHaveLength(1);
+    await (await InviteStore.open(path)).add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
+    expect(await (await InviteStore.open(path)).forCase("c1")).toHaveLength(1);
   });
 });
 
 describe("registration claims invitations", () => {
-  it("joins a new account to every case it was invited to", () => {
+  it("joins a new account to every case it was invited to", async () => {
     // The composition the server performs. AuthStore knows nothing about invitations
     // and InviteStore knows nothing about accounts; joining them is the server's job,
     // and this asserts the sequence rather than pretending either half does it alone.
-    const auth = new AuthStore(null);
-    const invites = store();
+    const auth = await AuthStore.open(null);
+    const invites = await store();
     let kase = openCase({ caseId: "c1", compoundLabel: "X", context: "", ownerId: "u_o", participantIds: ["u_seed"] });
-    invites.add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
+    await invites.add({ email: "ann@lab.com", caseId: "c1", invitedBy: "u_o", at: AT });
 
-    const r = auth.register({ email: "ann@lab.com", displayName: "Ann", password: "long-enough-password", now: Date.parse(AT) });
+    const r = await auth.register({ email: "ann@lab.com", displayName: "Ann", password: "long-enough-password", now: Date.parse(AT) });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
 
-    const claimed = invites.claim(r.value.email);
+    const claimed = await invites.claim(r.value.email);
     expect(claimed).toEqual(["c1"]);
     for (const id of claimed) {
       expect(id).toBe("c1");
@@ -81,7 +81,7 @@ describe("registration claims invitations", () => {
     }
     expect(kase.participantIds).toContain(r.value.id);
     // Drained, so registering again joins nothing.
-    expect(invites.claim(r.value.email)).toEqual([]);
+    expect(await invites.claim(r.value.email)).toEqual([]);
   });
 });
 
