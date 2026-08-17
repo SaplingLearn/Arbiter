@@ -1018,25 +1018,70 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 .rep-bar h1 { margin: 0 0 var(--s2); }
 .rep-bar .btn-row { margin-left: auto; }
 
-.report-sheet {
-  background: #fff;
+/* THE DOCUMENT'S TYPOGRAPHY, which every sheet and the measuring column share.
+
+   It has to be one declaration used by both: the paginator decides where a page ends
+   by measuring blocks in the hidden column, and if that column set type even slightly
+   differently from the sheets, every break would land in the wrong place. */
+.report-doc {
   color: #16181d;
   /* Georgia, and not the product's display face. A record is read at length and in
      print, which is what a serif is for; the interface face is a screen face doing a
      different job three metres away. */
   font: 10.7pt/1.6 Georgia, "Times New Roman", serif;
-  max-width: 190mm;
-  margin: 0 auto;
-  padding: 18mm 16mm;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, .55);
-  /* A sheet, so the eye reads it as the paper it is about to become. */
-  border-radius: 2px;
+  display: grid;
+  gap: var(--s5);
+  justify-items: center;
 }
 
-.report-sheet :where(h1, h2, h3, p, td, th, li, span, strong) { text-shadow: none; }
-.report-sheet p { margin: 0 0 8pt; }
-.report-sheet ul { margin: 4pt 0 8pt; padding-left: 16pt; }
-.report-sheet li { margin-bottom: 3pt; }
+.report-doc :where(h1, h2, h3, p, td, th, li, span, strong) { text-shadow: none; }
+.report-doc p { margin: 0 0 8pt; }
+.report-doc ul { margin: 4pt 0 8pt; padding-left: 16pt; }
+.report-doc li { margin-bottom: 3pt; }
+
+/* ---- one sheet ----------------------------------------------------------- */
+
+/* A4, at the size it will be printed, with the page's own margins as padding. The
+   reader is looking at paper: the stack scrolls, each sheet does not. */
+.rep-page {
+  background: #fff;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 16mm 14mm;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55);
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+}
+/* `auto` on the top margin, so a short last page still puts its footer at the foot of
+   the sheet rather than floating under the text. */
+.rep-page-foot {
+  margin-top: auto;
+  padding-top: 7pt;
+  border-top: 1px solid #d7dae0;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s3);
+  font: 400 8pt/1.4 var(--mono);
+  color: #7b818a;
+}
+
+/* EACH BLOCK CONTAINS ITS OWN MARGINS, in the measuring column and on the sheet alike.
+
+   A plain wrapper does not: a child's top and bottom margins collapse straight through
+   it, so the wrapper measures shorter than the space the block actually occupies and
+   every page is packed too full. That was worth about 90px a sheet - enough that every
+   sheet spilled one line onto a second printed page. `flow-root` gives each block its
+   own formatting context, so what is measured is what is laid out. */
+.rep-block { display: flow-root; }
+
+/* The measuring pass: the same width of text area as a sheet, laid out but never
+   shown, and removed from the document the moment the pages exist. */
+.rep-measuring { position: absolute; visibility: hidden; pointer-events: none; left: -10000px; top: 0; }
+.rep-column { width: 182mm; }
+/* One page's text area, in millimetres. Read back in pixels, so the browser answers
+   what a millimetre is on this display instead of this file assuming a DPI. */
+.rep-gauge { width: 1px; height: 265mm; }
 
 /* THE DEEP ACCENT, NOT THE BRIGHT ONE. `--accent` is #4fc3ff, which is a colour
    chosen to glow on a near-black ground; on white it is a pale line that a laser
@@ -1139,10 +1184,9 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 }
 .rep-cites { font-size: 9pt; color: #41464e; margin-top: 4pt; }
 
-.rep-foot {
-  margin-top: 22pt; padding-top: 7pt; border-top: 1px solid #d7dae0;
-  font: 400 8pt/1 var(--mono); color: #7b818a;
-}
+/* First block on a sheet should not carry the top margin a section normally gets -
+   the page's own padding is that space, and doubling it makes page two look indented. */
+.rep-page-body > div:first-child .rep-section { margin-top: 0; }
 
 /* ---- print --------------------------------------------------------------- */
 
@@ -1170,25 +1214,33 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
     background: #fff !important;
     height: auto !important; min-height: 0 !important; overflow: visible !important;
   }
-  .shell, .work, .work-col, .col, .rep-wrap, .report-sheet {
+  .shell, .work, .work-col, .col, .rep-wrap, .report-doc {
     display: block !important;
     padding: 0 !important; margin: 0 !important; max-width: none !important;
     height: auto !important; min-height: 0 !important; max-height: none !important;
     overflow: visible !important;
   }
 
-  .report-sheet {
-    max-width: none; margin: 0; padding: 0; box-shadow: none; border-radius: 0;
+  /* THE BREAKS ARE THE ONES ON SCREEN. The page margins move to @page, the sheet keeps
+     only its content, and one hard break is forced between sheets - so the printer
+     reproduces the pagination the reader just scrolled through instead of computing a
+     different one. Without this the browser would repaginate a stack of 297mm boxes
+     against its own page height and land a break in the middle of every sheet. */
+  .rep-page {
+    width: auto !important; min-height: 0 !important;
+    margin: 0 !important; padding: 0 !important;
+    box-shadow: none !important; border-radius: 0 !important;
+    display: block !important;
     /* Chrome drops backgrounds and borders from print by default, which would take
        every state chip's outline with it - and an ABSENT chip that prints as plain
        grey text is a gap that stopped looking like one. */
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
+  .rep-page + .rep-page { break-before: page; }
+  .rep-page-foot { margin-top: 12pt; }
 
-  /* Where a page is allowed to break. A position split across a page boundary reads as
-     two half-arguments, and a heading stranded at the foot of a page belongs to
-     nothing. */
+  /* Belt and braces inside a sheet: the paginator already keeps these whole, but if a
+     block ever does overrun its sheet these are the seams it should not tear on. */
   .rep-position, .rep-decision, .rep-stub, .rep-meta, tr { break-inside: avoid; }
   .rep-section > h2, .rep-section h3 { break-after: avoid; }
-  .rep-section { break-inside: auto; }
 }

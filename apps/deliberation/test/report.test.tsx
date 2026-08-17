@@ -189,8 +189,28 @@ describe("the printable record", () => {
     const bar = container.querySelector(".rep-bar");
     expect(bar).not.toBeNull();
     expect(bar?.className).toContain("no-print");
-    // And the sheet itself is not inside the bar, so hiding one never hides the other.
-    expect(container.querySelector(".rep-bar .report-sheet")).toBeNull();
+    // And the sheets are not inside the bar, so hiding one never hides the other.
+    expect(container.querySelector(".rep-bar .rep-page")).toBeNull();
+    expect(container.querySelector(".report-doc .rep-page")).not.toBeNull();
+  });
+
+  it("lays the document onto numbered sheets", () => {
+    // The preview was one continuous sheet that the browser cut up only at print time,
+    // which is a preview that cannot be trusted: the reader could not see what landed
+    // where, or even how many pages there were.
+    const { container } = render(<ReportPage report={report()} />);
+    const pages = container.querySelectorAll(".rep-page");
+    expect(pages.length).toBeGreaterThan(0);
+    expect(pages[0]).toHaveAttribute("aria-label", `Page 1 of ${pages.length}`);
+    expect(container.querySelector(".rep-page-foot")?.textContent).toContain(`1 of ${pages.length}`);
+  });
+
+  it("renders the document exactly once", () => {
+    // The measuring pass lays every block out to read its height; leaving it in the
+    // document would double every sentence for a screen reader and for find-on-page.
+    const { container } = render(<ReportPage report={report()} />);
+    expect(container.querySelector(".rep-measuring")).toBeNull();
+    expect(screen.getAllByText("The transporter signal is real and nothing measures the margin.")).toHaveLength(1);
   });
 
   it("names the tab after the compound, which is what the save dialog proposes", () => {

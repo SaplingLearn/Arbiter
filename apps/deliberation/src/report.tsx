@@ -1,33 +1,42 @@
-import { useEffect, type ReactElement, type ReactNode } from "react";
+import {
+  useEffect, useLayoutEffect, useMemo, useRef, useState,
+  type ReactElement, type ReactNode,
+} from "react";
 import { Wordmark } from "@arbiter/design";
 import type { CaseReport, Position, ReportPerson } from "./api.js";
 import { basisOf } from "./screens.js";
 import { href } from "./router.js";
 
 /**
- * THE RECORD, AS A PAGE YOU CAN PRINT.
+ * THE RECORD, AS PAGES YOU CAN PRINT.
  *
  * WHY A PAGE AND NOT A DOWNLOAD. This used to hand the reader a finished PDF, built by
  * a headless browser on the server. The document was fine and the shape was wrong: a
  * file that lands in a downloads folder has to be opened before anybody can check it,
- * and by then it has usually already been forwarded. What a person actually needs
- * first is to SEE the thing they are about to send - the whole point of a record that
- * carries the dissent is that somebody reads it. So the button opens this, the reader
- * looks, and the export is Chrome's own print dialog, which every reader already knows
- * and which has "Save as PDF" in it.
+ * and by then it has usually already been forwarded. What a person needs first is to
+ * SEE the thing they are about to send. So the button opens this, the reader looks, and
+ * the export is Chrome's own print dialog, which everybody already knows and which has
+ * "Save as PDF" in it.
  *
- * IT ALSO DELETED A DEPENDENCY. The old path needed a Chromium binary installed beside
- * the API and a second stylesheet that imitated the product without being able to use
- * any of it. This page is drawn with the app's own design system and the real wordmark
- * from `@arbiter/design` - so it cannot drift from the product the way a copy would.
+ * WHY IT IS PAGINATED HERE RATHER THAN LEFT TO THE PRINTER. The first version was one
+ * continuous sheet that scrolled, and the browser cut it into pages only at print time.
+ * That is a preview that cannot be trusted: the reader has no idea what lands where, a
+ * table can be sliced through its middle, and "is this two pages or nine?" is
+ * unanswerable until the dialog opens. So the document is measured and laid into real
+ * A4 sheets on screen, and the print rules break exactly where these pages break. What
+ * you scroll is what comes out, page for page.
+ *
+ * BREAKS GO BETWEEN BLOCKS, NEVER INSIDE ONE. Each position, table and paragraph is an
+ * indivisible unit, so a reviewer's argument is never split across a page boundary and
+ * a table never loses its header. That is why the document is built as a flat list of
+ * blocks rather than as nested markup: the list IS the set of legal break points.
  *
  * NOTHING HERE IS SUMMARISED, and there is no model on this path. Every position is
  * printed whole, in its author's words, at the same size as every other. A shorter
  * document would be one that chose which dissent to carry.
  *
  * ANY TEAM MEMBER, NOT THE CONVENER. The server resolves a GET to a read, so everyone
- * named on the case reaches this page and prints the same document. The people who
- * most need to send a record are the ones who cannot show anybody the screen.
+ * named on the case reaches this page and prints the same document.
  */
 
 const CALL_LABEL: Record<string, string> = {
@@ -148,198 +157,293 @@ function Decision({ report, nameOf }: { report: CaseReport; nameOf: (id: string)
   );
 }
 
-function Section({ n, title, children }: { n: number; title: string; children: ReactNode }): ReactElement {
-  return (
-    <section className="rep-section">
+/* ------------------------------------------------------------------ the blocks */
+
+/**
+ * One indivisible piece of the document.
+ *
+ * The page breaks fall between these and never inside one, so the granularity here is
+ * a set of editorial decisions rather than a rendering detail: a position is one block
+ * because splitting somebody's argument across a page turns one reviewer into two half
+ * ones, and a table is one block because a header row on the previous page is a table
+ * nobody can read.
+ */
+interface Block { key: string; node: ReactNode }
+
+const block = (key: string, node: ReactNode): Block => ({ key, node });
+
+/** A section opener. The heading and its first paragraph travel together, because a
+ *  heading alone at the foot of a page belongs to nothing. */
+function opener(n: number, title: string, intro?: ReactNode): Block {
+  return block(`s${n}`, (
+    <div className="rep-section">
       <h2>{n}. {title}</h2>
-      {children}
-    </section>
-  );
+      {intro}
+    </div>
+  ));
 }
 
-function Positions({ report, nameOf }: { report: CaseReport; nameOf: (id: string) => string }): ReactElement {
+function panelBlocks(report: CaseReport): Block[] {
+  const ownerOnPanel = report.panel.some((p) => p.id === report.owner.id);
+  return [
+    opener(1, "Who answered", (
+      <p>
+        The convener chooses who answers and signs at the end, and does not answer - so nobody
+        both sets the question and votes on it. Every position below was sealed before any of
+        them could see another.
+      </p>
+    )),
+    block("s1-table", (
+      <table className="rep-table">
+        <thead><tr><th>seat</th><th>on the panel</th><th>answered</th></tr></thead>
+        <tbody>
+          {report.panel.map((p) => (
+            <tr key={p.id}>
+              <td className="rep-n">{p.seat === null ? "-" : p.seat + 1}</td>
+              <td>
+                <Person p={p} />
+                {p.id === report.owner.id && <span className="rep-tiny rep-muted"> - convener</span>}
+              </td>
+              <td>
+                {report.positions.some((x) => x.participantId === p.id)
+                  ? <span className="rep-state present">sealed</span>
+                  : <span className="rep-state absent">no answer</span>}
+              </td>
+            </tr>
+          ))}
+          {!ownerOnPanel && (
+            <tr>
+              <td className="rep-n">-</td>
+              <td>
+                <Person p={report.owner} />
+                <span className="rep-tiny rep-muted"> - convener, does not answer</span>
+              </td>
+              <td><span className="rep-state not_applicable">n/a</span></td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    )),
+  ];
+}
+
+function positionBlocks(report: CaseReport, nameOf: (id: string) => string): Block[] {
   const byId = new Map(report.findings.map((f) => [f.id, f] as const));
   const seatOf = (id: string): number | null => report.panel.find((p) => p.id === id)?.seat ?? null;
   const absent = report.closedEarly?.nonResponders ?? [];
+  const out: Block[] = [
+    opener(2, "What each person said", (
+      <p>
+        In full, in their own words, at the same size. Nothing here is summarised and nothing is
+        ranked: the order is the order the record holds, which is deliberately not submission
+        order - first to answer reads as most confident and last as most considered, and neither
+        is information about the compound.
+      </p>
+    )),
+  ];
 
-  return (
-    <>
-      {absent.length > 0 && (
-        <div className="rep-concern">
-          <strong>
-            {absent.length === 1 ? "One person on the panel never answered" : `${absent.length} people on the panel never answered`}:
-          </strong>{" "}
-          {absent.map(nameOf).join(", ")}. The case was closed without them by{" "}
-          {nameOf(report.closedEarly?.by ?? "")} on {readableDate(report.closedEarly?.at ?? "")}.
-          Their silence is not agreement, and this document counts it as neither.
+  if (absent.length > 0) {
+    out.push(block("s2-absent", (
+      <div className="rep-concern">
+        <strong>
+          {absent.length === 1 ? "One person on the panel never answered" : `${absent.length} people on the panel never answered`}:
+        </strong>{" "}
+        {absent.map(nameOf).join(", ")}. The case was closed without them by{" "}
+        {nameOf(report.closedEarly?.by ?? "")} on {readableDate(report.closedEarly?.at ?? "")}.
+        Their silence is not agreement, and this document counts it as neither.
+      </div>
+    )));
+  }
+
+  for (const p of report.positions as Position[]) {
+    out.push(block(`pos-${p.participantId}`, (
+      <article className="rep-position">
+        <div className="rep-who">
+          <Seat seat={seatOf(p.participantId)} />
+          <span className="rep-name">{nameOf(p.participantId)}</span>
+          <span className="rep-call-chip">{CALL_LABEL[p.call] ?? p.call}</span>
+          <span className="rep-basis">{BASIS_NOTE[basisOf(p)] ?? basisOf(p)}</span>
         </div>
-      )}
+        <Prose text={p.reasoning} />
 
-      {report.positions.map((p: Position) => (
-        <article className="rep-position" key={p.participantId}>
-          <div className="rep-who">
-            <Seat seat={seatOf(p.participantId)} />
-            <span className="rep-name">{nameOf(p.participantId)}</span>
-            <span className="rep-call-chip">{CALL_LABEL[p.call] ?? p.call}</span>
-            <span className="rep-basis">{BASIS_NOTE[basisOf(p)] ?? basisOf(p)}</span>
+        {p.citedFindingIds.length > 0 && (
+          <div className="rep-cites">
+            <strong>Relying on:</strong>
+            <ul>
+              {p.citedFindingIds.map((id) => {
+                const f = byId.get(id);
+                return f === undefined
+                  // Cannot happen through the API - a position citing an unknown finding
+                  // is rejected at the door - so if it ever prints, the record and the
+                  // findings have diverged and the reader should see that rather than a
+                  // silently shortened list.
+                  ? <li key={id}><span className="rep-mono">{id}</span> - not among the findings printed below</li>
+                  : (
+                    <li key={id}>
+                      <strong>{f.label}</strong> <span className="rep-tiny">asserts {f.assertion}</span>
+                      <div className="rep-tiny">{f.detail}</div>
+                    </li>
+                  );
+              })}
+            </ul>
           </div>
-          <Prose text={p.reasoning} />
+        )}
 
-          {p.citedFindingIds.length > 0 && (
-            <div className="rep-cites">
-              <strong>Relying on:</strong>
-              <ul>
-                {p.citedFindingIds.map((id) => {
-                  const f = byId.get(id);
-                  return f === undefined
-                    // Cannot happen through the API - a position citing an unknown
-                    // finding is rejected at the door - so if it ever prints, the
-                    // record and the findings have diverged and the reader should see
-                    // that rather than a silently shortened list.
-                    ? <li key={id}><span className="rep-mono">{id}</span> - not among the findings printed below</li>
-                    : (
-                      <li key={id}>
-                        <strong>{f.label}</strong> <span className="rep-tiny">asserts {f.assertion}</span>
-                        <div className="rep-tiny">{f.detail}</div>
-                      </li>
-                    );
-                })}
-              </ul>
-            </div>
-          )}
+        {p.external.length > 0 && (
+          <div className="rep-cites">
+            <strong>From outside these documents:</strong>
+            <ul>
+              {p.external.map((e, i) => (
+                <li key={i}>
+                  &ldquo;{e.claim}&rdquo;{" "}
+                  <span className="rep-tiny">
+                    {e.source === undefined || e.source.trim() === ""
+                      ? "- no source given, so nothing in this case tests it"
+                      : `- ${e.source}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="rep-tiny rep-muted">Sealed {readableDate(p.submittedAt)}</div>
+      </article>
+    )));
+  }
 
-          {p.external.length > 0 && (
-            <div className="rep-cites">
-              <strong>From outside these documents:</strong>
-              <ul>
-                {p.external.map((e, i) => (
-                  <li key={i}>
-                    &ldquo;{e.claim}&rdquo;{" "}
-                    <span className="rep-tiny">
-                      {e.source === undefined || e.source.trim() === ""
-                        ? "- no source given, so nothing in this case tests it"
-                        : `- ${e.source}`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <div className="rep-tiny rep-muted">Sealed {readableDate(p.submittedAt)}</div>
-        </article>
-      ))}
-    </>
-  );
+  return out;
 }
 
 /** Agreement, and what it is not. §6.6: unanimity beside an unanswered question is a
  *  fact about the record and it is checkable arithmetic - no model produced a line of
  *  this section. */
-function Agreement({ report, nameOf }: { report: CaseReport; nameOf: (id: string) => string }): ReactElement {
+function agreementBlocks(report: CaseReport, nameOf: (id: string) => string): Block[] {
   const u = report.unanimity;
   const d = report.disagreement;
   const labelOf = (id: string): string => report.findings.find((f) => f.id === id)?.label ?? id;
+  const out: Block[] = [opener(3, "Where the panel agreed, and where it split")];
 
   if (u.unanimous) {
-    return (
-      <>
-        <p>
-          Every position on this case was <strong>{CALL_LABEL[u.call ?? ""] ?? String(u.call)}</strong>.
-          That is agreement, which is not the same as being right, and nothing below came from a model.
-        </p>
-        {u.concerns.length === 0
-          ? <p className="rep-ok">No unanswered questions, and every position rests on cited evidence.</p>
-          : u.concerns.map((c, i) => <div className="rep-concern" key={i}>{c}</div>)}
-      </>
-    );
+    out.push(block("s3-unanimous", (
+      <p>
+        Every position on this case was <strong>{CALL_LABEL[u.call ?? ""] ?? String(u.call)}</strong>.
+        That is agreement, which is not the same as being right, and nothing below came from a model.
+      </p>
+    )));
+    if (u.concerns.length === 0) {
+      out.push(block("s3-clean", <p className="rep-ok">No unanswered questions, and every position rests on cited evidence.</p>));
+    } else {
+      u.concerns.forEach((c, i) => out.push(block(`s3-concern-${i}`, <div className="rep-concern">{c}</div>)));
+    }
+    return out;
   }
 
-  if (d === null) return <p>Not enough positions to describe agreement or a split.</p>;
+  if (d === null) {
+    out.push(block("s3-thin", <p>Not enough positions to describe agreement or a split.</p>));
+    return out;
+  }
 
-  return (
-    <>
-      <p>
-        The panel split. Where it split, and on what evidence, is arithmetic over the positions -
-        deliberately not a judgment about who is right, because deciding which reading of a finding
-        is correct is the work the adjudication and the signer do.
-      </p>
-      <table className="rep-table">
-        <thead><tr><th>call</th><th>who</th><th className="rep-n">n</th></tr></thead>
-        <tbody>
-          {d.split.map((s) => (
-            <tr key={s.call}>
-              <td><strong>{CALL_LABEL[s.call] ?? s.call}</strong></td>
-              <td>{s.participantIds.map(nameOf).join(", ")}</td>
-              <td className="rep-n">{s.participantIds.length}</td>
-            </tr>
+  out.push(block("s3-intro", (
+    <p>
+      The panel split. Where it split, and on what evidence, is arithmetic over the positions -
+      deliberately not a judgment about who is right, because deciding which reading of a finding
+      is correct is the work the adjudication and the signer do.
+    </p>
+  )));
+  out.push(block("s3-split", (
+    <table className="rep-table">
+      <thead><tr><th>call</th><th>who</th><th className="rep-n">n</th></tr></thead>
+      <tbody>
+        {d.split.map((s) => (
+          <tr key={s.call}>
+            <td><strong>{CALL_LABEL[s.call] ?? s.call}</strong></td>
+            <td>{s.participantIds.map(nameOf).join(", ")}</td>
+            <td className="rep-n">{s.participantIds.length}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )));
+
+  if (d.contested.length > 0) {
+    out.push(block("s3-contested", (
+      <>
+        <h3>The same evidence, read two ways</h3>
+        <p className="rep-muted">
+          Cited by more than one camp. This is common ground being read differently, and it is
+          usually the conversation worth having.
+        </p>
+        <ul>{d.contested.map((id) => <li key={id}>{labelOf(id)}</li>)}</ul>
+      </>
+    )));
+  }
+
+  if (d.oneSided.length > 0) {
+    out.push(block("s3-onesided", (
+      <>
+        <h3>Cited by one side only</h3>
+        <p className="rep-muted">Evidence the other camp did not answer.</p>
+        <ul>
+          {d.oneSided.map((o) => (
+            <li key={o.findingId}>
+              {labelOf(o.findingId)}{" "}
+              <span className="rep-tiny">- cited only by those who said {CALL_LABEL[o.call] ?? o.call}</span>
+            </li>
           ))}
-        </tbody>
-      </table>
+        </ul>
+      </>
+    )));
+  }
 
-      {d.contested.length > 0 && (
-        <>
-          <h3>The same evidence, read two ways</h3>
-          <p className="rep-muted">
-            Cited by more than one camp. This is common ground being read differently, and it is
-            usually the conversation worth having.
-          </p>
-          <ul>{d.contested.map((id) => <li key={id}>{labelOf(id)}</li>)}</ul>
-        </>
-      )}
-
-      {d.oneSided.length > 0 && (
-        <>
-          <h3>Cited by one side only</h3>
-          <p className="rep-muted">Evidence the other camp did not answer.</p>
-          <ul>
-            {d.oneSided.map((o) => (
-              <li key={o.findingId}>
-                {labelOf(o.findingId)}{" "}
-                <span className="rep-tiny">- cited only by those who said {CALL_LABEL[o.call] ?? o.call}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </>
-  );
+  return out;
 }
 
-function Adjudication({ report }: { report: CaseReport }): ReactElement {
+function adjudicationBlocks(report: CaseReport): Block[] {
   const a = report.adjudication;
   const labelOf = (id: string): string => report.findings.find((f) => f.id === id)?.label ?? id;
-  const Cites = ({ ids }: { ids: string[] }): ReactElement => (
+  const cites = (ids: string[]): ReactElement => (
     <div className="rep-tiny rep-muted">
       {ids.length === 0 ? "Cites no finding." : `Cites: ${ids.map(labelOf).join("; ")}`}
     </div>
   );
 
-  return (
-    <>
+  const out: Block[] = [
+    opener(4, "The adjudication", (
       <p className="rep-muted">
         Produced by a model, after the reveal and never before, reading the positions above and the
         evidence below. It advises. It decided nothing: the decision is at the top of this document
         and it carries a person&rsquo;s name.
       </p>
-
-      <h3>Mechanism - is there a route to liver injury?</h3>
-      <p><strong>{a.mechanism.present ? "Present." : "Not established."}</strong> {a.mechanism.pathway}</p>
-      <Cites ids={a.mechanism.citedFindingIds} />
-
-      <h3>Consequence - is it severe enough to stop?</h3>
-      <p>
-        <strong className={verdictTone(a.consequence.verdict)}>
-          {CALL_LABEL[a.consequence.verdict] ?? a.consequence.verdict}
-        </strong>
-      </p>
-      <Prose text={a.consequence.reasoning} />
-      <Cites ids={a.consequence.citedFindingIds} />
-
-      <h3>Every rule, answered</h3>
-      <p className="rep-muted">
-        One line per registered rule, including the rules that did not apply. A rule nobody could
-        answer is reported as such rather than as a rule answered in the negative.
-      </p>
+    )),
+    block("s4-mechanism", (
+      <>
+        <h3>Mechanism - is there a route to liver injury?</h3>
+        <p><strong>{a.mechanism.present ? "Present." : "Not established."}</strong> {a.mechanism.pathway}</p>
+        {cites(a.mechanism.citedFindingIds)}
+      </>
+    )),
+    block("s4-consequence", (
+      <>
+        <h3>Consequence - is it severe enough to stop?</h3>
+        <p>
+          <strong className={verdictTone(a.consequence.verdict)}>
+            {CALL_LABEL[a.consequence.verdict] ?? a.consequence.verdict}
+          </strong>
+        </p>
+        <Prose text={a.consequence.reasoning} />
+        {cites(a.consequence.citedFindingIds)}
+      </>
+    )),
+    block("s4-rules-head", (
+      <>
+        <h3>Every rule, answered</h3>
+        <p className="rep-muted">
+          One line per registered rule, including the rules that did not apply. A rule nobody could
+          answer is reported as such rather than as a rule answered in the negative.
+        </p>
+      </>
+    )),
+    block("s4-rules", (
       <table className="rep-table">
         <thead><tr><th>rule</th><th>position</th><th>why</th></tr></thead>
         <tbody>
@@ -357,37 +461,43 @@ function Adjudication({ report }: { report: CaseReport }): ReactElement {
           ))}
         </tbody>
       </table>
+    )),
+  ];
 
-      {a.missing.length > 0 && (
-        <>
-          <h3>Still unanswered</h3>
-          <table className="rep-table">
-            <thead><tr><th>question</th><th>why it matters</th></tr></thead>
-            <tbody>
-              {a.missing.map((m, i) => <tr key={i}><td>{m.field}</td><td>{m.whyItMatters}</td></tr>)}
-            </tbody>
-          </table>
-        </>
-      )}
+  if (a.missing.length > 0) {
+    out.push(block("s4-missing", (
+      <>
+        <h3>Still unanswered</h3>
+        <table className="rep-table">
+          <thead><tr><th>question</th><th>why it matters</th></tr></thead>
+          <tbody>
+            {a.missing.map((m, i) => <tr key={i}><td>{m.field}</td><td>{m.whyItMatters}</td></tr>)}
+          </tbody>
+        </table>
+      </>
+    )));
+  }
 
-      {a.nextExperiment !== null && (
-        <>
-          <h3>What would settle it</h3>
-          <Prose text={a.nextExperiment} />
-        </>
-      )}
-    </>
-  );
+  if (a.nextExperiment !== null) {
+    out.push(block("s4-next", (
+      <>
+        <h3>What would settle it</h3>
+        <Prose text={a.nextExperiment} />
+      </>
+    )));
+  }
+
+  return out;
 }
 
-function Evidence({ report }: { report: CaseReport }): ReactElement {
+function evidenceBlocks(report: CaseReport): Block[] {
   const inv = report.inventory;
   const absent = inv.entries.filter((e) => e.state === "absent").length;
   const inconclusive = inv.entries.filter((e) => e.state === "inconclusive").length;
   const na = inv.entries.filter((e) => e.state === "not_applicable").length;
 
-  return (
-    <>
+  return [
+    opener(5, "The evidence this was decided on", (
       <p>
         Checklist v{inv.checklistVersion} against a {inv.modality.replace("_", " ")}. {absent} of{" "}
         {inv.entries.length} questions unanswered
@@ -396,7 +506,8 @@ function Evidence({ report }: { report: CaseReport }): ReactElement {
         Ordered by checklist id and by nothing else - ordering gaps by importance would rank them,
         and nothing in this system ranks a gap.
       </p>
-
+    )),
+    block("s5-inventory", (
       <table className="rep-table">
         <thead><tr><th>id</th><th>state</th><th>question</th><th>what it blocks</th></tr></thead>
         <tbody>
@@ -417,50 +528,55 @@ function Evidence({ report }: { report: CaseReport }): ReactElement {
           ))}
         </tbody>
       </table>
-
-      <h3>The findings the panel answered against</h3>
-      {report.findings.length === 0
-        ? <p className="rep-bad">This case holds no findings at all. Every position on it was reached against an empty inventory.</p>
-        : (
-          <table className="rep-table">
-            <thead><tr><th>asserts</th><th>what was measured</th><th>what it said</th><th>source</th></tr></thead>
-            <tbody>
-              {report.findings.map((f) => (
-                <tr key={f.id}>
-                  <td>
-                    <span className={`rep-state ${f.assertion === "toxic" ? "absent" : f.assertion === "safe" ? "present" : "inconclusive"}`}>
-                      {f.assertion}
-                    </span>
-                  </td>
-                  <td><strong>{f.label}</strong><div className="rep-mono rep-tiny rep-muted">{f.id}</div></td>
-                  <td>
-                    {f.detail}
-                    {f.sourceQuote !== undefined && <div className="rep-tiny">&ldquo;{f.sourceQuote}&rdquo;</div>}
-                  </td>
-                  <td className="rep-tiny">
-                    {f.sourceDocument === undefined && f.sourcePage === undefined
-                      ? <span className="rep-muted">not anchored</span>
-                      : <>{f.sourceDocument ?? "uploaded document"}{f.sourcePage !== undefined && <div>p. {f.sourcePage}</div>}</>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-    </>
-  );
+    )),
+    block("s5-findings", (
+      <>
+        <h3>The findings the panel answered against</h3>
+        {report.findings.length === 0
+          ? <p className="rep-bad">This case holds no findings at all. Every position on it was reached against an empty inventory.</p>
+          : (
+            <table className="rep-table">
+              <thead><tr><th>asserts</th><th>what was measured</th><th>what it said</th><th>source</th></tr></thead>
+              <tbody>
+                {report.findings.map((f) => (
+                  <tr key={f.id}>
+                    <td>
+                      <span className={`rep-state ${f.assertion === "toxic" ? "absent" : f.assertion === "safe" ? "present" : "inconclusive"}`}>
+                        {f.assertion}
+                      </span>
+                    </td>
+                    <td><strong>{f.label}</strong><div className="rep-mono rep-tiny rep-muted">{f.id}</div></td>
+                    <td>
+                      {f.detail}
+                      {f.sourceQuote !== undefined && <div className="rep-tiny">&ldquo;{f.sourceQuote}&rdquo;</div>}
+                    </td>
+                    <td className="rep-tiny">
+                      {f.sourceDocument === undefined && f.sourcePage === undefined
+                        ? <span className="rep-muted">not anchored</span>
+                        : <>{f.sourceDocument ?? "uploaded document"}{f.sourcePage !== undefined && <div>p. {f.sourcePage}</div>}</>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+      </>
+    )),
+  ];
 }
 
-function Record({ report }: { report: CaseReport }): ReactElement {
+function recordBlocks(report: CaseReport): Block[] {
   const a = report.audit;
   const clean = a.chainFailures === 0 && a.sealFailures === 0;
-  return (
-    <>
+  return [
+    opener(6, "The record", (
       <p className={clean ? "rep-ok" : "rep-bad"}>
         {clean
           ? "Chain intact, and every revealed position matches the commitment written while the case was blind."
           : `TAMPERING DETECTED: ${a.chainFailures} chain failure${a.chainFailures === 1 ? "" : "s"}, ${a.sealFailures} seal failure${a.sealFailures === 1 ? "" : "s"}. Do not rely on this document; go and read the log.`}
       </p>
+    )),
+    block("s6-proves", (
       <p>
         What that proves: no position was edited after it was sealed - the commitment hash is written
         to the log while the case is still open and before anything is revealed, so the plaintext
@@ -468,6 +584,8 @@ function Record({ report }: { report: CaseReport }): ReactElement {
         position early. No server-side scheme can, and claiming otherwise would be the more dangerous
         error.
       </p>
+    )),
+    block("s6-meta", (
       <div className="rep-meta">
         <div><span>case</span>{report.caseId}</div>
         <div><span>entries in the log</span>{a.entries}</div>
@@ -475,12 +593,165 @@ function Record({ report }: { report: CaseReport }): ReactElement {
         <div><span>chain failures</span>{a.chainFailures}</div>
         <div><span>seal failures</span>{a.sealFailures}</div>
       </div>
+    )),
+    block("s6-note", (
       <div className="rep-note">
         <strong>A printed copy carries no chain.</strong> Paper and PDF can both be edited by anybody
         holding them, and neither carries a signature over its own bytes. What makes this checkable is
         that it names the case and the head hash above: a reader who doubts the copy can open the
         record it was printed from and compare.
       </div>
+    )),
+  ];
+}
+
+function documentBlocks(report: CaseReport, nameOf: (id: string) => string): Block[] {
+  const answered = report.positions.length;
+  return [
+    block("masthead", (
+      <header className="rep-masthead">
+        <Wordmark className="rep-wordmark" />
+        <span className="rep-kind">Deliberation record</span>
+      </header>
+    )),
+    block("title", (
+      <>
+        <h1 className="rep-title">{report.compoundLabel}</h1>
+        {report.context.trim() !== "" && <p className="rep-context">{report.context}</p>}
+      </>
+    )),
+    ...(report.adjudicationSource === "stub" ? [block("stub", (
+      <div className="rep-stub">
+        <strong>STUB - NO MODEL WAS CALLED.</strong>
+        The adjudication in this document was produced by a placeholder, not by a model reading
+        this case. The wiring is real; the words are not a judgment about this compound and must
+        not be quoted as one. Everything the panel said is genuine; everything attributed to the
+        adjudication is not.
+      </div>
+    ))] : []),
+    block("decision", <Decision report={report} nameOf={nameOf} />),
+    block("meta", (
+      <div className="rep-meta">
+        <div><span>case</span>{report.caseId}</div>
+        <div><span>status</span>{report.status}</div>
+        <div><span>convened by</span>{report.owner.displayName}</div>
+        <div><span>panel</span>{report.panel.length} named, {answered} answered</div>
+        <div>
+          <span>adjudicated</span>
+          {report.adjudicatedAt === null ? "-" : readableDate(report.adjudicatedAt)}
+          {report.adjudicationSource === "stub" ? " (STUB - no model)" : " (model)"}
+        </div>
+        <div><span>generated</span>{readableDate(report.generatedAt)} by {report.generatedBy.displayName}</div>
+      </div>
+    )),
+    ...panelBlocks(report),
+    ...positionBlocks(report, nameOf),
+    ...agreementBlocks(report, nameOf),
+    ...adjudicationBlocks(report),
+    ...evidenceBlocks(report),
+    ...recordBlocks(report),
+  ];
+}
+
+/* --------------------------------------------------------------- the paginator */
+
+/**
+ * Lay the blocks onto sheets.
+ *
+ * HOW IT DECIDES WHERE A PAGE ENDS. Everything is rendered once into a hidden column
+ * the exact width of a page's text area, each block's height is read from the browser,
+ * and blocks are packed onto a sheet until the next one would not fit. No block is ever
+ * cut. The height of a page's text area is measured from a probe element sized in
+ * millimetres rather than computed from an assumed DPI - the browser knows what a
+ * millimetre is on this display and this file does not.
+ *
+ * WHY THE MEASUREMENT PASS IS THROWN AWAY. Once the pages exist the hidden column is
+ * removed, so the document appears in the DOM exactly once. Rendering both would double
+ * every sentence for a screen reader and for anything that searches the page.
+ *
+ * WHEN THE MEASUREMENT SAYS NOTHING - no layout engine, as in a test environment -
+ * every height reads zero, everything lands on one sheet, and the document is still
+ * complete and in order. Degrading to one long page is the correct failure: it is what
+ * this looked like before, and it loses nothing but the page breaks.
+ */
+function Paginate({ blocks, foot }: {
+  blocks: Block[];
+  foot: (page: number, of: number) => ReactNode;
+}): ReactElement {
+  const column = useRef<HTMLDivElement>(null);
+  const probe = useRef<HTMLDivElement>(null);
+  const probeFoot = useRef<HTMLElement>(null);
+  const [pages, setPages] = useState<Block[][] | null>(null);
+
+  useLayoutEffect(() => {
+    setPages(null);
+  }, [blocks]);
+
+  useLayoutEffect(() => {
+    if (pages !== null) return;
+    const host = column.current;
+    const gauge = probe.current;
+    if (host === null || gauge === null) return;
+
+    /* WHAT A BLOCK ACTUALLY HAS ROOM FOR. The gauge is one page's text area; the
+       running footer sits inside that area on every sheet, so it comes off the budget.
+       Leaving it in was worth an extra printed page per sheet: the content filled the
+       text area exactly, the footer went past the bottom, and the printer put it on a
+       page of its own - nine pages for five sheets. */
+    const footer = probeFoot.current?.getBoundingClientRect().height ?? 0;
+    // A few pixels of slack, because the print box is derived from @page and can round
+    // a hair differently from a gauge measured in the layout viewport. Overshooting a
+    // page costs a whole extra sheet; undershooting costs a few millimetres of white.
+    const usable = gauge.getBoundingClientRect().height - footer - 8;
+
+    const laid: Block[][] = [];
+    let current: Block[] = [];
+    let filled = 0;
+
+    [...host.children].forEach((child, i) => {
+      const el = child as HTMLElement;
+      const style = window.getComputedStyle(el);
+      const height = el.getBoundingClientRect().height
+        + (Number.parseFloat(style.marginTop) || 0)
+        + (Number.parseFloat(style.marginBottom) || 0);
+      // A block taller than a whole page cannot be made to fit, and slicing it is the
+      // one thing this is here to prevent - so it takes a sheet of its own and is
+      // allowed to run over it rather than being cut.
+      if (current.length > 0 && usable > 0 && filled + height > usable) {
+        laid.push(current);
+        current = [];
+        filled = 0;
+      }
+      current.push(blocks[i]!);
+      filled += height;
+    });
+    if (current.length > 0) laid.push(current);
+    setPages(laid.length === 0 ? [[]] : laid);
+  }, [pages, blocks]);
+
+  if (pages === null) {
+    return (
+      <div className="rep-measuring" aria-hidden="true">
+        <div ref={probe} className="rep-gauge" />
+        <div ref={column} className="rep-column">
+          {blocks.map((b) => <div className="rep-block" key={b.key}>{b.node}</div>)}
+        </div>
+        {/* Measured, not assumed: the footer is type, and type reflows. */}
+        <footer ref={probeFoot} className="rep-page-foot">{foot(1, 1)}</footer>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {pages.map((page, i) => (
+        <section className="rep-page" key={i} aria-label={`Page ${i + 1} of ${pages.length}`}>
+          <div className="rep-page-body">
+            {page.map((b) => <div className="rep-block" key={b.key}>{b.node}</div>)}
+          </div>
+          <footer className="rep-page-foot">{foot(i + 1, pages.length)}</footer>
+        </section>
+      ))}
     </>
   );
 }
@@ -488,15 +759,16 @@ function Record({ report }: { report: CaseReport }): ReactElement {
 /**
  * The preview, and the control that prints it.
  *
- * The print bar is `rep-bar` and is marked no-print, so what comes out of the dialog is
- * the sheet and nothing else - no app chrome, no button that says "print" printed onto
- * the page it printed.
+ * The print bar is `no-print`, so what comes out of the dialog is the sheets and
+ * nothing else - no app chrome, and no button reading "print" printed onto the page it
+ * printed.
  */
 export function ReportPage({ report }: { report: CaseReport }): ReactElement {
   const nameOf = (id: string): string =>
     report.panel.concat(report.owner).find((p) => p.id === id)?.displayName ?? id;
-  const answered = report.positions.length;
-  const ownerOnPanel = report.panel.some((p) => p.id === report.owner.id);
+
+  // Stable across renders, because it is what the paginator re-measures on.
+  const blocks = useMemo(() => documentBlocks(report, nameOf), [report]);
 
   /* THE TAB TITLE IS THE FILENAME. Chrome proposes `document.title` as the name in its
      save dialog, which is the only influence a page has over it - so the tab carries
@@ -514,9 +786,9 @@ export function ReportPage({ report }: { report: CaseReport }): ReactElement {
         <div>
           <h1>The record, ready to print</h1>
           <p className="muted">
-            This is the whole case as one document: the decision, every position in full, the
-            adjudication, the evidence it was decided on and the state of the chain. Print it, or
-            choose <strong>Save as PDF</strong> as the destination to keep a copy.
+            The whole case as one document: the decision, every position in full, the adjudication,
+            the evidence it was decided on and the state of the chain. What you see below is what
+            prints - page for page. Choose <strong>Save as PDF</strong> as the destination to keep a copy.
           </p>
         </div>
         <div className="btn-row">
@@ -527,107 +799,17 @@ export function ReportPage({ report }: { report: CaseReport }): ReactElement {
         </div>
       </div>
 
-      <article className="report-sheet">
-        <header className="rep-masthead">
-          <Wordmark className="rep-wordmark" />
-          <span className="rep-kind">Deliberation record</span>
-        </header>
-
-        <h1 className="rep-title">{report.compoundLabel}</h1>
-        {report.context.trim() !== "" && <p className="rep-context">{report.context}</p>}
-
-        {report.adjudicationSource === "stub" && (
-          <div className="rep-stub">
-            <strong>STUB - NO MODEL WAS CALLED.</strong>
-            The adjudication in this document was produced by a placeholder, not by a model reading
-            this case. The wiring is real; the words are not a judgment about this compound and must
-            not be quoted as one. Everything the panel said is genuine; everything attributed to the
-            adjudication is not.
-          </div>
-        )}
-
-        <Decision report={report} nameOf={nameOf} />
-
-        <div className="rep-meta">
-          <div><span>case</span>{report.caseId}</div>
-          <div><span>status</span>{report.status}</div>
-          <div><span>convened by</span>{report.owner.displayName}</div>
-          <div><span>panel</span>{report.panel.length} named, {answered} answered</div>
-          <div>
-            <span>adjudicated</span>
-            {report.adjudicatedAt === null ? "-" : readableDate(report.adjudicatedAt)}
-            {report.adjudicationSource === "stub" ? " (STUB - no model)" : " (model)"}
-          </div>
-          <div><span>generated</span>{readableDate(report.generatedAt)} by {report.generatedBy.displayName}</div>
-        </div>
-
-        <Section n={1} title="Who answered">
-          <p>
-            The convener chooses who answers and signs at the end, and does not answer - so nobody
-            both sets the question and votes on it. Every position below was sealed before any of
-            them could see another.
-          </p>
-          <table className="rep-table">
-            <thead><tr><th>seat</th><th>on the panel</th><th>answered</th></tr></thead>
-            <tbody>
-              {report.panel.map((p) => (
-                <tr key={p.id}>
-                  <td className="rep-n">{p.seat === null ? "-" : p.seat + 1}</td>
-                  <td>
-                    <Person p={p} />
-                    {p.id === report.owner.id && <span className="rep-tiny rep-muted"> - convener</span>}
-                  </td>
-                  <td>
-                    {report.positions.some((x) => x.participantId === p.id)
-                      ? <span className="rep-state present">sealed</span>
-                      : <span className="rep-state absent">no answer</span>}
-                  </td>
-                </tr>
-              ))}
-              {!ownerOnPanel && (
-                <tr>
-                  <td className="rep-n">-</td>
-                  <td>
-                    <Person p={report.owner} />
-                    <span className="rep-tiny rep-muted"> - convener, does not answer</span>
-                  </td>
-                  <td><span className="rep-state not_applicable">n/a</span></td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </Section>
-
-        <Section n={2} title="What each person said">
-          <p>
-            In full, in their own words, at the same size. Nothing here is summarised and nothing is
-            ranked: the order is the order the record holds, which is deliberately not submission
-            order - first to answer reads as most confident and last as most considered, and neither
-            is information about the compound.
-          </p>
-          <Positions report={report} nameOf={nameOf} />
-        </Section>
-
-        <Section n={3} title="Where the panel agreed, and where it split">
-          <Agreement report={report} nameOf={nameOf} />
-        </Section>
-
-        <Section n={4} title="The adjudication">
-          <Adjudication report={report} />
-        </Section>
-
-        <Section n={5} title="The evidence this was decided on">
-          <Evidence report={report} />
-        </Section>
-
-        <Section n={6} title="The record">
-          <Record report={report} />
-        </Section>
-
-        <footer className="rep-foot">
-          ARBITER · {report.compoundLabel} · {report.caseId}
-        </footer>
-      </article>
+      <div className="report-doc">
+        <Paginate
+          blocks={blocks}
+          foot={(page, of) => (
+            <>
+              <span>ARBITER · {report.compoundLabel} · {report.caseId}</span>
+              <span>{page} of {of}</span>
+            </>
+          )}
+        />
+      </div>
     </div>
   );
 }
