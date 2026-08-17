@@ -206,6 +206,20 @@ export function makeHandler(deps: ServerDeps) {
        * able to probe for.
        */
       if (parts[1] === "public" && parts[2] === "report" && method === "GET") {
+        // NEVER CACHED, on every exit from this branch - the 404s as well as the
+        // 200. A revoke only changes what THIS process answers; an intermediary that
+        // cached the live response keeps serving it regardless, which is exactly the
+        // disclosure revocation exists to stop (the `raw` document route further down
+        // in this file reasons about the same hazard with its own `private` header,
+        // but that route sits behind a session - this one has none, so nothing else
+        // tells a cache not to keep it). `no-store`, not just `private`: a `private`
+        // browser cache is still a cache, and a link handed to a stranger has no
+        // browser whose history the convener can ask to clear. `x-robots-tag: noindex`
+        // keeps a token that leaks into a referrer or a proxy log out of a search
+        // index, which is a slower version of the same disclosure.
+        res.setHeader("cache-control", "private, no-store");
+        res.setHeader("x-robots-tag", "noindex");
+
         const caseId = parts[3] === undefined ? "" : decodeURIComponent(parts[3]);
         const token = parts[4] ?? "";
         if (deps.shareSecret === null) return json(res, 404, { error: "not_found" });
@@ -894,10 +908,28 @@ function handleReport(
  * Built from the request's own Host so a link works from wherever the reader reached
  * the product - localhost in development, the deployed host in production - rather than
  * from a base URL somebody has to remember to configure per environment and will not.
+ *
+ * DEFAULTS TO https, NOT http, ONCE THE HOST IS NOT LOCAL. This URL is printed as a QR
+ * code onto a sheet that cannot be revised once it exists. A proxy that terminates TLS
+ * but forgets to set `x-forwarded-proto` used to fall through to `http`, minting a link
+ * that sends the token in clear text for the life of that page - failing toward the
+ * insecure scheme is the wrong direction for something unrevisable, so only a bare
+ * localhost/127.0.0.1 host, which by construction never crossed a TLS-terminating
+ * proxy, gets the `http` default.
+ *
+ * TAKES THE FIRST VALUE OF THE HEADER. Node joins repeated `x-forwarded-*` headers with
+ * ", ", and a legitimate chain - edge terminates TLS, forwards over plain HTTP inside
+ * the cluster - sends exactly "https, http". The LAST hop is the origin's own leg; the
+ * FIRST is the scheme the reader actually used, and that is the one a link handed back
+ * to that reader has to match. Reading the raw value without splitting on it used to
+ * produce the malformed `https, http://host/...`.
  */
 function shareUrl(req: IncomingMessage, caseId: string, token: string): string {
-  const proto = (req.headers["x-forwarded-proto"] as string | undefined) ?? "http";
   const host = req.headers.host ?? "localhost";
+  const forwarded = req.headers["x-forwarded-proto"];
+  const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim();
+  const isLocal = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
+  const proto = first !== undefined && first !== "" ? first : (isLocal ? "http" : "https");
   return `${proto}://${host}/r/${encodeURIComponent(caseId)}/${token}`;
 }
 

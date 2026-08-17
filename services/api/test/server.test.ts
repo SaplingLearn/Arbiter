@@ -419,8 +419,20 @@ describe("cases, with access control", () => {
     });
 
     it("refuses a participant, who may read it but not publish it", async () => {
+      // The body is checked, not just the status. handleShare's own denial() check
+      // would produce the same 403 on its own - the "error": "forbidden" key can only
+      // come from the router's action-ternary gate (server.ts), which is the outer of
+      // the two independent checks this route requires. Losing that key here would not
+      // catch the router arm being deleted; the status alone would still pass.
       const r = await call("POST", "/api/cases/c1/share", "bea", {});
       expect(r.status).toBe(403);
+      expect(r.body.error).toBe("forbidden");
+    });
+
+    it("refuses a participant trying to revoke, the same way it refuses publishing", async () => {
+      const r = await call("DELETE", "/api/cases/c1/share", "bea");
+      expect(r.status).toBe(403);
+      expect(r.body.error).toBe("forbidden");
     });
 
     it("publishes for the convener and hands back a URL carrying the token", async () => {
@@ -477,7 +489,12 @@ describe("cases, with access control", () => {
     });
 
     it("refuses a case nobody published", async () => {
-      const r = await fetchPublic("/api/public/report/c1/anything");
+      // c-report-open, not c1: c1 already has a live link by this point in the block,
+      // so a wrong token against it only re-exercises "refuses a token that does not
+      // match" above. c-report-open was opened earlier in this describe and never
+      // published, so this is the one test in the suite that reaches verifyToken's
+      // `link === null` branch rather than its "token does not match a live link" one.
+      const r = await fetchPublic("/api/public/report/c-report-open/anything");
       expect(r.status).toBe(404);
     });
   });
