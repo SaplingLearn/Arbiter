@@ -1,4 +1,4 @@
-# Handoff — the five open pull requests
+# Handoff — the open pull requests
 
 Written 2026-08-17, for whoever picks this up. Sibling to `HANDOFF-evaluation.md` and
 `HANDOFF-reading-and-atmosphere.md`, which were written the day before from the branch
@@ -6,7 +6,8 @@ that has since become `main`. Those two own the numbers and the reading surface;
 owns the open PRs and the branch topology underneath them.
 
 A previous session reconciled that topology and merged what was ready. #24 and #33 have
-since landed; **four remain** — #25, #27, #28, #30. Read all of this before touching
+since landed and #28 has been harvested; **three still need work** — #25, #27, #30 — with
+#28 open but empty of anything worth taking. Read all of this before touching
 anything.
 
 An earlier revision of this document said "five PRs" and listed five. There were six, and
@@ -17,11 +18,12 @@ An earlier revision of this document said "five PRs" and listed five. There were
 ## 1. Repo state as of 2026-08-17
 
 - Repo: `/home/andresl/Projects/Arbiter` (GitHub `SaplingLearn/Arbiter`), default branch `main`.
-- **`main` and `feat/product-in-the-atmosphere` are identical — 0/0 divergence**, tip
-  `0ad996e`. For months these had diverged, which is why most of the PRs below target the
-  atmosphere branch and none of them ever reached the product. That is fixed.
-  `feat/product-in-the-atmosphere` is now a duplicate ref and should be deleted once the
-  PRs retarget to `main`.
+- **`main` and `feat/product-in-the-atmosphere` were identical — 0/0 divergence — at
+  `0ad996e`, and are not any more.** For months these had diverged, which is why most of
+  the PRs below target the atmosphere branch and none of them ever reached the product.
+  That was fixed, and then #24, #33 and #28's harvest all landed on `main` alone, so the
+  gap has reopened: see §7 for the current count. The atmosphere branch should be deleted
+  once the remaining PRs retarget to `main` — leaving it alive is how this recurs.
 - The working tree was **clean** when this was written, so the primary worktree is safe to
   work in. That was not true the day before, and it may not be true when you read this.
   Check `git status` first. If it is dirty, do not `checkout`, `stash`, `reset`, `merge`
@@ -58,13 +60,13 @@ Before claiming any PR is good, run it and report actual numbers:
 npm run typecheck && npm run lint && npm test
 ```
 
-Baseline at `bf0e605` (current `main`): typecheck 0, lint 0, and **two** test numbers now,
+Baseline at `e8569a3` (current `main`): typecheck 0, lint 0, and **two** test numbers now,
 because #33 made the suite conditional on a database:
 
 | environment | result |
 |---|---|
 | no `DATABASE_URL` | 1048 passed / 76 skipped / 72 files |
-| Postgres + Storage | **1124 passed / 0 skipped / 72 files** |
+| Postgres + Storage | **1131 passed / 0 skipped / 72 files** |
 
 **A run without a database is not a verification of anything touching the stores.** 76
 tests skip, and a skipped suite and a passing suite are the same green. CI runs Postgres 17
@@ -81,12 +83,12 @@ npm test
 
 The suites provision themselves — each creates and drops its own `arbiter_test_*_<pid>`
 database and applies `supabase/migrations/0001_init.sql` — so this does not touch the
-development database. Earlier baselines in this document's history were 985/67 at `0ad996e`
-and 993/68 after #24; both are superseded.
+development database. Earlier baselines in this document's history were 985/67 at `0ad996e`,
+993/68 after #24, and 1124 after #33; all are superseded.
 
 ---
 
-## 4. The five open PRs
+## 4. The PRs, one by one
 
 Every finding below comes from a full per-PR review already performed. Trust them as a
 starting point, but re-verify anything you act on before you act on it.
@@ -188,31 +190,52 @@ new — `verdict-report.ts`, `report.tsx`, the print CSS, the 30 tests — lands
 
 Jack has been actively pushing to this branch. Tell him before he rebases into a surprise.
 
-### #28 — product chrome fixes (Darkest-Teddy) — DRAFT
+### #28 — product chrome fixes (Darkest-Teddy) — DRAFT, and now mostly harvested
+
+**Its two live fixes are on `main` as `e8569a3`.** The PR itself is still open and still a
+draft. What follows is what remains, and what to *not* do with it.
 
 The diffstat reads `+295/−40`, which hides **363 MB of PDFs** — binaries count as zero
 lines. Those blobs are on `main` anyway via the fast-forward, so this is no longer a reason
 to block; see §5.
 
-Two of its three named fixes are already on `main`. Only the **corner readout** is
-genuinely new and still needed: the corner reads its name off whichever menu entry is lit,
-and `record` is missing from the case-route list in `currentNav`, so a case's Record tab
-lights Dashboard. That is commit `51abbfe`, about 110 lines, touching `shell/nav.ts` and
-`shell/Chrome.tsx`.
+**What was taken, reimplemented rather than cherry-picked.** `51abbfe` and `ffb18f2` no
+longer apply — `nav.ts` and `screens.tsx` both moved a long way under that branch, and both
+cherry-picks conflict. Main had independently fixed more than half of each:
 
-**Conflict trap:** resolving `services/api/gemini.ts` toward the PR *deletes* `main`'s
-`responseSchemaFor` and re-breaks every AI surface. Resolving `services/api/server.ts`
-toward the PR reverts `main`'s `ServerDeps.complete` test-isolation seam. Keep both sides.
+- *The corner readout.* Main had already given `read` its own NAV entry and put `record`
+  into `currentNav`'s case-route list, so the menu highlight was correct. What was still
+  broken is the corner itself: it read its name off the lit menu entry, and the record has
+  no entry, so it borrowed the Library's. `currentNav` answered `Archive` for
+  `{ name: "record" }` while `sceneFor` mounted `record`, whose name is `Helix` — verified
+  by assertion before the fix, not inferred. Now `codenameFor(route)` →
+  `CODENAME[sceneFor(route)]`, and `codename` is off `NavItem` entirely.
+- *The call control's accessible name.* Main had already taken the `.choice` /
+  `button.ghost` half of `ffb18f2`. It had not taken the a11y half: `<label htmlFor="call">`
+  pointed at `<div id="call">`, and a label's `for` names a *labelable form control* — a div
+  is not one, so the attribute resolved to nothing and the most consequential control in
+  the product had no accessible name. `role="group"` with `aria-labelledby` now carries it.
 
-Its `.env.example` and `README.md` edits still say the developer host "cannot serve this
-codebase" — `main`'s `347c87f` fixed that. Those files **auto-merge with no conflict**, so
-the stale claim lands silently. Rewrite both passages.
+**The handoff's own advice on this one was wrong, and the reason is worth keeping.** An
+earlier revision said the `CODENAME` table hand-duplicates `codename` from
+`packages/atmosphere/src/scenes/registry.ts` and should "read `STATES` instead". Doing that
+is a bundle regression: `registry.ts` statically imports all seven scene factories and each
+imports `three` and `gsap`, `Backdrop.tsx` reaches the package through `await import()` for
+exactly that reason, and `Chrome.tsx` imports `nav.ts` eagerly — so a static
+`import { STATES }` puts the whole 3D stack in the chunk that draws the sign-in screen. The
+duplication is deliberate and is paid for in `test/nav.test.ts`, which imports the registry
+for real and fails if the two drift. A test can afford that import; the shell cannot.
 
-Its new `CODENAME` table in `nav.ts` hand-duplicates `codename` from
-`packages/atmosphere/src/scenes/registry.ts`. Read `STATES` instead.
+**Still true, and still the reason not to merge this branch:** resolving
+`services/api/gemini.ts` toward the PR *deletes* `main`'s `responseSchemaFor` and re-breaks
+every AI surface. Resolving `services/api/server.ts` toward the PR reverts `main`'s
+`ServerDeps.complete` test-isolation seam. Its `.env.example` and `README.md` edits still
+say the developer host "cannot serve this codebase", which `347c87f` fixed — and those
+files **auto-merge with no conflict**, so the stale claim would land silently.
 
-**Action:** cherry-pick `51abbfe` onto `main`, port the `role="group"` / `aria-labelledby`
-a11y delta plus its 4 tests, drop the rest.
+**Action:** nothing further is needed from this branch. Close it, or let its author
+rebase and find it empty of everything except the traps above — but per §5, that
+conversation has not been had.
 
 ### #25 — all ten benchmarks, and toxic drugs in the corpus (Darkest-Teddy)
 
@@ -281,13 +304,14 @@ and land cleanly on their own. The seeder needs a redesign, not a rebase.
 
 1. ~~**#24**~~ — done, `94ed8e4`.
 2. ~~**#33**~~ — done, `f4469a8`, joined in `bf0e605`.
-3. **#28** — cherry-pick the corner readout only.
+3. ~~**#28**~~ — harvested, `e8569a3`. The branch is still open and needs a decision, not
+   a merge.
 4. **#30** — author drops the duplicate adjudication transport, then merge.
 5. **#27** — split; land the env layering, redesign the seeder.
 6. **#25** — review from scratch. Never assessed; see its entry.
 7. Delete `feat/product-in-the-atmosphere`, and address the dependabot alerts.
 
-**`main` is now 15 commits ahead of `feat/product-in-the-atmosphere`, which is 0 ahead of
+**`main` is now 17 commits ahead of `feat/product-in-the-atmosphere`, which is 0 ahead of
 it.** That is the §1 divergence starting over, and three of the four remaining PRs (#30,
 #27, #25) still target the atmosphere branch. Retarget them to `main` before the gap grows
 into something that needs reconciling rather than rebasing. #28 already points at `main`.
