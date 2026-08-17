@@ -1038,9 +1038,13 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 .report-sheet ul { margin: 4pt 0 8pt; padding-left: 16pt; }
 .report-sheet li { margin-bottom: 3pt; }
 
+/* THE DEEP ACCENT, NOT THE BRIGHT ONE. `--accent` is #4fc3ff, which is a colour
+   chosen to glow on a near-black ground; on white it is a pale line that a laser
+   printer renders as almost nothing. The brand's other accent - the deep blue the
+   design tokens call `accent-deep` - is the one that survives ink. */
 .rep-masthead {
   display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 2px solid var(--accent); padding-bottom: 7pt; margin-bottom: 16pt;
+  border-bottom: 2px solid #1e6fff; padding-bottom: 7pt; margin-bottom: 16pt;
 }
 /* The real mark from @arbiter/design, inked for paper. It is `currentColor`, so it
    takes this and nothing else has to know about it. */
@@ -1097,10 +1101,16 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 }
 .rep-section h3 { font-size: 10.7pt; margin: 14pt 0 4pt; color: #16181d; }
 
-.rep-table { border-collapse: collapse; width: 100%; margin: 6pt 0 10pt; font-size: 9.2pt; }
+/* `min-width: 480px` comes off the product's own table rule, where it stops a data
+   table collapsing on a phone. On a sheet with fixed page width it forces a horizontal
+   overflow instead, so it is unset here rather than there. */
+.rep-table { border-collapse: collapse; width: 100%; min-width: 0; margin: 6pt 0 10pt; font-size: 9.2pt; }
 .rep-table th {
   text-align: left; border-bottom: 1.2px solid #16181d; padding: 4pt 5pt;
   font: 700 8pt/1.4 var(--sans); letter-spacing: .04em; text-transform: uppercase; color: #16181d;
+  /* The interface's header row sits on `--sunken`, a dark translucent fill. Printed,
+     that is a grey bar across the top of every table on the page. */
+  background: transparent;
 }
 .rep-table td { border-bottom: .6px solid #e3e6ea; padding: 4pt 5pt; vertical-align: top; }
 .rep-table .rep-n { text-align: right; font-family: var(--mono); white-space: nowrap; }
