@@ -418,6 +418,36 @@ describe("cases, with access control", () => {
       expect(after.body.url).toContain("/r/c1/");
     });
 
+    it("says sharing is enabled when the deployment has a secret configured", async () => {
+      const r = await call("GET", "/api/cases/c1/share", "owner");
+      expect(r.body.enabled).toBe(true);
+    });
+
+    it("says sharing is disabled when the deployment has no secret, so the page can withhold the control rather than let a press of it 501", async () => {
+      // A second handler over the same auth and service, with only `shareSecret`
+      // swapped to null - the "sharing is off" deployment shape, same pattern as the
+      // document-store swap above.
+      const handler = makeHandler({ ...deps, shareSecret: null });
+      const alt = createServer((req, res) => { void handler(req, res); });
+      await new Promise<void>((r) => alt.listen(0, "127.0.0.1", r));
+      try {
+        const res = await fetch(`http://127.0.0.1:${(alt.address() as AddressInfo).port}/api/cases/c1/share`, {
+          headers: { authorization: `Bearer ${tok["owner"]}` },
+        });
+        const body = await res.json() as { enabled: boolean; published: boolean; url: string | null };
+        expect(body.enabled).toBe(false);
+        expect(body.published).toBe(false);
+        expect(body.url).toBeNull();
+      } finally {
+        await new Promise<void>((r) => alt.close(() => r()));
+      }
+    });
+
+    it("refuses a participant reading the publish state - the only guard between them and the capability URL, since a GET has no ternary arm above it", async () => {
+      const r = await call("GET", "/api/cases/c1/share", "bea");
+      expect(r.status).toBe(403);
+    });
+
     it("refuses a participant, who may read it but not publish it", async () => {
       // The body is checked, not just the status. handleShare's own denial() check
       // would produce the same 403 on its own - the "error": "forbidden" key can only

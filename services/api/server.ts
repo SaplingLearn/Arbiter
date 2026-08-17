@@ -984,6 +984,12 @@ function handleShare(
     const link = deps.shares.get(kase.caseId);
     const live = link !== null && link.revokedAt === null && deps.shareSecret !== null;
     return json(res, 200, {
+      // Named so the page can tell "nobody has published yet" from "this deployment
+      // cannot publish at all" - without it, a convener on a deployment with no
+      // ARBITER_SHARE_SECRET sees the same "Publish this record" button as everyone
+      // else, presses it, and gets the 501 below routed through `App.tsx`'s generic
+      // error handling instead of the control simply not being offered.
+      enabled: deps.shareSecret !== null,
       published: live,
       url: live ? shareUrl(req, kase.caseId, deriveToken(deps.shareSecret!, kase.caseId, link!.version)) : null,
     });

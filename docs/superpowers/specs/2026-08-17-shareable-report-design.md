@@ -67,6 +67,7 @@ Convener only. Publishing to the world is a different act from reading, and the 
 
 | Route | Auth | Behaviour |
 |---|---|---|
+| `GET /api/cases/:id/share` | convener | `{enabled, published, url}`. `enabled` is the deployment's, not the case's - `false` when there is no secret, so the report page can withhold the control instead of drawing one that can only 501. The only gate on this route is the handler's own `denial()` check: a GET always resolves to the `"read"` action one level up, so there is no outer ternary arm protecting it the way there is for POST and DELETE. |
 | `POST /api/cases/:id/share` | convener | Mints, or returns the current link. 501 if no secret. |
 | `DELETE /api/cases/:id/share` | convener | Bumps `version`. Printed QR codes die. |
 | `GET /api/public/report/:caseId/:token` | **none** | The report, emails stripped. |
@@ -103,7 +104,9 @@ This is the whole security argument, and it is structural rather than conditiona
 
 The public page renders the same sheets with the same pager, without the share controls or the "Back to the verdict" link.
 
-Served at `/r/:caseId/:token`. In development Vite serves both entries; in a container the static handler resolves `/r/*` to `public.html`.
+Served at `/r/:caseId/:token`. In development, `apps/deliberation/vite.config.ts`'s own dev-server middleware answers `/r/*` with `public.html` - that is what `npm run deliberate:dev` and a manual walk-through of this feature use.
+
+**Production static serving of `/r/*` does not exist on this branch, deliberately deferred.** A branch that answered `GET /` with `apps/deliberation/dist/index.html` was written for this task and removed before it shipped (see `services/api/server.ts:74-91` and the README): `index.html` signs its visitor in as `AUTO_EMAIL` on load, so serving it to anyone who merely reached the origin - not someone who signed in, not someone holding a share link - would be anonymous access to every case on the deployment. That is a materially bigger decision than "add a static file server," and it does not belong inside a task about one public route. PR #33 (`worktree-supabase-deploy`) already carries a full static-serving implementation, built against a different `ServerDeps` shape (Postgres-backed stores rather than this branch's file-backed ones); whoever brings that branch's version in must answer the auto-sign-in question above first, as its own decision, before wiring `ARBITER_STATIC_DIR` up to anything that can reach `/`. One more constraint that inherits along with it: `vite.config.ts`'s `renderBuiltUrl` rewrites `public.html`'s own asset references to root-absolute paths (`/${filename}`) specifically because `/r/:caseId/:token` is two real path segments deep, which means the public page requires a root mount and cannot work staged under the `/app/` subpath `tools/stage-site.mjs` produces for `index.html`.
 
 ---
 
@@ -115,11 +118,18 @@ Same DOM, same block list, same paginator. Pagination cannot diverge from the pr
 
 ### The invariant
 
-**The print stylesheet may change colour and nothing else.**
+**The print stylesheet may change colour on the document's own elements, and nothing that reaches the paginator's measurements.**
 
-No `font-size`, `line-height`, `padding`, `margin`, `width`, `border-width` or `letter-spacing` may differ between screen and print inside `.rep-*`. Those feed the measurement pass in `Paginate`, and changing one is exactly how a preview starts lying about where pages break — the failure PR #30 built the paginator to prevent.
+No `font-size`, `line-height`, `padding`, `margin`, `width`, `border-width` or `letter-spacing` may differ between screen and print on a `.rep-*` selector, or on `.report-doc` itself (its typography inherits down into every `.rep-*` child, so a change there is a change to all of them). Those feed the measurement pass in `Paginate`, and changing one is exactly how a preview starts lying about where pages break — the failure PR #30 built the paginator to prevent.
 
-This is enforced, not merely documented: a test parses `app.css`, extracts the `@media print` block, and fails if any rule targeting a `.rep-*` selector sets a property outside the colour allowlist (`color`, `background`, `background-color`, `border-color`, `box-shadow`, `fill`).
+This is enforced, not merely documented, by `apps/deliberation/test/print-invariant.test.ts`: it strips comments from `app.css` file-wide (the block boundary is found by `indexOf`, and a raw comment-first search would match `@media print` inside prose before it ever reaches the real at-rule - this is not hypothetical, see the C1 finding in the fix-round-1 review that this line commemorates), extracts the `@media print` block, and fails if any rule touching `.rep-*` or `.report-doc` sets a property outside four allowlists:
+
+- **Colour**, unconditionally: `color`, `background`, `background-color`, `background-image`, `border-color`, `box-shadow`, `fill`, `stroke`, `opacity`, `filter`, `-webkit-print-color-adjust`, `print-color-adjust`.
+- **Structural**, only on selectors that remove or seam rather than resize (`.no-print`, `.rep-page`, `.rep-page-foot`, `.rep-section`, `.rep-position`, `.rep-decision`, `.rep-stub`, `.rep-meta`, `tr`): `display`, `break-before`, `break-after`, `break-inside`, and `.rep-page-foot`'s `margin-top` specifically, replacing a flex `auto` margin the print layout mode has already discarded.
+- **The page box**, only on the bare `.rep-page` rule, mirroring `@page`'s own inset rather than resizing the sheet: `width`, `min-height`, `margin`, `padding`, `border`.
+- **The wrapper reset**, only on the one rule whose entire comma-separated selector list is exactly `.shell, .work, .work-col, .col, .rep-wrap, .report-doc` - none of which the paginator measures directly - resetting viewport height and clipped overflow so a multi-sheet record does not silently print one screen's worth and stop. This is an EXACT match on that selector set, not a substring test: a compound selector built on top of `.report-doc` (`.report-doc .rep-section`, say) does not qualify, because it is reaching past the wrapper into a measured child. `.report-doc`'s own `--rep-*` custom properties (the token swap that re-lights the sheet for paper) are separately allowlisted by name, since a custom property consumed as a colour cannot itself be a metric.
+
+The scope of what the test actually inspected used to be nothing: `expect(rules.length).toBeGreaterThan(5)` now pins that it examines a real, non-empty set of rules, so an extraction bug that finds the wrong `@media print` again fails loudly instead of passing on an empty loop.
 
 The doc comment at the top of `report.tsx` currently argues the sheet is light on purpose. It becomes wrong and is rewritten: light is what paper is, dark is what the product is, and they are the same document.
 
@@ -162,6 +172,8 @@ The QR block is a `Block` like every other, so the paginator treats it as indivi
 **New:** `services/api/share.ts`, `services/api/test/share.test.ts`, `apps/deliberation/public.html`, `apps/deliberation/src/public.tsx`, `apps/deliberation/src/qr.tsx`, `apps/deliberation/src/basis.ts`.
 
 **Changed:** `services/api/access.ts`, `services/api/server.ts`, `services/api/verdict-report.ts`, `apps/deliberation/src/report.tsx`, `apps/deliberation/src/screens.tsx`, `apps/deliberation/src/api.ts`, `apps/deliberation/src/app.css`, `apps/deliberation/vite.config.ts`, `.env.example`.
+
+**No container static-serving file, on this branch, at all.** A version of one was written for this task and removed before merge - see "The public surface" above for why, and `services/api/server.ts:74-91` for where it would go. It is PR #33's file to add, not this one's.
 
 No Postgres files and no migration: see Storage above — that layer is not on this branch.
 

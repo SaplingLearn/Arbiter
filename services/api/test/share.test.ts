@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { deriveToken, shareSecret, verifyToken, ShareStore, type ShareLink } from "../share.js";
 
@@ -110,5 +113,28 @@ describe("the share store", () => {
 
   it("revoking a case nobody published is not an error", () => {
     expect(new ShareStore().revoke("c1", "2026-08-17T11:00:00.000Z")).toBeNull();
+  });
+
+  // Every construction elsewhere in this file passes no path, so `mkdirSync`,
+  // `readFileSync`, `writeFileSync` and the on-disk `{links: [...]}` shape were never
+  // exercised - a break in any of them would drop every published link on the next
+  // redeploy, silently, and a printed QR outlives the process that minted it. Same
+  // shape as `AuthStore`'s and `InviteStore`'s own restart tests (auth.test.ts,
+  // invites.test.ts): write through a real path, read the file back directly to pin
+  // its shape, then construct a second store from the same path and confirm the link
+  // - and the token it derives - survived the process boundary.
+  it("survives a restart, so a printed QR still resolves after a redeploy", () => {
+    const path = join(mkdtempSync(join(tmpdir(), "arb-share-")), "shares.json");
+    const first = new ShareStore(path);
+    first.publish("c1", "u-own", "2026-08-17T10:00:00.000Z");
+
+    const onDisk = JSON.parse(readFileSync(path, "utf8")) as { links: ShareLink[] };
+    expect(onDisk.links).toHaveLength(1);
+    expect(onDisk.links[0]?.caseId).toBe("c1");
+
+    const second = new ShareStore(path);
+    const link = second.get("c1");
+    expect(link).not.toBeNull();
+    expect(verifyToken(SECRET, link, deriveToken(SECRET, "c1", 1))).toBe(true);
   });
 });

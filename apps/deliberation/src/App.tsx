@@ -99,8 +99,10 @@ export function App(): ReactElement {
   const [reportError, setReportError] = useState<string | null>(null);
   /** Whether the convener has published this case, and to what link - owner-only, so
    *  this stays null for anybody else. See the effect below for why it is fetched only
-   *  for the owner rather than for anyone who reaches the report route. */
-  const [share, setShare] = useState<{ published: boolean; url: string | null } | null>(null);
+   *  for the owner rather than for anyone who reaches the report route.
+   *  `enabled` is the deployment's, not this case's - see where `share` is passed to
+   *  `ReportPage` below for what happens when it is false. */
+  const [share, setShare] = useState<{ enabled: boolean; published: boolean; url: string | null } | null>(null);
 
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
@@ -620,17 +622,26 @@ export function App(): ReactElement {
                  this record" button that immediately swaps for the real state a
                  beat later - the same instant the page as a whole is still
                  rendering "Assembling the record…". No prop at all until the
-                 fetch has actually landed is the honest version of "loading". */
-              {...(isOwner && share !== null ? {
+                 fetch has actually landed is the honest version of "loading".
+
+                 `share.enabled` on top of that: false means this deployment has no
+                 ARBITER_SHARE_SECRET, so `POST /share` always 501s. Passing the prop
+                 anyway would draw "Publish this record", let it be pressed, and route
+                 the 501 through `act`'s catch-all into `setFatal` - swapping the whole
+                 report for "Something is not right" over a control that was never
+                 going to work. Omitting the prop is what the spec means by "the report
+                 page does not offer the control": the page still renders, just without
+                 a button that can only fail. */
+              {...(isOwner && share !== null && share.enabled ? {
                 share: {
                   url: share.url,
                   onPublish: () => act(async () => {
                     const r = await api.publish(token, caseId);
-                    setShare({ published: true, url: r.url });
+                    setShare({ enabled: true, published: true, url: r.url });
                   }),
                   onRevoke: () => act(async () => {
                     await api.revoke(token, caseId);
-                    setShare({ published: false, url: null });
+                    setShare({ enabled: true, published: false, url: null });
                   }),
                 },
               } : {})} />

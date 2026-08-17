@@ -27,17 +27,31 @@ const COLOUR_ONLY = new Set([
 const STRUCTURAL = new Set(["display", "break-before", "break-after", "break-inside", "margin-top"]);
 const STRUCTURAL_SELECTORS = /\.no-print|\.rep-page|\.rep-page-foot|\.rep-section|\.rep-position|\.rep-decision|\.rep-stub|\.rep-meta|tr/;
 
-/** THE VIEWPORT AROUND THE SHEET, NOT THE SHEET ITSELF.
+/** THE VIEWPORT AROUND THE SHEET, NOT THE SHEET ITSELF - AND ONLY WHEN IT IS THE ONE
+ *  RULE THAT SAYS SO.
  *
  *  `.rep-wrap` and `.report-doc` hold the pager and the stack of sheets, but the
  *  paginator never measures either of them - `Paginate` reads `.rep-gauge` and the
  *  children of `.rep-column` in a hidden, absolutely positioned pass that answers to
- *  neither ancestor's box. So nothing on this selector can move where a page breaks;
- *  every property on it is fair game. The rule exists to strip the screen's viewport
- *  height and clipped overflow, which `html, body { overflow: visible }` above this
- *  rule does not reach on its own - without it a seven-sheet record would print
- *  whatever fit one screen's worth of paper and silently drop the rest. */
-const CHROME_SELECTORS = /\.rep-wrap\b|\.report-doc\b/;
+ *  neither ancestor's box. So the geometry reset below (display/padding/margin/
+ *  max-width/height/min-height/max-height/overflow, all on the wrapper chain together)
+ *  cannot move where a page break falls.
+ *
+ *  That is NOT the same claim as "every property on every selector that mentions
+ *  `.report-doc` is safe" - the previous version of this exemption tested the raw
+ *  selector text for the SUBSTRING `.report-doc`, so a descendant selector like
+ *  `.report-doc .rep-section { font-size: 6pt }` rode the exemption meant for the
+ *  wrapper's own box, despite directly targeting a measured child. Typography
+ *  inherits down through `.report-doc` into every `.rep-*` element under it; box
+ *  geometry on `.report-doc` itself does not propagate the same way.
+ *
+ *  So this is a SET of exact selectors, checked only against a rule whose ENTIRE
+ *  comma-separated selector list is drawn from it (`length > 1` on top of that: this
+ *  is the six-way wrapper-reset rule specifically, not a licence for `.report-doc` or
+ *  `.rep-wrap` to appear alone with an arbitrary property - a bare
+ *  `.report-doc { font-size: 8pt }` is exactly the shape this must NOT wave through,
+ *  and does not, because a single-selector rule never satisfies `length > 1`). */
+const CHROME_SELECTORS = new Set([".shell", ".work", ".work-col", ".col", ".rep-wrap", ".report-doc"]);
 
 /** THE ONE SHEET'S OWN BOX, RESET TO MIRROR `@page`, NOT TO RESIZE IT.
  *
@@ -54,8 +68,39 @@ const CHROME_SELECTORS = /\.rep-wrap\b|\.report-doc\b/;
  *  `probeFoot`, and not `.rep-page--off`, which only ever sets `display`. */
 const PAGE_BOX_RESET = new Set(["width", "min-height", "margin", "padding", "border"]);
 
+/** `.report-doc`'s only other legitimate print rule: swapping its `--rep-*` design
+ *  tokens back to their printed literals (see `.report-doc { --rep-paper: #fff; ... }`
+ *  below). These are pure colour carriers by construction - nothing but a custom
+ *  property consumed as a colour lives under this prefix - so they are allowlisted by
+ *  name rather than added to `COLOUR_ONLY`, which only holds literal, known-safe CSS
+ *  property names and would otherwise have to special-case every token this file ever
+ *  grows. Scoped to the bare `.report-doc` selector, same reasoning as `isPageBox`
+ *  below: a compound selector built on top of `.report-doc` is not this rule. */
+const REPORT_DOC_TOKEN_PREFIX = "--rep-";
+
 describe("the print stylesheet", () => {
-  const css = readFileSync("apps/deliberation/src/app.css", "utf8");
+  /*
+   * COMMENTS STRIPPED FILE-WIDE, BEFORE LOCATING THE BLOCK - not on the slice found
+   * below, and not by anchoring on a longer literal instead.
+   *
+   * `app.css` contains the text "@media print" twice: once as the real at-rule, and
+   * once inside a comment on `.rep-qr-block` explaining that the block needs no rule of
+   * its own there. `indexOf("@media print")` against the raw file finds the COMMENT
+   * first, because it comes earlier in the file, and then walks brace-balance from
+   * inside prose that has no braces of its own to balance against - which is how this
+   * test spent several tasks examining a fragment of a comment plus one unrelated rule,
+   * finding a single match, discarding it via `.slice(1)`, and passing on zero rules
+   * checked.
+   *
+   * Anchoring on the longer literal "@media print {" would fix today's collision but
+   * not the next one: a future comment that happens to end in "print {" - describing
+   * some OTHER `@media print {` block, say - would reproduce exactly this bug one
+   * character different. Stripping comments from the whole file before any indexOf
+   * removes the entire category, not one instance of it: there is no text left for a
+   * literal inside a comment to collide with.
+   */
+  const cssRaw = readFileSync("apps/deliberation/src/app.css", "utf8");
+  const css = cssRaw.replace(/\/\*[\s\S]*?\*\//g, "");
 
   const printBlock = (): string => {
     const start = css.indexOf("@media print");
@@ -69,12 +114,20 @@ describe("the print stylesheet", () => {
   };
 
   it("changes no metric on the document's own elements", () => {
-    // Comments stripped before parsing: a rule body split naively on ";" glues any
-    // comment sitting between two declarations onto the property name that follows it
-    // (`/* ... */\n    -webkit-print-color-adjust` as one string), which never matches
-    // an allowlisted name and would fail the test over a comment, not a rule.
-    const block = printBlock().replace(/\/\*[\s\S]*?\*\//g, "");
-    const rules = [...block.matchAll(/([^{}]+)\{([^{}]*)\}/g)].slice(1);
+    const block = printBlock();
+    // `@page` is excluded BY NAME, not by position. The regex below always yields the
+    // at-rule as its first match (see the note further down), and the previous
+    // `.slice(1)` dropped "whichever rule comes first" rather than "@page" specifically
+    // - harmless while @page truly is first, silent the day a `.rep-*` rule gets
+    // inserted above it in the file and is dropped in its place instead.
+    const rules = [...block.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter(([, rawSelector]) => (rawSelector ?? "").trim() !== "@page");
+
+    // A test that silently examines zero rules passes for the wrong reason, and that is
+    // precisely the bug the anchor fix above closes. This is the assertion that would
+    // have caught it: the real block carries eleven checkable rules once @page is
+    // excluded, comfortably clear of an empty scope.
+    expect(rules.length, "expected to find rules inside the print block, found none").toBeGreaterThan(5);
 
     const offenders: string[] = [];
     for (const [, rawSelector, rawBody] of rules) {
@@ -82,15 +135,21 @@ describe("the print stylesheet", () => {
       // participate in a match; the fallback only satisfies a type that can't express
       // that, the way TS types every element of a regex match array as possibly absent.
       const selector = (rawSelector ?? "").trim();
-      if (!selector.includes(".rep-")) continue;
-      if (CHROME_SELECTORS.test(selector)) continue;
+      if (!selector.includes(".rep-") && !selector.includes(".report-doc")) continue;
+
+      const chromeParts = selector.split(",").map((part) => part.trim());
+      const isChromeRule = chromeParts.length > 1 && chromeParts.every((part) => CHROME_SELECTORS.has(part));
+      if (isChromeRule) continue;
+
       const isPageBox = selector === ".rep-page";
+      const isReportDoc = selector === ".report-doc";
       for (const decl of (rawBody ?? "").split(";")) {
         const prop = decl.split(":")[0]?.trim();
         if (prop === undefined || prop === "") continue;
         if (COLOUR_ONLY.has(prop)) continue;
         if (STRUCTURAL.has(prop) && STRUCTURAL_SELECTORS.test(selector)) continue;
         if (isPageBox && PAGE_BOX_RESET.has(prop)) continue;
+        if (isReportDoc && prop.startsWith(REPORT_DOC_TOKEN_PREFIX)) continue;
         offenders.push(`${selector} { ${prop} }`);
       }
     }

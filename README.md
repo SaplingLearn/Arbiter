@@ -308,6 +308,14 @@ implementation built against a different `ServerDeps` shape and must answer the
 auto-sign-in question above before wiring `/r/*` up to anything reachable at `/`. See
 the comment at the top of `services/api/server.ts`.
 
+**One more thing worth knowing before demoing this under `npm run deliberate:dev`:**
+that dev server's own `/` is the deliberation app's shell, which signs its visitor in
+automatically on load - so a dev share link is one URL edit away from a session, not
+just a read-only page. That is a property of the dev server, not of the feature (the
+production gap above means the same URL is safely inert everywhere else this branch
+can currently be run), but it is exactly what an operator reads before pointing a
+browser at a share link to show it off.
+
 ### Verify everything
 
 ```bash

@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { report } from "./fixtures/report.js";
 
 /**
  * THE SHELL'S ROUTE GATES.
@@ -37,9 +38,11 @@ vi.mock("../src/api.js", async () => {
       inventory: vi.fn(async () => ({ checklistVersion: "1.0", modality: "small_molecule", entries: [], unmappedFindingIds: [] })),
       adjudicationRequest: vi.fn(async () => ({ findings: [], absent: [] })),
       documents: vi.fn(async () => []),
-      roster: vi.fn(async () => ({ participants: [], seats: {} })),
+      roster: vi.fn(async () => ({ ownerId: "", members: [], pending: [], seats: {} })),
       unanimity: vi.fn(async () => ({ unanimous: true, call: "advance", concerns: [] })),
       audit: vi.fn(async () => ({ chain: [], seals: [], entries: [] })),
+      report: vi.fn(async () => report()),
+      shareState: vi.fn(async () => ({ enabled: true, published: false, url: null })),
     },
   };
 });
@@ -162,5 +165,46 @@ describe("the verdict of a case adjudicated in another session", () => {
     render(<App />);
     await screen.findByText(/No exposure margin was established/);
     expect(screen.queryByRole("button", { name: /Adjudicate across the positions/ })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * I3: THE CONTROL DOES NOT OFFER WHAT THE DEPLOYMENT CANNOT DO.
+ *
+ * `GET /share` used to answer `{published, url}` with no way to say "this deployment
+ * has no ARBITER_SHARE_SECRET". The report page drew "Publish this record" regardless,
+ * a press of it hit the server's 501, and `act`'s catch-all routed that into `setFatal`
+ * - replacing the whole report with "Something is not right" over a button that was
+ * never going to work. `enabled` on the response is what the page now reads to
+ * withhold the control instead.
+ */
+describe("the share control's own capability flag", () => {
+  it("does not draw a publish control when the deployment has sharing disabled", async () => {
+    const { api } = await import("../src/api.js");
+    vi.mocked(api.roster).mockResolvedValueOnce({ ownerId: "u1", members: [], pending: [], seats: {} });
+    vi.mocked(api.shareState).mockResolvedValueOnce({ enabled: false, published: false, url: null });
+
+    window.location.hash = "#/case/c1/report";
+    render(<App />);
+
+    // getAllByText, not getByText: the compound label is printed more than once on the
+    // sheet (once on the sheet itself, once in each page's footer) - see report.tsx and
+    // report.test.tsx for the same reason.
+    await waitFor(() => expect(screen.getAllByText(new RegExp(report().compoundLabel)).length).toBeGreaterThan(0));
+    expect(screen.queryByRole("button", { name: /Publish this record/ })).not.toBeInTheDocument();
+    // And the failure mode this closes: no fatal panel, because the control was never
+    // drawn for anyone to press into a 501.
+    expect(screen.queryByText(/Something is not right/)).not.toBeInTheDocument();
+  });
+
+  it("draws the control when the deployment has sharing enabled, for the owner", async () => {
+    const { api } = await import("../src/api.js");
+    vi.mocked(api.roster).mockResolvedValueOnce({ ownerId: "u1", members: [], pending: [], seats: {} });
+    vi.mocked(api.shareState).mockResolvedValueOnce({ enabled: true, published: false, url: null });
+
+    window.location.hash = "#/case/c1/report";
+    render(<App />);
+
+    expect(await screen.findByRole("button", { name: /Publish this record/ })).toBeInTheDocument();
   });
 });

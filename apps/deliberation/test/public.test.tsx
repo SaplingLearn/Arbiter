@@ -55,7 +55,7 @@ describe("the public report", () => {
       ok: false, status: 404, text: async () => JSON.stringify({ error: "not_found" }),
     });
     render(<PublicReport caseId="c1" token="bad" />);
-    await waitFor(() => expect(screen.getByText(/no longer available|not valid/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/not valid/i)).toBeInTheDocument());
     expect(document.body.textContent).not.toMatch(/revoked|exists/i);
   });
 });

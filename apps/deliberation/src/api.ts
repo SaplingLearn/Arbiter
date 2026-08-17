@@ -451,9 +451,13 @@ export const api = {
 
   /** Whether the convener has published this case to a tokenised link, and the link
    *  itself if so. Owner-only on the server, so the client fetches it only for the
-   *  owner too - see the effect that calls this in App.tsx. */
+   *  owner too - see the effect that calls this in App.tsx.
+   *
+   *  `enabled` is the deployment's capability, not this case's state - false means
+   *  `ARBITER_SHARE_SECRET` is unset and publishing is off everywhere, which App.tsx
+   *  reads to withhold the control entirely rather than let a press of it 501. */
   shareState: (token: string, caseId: string) =>
-    call<{ published: boolean; url: string | null }>("GET", `/api/cases/${caseId}/share`, token),
+    call<{ enabled: boolean; published: boolean; url: string | null }>("GET", `/api/cases/${caseId}/share`, token),
 
   publish: (token: string, caseId: string) =>
     call<{ url: string; token: string; createdAt: string }>("POST", `/api/cases/${caseId}/share`, token, {}),
