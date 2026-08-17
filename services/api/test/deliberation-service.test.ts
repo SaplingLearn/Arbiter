@@ -24,55 +24,55 @@ const pos = (participantId: string, over: Partial<Position> = {}): Position => (
 
 const service = (): DeliberationService => new DeliberationService(new MemoryStore(), CHECKLIST);
 
-const opened = (svc: DeliberationService, participants = ["ann", "bea"]): void => {
-  svc.open({
+const opened = async (svc: DeliberationService, participants = ["ann", "bea"]): Promise<void> => {
+  await svc.open({
     caseId: "c1", compoundLabel: "TAK-994", context: "Chronic dosing, healthy adults.",
     ownerId: "owner", participantIds: participants, findings: FINDINGS, at: "2026-08-09T09:00:00Z",
   });
 };
 
 describe("DeliberationService - the whole path with no model in it", () => {
-  it("publishes an inventory at open and never recomputes it", () => {
+  it("publishes an inventory at open and never recomputes it", async () => {
     const svc = service();
-    opened(svc);
-    const inv = svc.inventory("c1");
+    await opened(svc);
+    const inv = await svc.inventory("c1");
     expect(inv?.entries.find((e) => e.itemId === "M1")?.state).toBe("present");
     expect(inv?.entries.find((e) => e.itemId === "C2")?.state).toBe("absent");
     expect(inv?.entries).toHaveLength(CHECKLIST.items.length);
   });
 
-  it("seals a position on submit and keeps the plaintext out of the log", () => {
+  it("seals a position on submit and keeps the plaintext out of the log", async () => {
     const svc = service();
-    opened(svc);
-    const r = svc.submit("c1", pos("ann", { reasoning: "SECRET", citedFindingIds: ["f-hep"] }));
+    await opened(svc);
+    const r = await svc.submit("c1", pos("ann", { reasoning: "SECRET", citedFindingIds: ["f-hep"] }));
     expect(r.ok).toBe(true);
-    const sealed = svc.audit("c1").entries.filter((e) => e.kind === "position_sealed");
+    const sealed = (await svc.audit("c1")).entries.filter((e) => e.kind === "position_sealed");
     expect(sealed).toHaveLength(1);
     expect(JSON.stringify(sealed[0]!.payload)).not.toContain("SECRET");
     expect(JSON.stringify(sealed[0]!.payload)).toContain("commitment");
   });
 
-  it("hides other positions until reveal, then shows them", () => {
+  it("hides other positions until reveal, then shows them", async () => {
     const svc = service();
-    opened(svc);
-    svc.submit("c1", pos("ann", { call: "do_not_advance", reasoning: "ANN-ONLY", citedFindingIds: ["f-hep"] }));
-    expect(JSON.stringify(svc.view("c1", "bea"))).not.toContain("ANN-ONLY");
+    await opened(svc);
+    await svc.submit("c1", pos("ann", { call: "do_not_advance", reasoning: "ANN-ONLY", citedFindingIds: ["f-hep"] }));
+    expect(JSON.stringify(await svc.view("c1", "bea"))).not.toContain("ANN-ONLY");
 
-    svc.submit("c1", pos("bea", { citedFindingIds: ["f-rodent"] }));
-    svc.reveal("c1", "owner", "2026-08-09T12:00:00Z", "all_in");
-    expect(JSON.stringify(svc.view("c1", "bea"))).toContain("ANN-ONLY");
+    await svc.submit("c1", pos("bea", { citedFindingIds: ["f-rodent"] }));
+    await svc.reveal("c1", "owner", "2026-08-09T12:00:00Z", "all_in");
+    expect(JSON.stringify(await svc.view("c1", "bea"))).toContain("ANN-ONLY");
   });
 
-  it("passes its own audit end to end", () => {
+  it("passes its own audit end to end", async () => {
     const svc = service();
-    opened(svc);
-    svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
-    svc.submit("c1", pos("bea", { external: [{ claim: "Class effect.", source: "Smith 2019" }] }));
-    svc.reveal("c1", "owner", "t", "all_in");
-    svc.adjudicate("c1", { verdict: "cannot_conclude" }, "t", "model");
-    svc.signOff("c1", { by: "owner", at: "t", agreesWithAdjudication: true, reason: "" });
+    await opened(svc);
+    await svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
+    await svc.submit("c1", pos("bea", { external: [{ claim: "Class effect.", source: "Smith 2019" }] }));
+    await svc.reveal("c1", "owner", "t", "all_in");
+    await svc.adjudicate("c1", { verdict: "cannot_conclude" }, "t", "model");
+    await svc.signOff("c1", { by: "owner", at: "t", agreesWithAdjudication: true, reason: "" });
 
-    const audit = svc.audit("c1");
+    const audit = await svc.audit("c1");
     expect(audit.chain).toEqual([]);
     expect(audit.seals).toEqual([]);
     expect(audit.entries.map((e) => e.kind)).toEqual([
@@ -81,25 +81,25 @@ describe("DeliberationService - the whole path with no model in it", () => {
     ]);
   });
 
-  it("keeps the chain valid when two cases interleave", () => {
+  it("keeps the chain valid when two cases interleave", async () => {
     const store = new MemoryStore();
     const svc = new DeliberationService(store, CHECKLIST);
-    opened(svc);
-    svc.open({ caseId: "c2", compoundLabel: "Other", context: "", ownerId: "owner", participantIds: ["ann"], findings: [], at: "t" });
-    svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
-    svc.submit("c2", pos("ann"));
-    expect(verifyChain(store.all())).toEqual([]);
-    expect(svc.audit("c1").chain).toEqual([]);
+    await opened(svc);
+    await svc.open({ caseId: "c2", compoundLabel: "Other", context: "", ownerId: "owner", participantIds: ["ann"], findings: [], at: "t" });
+    await svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
+    await svc.submit("c2", pos("ann"));
+    expect(verifyChain(await store.all())).toEqual([]);
+    expect((await svc.audit("c1")).chain).toEqual([]);
   });
 
-  it("builds an adjudication request whose gaps are the list the humans read", () => {
+  it("builds an adjudication request whose gaps are the list the humans read", async () => {
     const svc = service();
-    opened(svc);
-    svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
-    svc.submit("c1", pos("bea", { external: [{ claim: "This assay overcalls." }] }));
-    svc.reveal("c1", "owner", "t", "all_in");
+    await opened(svc);
+    await svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
+    await svc.submit("c1", pos("bea", { external: [{ claim: "This assay overcalls." }] }));
+    await svc.reveal("c1", "owner", "t", "all_in");
 
-    const req = svc.adjudicationRequest("c1", RULES);
+    const req = await svc.adjudicationRequest("c1", RULES);
     expect(req?.findings.map((f) => f.id)).toEqual(["f-hep", "f-rodent"]);
     const fields = req!.absent.map((a) => a.field);
     expect(fields).toContain("Exposure margin: tested concentration or NOAEL against projected human Cmax");
@@ -110,11 +110,11 @@ describe("DeliberationService - the whole path with no model in it", () => {
     expect(fields).not.toContain("Human-cell hepatotoxicity result");
   });
 
-  it("refuses to adjudicate before the reveal", () => {
+  it("refuses to adjudicate before the reveal", async () => {
     const svc = service();
-    opened(svc);
-    svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
-    const r = svc.adjudicate("c1", {}, "t", "model");
+    await opened(svc);
+    await svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
+    const r = await svc.adjudicate("c1", {}, "t", "model");
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.kind).toBe("not_locked");
   });
@@ -124,20 +124,20 @@ describe("DeliberationService - the whole path with no model in it", () => {
      the browser tab that made the call - so `Reveal & verdict` was empty on every
      signed case in the corpus, and empty again for the owner the moment they
      refreshed. The record held the adjudication the whole time; nothing served it. */
-  it("serves the stored adjudication to everyone on the case once there is one", () => {
+  it("serves the stored adjudication to everyone on the case once there is one", async () => {
     const svc = service();
-    opened(svc);
-    svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
-    svc.submit("c1", pos("bea", { citedFindingIds: ["f-rodent"] }));
-    svc.reveal("c1", "owner", "t", "all_in");
-    expect(svc.view("c1", "ann")?.adjudication).toBeNull();
+    await opened(svc);
+    await svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
+    await svc.submit("c1", pos("bea", { citedFindingIds: ["f-rodent"] }));
+    await svc.reveal("c1", "owner", "t", "all_in");
+    expect((await svc.view("c1", "ann"))?.adjudication).toBeNull();
 
-    svc.adjudicate("c1", { consequence: { verdict: "do_not_advance" } }, "t", "model");
+    await svc.adjudicate("c1", { consequence: { verdict: "do_not_advance" } }, "t", "model");
 
     // Not just the owner who ran it: a participant reads the verdict they are being
     // asked to live with.
     for (const who of ["owner", "ann", "bea"]) {
-      const v = svc.view("c1", who)!;
+      const v = (await svc.view("c1", who))!;
       expect(v.adjudication).toEqual({ consequence: { verdict: "do_not_advance" } });
       expect(v.adjudicationSource).toBe("live");
     }
@@ -147,16 +147,16 @@ describe("DeliberationService - the whole path with no model in it", () => {
      adjudicated by the stub, and rendering that text with the banner dropped would
      put words that are explicitly not a judgment about a compound onto a signed
      safety record as though they were one. */
-  it("keeps a signed case's adjudication readable, and keeps a stub labelled as one", () => {
+  it("keeps a signed case's adjudication readable, and keeps a stub labelled as one", async () => {
     const svc = service();
-    opened(svc);
-    svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
-    svc.submit("c1", pos("bea", { citedFindingIds: ["f-rodent"] }));
-    svc.reveal("c1", "owner", "t", "all_in");
-    svc.adjudicate("c1", { consequence: { verdict: "cannot_conclude" } }, "t", "stub");
-    svc.signOff("c1", { by: "owner", at: "t", agreesWithAdjudication: false, reason: "Holding for a margin." });
+    await opened(svc);
+    await svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
+    await svc.submit("c1", pos("bea", { citedFindingIds: ["f-rodent"] }));
+    await svc.reveal("c1", "owner", "t", "all_in");
+    await svc.adjudicate("c1", { consequence: { verdict: "cannot_conclude" } }, "t", "stub");
+    await svc.signOff("c1", { by: "owner", at: "t", agreesWithAdjudication: false, reason: "Holding for a margin." });
 
-    const v = svc.view("c1", "ann")!;
+    const v = (await svc.view("c1", "ann"))!;
     expect(v.status).toBe("signed");
     expect(v.adjudication).toEqual({ consequence: { verdict: "cannot_conclude" } });
     expect(v.adjudicationSource).toBe("stub");
@@ -164,15 +164,15 @@ describe("DeliberationService - the whole path with no model in it", () => {
     expect(v.signature?.reason).toBe("Holding for a margin.");
   });
 
-  it("reproduces the TAK-994 beat: everyone agrees, and the gap is named anyway", () => {
+  it("reproduces the TAK-994 beat: everyone agrees, and the gap is named anyway", async () => {
     const svc = service();
-    opened(svc, ["ann", "bea", "cal"]);
-    svc.submit("c1", pos("ann", { citedFindingIds: ["f-rodent"] }));
-    svc.submit("c1", pos("bea", { citedFindingIds: ["f-rodent"] }));
-    svc.submit("c1", pos("cal", { reasoning: "Looks fine to me." }));
-    svc.reveal("c1", "owner", "t", "all_in");
+    await opened(svc, ["ann", "bea", "cal"]);
+    await svc.submit("c1", pos("ann", { citedFindingIds: ["f-rodent"] }));
+    await svc.submit("c1", pos("bea", { citedFindingIds: ["f-rodent"] }));
+    await svc.submit("c1", pos("cal", { reasoning: "Looks fine to me." }));
+    await svc.reveal("c1", "owner", "t", "all_in");
 
-    const u = svc.unanimity("c1")!;
+    const u = (await svc.unanimity("c1"))!;
     expect(u.unanimous).toBe(true);
     expect(u.call).toBe("advance");
     const joined = u.concerns.join(" ");
@@ -181,28 +181,28 @@ describe("DeliberationService - the whole path with no model in it", () => {
     expect(joined).toContain("Exposure margin");
   });
 
-  it("records non-responders when the owner closes early", () => {
+  it("records non-responders when the owner closes early", async () => {
     const svc = service();
-    opened(svc, ["ann", "bea", "cal"]);
-    svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
-    const r = svc.reveal("c1", "owner", "2026-08-09T12:00:00Z", "close_early");
+    await opened(svc, ["ann", "bea", "cal"]);
+    await svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
+    const r = await svc.reveal("c1", "owner", "2026-08-09T12:00:00Z", "close_early");
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.closedEarly?.nonResponders).toEqual(["bea", "cal"]);
   });
 
-  it("rejects a citation that names nothing in the case", () => {
+  it("rejects a citation that names nothing in the case", async () => {
     const svc = service();
-    opened(svc);
-    const r = svc.submit("c1", pos("ann", { citedFindingIds: ["ghost"] }));
+    await opened(svc);
+    const r = await svc.submit("c1", pos("ann", { citedFindingIds: ["ghost"] }));
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.kind).toBe("unknown_finding_id");
   });
 
-  it("returns nothing for a case that does not exist rather than inventing one", () => {
+  it("returns nothing for a case that does not exist rather than inventing one", async () => {
     const svc = service();
-    expect(svc.view("nope", "ann")).toBeNull();
-    expect(svc.inventory("nope")).toBeNull();
-    expect(svc.adjudicationRequest("nope", RULES)).toBeNull();
-    expect(svc.unanimity("nope")).toBeNull();
+    expect(await svc.view("nope", "ann")).toBeNull();
+    expect(await svc.inventory("nope")).toBeNull();
+    expect(await svc.adjudicationRequest("nope", RULES)).toBeNull();
+    expect(await svc.unanimity("nope")).toBeNull();
   });
 });

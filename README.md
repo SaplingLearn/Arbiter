@@ -234,21 +234,82 @@ One key shared across a team is one budget shared across a team. See
 
 ### Deploying it
 
-The code is deployable; the hosting decision is not made here.
+**Two services: Supabase holds the data, one container holds everything else.** There is
+no separate frontend deployment - the site is built into the image and served by the same
+process that answers `/api`, on the same port. `railway.toml` is the default target and
+`fly.toml` is the same deployment expressed for another host; any host that can run the
+container and reach Postgres will do.
 
+```
+browser ──► container (Railway)                     ──► Supabase Postgres  (the record,
+              /                  landing page                               accounts, invites,
+              /deliberation/     the app                                    document metadata)
+              /api/*             the API             ──► Supabase Storage   (the PDF bytes)
+              Python + PyMuPDF   every upload        ──► Gemini / Anthropic (model calls)
+```
+
+Deploying is three steps: apply `supabase/migrations/0001_init.sql` to a Supabase project
+and create a private `documents` bucket; point Railway at this repo, which finds the
+`Dockerfile` and `railway.toml` on its own; set the variables listed in `railway.toml` and
+generate a domain. There is no deploy command - it builds on push.
+
+- **State goes to Supabase, not to a disk.** What used to be four files -
+  `results/deliberation-log.jsonl` (the record itself), the account store with its
+  password hashes, the invites sidecar, and `results/documents/` - becomes Postgres rows
+  and Storage objects. Apply `supabase/migrations/0001_init.sql` first, then set
+  `DATABASE_URL`. **Absent, it silently falls back to those files**, which is the right
+  default for CI and a laptop and is exactly the arrangement that loses everything on the
+  next redeploy. A deployment missing `DATABASE_URL` looks healthy until it isn't.
+  Setting it *without* the two Supabase Storage variables is refused at boot rather than
+  half-honoured: Postgres for the record and local disk for the documents is a container
+  that keeps the log and loses the evidence it cites.
+- **Use Supabase's pooler, port 6543, not 5432.** A container that redeploys or scales
+  opens a fresh pool each time, and direct connections exhaust a project's connection
+  limit fast. Transaction-mode pooling is safe here *specifically* because the chain
+  append takes `pg_advisory_xact_lock`, which is released at COMMIT - the unit the pooler
+  multiplexes on. A session-scoped `pg_advisory_lock` would break silently behind a
+  pooler, so that choice is load-bearing rather than incidental.
+- **The container is not a plain Node image, in two ways that both bite.** It needs
+  Python 3.12 with PyMuPDF beside Node 22, because `services/api` shells out to
+  `data/prep/measure_pdf.py` for every upload; without it every upload comes back 422
+  *unreadable*, which reads as a bad document rather than a missing dependency. And it
+  runs from TypeScript source through `tsx`, which is a **devDependency** - so
+  `npm ci --omit=dev` builds an image that cannot start, and `NODE_ENV=production` does
+  the same thing without leaving a flag in the Dockerfile to find. The result is ~1.2 GB,
+  most of it `node_modules` and the Python runtime.
+- **It still needs a host that can run a subprocess, and that rules out a whole class.**
+  Every upload and every Ask forks a Python interpreter. A platform that runs JavaScript
+  and only JavaScript - Workers, or a functions runtime - cannot serve this at all, and
+  the failure is not a slow path but a dead one. A container is the cheap honest answer.
 - **`ARBITER_HOST=0.0.0.0`** to accept outside traffic. It is loopback otherwise, because
   this process terminates no TLS - set it only behind a proxy that does. The banner warns
-  when it is not loopback.
+  when it is not loopback. Inside a container the default means nothing can reach it, so
+  this is not optional there.
 - **`ARBITER_MODEL_BUDGET`** (default 30 per account per 10 minutes, 6x that per source)
   caps the four endpoints that cost money. This is what makes them safe to expose: without
-  it, a public deployment is an open proxy to whoever's model quota it holds.
+  it, a public deployment is an open proxy to whoever's model quota it holds. It is
+  **per process**, so two machines are two budgets for one account - the record has no
+  such problem, since the chain append serialises on a database lock, but the cap does.
 - **On Google Cloud, attach a service account** rather than shipping a key. The auth
   library finds it as ADC, so no key material exists on disk, in git, or in an env var.
   Off Google Cloud, `GOOGLE_APPLICATION_CREDENTIALS_JSON` takes the JSON as a secret.
-- **State is local files** - `results/deliberation-log.jsonl` (the record itself),
-  `results/documents/`, and the account store. On an ephemeral container all three are
-  wiped on redeploy. Fine for a demo; if the record must persist, it needs a volume, and
-  that is the largest single piece of work in deploying this.
+- **`ARBITER_STATIC_DIR=apps/landing/dist` is what makes the deployment a website.**
+  Without it the container serves an API and no site: `services/api` answers 404 to any
+  path whose first segment is not `api`, and the client makes same-origin `/api` calls
+  and signs itself in on load, so hosting the two separately gives a page that fails on
+  its first request. Set, the API process serves that directory for everything outside
+  `/api` - the landing page at `/`, the staged client at `/deliberation/` - and one
+  origin needs no proxy and no CORS. **Unset is still the right default**, because under
+  `npm run dev` apps/landing's Vite server owns those paths and two servers claiming one
+  URL is worse than the 404. The startup banner says which of the two you are in, and
+  warns by name if the directory does not exist.
+- **`GET /api/health` is the one unauthenticated route**, returning
+  `{"ok":true,"service":"arbiter-api","uptimeSeconds":N}`. It exists so a health check
+  can confirm the process *serves* rather than that something bound the port - a process
+  wedged before its first response passes a TCP connect. Both `railway.toml` and
+  `fly.toml` use it; Fly's was a TCP check only because no such route existed. It
+  discloses nothing about the configuration, because anyone who can reach the machine can
+  call it.
 
 ### Verify everything
 
@@ -319,7 +380,8 @@ apps/deliberation/        THE PRODUCT. Four stages, real backend, AI decider.
   src/pages.tsx           Auth, dashboard, case creation, method
 
 services/api/             The backend. Accounts, cases, adjudication. Node only.
-  server.ts               Routes. /api/auth/* is the only unauthenticated surface.
+  server.ts               Routes, plus the built site behind ARBITER_STATIC_DIR.
+                          /api/auth/* and /api/health are the unauthenticated surface.
   adjudicate.ts           ADJUDICATOR_PROMPT_PATH - the in-force prompt version
   deliberation.ts         Blind submission + unanimity. Read the contracts.
   gemini.ts               Vertex AI. Falls back to a labelled stub without creds.
@@ -337,7 +399,12 @@ apps/atmosphere/          Scene R&D. Standalone, not wired into the product.
   src/core/Atmosphere.ts  Renderer, render targets, the tear between scenes.
 
 tools/dev-all.mjs         `npm run dev`: every surface behind one port
+tools/stage-site.mjs      `npm run site:build`: the client, where links.ts points
 e2e/                      Playwright. Drives the unified server, not one app.
+
+Dockerfile                Node 22 AND Python 3.12 - the upload path forks an interpreter
+fly.toml                  One worked deployment. No volume; state is in Supabase.
+supabase/migrations/      0001_init.sql. The log is append-only at the database.
 
 data/prep/*.py            DILIrank ingestion, splits, QSAR/Tox21 streams
 rules/ruleset-v1.0.json   PRE-REGISTERED AND HASHED. Do not edit.

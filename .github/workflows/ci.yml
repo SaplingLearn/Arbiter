@@ -4,11 +4,57 @@ on: [push, pull_request]
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # POSTGRES IS HERE SO THE POSTGRES CODE IS ACTUALLY TESTED. The stores in
+    # postgres-store.ts, postgres-auth.ts and postgres-invites.ts are reached only when
+    # DATABASE_URL is set, and their suites `describe.skipIf` themselves out when it is
+    # not. That skip is what keeps a laptop with no database able to run `npm test` - and
+    # it is also, without this service, a way for the entire Supabase implementation to
+    # sit in the repository indefinitely with CI reporting green over code it never ran.
+    # A skipped suite and a passing suite look identical in a green check.
+    #
+    # 17 to match what the Supabase CLI runs locally, so a behaviour that differs between
+    # versions is caught here rather than in a deployment.
+    #
+    # The suites provision themselves: each creates and drops its OWN database over this
+    # connection and applies supabase/migrations/0001_init.sql through `pg`. So nothing
+    # here has to know the schema, and the migration is exercised from scratch on every
+    # run - which makes this a test of the migration too, not only of the stores.
+    #
+    # STORAGE IS STILL NOT COVERED. supabase-documents.ts needs the Storage API, which
+    # means the full Supabase stack rather than a Postgres container, and that is not run
+    # here. Its suite skips. Said plainly because the rest of this block could easily be
+    # read as "the Supabase work is tested in CI", and the bytes half of it is not.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # Without this the job races the container: `npm test` starts while Postgres is
+        # still initialising and every Postgres suite fails on connection refused.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
+      # No step below needs authenticated Git. Left on, `actions/checkout` writes the
+      # job's token into .git/config, where `npm ci`'s dependency lifecycle scripts can
+      # read it - a credential handed to third-party code for no reason.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # 22, MATCHING THE Dockerfile, and pinned together on purpose. `@supabase/supabase-js`
+      # needs a global `WebSocket`, which Node has unflagged only from 22; on 20 the
+      # Storage client throws inside `createClient` and the process dies before it
+      # listens. CI never hit it - it sets no SUPABASE_URL, so it constructs no Storage
+      # client - which meant a green check here and a container that could not boot.
+      # Whenever one of these two versions moves, the other has to move with it.
+      # (Node 20 also reached end of life in April 2026.)
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
       # PYTHON IS PART OF THE UPLOAD PATH, not a data-prep convenience. `services/api`
       # shells out to data/prep/measure_pdf.py and extract_pdf_text.py for every
@@ -30,7 +76,14 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      # DATABASE_URL is set ONLY on this step, not job-wide, and that is deliberate.
+      # Every step below it - the harness, the metrics, the golden comparison - reads
+      # the file stores and must keep doing so: those numbers are committed artifacts
+      # re-derived from files in the repository, and pointing them at a database would
+      # change what they measure.
       - run: npm test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
       # The engine and the golden numbers are deterministic, so CI must be able
       # to reproduce a local number exactly. If these drift, a reported figure
       # moved and the diff has to be explained.
