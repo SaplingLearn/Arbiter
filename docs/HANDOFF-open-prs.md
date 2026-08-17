@@ -83,25 +83,30 @@ hash-chained audit log surviving the move, connection and pool handling, secrets
 library code paths were migrated too. Those landed on `main` *after* this branch was cut,
 so they may still be written against `FileStore`.
 
-### #24 — dev-server dependency preflight (Darkest-Teddy)
+### ~~#24 — dev-server dependency preflight (Darkest-Teddy)~~ — LANDED 2026-08-17
 
-**Closest to ready.** Adds `tools/check-deps.mjs`, a workspace-manifest-versus-`node_modules`
-preflight, so a stale install says "npm install" instead of a vite overlay blaming
-`read.tsx`.
+Merged into `main` as `94ed8e4`. `tools/check-deps.mjs` compares each workspace manifest
+against `node_modules` before `dev-all.mjs` spawns anything, so a stale install names the
+install instead of surfacing as a vite overlay blaming whichever source file imported the
+missing package.
 
-The reviewer executed the script: no false positives, correct Windows entry guard, adds no
-dependency, brings its own tests. It is not stale — `main` has no such mechanism, and
-`docs/HANDOFF-reading-and-atmosphere.md:36` already documents a file `main` does not have.
+Both conflicts resolved as prescribed. `package.json` keeps all four scripts — `seed:demo`,
+`seed:documents` and `library:fetch` from `main`, `check:deps` from the PR — and keeps the
+PR's `check-deps` prefix on `deliberate:dev`. `tools/dev-all.mjs` keeps both sides:
+`main`'s `existsSync`/`join` still drive the repo-local venv lookup the upload path needs,
+with `assertDeps()` above that block.
 
-**Action:** retarget to `main`, resolve the `package.json` conflict (keep all four script
-lines: `seed:demo`, `seed:documents`, `library:fetch`, `check:deps`) and the
-`tools/dev-all.mjs` conflict (keep both sides — call `assertDeps()` above `main`'s
-Python-venv block).
+Verified before merging: typecheck 0, lint 0, **993 passed / 68 files** — the 985/67
+baseline plus this branch's own 8 tests, run in isolation to confirm the accounting.
+`git diff` against the old `main` was exactly the PR's four files, `+268/−1`.
 
-Two non-blocking risks worth mentioning to the author: the exact-pin check fires on the
-`@arbiter/engine` workspace symlink, so bumping the engine version without bumping
-`apps/harness`'s pin hard-fails `npm run dev` for everyone; and `tools/check-deps.test.mjs:116`
-runs against the real repo, so `npm test` fails on a partial install.
+**Two non-blocking risks came in with it and are still live.** The exact-pin check fires on
+the `@arbiter/engine` workspace symlink, so bumping the engine version without bumping
+`apps/harness`'s pin hard-fails `npm run dev` for everyone. And
+`tools/check-deps.test.mjs:116` runs against the real repo, so `npm test` fails on a partial
+install. Neither has been raised with the author.
+
+The head branch `fix/dev-dependency-preflight` was left alive on the remote.
 
 ### #30 — printable deliberation record (Darkest-Teddy)
 
@@ -197,9 +202,14 @@ and land cleanly on their own. The seeder needs a redesign, not a rebase.
 
 ## 7. Suggested order
 
-1. **#33** — resolve the `server.ts` conflict, review the persistence swap properly, merge.
-2. **#24** — retarget, resolve two trivial conflicts, merge. The cheapest real win.
+1. ~~**#24**~~ — done, `94ed8e4`.
+2. **#33** — resolve the `server.ts` conflict, review the persistence swap properly, merge.
+   Note that its conflict is now against a `main` that also carries #24.
 3. **#28** — cherry-pick the corner readout only.
 4. **#30** — author drops the duplicate adjudication transport, then merge.
 5. **#27** — split; land the env layering, redesign the seeder.
 6. Delete `feat/product-in-the-atmosphere`, and address the dependabot alerts.
+
+`feat/product-in-the-atmosphere` no longer tracks `main` — #24 landed on `main` alone, so
+the two have diverged again by one merge. Retarget the remaining three PRs before that gap
+grows into the thing §1 describes.
