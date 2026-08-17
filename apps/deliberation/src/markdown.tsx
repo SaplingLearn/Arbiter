@@ -42,6 +42,70 @@ const ORDERED = /^\s*\d+[.)]\s+(.*)$/;
 /** A rule is a block the model sometimes emits and this surface has no use for. */
 const RULE = /^\s*(?:[-*_]\s*){3,}$/;
 
+/** A heading marker that is not at the start of its line. Prose has no ` ## ` in it. */
+const RUNON_HEADING = /\s+(#{1,6}\s+)/g;
+/**
+ * A bullet mid-line, recognised ONLY by the bold label the ask prompt tells the model to
+ * put on one. A bare ` - ` is a dash in this codebase's own prose and in a regulatory
+ * reviewer's, so splitting on it would cut sentences in half; `**` is the marker the
+ * prompt forbids mid-sentence, which makes it the one unambiguous signal available.
+ */
+const RUNON_BULLET = /\s+[-*+]\s+(?=\*\*)/g;
+
+/**
+ * Words that open a sentence, and therefore close a heading that ran into one.
+ *
+ * Only checked from the SECOND word on, and only when the next word is lowercase. "The"
+ * heading a heading is `### The Liver Findings`, which is position zero; `### Studies In
+ * Rats` keeps "In" because "Rats" is capitalised. What this catches is the real shape -
+ * `### Document Type and Context This document is a...` - where a title butts straight
+ * into prose with nothing but a lost newline between them.
+ */
+const OPENER = new Set([
+  "This", "These", "Those", "The", "It", "Its", "A", "An",
+  "In", "On", "At", "For", "There", "They", "We", "Overall", "Based", "Both", "No",
+]);
+
+/** A run-on heading, cut back to its title. Returns the title and whatever followed. */
+function splitHeading(text: string): [string, string] {
+  const words = text.split(/\s+/);
+  for (let i = 1; i < words.length - 1; i++) {
+    if (OPENER.has(words[i]!) && /^[a-z]/.test(words[i + 1]!)) {
+      return [words.slice(0, i).join(" "), words.slice(i).join(" ")];
+    }
+  }
+  return [text, ""];
+}
+
+/**
+ * Structure put back into an answer that arrived without any.
+ *
+ * WHY THIS IS NEEDED ON TOP OF THE PROMPT. `services/api/ask.ts` asks for blank lines
+ * between paragraphs, and when the model obliges, none of this runs. But `answer` is one
+ * JSON string, and a model writing a 6,000-character summary into a string field does
+ * sometimes emit the MARKERS without the newlines - `### Reported Studies - **General
+ * Toxicology:** ...` all on one line. Fed to `parse` unchanged that is a single line
+ * beginning with `###`, which is one heading holding the entire answer: not a wall of
+ * text any more but a wall of heading, which is worse.
+ *
+ * EVERY RULE HERE IS ANCHORED TO SOMETHING UNAMBIGUOUS, and the ones that are not are
+ * deliberately absent. A bare ` - ` stays a dash; a `1.` stays part of a number. Guessing
+ * wrong here does not lose formatting, it cuts a sentence of transcribed evidence in
+ * half, and a reader has no way to see that it happened.
+ */
+export function unrun(src: string): string {
+  const broken = src.replace(RUNON_BULLET, "\n- ").replace(RUNON_HEADING, "\n$1");
+  return broken
+    .split("\n")
+    .map((line) => {
+      const h = HEADING.exec(line);
+      if (h === null) return line;
+      const [head, rest] = splitHeading(h[2]!.trim());
+      return rest === "" ? line : `${h[1]!} ${head}\n${rest}`;
+    })
+    .join("\n");
+}
+
 /**
  * Source to blocks.
  *
@@ -49,8 +113,15 @@ const RULE = /^\s*(?:[-*_]\s*){3,}$/;
  * about them: a bullet directly under a paragraph, with no blank line between, is common
  * and CommonMark-legal in a list context. So a line's own shape opens a block, and a
  * blank line only ever closes one.
+ *
+ * A SOURCE WITH NO NEWLINE AT ALL is repaired first. The test is deliberately the whole
+ * string rather than a per-line judgement: an answer that broke ANY of its lines was
+ * formatted by a model that knew how, and second-guessing it would be this file inventing
+ * structure over the top of real structure. Only the all-or-nothing case is degenerate
+ * enough to be worth reconstructing, so every heuristic in `unrun` is confined to it.
  */
 export function parse(src: string): Block[] {
+  if (!src.includes("\n")) src = unrun(src);
   const out: Block[] = [];
   let para: string[] = [];
   let list: { ordered: boolean; items: string[] } | null = null;
