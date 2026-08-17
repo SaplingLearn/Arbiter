@@ -164,6 +164,37 @@ describe("DeliberationService - the whole path with no model in it", () => {
     expect(v.signature?.reason).toBe("Holding for a margin.");
   });
 
+  /* THE VERDICT SCREEN AND THE PRINTED RECORD MUST NOT DISAGREE ABOUT PROVENANCE.
+     `view` and `adjudication` are two readers of one fact, and they briefly held two
+     rules for deciding it: one treated any unrecognised actor as live, the other treated
+     only "model" as live. They arrived from two branches and merged with no conflict, so
+     the disagreement would have shipped as a screen saying "adjudicated by a model" over
+     a document saying "stub" - about the same signed safety record. Both now read
+     `sourceOf`, and this pins that they answer together, including on the actor neither
+     of them was written for. */
+  for (const [actor, expected] of [["model", "live"], ["stub", "stub"], ["owner", "stub"]] as const) {
+    it(`reports an adjudication by "${actor}" as ${expected} on the case view and in the record alike`, async () => {
+      const svc = service();
+      await opened(svc);
+      await svc.submit("c1", pos("ann", { citedFindingIds: ["f-hep"] }));
+      await svc.submit("c1", pos("bea", { citedFindingIds: ["f-rodent"] }));
+      await svc.reveal("c1", "owner", "t", "all_in");
+      await svc.adjudicate("c1", { consequence: { verdict: "cannot_conclude" } }, "t", actor);
+
+      expect((await svc.view("c1", "ann"))?.adjudicationSource).toBe(expected);
+      expect((await svc.adjudication("c1"))?.source).toBe(expected);
+    });
+  }
+
+  /* An unadjudicated case has nothing to report, and `handleReport` turns this null into
+     the 409 that names the state rather than printing a record with a blank verdict. */
+  it("reports no adjudication at all before one is attached", async () => {
+    const svc = service();
+    await opened(svc);
+    expect(await svc.adjudication("c1")).toBeNull();
+    expect(await svc.adjudication("c-nonexistent")).toBeNull();
+  });
+
   it("reproduces the TAK-994 beat: everyone agrees, and the gap is named anyway", async () => {
     const svc = service();
     await opened(svc, ["ann", "bea", "cal"]);

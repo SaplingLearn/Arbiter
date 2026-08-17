@@ -4,7 +4,9 @@ import { DocumentStore, type DocumentStoreApi } from "./documents.js";
 import { InviteStore } from "./invites.js";
 import { PostgresAuthStore, type AuthStoreApi } from "./postgres-auth.js";
 import { PostgresInviteStore, type InviteStoreApi } from "./postgres-invites.js";
+import { PostgresShareStore, type ShareStoreApi } from "./postgres-share.js";
 import { PostgresStore } from "./postgres-store.js";
+import { ShareStore } from "./share.js";
 import { FileStore, type DeliberationStore } from "./store.js";
 import { SupabaseDocumentStore, bucketFrom, storageClientFrom } from "./supabase-documents.js";
 
@@ -15,7 +17,13 @@ import { SupabaseDocumentStore, bucketFrom, storageClientFrom } from "./supabase
  * `if (process.env["DATABASE_URL"])` checks are how a process ends up half-migrated -
  * the log in Postgres and the accounts still on disk, or the reverse - and that state is
  * not a degraded mode, it is a deployment whose record and whose identities disagree
- * about which machine they live on. One decision, taken here, applied to all four.
+ * about which machine they live on. One decision, taken here, applied to all five.
+ *
+ * `shares` IS THE FIFTH, AND IT HAS THE LONGEST MEMORY OF ANY OF THEM. A share link is
+ * printed onto paper as a QR code, so a deployment that loses this store does not lose a
+ * convenience - it strands documents that are already on desks, at a URL that now 404s,
+ * with no way to tell the holder why. That is the same argument as the log's, which is
+ * why it is decided in the same place rather than left on files while the record moves.
  *
  * FILES ARE THE DEFAULT, and that is not a hedge. `npm test` and `npm run e2e` run with
  * no database, and the product they exercise has to be the product. A default that
@@ -29,6 +37,9 @@ export interface Stores {
   auth: AuthStoreApi;
   invites: InviteStoreApi;
   documents: DocumentStoreApi;
+  /** Which cases are published to a tokenised URL. Holds no token and no secret - see
+   *  `share.ts` for why the token is derived rather than stored. */
+  shares: ShareStoreApi;
   /** One line for the startup banner. Which backing is live is the single fact most
    *  worth printing: "the data is gone" and "the data is in the other store" look
    *  identical from a screen showing an empty case list. */
@@ -74,6 +85,7 @@ export async function buildStores(
       auth: await AuthStore.open(`${logPath}.users.json`),
       invites: await InviteStore.open(`${logPath}.invites.json`),
       documents: await DocumentStore.open("results/documents"),
+      shares: await ShareStore.open(`${logPath}.shares.json`),
       describe: `local files (${logPath}; set DATABASE_URL for Postgres)`,
     };
   }
@@ -81,7 +93,7 @@ export async function buildStores(
   requireStorageConfig(env);
 
   /* THE POOL IS BUILT FROM THE `env` THIS FUNCTION WAS GIVEN, and then handed to all
-     four stores. Each of them defaults to `pool()`, which reads `process.env` - so a
+     five stores. Each of them defaults to `pool()`, which reads `process.env` - so a
      caller passing an `env` whose `DATABASE_URL` differs from the ambient one would
      have selected the Postgres branch from one database and then connected to another,
      or thrown "DATABASE_URL is not set" from inside a branch that only exists because
@@ -94,6 +106,7 @@ export async function buildStores(
     auth: await PostgresAuthStore.open(p),
     invites: await PostgresInviteStore.open(p),
     documents: await SupabaseDocumentStore.open({ env, pool: p }),
+    shares: await PostgresShareStore.open(p),
     // The host, never the connection string: it carries the password, and this line goes
     // to stdout, which on every host this runs on means the log aggregator.
     describe: `Postgres (${safeHost(url)}), documents in Supabase Storage bucket "${bucketFrom(env)}"`,

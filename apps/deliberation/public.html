@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Not indexed: a published record is for whoever holds the link, and a search
+         engine is not that. This is courtesy rather than a control - the token is the
+         control - but a record that turns up in results is a surprise nobody wanted. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <!-- NO <base> TAG HERE, DELIBERATELY - it was tried and reverted. Setting one to
+         fix asset resolution (this document is served at /r/<caseId>/<token>, two real
+         path segments deep, where a relative "./assets/..." reference would 404)
+         changes the resolution target of every OTHER relative URL on the page too,
+         including the fragment-only hrefs report.tsx prints for its sheet pager and its
+         "back to the case" link. Under a <base href="/">, "#/case/x/reveal" stops being
+         an in-page hash change and becomes a real navigation to "/" - which, once a
+         static host answers it, is index.html signing its visitor in as AUTO_EMAIL.
+         vite.config.ts's `renderBuiltUrl` fixes the asset paths instead, without
+         touching what any link on the page resolves against. -->
+    <title>Deliberation record</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/public.tsx"></script>
+  </body>
+</html>

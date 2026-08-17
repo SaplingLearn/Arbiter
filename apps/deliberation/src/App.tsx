@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState, type ReactElement } from "react";
 import {
   api, ApiError, uploadDocument,
   type AuditResult, type BlindView, type CaseListing,
-  type CaseSummary, type Finding, type Inventory, type LibrarySource, type Person, type Refusal,
-  type Roster, type StoredDocument, type UnanimityReport,
+  type CaseReport, type CaseSummary, type Finding, type Inventory,
+  type LibrarySource, type Person, type Refusal, type Roster, type StoredDocument,
+  type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
 import { AskPage, Dashboard, LibraryPage, NewCasePage } from "./pages.js";
@@ -12,6 +13,7 @@ import {
   Refused, Reveal, RosterPanel, Verdict, Waiting,
 } from "./screens.js";
 import { Read, ReadingRoom } from "./read.js";
+import { ReportPage } from "./report.js";
 import { caseIdOf, href, navigate, parseHash, type Route } from "./router.js";
 import "./app.css";
 
@@ -68,15 +70,39 @@ export function App(): ReactElement {
   const [unanimity, setUnanimity] = useState<UnanimityReport | null>(null);
   /* NO `adjudication` STATE. It used to live here, written only by the POST that
      produced it, and that was the whole of the bug: the verdict existed in the tab
-     that ran it and nowhere else. `view` carries it now - `act` reloads the case after
-     every action, so the freshly-adjudicated case arrives by the same path a reload
-     does, and there is one source of truth instead of two that disagree. */
+     that ran it and nowhere else - a participant reaching the verdict stage saw
+     nothing, and the owner lost it on refresh. `view` carries it now - `act` reloads
+     the case after every action, so the freshly-adjudicated case arrives by the same
+     path a reload does, and there is one source of truth instead of two that disagree.
+
+     The report branch fixed the same bug with a route of its own, `GET /adjudication`.
+     One of the two had to go, and this is the one that stayed: the verdict stage
+     already fetches `view`, so carrying the adjudication on it costs no extra request
+     and leaves no second endpoint to drift. */
   const [audit, setAudit] = useState<AuditResult | null>(null);
   const [docs, setDocs] = useState<StoredDocument[]>([]);
   const [roster, setRoster] = useState<Roster | null>(null);
   const [inviteNotice, setInviteNotice] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [head, setHead] = useState({ compoundLabel: "", context: "", scope: null as string | null });
+
+  /**
+   * The printable record, fetched ONCE per visit rather than polled.
+   *
+   * Every other case route polls, because "has everyone answered yet" is the one piece
+   * of stale state that matters. A document is the opposite: it carries a "generated
+   * at" line and a reader is holding it still to read it, so re-fetching every three
+   * seconds would reshuffle the page under them and restamp the time they are about to
+   * print. Leaving and coming back is what re-reads it.
+   */
+  const [report, setReport] = useState<CaseReport | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
+  /** Whether the convener has published this case, and to what link - owner-only, so
+   *  this stays null for anybody else. See the effect below for why it is fetched only
+   *  for the owner rather than for anyone who reaches the report route.
+   *  `enabled` is the deployment's, not this case's - see where `share` is passed to
+   *  `ReportPage` below for what happens when it is false. */
+  const [share, setShare] = useState<{ enabled: boolean; published: boolean; url: string | null } | null>(null);
 
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
@@ -102,6 +128,27 @@ export function App(): ReactElement {
   useEffect(() => { setRefusal(null); }, [route]);
 
   const caseId = caseIdOf(route);
+
+  /**
+   * WHO CONVENED THIS CASE, computed here rather than down with the rest of the case
+   * routes' derived state.
+   *
+   * The brief for this had `isOwner` used inside an effect placed beside the report
+   * fetch below, on the assumption that it was already in scope there - it is not: the
+   * case-routes `isOwner` used to live past the `if (token === null || me === null)`
+   * early return further down this component, and an effect is a hook, so it cannot be
+   * declared conditionally past a return that hooks above it do not take. Hoisting the
+   * computation here, alongside `caseId`, is what puts it in scope for that effect
+   * without turning the effect itself into something that runs only sometimes.
+   *
+   * `me !== null &&` guards the one case hoisting introduces that the original spot
+   * never had to consider: before that early return, `me` can still be null, and
+   * without the guard `roster?.ownerId === me?.id` would compare two `undefined`s and
+   * read as true for everyone until both have loaded.
+   */
+  const listing = mine.find((c) => c.caseId === caseId);
+  const isOwner = me !== null && (roster?.ownerId === me.id || (listing?.isOwner ?? false));
+
   const nameOf = useCallback(
     (id: string): string => people.find((p) => p.id === id)?.displayName ?? id,
     [people],
@@ -168,6 +215,46 @@ export function App(): ReactElement {
     const t = setInterval(() => { void loadCase(token, caseId); }, 3000);
     return () => clearInterval(t);
   }, [token, caseId, loadCase]);
+
+  /* The record, on arrival at its own route and nowhere else. Not part of `loadCase`:
+     every case route would then assemble a document nobody asked for. */
+  useEffect(() => {
+    if (token === null || caseId === null || route.name !== "report") return;
+    let live = true;
+    setReport(null);
+    setReportError(null);
+    void (async () => {
+      try {
+        const r = await api.report(token, caseId);
+        if (live) setReport(r);
+      } catch (e) {
+        // The service's own refusal, verbatim. "This case has not been adjudicated" is
+        // a sentence that tells the reader what to do; "something went wrong" is not.
+        if (live) setReportError(e instanceof ApiError ? e.message : String(e));
+      }
+    })();
+    return () => { live = false; };
+  }, [token, caseId, route.name]);
+
+  /* Whether the case is published, fetched beside the report itself and gated the same
+     way - on arrival at the report route, and nowhere else. `!isOwner` is the one extra
+     guard the report fetch above does not need: `GET /share` 403s for anybody who is
+     not the convener, and firing it for every participant who opens their report would
+     be a console error on a page that is otherwise working correctly for them. */
+  useEffect(() => {
+    if (token === null || caseId === null || route.name !== "report" || !isOwner) return;
+    let live = true;
+    setShare(null);
+    void (async () => {
+      try {
+        const s = await api.shareState(token, caseId);
+        if (live) setShare(s);
+      } catch {
+        if (live) setShare(null);
+      }
+    })();
+    return () => { live = false; };
+  }, [token, caseId, route.name, isOwner]);
 
   /* Establish the session on arrival rather than asking for it. Runs once; a failure
      surfaces as a message on the opening panel, never as a login form. */
@@ -358,9 +445,9 @@ export function App(): ReactElement {
     return shell(<p className="muted">Loading the case…</p>);
   }
 
-  const listing = mine.find((c) => c.caseId === caseId);
+  // `listing` and `isOwner` are computed above, alongside `caseId` - see the comment
+  // there for why. Only `label` is local to the case routes.
   const label = listing?.compoundLabel ?? head.compoundLabel ?? caseId;
-  const isOwner = roster?.ownerId === me.id || (listing?.isOwner ?? false);
   const revealed = view.status !== "open";
   const frozen = view.own !== null || view.others.some((o) => o.submitted)
     ? "Somebody has already answered against this evidence. Changing it now would put a position on the record against an inventory its author never saw."
@@ -373,7 +460,12 @@ export function App(): ReactElement {
         title={label}
         {...(lede === undefined ? {} : { lede })}
       />
+      {/* `adjudicated` comes off the case status rather than off the loaded
+          adjudication: the strip is drawn on every case route, and the record is only
+          fetched on its own. A tab that unlocked when a fetch happened to have landed
+          would flicker. */}
       <Steps caseId={caseId} route={route} revealed={revealed}
+        adjudicated={view.status === "adjudicated" || view.status === "signed"}
         {...(listing === undefined ? {} : { answered: listing.submitted, of: listing.of })} />
       {children}
     </>,
@@ -476,7 +568,21 @@ export function App(): ReactElement {
         )}
         {view.adjudication !== null && (
           <Verdict adjudication={view.adjudication} source={view.adjudicationSource ?? "stub"}
-            consensus={view.consensus} signature={view.signature}
+            consensus={view.consensus}
+            caseId={caseId}
+            /* The convener signs, and only while the record is still open. Asked here
+               rather than inside `Verdict` because the answer is the server's: a
+               participant used to be shown a form that could only earn them a 403. */
+            canSign={isOwner && view.status !== "signed"}
+            /* The signature names its signer by id; the roster that turns that into a
+               person lives here, so the resolution happens here and `Verdict` stays
+               presentational. */
+            signed={view.signature === null ? null : {
+              name: nameOf(view.signature.by),
+              at: view.signature.at,
+              agreesWithAdjudication: view.signature.agreesWithAdjudication,
+              reason: view.signature.reason,
+            }}
             onSign={(agrees, reason) => act(() => api.sign(token, caseId, {
               at: new Date().toISOString(), agreesWithAdjudication: agrees, reason,
             }))} />
@@ -485,6 +591,61 @@ export function App(): ReactElement {
           <p className="ok">Signed. The record is closed, and every position in it is kept.</p>
         )}
       </div>,
+    );
+  }
+
+  /**
+   * The printable record.
+   *
+   * INSIDE `caseShell`, so the strip shows where the reader is and how to get back.
+   * The page head and the strip are both hidden by the print stylesheet, so what comes
+   * out of the dialog is the sheet alone - navigation on screen costs the document
+   * nothing.
+   */
+  if (route.name === "report") {
+    return caseShell(
+      reportError !== null
+        ? <div className="empty">
+            <h3>There is no record to print yet</h3>
+            <p className="muted">{reportError}</p>
+            <div className="btn-row" style={{ justifyContent: "center" }}>
+              <a href={href({ name: "reveal", caseId })}><button className="ghost">Back to the verdict</button></a>
+            </div>
+          </div>
+        : report === null
+          ? <p className="muted">Assembling the record…</p>
+          : (
+            <ReportPage report={report} {...(route.page === undefined ? {} : { page: route.page })}
+              /* `share !== null` rather than `isOwner` alone: the fetch above is
+                 in flight for a moment after the route opens, and passing an
+                 empty `share` object during that window would flash a "Publish
+                 this record" button that immediately swaps for the real state a
+                 beat later - the same instant the page as a whole is still
+                 rendering "Assembling the record…". No prop at all until the
+                 fetch has actually landed is the honest version of "loading".
+
+                 `share.enabled` on top of that: false means this deployment has no
+                 ARBITER_SHARE_SECRET, so `POST /share` always 501s. Passing the prop
+                 anyway would draw "Publish this record", let it be pressed, and route
+                 the 501 through `act`'s catch-all into `setFatal` - swapping the whole
+                 report for "Something is not right" over a control that was never
+                 going to work. Omitting the prop is what the spec means by "the report
+                 page does not offer the control": the page still renders, just without
+                 a button that can only fail. */
+              {...(isOwner && share !== null && share.enabled ? {
+                share: {
+                  url: share.url,
+                  onPublish: () => act(async () => {
+                    const r = await api.publish(token, caseId);
+                    setShare({ enabled: true, published: true, url: r.url });
+                  }),
+                  onRevoke: () => act(async () => {
+                    await api.revoke(token, caseId);
+                    setShare({ enabled: true, published: false, url: null });
+                  }),
+                },
+              } : {})} />
+          ),
     );
   }
 

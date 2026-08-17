@@ -5,20 +5,21 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     # POSTGRES IS HERE SO THE POSTGRES CODE IS ACTUALLY TESTED. The stores in
-    # postgres-store.ts, postgres-auth.ts and postgres-invites.ts are reached only when
-    # DATABASE_URL is set, and their suites `describe.skipIf` themselves out when it is
-    # not. That skip is what keeps a laptop with no database able to run `npm test` - and
-    # it is also, without this service, a way for the entire Supabase implementation to
-    # sit in the repository indefinitely with CI reporting green over code it never ran.
+    # postgres-store.ts, postgres-auth.ts, postgres-invites.ts and postgres-share.ts are
+    # reached only when DATABASE_URL is set, and their suites `describe.skipIf` themselves
+    # out when it is not. That skip is what keeps a laptop with no database able to run
+    # `npm test` - and it is also, without this service, a way for the entire Supabase
+    # implementation to sit in the repository indefinitely with CI green over code it
+    # never ran.
     # A skipped suite and a passing suite look identical in a green check.
     #
     # 17 to match what the Supabase CLI runs locally, so a behaviour that differs between
     # versions is caught here rather than in a deployment.
     #
     # The suites provision themselves: each creates and drops its OWN database over this
-    # connection and applies supabase/migrations/0001_init.sql through `pg`. So nothing
-    # here has to know the schema, and the migration is exercised from scratch on every
-    # run - which makes this a test of the migration too, not only of the stores.
+    # connection and applies every file in supabase/migrations/, in order, through `pg`.
+    # So nothing here has to know the schema, and the migrations are exercised from
+    # scratch on every run - which makes this a test of them too, not only of the stores.
     #
     # STORAGE IS STILL NOT COVERED. supabase-documents.ts needs the Storage API, which
     # means the full Supabase stack rather than a Postgres container, and that is not run

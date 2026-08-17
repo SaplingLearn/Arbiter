@@ -64,7 +64,7 @@ fixed order, because the order is the point:
 |---|---|
 | **Evidence** | The compound in front of you: findings, documents, what is absent |
 | **Your position** | Your call, written **before** you can see anyone else's |
-| **Reveal & verdict** | Unreachable until everyone has answered. Then the split, the disagreement analysis, and the AI adjudication |
+| **Reveal & verdict** | Unreachable until everyone has answered. Then the split, the disagreement analysis, the AI adjudication, and the way through to the record: anyone named on the case can open it as one printable page (`#/case/:id/report`, assembled by `GET /api/cases/:id/report`) and print or save it as a PDF from the browser |
 | **Record** | Sign-off and the hash-chained audit log |
 
 Blind submission is enforced server-side by not returning the data, not by asking the
@@ -248,15 +248,15 @@ browser ──► container (Railway)                     ──► Supabase Pos
               Python + PyMuPDF   every upload        ──► Gemini / Anthropic (model calls)
 ```
 
-Deploying is three steps: apply `supabase/migrations/0001_init.sql` to a Supabase project
-and create a private `documents` bucket; point Railway at this repo, which finds the
-`Dockerfile` and `railway.toml` on its own; set the variables listed in `railway.toml` and
-generate a domain. There is no deploy command - it builds on push.
+Deploying is three steps: apply every file in `supabase/migrations/` in order to a
+Supabase project and create a private `documents` bucket; point Railway at this repo,
+which finds the `Dockerfile` and `railway.toml` on its own; set the variables listed in
+`railway.toml` and generate a domain. There is no deploy command - it builds on push.
 
-- **State goes to Supabase, not to a disk.** What used to be four files -
+- **State goes to Supabase, not to a disk.** What used to be five files -
   `results/deliberation-log.jsonl` (the record itself), the account store with its
-  password hashes, the invites sidecar, and `results/documents/` - becomes Postgres rows
-  and Storage objects. Apply `supabase/migrations/0001_init.sql` first, then set
+  password hashes, the invites sidecar, the share-links sidecar, and `results/documents/`
+  - becomes Postgres rows and Storage objects. Apply the migrations first, then set
   `DATABASE_URL`. **Absent, it silently falls back to those files**, which is the right
   default for CI and a laptop and is exactly the arrangement that loses everything on the
   next redeploy. A deployment missing `DATABASE_URL` looks healthy until it isn't.
@@ -310,6 +310,89 @@ generate a domain. There is no deploy command - it builds on push.
   `fly.toml` use it; Fly's was a TCP check only because no such route existed. It
   discloses nothing about the configuration, because anyone who can reach the machine can
   call it.
+
+### Publishing a record
+
+Once a case has been adjudicated, its owner can publish the record from the report page
+(`#/case/:id/report`) - a link anyone can open, with a QR code printed onto sheet 1 of
+the document so a printed page carries its own way back online.
+
+**Anyone holding the link reads the whole record, without an account.** The decision,
+every position in full - including ones that disagreed with the adjudication - the
+evidence it was decided on, and the audit chain. It is served by an unauthenticated
+route, `GET /api/public/report/:caseId/:token`, that exists because a share link with a
+session requirement behind it is not a share link.
+
+**The email address is the only thing cut. Names, seats and every position are not.**
+Attribution is the record - a position with no author is a rumour, not a deliberation -
+so a stranger holding the link sees exactly who said what and where they sat. What they
+cannot see is how to reach that person outside the product, which they have no standing
+to be handed. The cut happens where the report object is built
+(`services/api/verdict-report.ts`), not in what the page chooses to draw, because a
+field present in the response and merely hidden by the UI is one devtools tab from
+being disclosed - and the public route has no session to gate that with.
+
+**Revoking stops the link. It cannot reach a copy already printed or saved.** The token
+is derived, not stored: an HMAC over the case id and a version number, recomputed on
+every request rather than looked up. Revoking bumps that version, so the token already
+handed out stops verifying - but the PDF already saved to someone's drive, or the sheet
+already sitting on a desk, still shows the same QR code and the same text. It just no
+longer resolves. A later republish mints a different token, so it cannot reactivate a
+code that already went out.
+
+**Rotating `ARBITER_SHARE_SECRET` invalidates every published link on the deployment at
+once**, not just the one somebody asked to revoke - the secret is the only thing that
+makes the HMAC unforgeable, so a new one makes every token derived under the old one
+wrong. There is no per-link rotation, only per-deployment.
+
+**Rotate it if you ever move backings — files to Postgres, or back.** `share_links` starts
+empty and nothing carries the old store's version numbers into it, so a case that was
+published and then revoked on one backing is *unknown* on the other: the convener is
+offered "Publish this record" again and the new link is minted at version 1, which under
+an unchanged secret is byte-identical to the token that was killed. Every QR printed
+before the revoke starts resolving again. Rotating the secret makes that impossible,
+because nothing minted under the old one verifies afterwards. The alternative, if live
+links cannot be invalidated, is to copy the rows across before the first publish on the
+new backing — see `supabase/migrations/0002_share_links.sql`.
+
+**Sharing is off unless `ARBITER_SHARE_SECRET` is set**, and the boot banner says which:
+`Share:  on - records can be published to a tokenised URL` or `Share:  off -
+ARBITER_SHARE_SECRET is unset, so records cannot be published`. Publishing without it
+answers `501`, naming the variable, rather than a silent no-op. The value must be at
+least 32 bytes - shorter, and the process refuses to start at all, naming the variable
+and why: a short secret produces links that look unguessable and are not.
+
+**`/r/:caseId/:token` - the public PAGE - is still not served in production.** The public
+API route is; what is missing is the HTML that draws it. The page works under `npm run
+deliberate:dev` - the deliberation workspace's own Vite dev server, whose middleware
+answers `/r/*` with `public.html`. **The unified `npm run dev` does not**: that command
+fronts everything with the landing app's Vite server, which proxies `/deliberation` and
+`/api` but never `/r/*` - so a share URL opened there 200s with the landing page's
+`index.html` instead, which reads as a broken feature rather than as the gap it is. And a
+container with `ARBITER_STATIC_DIR` set answers 404, because `/r/<caseId>/<token>` names
+no file in the built site. **So a QR code scanned against a deployed host reaches a 404
+today, and a convener should not be handed one until this is closed.**
+
+Two things have to be decided first, and neither belongs to the change that added the
+route. `serveStatic` has no rewrite table on purpose - a missing asset 404s instead of
+coming back as an HTML page with status 200 - so serving `public.html` for `/r/*` means
+introducing the first one. And `public.html` references its assets root-absolutely
+(`apps/deliberation/vite.config.ts`'s `renderBuiltUrl`, because that URL is two real path
+segments deep), so it needs a root mount, while `tools/stage-site.mjs` stages the client
+under `/deliberation/`. What must **not** be the fix is rewriting unmatched paths to
+`index.html`: that document signs its visitor in as `AUTO_EMAIL` on load, so an SPA
+fallback would hand a session to anyone who mistyped a share URL. See the comment beside
+`staticRoot()` in `services/api/server.ts`.
+
+**One more thing worth knowing before demoing this under `npm run deliberate:dev`:**
+that dev server's own `/` is the deliberation app's shell, which signs its visitor in
+automatically on load - so a dev share link is one URL edit away from a session, not
+just a read-only page. That is a property of the shell rather than of the share link, and
+it is not confined to the dev server: on a deployment with `ARBITER_STATIC_DIR` set, the
+same shell sits at `/deliberation/` and does the same thing to anyone who reaches it.
+That is the auto-sign-in question the section above says has to be answered, stated here
+in the form an operator meets it - the share link itself carries no session either way,
+which is exactly why it must not be trimmed and followed.
 
 ### Verify everything
 
@@ -381,7 +464,9 @@ apps/deliberation/        THE PRODUCT. Four stages, real backend, AI decider.
 
 services/api/             The backend. Accounts, cases, adjudication. Node only.
   server.ts               Routes, plus the built site behind ARBITER_STATIC_DIR.
-                          /api/auth/* and /api/health are the unauthenticated surface.
+                          /api/auth/*, /api/health and /api/public/report/* are the
+                          unauthenticated surface. Only the last one serves case data.
+  share.ts                Published records. The token is DERIVED, never stored.
   adjudicate.ts           ADJUDICATOR_PROMPT_PATH - the in-force prompt version
   deliberation.ts         Blind submission + unanimity. Read the contracts.
   gemini.ts               Vertex AI. Falls back to a labelled stub without creds.
@@ -404,7 +489,8 @@ e2e/                      Playwright. Drives the unified server, not one app.
 
 Dockerfile                Node 22 AND Python 3.12 - the upload path forks an interpreter
 fly.toml                  One worked deployment. No volume; state is in Supabase.
-supabase/migrations/      0001_init.sql. The log is append-only at the database.
+supabase/migrations/      0001_init.sql, then 0002 onward. Append a file, never edit one.
+                          The log is append-only at the database, not just by convention.
 
 data/prep/*.py            DILIrank ingestion, splits, QSAR/Tox21 streams
 rules/ruleset-v1.0.json   PRE-REGISTERED AND HASHED. Do not edit.

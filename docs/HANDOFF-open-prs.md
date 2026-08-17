@@ -5,10 +5,10 @@ Written 2026-08-17, for whoever picks this up. Sibling to `HANDOFF-evaluation.md
 that has since become `main`. Those two own the numbers and the reading surface; this one
 owns the open PRs and the branch topology underneath them.
 
-A previous session reconciled that topology and merged what was ready. #24 and #33 have
-since landed and #28 has been harvested; **three still need work** — #25, #27, #30 — with
-#28 open but empty of anything worth taking. Read all of this before touching
-anything.
+A previous session reconciled that topology and merged what was ready. #24, #33 and #34
+have since landed and #28 has been harvested; **two still need work** — #25 and #27 — with
+#28 open but empty of anything worth taking, and #30 open but now entirely contained in
+#34, so it wants closing rather than merging. Read all of this before touching anything.
 
 An earlier revision of this document said "five PRs" and listed five. There were six, and
 #25 was the one missing. Count against `gh pr list` rather than against this section.
@@ -169,26 +169,36 @@ install. Neither has been raised with the author.
 
 The head branch `fix/dev-dependency-preflight` was left alive on the remote.
 
-### #30 — printable deliberation record (Darkest-Teddy)
+### ~~#30 — printable deliberation record (Darkest-Teddy)~~ — LANDED 2026-08-17, inside #34
 
-The report feature itself is good: no new dependency, browser `window.print()`, 30 tests,
+**Its content is on `main`.** Not by merging #30: PR #34 (shareable report) was cut from a
+branch that already carried #30 merged into it, so landing #34 landed both. **#30 itself is
+still open and now has nothing left to contribute — close it rather than merge it**, or its
+merge will re-apply the duplicate transport this entry was about.
+
+The report feature itself was good: no new dependency, browser `window.print()`, 30 tests,
 no injection surface — pure React elements, no `dangerouslySetInnerHTML`.
 
-**Blocker:** roughly a third of it is a second, incompatible implementation of the fix that
-`dd140aa` already landed on `main`. It adds `DeliberationService.adjudication()` and a
-`case "adjudication"` route; `main` widened `view()` to carry the same fact. **These
-auto-merge with no conflict**, so both survive silently — two endpoints, two client types,
-and two contradictory provenance rules (`main`: `actorId === "stub" ? stub : live`; the PR:
-`actorId === "model" ? live : stub` — opposite defaults).
+**The blocker, and how it actually resolved.** Roughly a third of #30 was a second,
+incompatible implementation of the fix `dd140aa` already landed on `main`: it added
+`DeliberationService.adjudication()` and a `case "adjudication"` route, where `main` had
+widened `view()` to carry the same fact. **These auto-merge with no conflict**, which is
+what made it dangerous — and both halves of it were still live when #34 was resolved:
 
-It also reverts `main`'s Adjudicate gate (`view.status === "locked"`), reintroducing three
-wasted model calls per click on cases that can only answer 409.
-
-**Action:** have the author drop the duplicate transport and rebase the report onto `main`'s
-`view`-carried verdict. `handleReport` then needs a one-line change. Everything genuinely
-new — `verdict-report.ts`, `report.tsx`, the print CSS, the 30 tests — lands untouched.
-
-Jack has been actively pushing to this branch. Tell him before he rebases into a surprise.
+- The **route** was already gone. #34's branch dropped it and left a comment where it was
+  saying why (`view` carries the adjudication, so a second endpoint is a second thing to
+  keep honest). The service method stayed, because `handleReport` reads it.
+- The **two provenance rules** had both survived, exactly as predicted — `view`'s
+  `actorId === "stub" ? stub : live` beside the report's `actorId === "model" ? live :
+  stub`, opposite defaults for an unrecognised actor, on two surfaces that both claim to
+  describe the same adjudication. Closed in the #34 merge: one module-level `sourceOf` in
+  `deliberation-service.ts`, which both readers now call, failing toward `stub` for
+  anything that is not exactly "model". Every writer passes "stub" or "model", so nothing
+  observable changed; `deliberation-service.test.ts` pins that the two agree, including on
+  the third actor neither was written for.
+- **`main`'s Adjudicate gate (`view.status === "locked"`) was NOT reverted** in the end —
+  it is live in `App.tsx`, and the server also refuses before spending, via
+  `readyToAdjudicate`.
 
 ### #28 — product chrome fixes (Darkest-Teddy) — DRAFT, and now mostly harvested
 
@@ -306,10 +316,15 @@ and land cleanly on their own. The seeder needs a redesign, not a rebase.
 2. ~~**#33**~~ — done, `f4469a8`, joined in `bf0e605`.
 3. ~~**#28**~~ — harvested, `e8569a3`. The branch is still open and needs a decision, not
    a merge.
-4. **#30** — author drops the duplicate adjudication transport, then merge.
+4. ~~**#30**~~ — landed inside #34. **Close the PR; do not merge it** — see its entry.
 5. **#27** — split; land the env layering, redesign the seeder.
 6. **#25** — review from scratch. Never assessed; see its entry.
 7. Delete `feat/product-in-the-atmosphere`, and address the dependabot alerts.
+8. **Serve `/r/:caseId/:token` in production.** #34 shipped the public API route and the
+   page, and the page is served only by `npm run deliberate:dev` - so a scanned QR code
+   404s on a deployed host. Deliberately deferred, with the two decisions it needs written
+   up beside `staticRoot()` in `services/api/server.ts` and in the README. This is the one
+   gap that makes a shipped feature look broken rather than absent.
 
 **`main` is now 17 commits ahead of `feat/product-in-the-atmosphere`, which is 0 ahead of
 it.** That is the §1 divergence starting over, and three of the four remaining PRs (#30,

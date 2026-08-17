@@ -1,8 +1,10 @@
 import { useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type BlindView, type Consensus, type Finding, type Inventory, type Position, type Refusal, type Roster, type Signature, type StoredDocument, type UnanimityReport } from "./api.js";
+import { api, ApiError, type Adjudication, type BlindView, type Consensus, type Finding, type Inventory, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
+import { basisOf } from "./basis.js";
 import { Markdown } from "./markdown.js";
 import { Reviewer, collidingInitials } from "./Reviewer.js";
 import { initials } from "./Layout.js";
+import { href } from "./router.js";
 
 /**
  * The screens of the deliberation, in the order §3.5 fixes them:
@@ -12,12 +14,6 @@ import { initials } from "./Layout.js";
  * order is exactly what §3.1 exists to protect, because reading anybody else's call
  * before writing your own is the failure blind submission was built to prevent.
  */
-
-export function basisOf(p: Position): "cited" | "external" | "unsupported" {
-  if (p.citedFindingIds.length > 0) return "cited";
-  if (p.external.length > 0) return "external";
-  return "unsupported";
-}
 
 const CALL_LABEL: Record<string, string> = {
   advance: "Advance",
@@ -765,6 +761,46 @@ export function Reveal({ view, unanimity, nameOf, seats }: {
   );
 }
 
+/** -------------------------------------------------------------- the report */
+/**
+ * The way through to the printable record.
+ *
+ * A LINK, NOT A DOWNLOAD. It used to fetch a finished PDF and push it at the reader as
+ * a file. A file in a downloads folder has to be opened before anybody can check it,
+ * and by then it has usually already been forwarded - so this opens the document on a
+ * page instead, where the reader can see what they are about to send. Printing it is
+ * the browser's own dialog, which everybody already knows and which has "Save as PDF"
+ * in it.
+ *
+ * ANY TEAM MEMBER, not just the convener. The people who most need to send this are the
+ * ones who cannot show anybody the screen: a reviewer forwarding the panel's reasoning
+ * to a programme lead, somebody filing what was decided, whoever inherits the compound
+ * in two years. Making it the convener's control would mean everybody else asks them
+ * for a copy, and what gets sent in that situation is a screenshot - which carries the
+ * verdict, drops the dissent, and can be checked against nothing.
+ */
+function ReportLink({ caseId }: { caseId: string }): ReactElement {
+  return (
+    <div className="panel sunken">
+      <div>
+        <h3>Take this away as a document</h3>
+        <p className="hint">
+          The decision, every position in full, the adjudication, the evidence it was
+          decided on and the state of the record - on one page you can read before you
+          send it, and print or save as a PDF from there. Anyone on this case can open it.
+          Nothing in it is summarised: a shorter document would be one that chose which
+          dissent to carry.
+        </p>
+      </div>
+      <div className="btn-row">
+        <a href={href({ name: "report", caseId })}>
+          <button className="ghost">Open the printable record</button>
+        </a>
+      </div>
+    </div>
+  );
+}
+
 /** ------------------------------------------------------------------- verdict */
 /**
  * PROSE GOES THROUGH `Markdown`, the same renderer the ask answers use.
@@ -777,13 +813,25 @@ export function Reveal({ view, unanimity, nameOf, seats }: {
  * in the middle of a safety verdict. `Markdown` builds React elements from strings
  * and never touches innerHTML, so it is strictly safer than the interpolation it
  * replaces as well as strictly more readable.
+ *
+ * THE ADJUDICATION ARRIVES ON `view`, not from a route of its own. Two branches fixed
+ * the same bug - the verdict living only in the tab that pressed the button - and this
+ * is the surviving half: `BlindView` carries the adjudication, its source, the run
+ * consensus and the signature, so one fetch serves the whole stage and there is no
+ * second endpoint to disagree with it.
  */
-export function Verdict({ adjudication, source, consensus = null, signature = null, onSign }: {
+export function Verdict({ adjudication, source, caseId, canSign, consensus = null, signed = null, onSign }: {
   adjudication: Adjudication; source: "stub" | "live";
+  /** Which case the printable record belongs to. */
+  caseId: string;
+  /** The convener signs; everyone else reads. §6.7 - a committee advises and one
+   *  named individual decides, so this is false for most people who see this screen. */
+  canSign: boolean;
   consensus?: Consensus | null;
-  /** Present once the case is signed, which closes the record: the form becomes the
-   *  fact of who signed and what they said. */
-  signature?: Signature | null;
+  /** Already signed, resolved to a name by the caller - the signature on `view` names
+   *  its signer by id, and only the caller holds the roster that turns it into a
+   *  person. Null while nobody has signed. */
+  signed?: { name: string; at: string; agreesWithAdjudication: boolean; reason: string } | null;
   onSign: (agrees: boolean, reason: string) => void;
 }): ReactElement {
   const [reason, setReason] = useState("");
@@ -871,24 +919,35 @@ export function Verdict({ adjudication, source, consensus = null, signature = nu
         </div>
       )}
 
-      {signature !== null ? (
-        <div className="verdict-group">
-          <h2>Signed</h2>
-          <p>
-            <strong>{signature.agreesWithAdjudication ? "Agreed with" : "Overrode"} this adjudication.</strong>
-          </p>
-          {signature.reason.trim() !== "" && <div className="md"><Markdown>{signature.reason}</Markdown></div>}
+      <h2 style={{ marginTop: 32 }}>Sign</h2>
+      <p className="muted">
+        One named person. No quorum, no threshold, no consensus mechanism - a committee
+        advises and an individual decides, and the signer may override this adjudication.
+      </p>
+
+      {/* WHAT IS ON SCREEN DEPENDS ON WHO IS READING, and the three states are
+          genuinely different. A participant used to see a sign form they were not
+          permitted to use: the server answers 403, so the control was a promise the
+          product could not keep. */}
+      {signed !== null ? (
+        <div className="note">
+          <strong>
+            {signed.agreesWithAdjudication
+              ? `${signed.name} signed this record.`
+              : `${signed.name} signed, overriding the adjudication.`}
+          </strong>
+          <div className="small muted mono">{signed.at}</div>
+          {/* Through `Markdown` for the same reason the adjudication's prose is: a
+              signer's reason is free text beside a safety verdict, and raw `**` in it
+              reads as the record having been typed badly. */}
+          {signed.reason.trim() !== "" && <div className="md"><Markdown>{signed.reason}</Markdown></div>}
         </div>
-      ) : (
-        <div className="verdict-group">
-          <h2>Sign</h2>
-          <p className="muted">
-            One named person. No quorum, no threshold, no consensus mechanism - a committee
-            advises and an individual decides, and you may override this adjudication.
-          </p>
-          {/* The same pair of dropped classes as the call control above, and the same
-              replacement: signing off on an adjudication is a two-way choice and it was
-              rendering as "AgreeOverride". */}
+      ) : canSign ? (
+        <>
+          {/* `.choice`/`.ghost`, not `.rail`/`.persona`: the latter pair no longer
+              exists, so the two controls collapsed into the single run of text
+              "AgreeOverride". Came in on the base branch with the same fix applied to
+              the call control above; kept here on the way past. */}
           <div className="choice">
             <button type="button" className="ghost" aria-pressed={agrees} onClick={() => setAgrees(true)}>Agree</button>
             <button type="button" className="ghost" aria-pressed={!agrees} onClick={() => setAgrees(false)}>Override</button>
@@ -898,8 +957,15 @@ export function Verdict({ adjudication, source, consensus = null, signature = nu
           <button className="primary" disabled={!agrees && reason.trim() === ""} onClick={() => onSign(agrees, reason)}>
             Sign the record
           </button>
-        </div>
+        </>
+      ) : (
+        <p className="small muted">
+          The convener signs this one. Until they do, nothing here has been decided - and
+          when they do, it appears on this screen and in the report below.
+        </p>
       )}
+
+      <ReportLink caseId={caseId} />
     </section>
   );
 }
