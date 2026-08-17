@@ -102,11 +102,37 @@ It does **not** import `App.tsx`, the authenticated api client, or `screens.tsx`
 
 This is the whole security argument, and it is structural rather than conditional. `App.tsx` authenticates on load from `AUTO_EMAIL` / `AUTO_PASSWORD`. A public route inside that shell would sign its visitor in, and the only thing preventing it would be a boolean somebody has to keep remembering. A separate entry cannot sign anybody in, because the code that signs people in is not in the bundle.
 
+> Those two values later stopped being unconditional defaults and became development-only unless a build sets them, so the shell hands out a session in fewer circumstances than when this was written. **The argument above is unchanged by that** and should not be softened to lean on it: a build variable is exactly the "boolean somebody has to keep remembering" this paragraph refuses. The separation is what makes the claim hold without one.
+
 **One cleanup this forces.** `report.tsx` imports `basisOf` from `screens.tsx`, which would drag the authenticated screens into the public bundle. `basisOf` is a pure function about positions, not about screens; it moves to `apps/deliberation/src/basis.ts` and both import it from there.
 
 The public page renders the same sheets with the same pager, without the share controls or the "Back to the verdict" link.
 
 Served at `/r/:caseId/:token`. In development, `apps/deliberation/vite.config.ts`'s own dev-server middleware answers `/r/*` with `public.html` - that is what `npm run deliberate:dev` and a manual walk-through of this feature use.
+
+> **Done, in a later change.** `services/api/server.ts`'s `serveStatic` answers a
+> three-segment `/r/<caseId>/<token>` with `public.html` from the site root - one rule that
+> resolves to one constant filename, so neither segment is ever used to build a path and a
+> root without that file answers 404 rather than falling back. `tools/stage-site.mjs` writes
+> the document to the root and re-points its root-absolute asset references at the directory
+> it staged the client into, which is the reconciliation the paragraph below asks for: the
+> mount and the references are now set by the one script that knows where the client landed,
+> and it fails the build if a reference does not resolve. `apps/landing/vite.config.ts`
+> proxies `/r/` under `npm run dev`, which used to answer a share URL with the marketing
+> page at status 200.
+>
+> The auto-sign-in question below was answered rather than inherited. `VITE_AUTO_EMAIL` and
+> `VITE_AUTO_PASSWORD` lost their hardcoded defaults and are now scoped to
+> `import.meta.env.DEV`, so a built artifact signs nobody in unless the build asked for an
+> identity - which makes the shell fail closed without changing any development flow. The
+> product's own choice to open straight into itself, and what one shared identity costs the
+> record's attribution, are untouched and still argued in `App.tsx`.
+>
+> The proof is `e2e/public-record.spec.ts`, a second Playwright project that builds the site,
+> publishes a record over the API and opens the share link in a browser. It asserts on failed
+> subresource requests *before* asserting on content, because the defect this closes was a
+> 200 with a blank body: a content assertion alone fails by timeout naming a compound, while
+> the request assertion fails immediately naming the asset that was not found.
 
 **Production static serving of `/r/*` does not exist on this branch, deliberately deferred.** A branch that answered `GET /` with `apps/deliberation/dist/index.html` was written for this task and removed before it shipped (see `services/api/server.ts:74-91` and the README): `index.html` signs its visitor in as `AUTO_EMAIL` on load, so serving it to anyone who merely reached the origin - not someone who signed in, not someone holding a share link - would be anonymous access to every case on the deployment. That is a materially bigger decision than "add a static file server," and it does not belong inside a task about one public route. PR #33 (`worktree-supabase-deploy`) already carries a full static-serving implementation, built against a different `ServerDeps` shape (Postgres-backed stores rather than this branch's file-backed ones); whoever brings that branch's version in must answer the auto-sign-in question above first, as its own decision, before wiring `ARBITER_STATIC_DIR` up to anything that can reach `/`. One more constraint that inherits along with it: `vite.config.ts`'s `renderBuiltUrl` rewrites `public.html`'s own asset references to root-absolute paths (`/${filename}`) specifically because `/r/:caseId/:token` is two real path segments deep, which means the public page requires a root mount and cannot work staged under the `/app/` subpath `tools/stage-site.mjs` produces for `index.html`.
 
@@ -179,7 +205,9 @@ The QR block is a `Block` like every other, so the paginator treats it as indivi
 
 No Postgres files and no migration: see Storage above — that layer is not on this branch.
 
-> **After the merge onto `main`:** the static serving arrived with PR #33 (`serveStatic`, behind `ARBITER_STATIC_DIR`) and was kept as it landed. `/r/:caseId/:token` is still **not** routed to `public.html`, so a share URL 404s on a deployed host — deliberately, for the two reasons recorded beside `staticRoot()` in `services/api/server.ts` and in the README: `serveStatic` has no rewrite table on purpose, and `public.html` needs a root mount that `tools/stage-site.mjs` does not give it. The Postgres files and the migration are listed in the Storage note above.
+> **After the merge onto `main`:** the static serving arrived with PR #33 (`serveStatic`, behind `ARBITER_STATIC_DIR`) and was kept as it landed. `/r/:caseId/:token` was still **not** routed to `public.html` at that point, so a share URL 404'd on a deployed host — deliberately, for the two reasons then recorded beside `staticRoot()`. The Postgres files and the migration are listed in the Storage note above.
+>
+> **Closed in a later change.** `serveStatic` routes the share link, `tools/stage-site.mjs` reconciles the mount with the asset references, `apps/landing/vite.config.ts` proxies `/r/` under `npm run dev`, and `apps/deliberation/src/App.tsx` scopes its auto-sign-in credentials to `import.meta.env.DEV` so a built shell fails closed. New: `e2e/public-record.spec.ts`, `apps/deliberation/test/auto-signin.test.tsx`. Also changed: `playwright.config.ts` (a second project, against a built site), `e2e/one-origin.spec.ts`, `services/api/test/server.test.ts`, `README.md`, `.env.example`, `docs/HANDOFF-open-prs.md`. `apps/deliberation/src/pages.tsx` is untouched — its `AuthPage` had been sitting there exported and unreferenced since sign-in was removed, and the change to `App.tsx` is what makes it reachable again. See the note at the head of "The public surface".
 
 ## Risks
 

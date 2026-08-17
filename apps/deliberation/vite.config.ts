@@ -26,17 +26,26 @@ export default defineConfig({
     tailwindcss(),
     /* `/r/:caseId/:token` is a real path, not a hash route, because it is what a QR code
        carries and what somebody pastes into a chat. In dev Vite must be told which HTML
-       answers it; production static serving does not exist yet on this line of work -
-       see the comment in services/api/server.ts where it would go, and why it is not
-       there. Rewriting `req.url` rather than adding a second `server.proxy` entry,
-       because Vite's own middleware - the part that turns `public.html`'s
-       `<script src="/src/public.tsx">` into a served module - only runs for requests it
-       recognises as HTML, and it recognises them by path, not by content negotiation. */
+       answers it. In production `services/api/server.ts` answers it out of the built site,
+       and `tools/stage-site.mjs` puts the document where that server looks - see both.
+       Rewriting `req.url` rather than adding a second `server.proxy` entry, because Vite's
+       own middleware - the part that turns `public.html`'s `<script src="/src/public.tsx">`
+       into a served module - only runs for requests it recognises as HTML, and it
+       recognises them by path, not by content negotiation.
+
+       PREFIXED WITH THE SERVER'S OWN BASE, which is not decoration. `npm run dev` starts
+       this app with `--base /deliberation/` (tools/dev-all.mjs) so it can sit behind the
+       landing app's proxy, and under a base Vite resolves every path it serves - including
+       which HTML entry a request names - against that prefix. Rewriting to a bare
+       `/public.html` there names nothing, so the unified dev server answered a share link
+       with a 404 while `npm run deliberate:dev`, whose base is `/`, worked perfectly. One
+       arrangement working and the other not is the shape of a hardcoded prefix; `base`
+       already holds the right answer for both. */
     {
       name: "arbiter-public-report",
       configureServer(server) {
         server.middlewares.use((req, _res, next) => {
-          if (req.url?.startsWith("/r/") === true) req.url = "/public.html";
+          if (req.url?.startsWith("/r/") === true) req.url = `${server.config.base}public.html`;
           next();
         });
       },
@@ -62,11 +71,13 @@ export default defineConfig({
    * against the current URL, so clicking one is an ordinary hash change. Under a
    * `<base href="/">` they resolve against `/` instead, which is a DIFFERENT path
    * than `/r/<caseId>/<token>` - so the browser does a real navigation, off the
-   * public page and onto whatever answers `/`. That is `index.html` once a static
-   * host is wired up, and `index.html` signs its visitor in as AUTO_EMAIL on load.
-   * One stray link would have turned an anonymous reader into an authenticated
-   * session. `renderBuiltUrl` below fixes the same 404 by rewriting only the
-   * ASSET references this build controls, and touches nothing already on the page.
+   * public page and onto whatever answers `/`. On a built site that is the landing
+   * page, and one directory along at `/deliberation/` is `index.html` - which on a
+   * build made with VITE_AUTO_EMAIL and VITE_AUTO_PASSWORD signs its visitor in.
+   * One stray link would have walked an anonymous reader out of the record and, on
+   * such a build, into a session. `renderBuiltUrl` below fixes the same 404 by
+   * rewriting only the ASSET references this build controls, and touches nothing
+   * already on the page.
    */
   base: "./",
   experimental: {
@@ -78,6 +89,17 @@ export default defineConfig({
      * which entry is asking rather than assuming every HTML file wants the same answer.
      * Returning `undefined` for everything else falls through to the default `base`
      * behaviour untouched.
+     *
+     * ABSOLUTE FROM WHERE, THOUGH. This emits `/assets/...`, which is correct for a build
+     * served at the root - `apps/deliberation/dist` opened directly - and wrong for one
+     * staged under a subpath, where those references point into the LANDING page's own
+     * assets directory and 404. This function cannot know the difference: the destination
+     * is `apps/landing/src/links.ts`'s APP_URL, read at STAGING time, and a build that
+     * guessed it would be the same drifting literal `tools/stage-site.mjs` exists not to
+     * repeat. So that script re-points them, having just staged the directory they should
+     * name, and fails the build if any of them does not resolve. What has to survive here
+     * is only that they stay ABSOLUTE - a relative reference from `/r/<caseId>/<token>` is
+     * the 404 this override was written for, and no amount of restaging fixes it.
      */
     renderBuiltUrl(filename, { hostId, hostType }) {
       if (hostType === "html" && hostId === "public.html") return `/${filename}`;

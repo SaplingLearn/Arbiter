@@ -295,14 +295,21 @@ which finds the `Dockerfile` and `railway.toml` on its own; set the variables li
   Off Google Cloud, `GOOGLE_APPLICATION_CREDENTIALS_JSON` takes the JSON as a secret.
 - **`ARBITER_STATIC_DIR=apps/landing/dist` is what makes the deployment a website.**
   Without it the container serves an API and no site: `services/api` answers 404 to any
-  path whose first segment is not `api`, and the client makes same-origin `/api` calls
-  and signs itself in on load, so hosting the two separately gives a page that fails on
-  its first request. Set, the API process serves that directory for everything outside
-  `/api` - the landing page at `/`, the staged client at `/deliberation/` - and one
-  origin needs no proxy and no CORS. **Unset is still the right default**, because under
-  `npm run dev` apps/landing's Vite server owns those paths and two servers claiming one
-  URL is worse than the 404. The startup banner says which of the two you are in, and
-  warns by name if the directory does not exist.
+  path whose first segment is not `api`, and the client makes same-origin `/api` calls,
+  so hosting the two separately gives a page that fails on its first request. Set, the
+  API process serves that directory for everything outside `/api` - the landing page at
+  `/`, the staged client at `/deliberation/`, and the public record page for a
+  `/r/<caseId>/<token>` share link - and one origin needs no proxy and no CORS.
+  **Unset is still the right default**, because under `npm run dev` apps/landing's Vite
+  server owns those paths and two servers claiming one URL is worse than the 404. The
+  startup banner says which of the two you are in, and warns by name if the directory
+  does not exist.
+- **A built client asks who you are unless the build said otherwise.** Setting
+  `VITE_AUTO_EMAIL` and `VITE_AUTO_PASSWORD` at build time makes `/deliberation/` sign
+  every visitor in as that identity, which is right for a demonstration and wrong
+  everywhere else - it is anonymous read access to every case the deployment holds, and
+  it makes the record say that person decided whoever was at the keyboard. Leaving them
+  unset is what you want; see the sharing section for the whole argument.
 - **`GET /api/health` is the one unauthenticated route**, returning
   `{"ok":true,"service":"arbiter-api","uptimeSeconds":N}`. It exists so a health check
   can confirm the process *serves* rather than that something bound the port - a process
@@ -362,37 +369,67 @@ answers `501`, naming the variable, rather than a silent no-op. The value must b
 least 32 bytes - shorter, and the process refuses to start at all, naming the variable
 and why: a short secret produces links that look unguessable and are not.
 
-**`/r/:caseId/:token` - the public PAGE - is still not served in production.** The public
-API route is; what is missing is the HTML that draws it. The page works under `npm run
-deliberate:dev` - the deliberation workspace's own Vite dev server, whose middleware
-answers `/r/*` with `public.html`. **The unified `npm run dev` does not**: that command
-fronts everything with the landing app's Vite server, which proxies `/deliberation` and
-`/api` but never `/r/*` - so a share URL opened there 200s with the landing page's
-`index.html` instead, which reads as a broken feature rather than as the gap it is. And a
-container with `ARBITER_STATIC_DIR` set answers 404, because `/r/<caseId>/<token>` names
-no file in the built site. **So a QR code scanned against a deployed host reaches a 404
-today, and a convener should not be handed one until this is closed.**
+**`/r/:caseId/:token` - the public PAGE - is served everywhere the API route is.** Three
+arrangements, one answer:
 
-Two things have to be decided first, and neither belongs to the change that added the
-route. `serveStatic` has no rewrite table on purpose - a missing asset 404s instead of
-coming back as an HTML page with status 200 - so serving `public.html` for `/r/*` means
-introducing the first one. And `public.html` references its assets root-absolutely
-(`apps/deliberation/vite.config.ts`'s `renderBuiltUrl`, because that URL is two real path
-segments deep), so it needs a root mount, while `tools/stage-site.mjs` stages the client
-under `/deliberation/`. What must **not** be the fix is rewriting unmatched paths to
-`index.html`: that document signs its visitor in as `AUTO_EMAIL` on load, so an SPA
-fallback would hand a session to anyone who mistyped a share URL. See the comment beside
-`staticRoot()` in `services/api/server.ts`.
+- `npm run deliberate:dev` - the deliberation workspace's own Vite server, whose middleware
+  rewrites `/r/*` onto `public.html`.
+- `npm run dev` - the unified server proxies `/r/` to that same middleware. It used to
+  answer with the landing page at status 200, which reads as a broken feature rather than
+  as an unrouted path.
+- **A built site behind `ARBITER_STATIC_DIR`** - `serveStatic` answers a three-segment
+  `/r/<caseId>/<token>` with `public.html` from the site root, and `tools/stage-site.mjs`
+  puts one there with its asset references pointed at wherever the client was staged. This
+  is the arrangement a scanned QR code actually meets, and until `e2e/public-record.spec.ts`
+  nothing in the repo opened it.
 
-**One more thing worth knowing before demoing this under `npm run deliberate:dev`:**
-that dev server's own `/` is the deliberation app's shell, which signs its visitor in
-automatically on load - so a dev share link is one URL edit away from a session, not
-just a read-only page. That is a property of the shell rather than of the share link, and
-it is not confined to the dev server: on a deployment with `ARBITER_STATIC_DIR` set, the
-same shell sits at `/deliberation/` and does the same thing to anyone who reaches it.
-That is the auto-sign-in question the section above says has to be answered, stated here
-in the form an operator meets it - the share link itself carries no session either way,
-which is exactly why it must not be trimmed and followed.
+Two properties of that are worth knowing, because each was the subject of a decision.
+
+**The rewrite is one rule that resolves to one constant, not a rewrite table.** `serveStatic`
+still has no SPA fallback: a missing asset 404s rather than coming back as an HTML page with
+status 200. The share-link rule matches a *shape* and then serves a *fixed filename*, so
+neither the case id nor the token is ever used to build a path, and a root with no
+`public.html` answers 404 rather than falling back to whatever else is there. That fallback
+is the hazard the rule is shaped around: `index.html` is the app shell, and "serve
+index.html for any unmatched path" is the one-line change that would hand it to anyone who
+mistyped a share URL by a character.
+
+**`public.html`'s asset references are reconciled at staging time.** They are root-absolute
+- `apps/deliberation/vite.config.ts`'s `renderBuiltUrl`, because a share URL is two real
+path segments deep and a relative `./assets/…` would resolve against `/r/<caseId>/`.
+Root-absolute was right and *root* was wrong: staged under `/deliberation/`, the document
+still asked for `/assets/public-<hash>.js`, where the landing page's own bundle lives under
+different names. Served that way it was **200 OK with a blank page** - a document that
+parses, a correct content type, and nothing in any status line saying otherwise.
+`tools/stage-site.mjs` now points those references at the directory it staged into, and
+**fails the build** if one of them does not resolve.
+
+**Auto-sign-in is a development affordance, not a build default.**
+`apps/deliberation/src/App.tsx` used to carry the seeded demo lead's address and its
+published password as unconditional `??` defaults. Because that file *is* `index.html` and
+`index.html` is served at `/deliberation/` on any deployment with `ARBITER_STATIC_DIR` set,
+every such deployment with the demo team seeded signed in whoever reached that path - as the
+convener, with read access to every case it held. Nobody had to type a credential; the build
+carried one. Those defaults are now scoped to `import.meta.env.DEV`, so:
+
+- development is unchanged: `npm run dev`, `npm run deliberate:dev` and the test suite all
+  still open straight into the product;
+- a **built** artifact signs nobody in and asks who you are, unless that build explicitly
+  set both `VITE_AUTO_EMAIL` and `VITE_AUTO_PASSWORD` - which is how a demo deployment opts
+  in, deliberately;
+- an empty value counts as absent, the same reading `ARBITER_SHARE_SECRET=""` gets.
+
+The share link itself carries no session either way, which is exactly why it must not be
+trimmed and followed. Two greps hold the claims this rests on, and neither is provable from
+inside a test - `DEV` is substituted at build time, so only the built chunks can answer:
+
+```bash
+npm run deliberate:build
+# no credential in any chunk of a production build - every count 0
+grep -c "arbiter-demo-2026" apps/deliberation/dist/assets/*.js
+# and the public bundle still carries no auth code - only the main entry may match
+grep -l "AUTO_PASSWORD\|/api/auth/login" apps/deliberation/dist/assets/*.js
+```
 
 ### Verify everything
 
