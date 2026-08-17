@@ -133,6 +133,14 @@ export async function proposeFindings(
     // What a proposal must still carry is unchanged - a verbatim quote and a page, judged
     // against the FIELD - so a search term that drags in an irrelevant passage costs a
     // discarded proposal, never a wrong finding.
+    //
+    // It can still cost a MISSED one, and that direction is not defended. `perItem` is 6,
+    // so the added terms compete for six slots: a term that matches strongly somewhere
+    // irrelevant can push the correct passage out of the top six, and a passage that never
+    // arrives is reported as a gap the document does not have - the same failure this
+    // change exists to remove, arriving from the other side. Nothing here measures that.
+    // `retrieval-eval.ts` searches with the fixture QUESTION, not with `field +
+    // searchTerms`, so the committed hit@16 says nothing about this path either way.
     const query = [item.field, ...(item.searchTerms ?? [])].join(" ");
     const passages = search(index, query, perItem);
     if (passages.length === 0) { notFound.push({ itemId: item.id, field: item.field }); continue; }

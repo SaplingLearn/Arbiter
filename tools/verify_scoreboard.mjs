@@ -52,7 +52,11 @@ for (const it of fixture.items) {
 const multi = [...groups.values()].filter((ids) => ids.length > 1);
 
 console.log("ASK");
-row("1 finds the passage (hit@16)", Math.round(retrieval.hitRate * retrieval.answerable), retrieval.answerable);
+// Counted from the raw rows, like every other metric here. This one used to read
+// `retrieval.hitRate` and multiply back by the denominator, which is the one thing this
+// file says it never does: a drifted summary field would have been reported as truth.
+const retrievalAnswerable = retrieval.items.filter((i) => i.kind === "answerable");
+row("1 finds the passage (hit@16)", retrievalAnswerable.filter((i) => i.hit === true).length, retrievalAnswerable.length);
 row("2 gets the fact right (judged)", judged.filter((i) => i.judged === true).length, judged.length);
 row("3 points to a correct page", answerable.filter((i) => (i.citationRecall ?? 0) > 0).length, answerable.length);
 row("4 says when it cannot answer", unanswerable.filter((i) => i.refused === true).length, unanswerable.length);
@@ -80,9 +84,36 @@ if (ask.model !== MODEL) problems.push(`ask model is ${ask.model}, not ${MODEL}`
 if (five.model !== MODEL) problems.push(`verdict model is ${five.model}, not ${MODEL}`);
 if (five.scoredMetrics && five.scoredMetrics.includes("gaps")) problems.push("gap recall is still listed as a scored metric");
 
+// The summary fields are no longer read for any headline, so drift in them is invisible
+// unless it is asserted. Compare them against the rows they claim to summarise.
+const recomputedHitRate = retrievalAnswerable.filter((i) => i.hit === true).length / retrievalAnswerable.length;
+if (Math.abs(retrieval.hitRate - recomputedHitRate) > 1e-9) {
+  problems.push(`retrieval.hitRate ${retrieval.hitRate} != ${recomputedHitRate} recomputed from items`);
+}
+if (retrieval.answerable !== retrievalAnswerable.length) {
+  problems.push(`retrieval.answerable ${retrieval.answerable} != ${retrievalAnswerable.length} counted by kind`);
+}
+
+// STALE-PROVENANCE WARNINGS, not failures. `verdict-five-eval.ts` writes `scoredMetrics`
+// and `guaranteedNotMeasured`; a results file lacking them was written by a SUPERSEDED
+// version of that harness and has not been regenerated since. The gap-recall guard above
+// keys off `scoredMetrics`, so against such a file it cannot fire — absent and correct
+// look identical, which is the exact failure this tool exists to make visible.
+const warnings = [];
+if (five.scoredMetrics === undefined) {
+  warnings.push("verdict-five results predate `scoredMetrics` — the gap-recall guard above did not run");
+}
+if (five.score && "gaps" in five.score) {
+  warnings.push("verdict-five results still carry `score.gaps`, from before gap recall was reclassified");
+}
+
 console.log(`  ask and retrieval both on ${answerable.length} answerable + ${unanswerable.length} unanswerable`);
 console.log(`  documents in fixture: ${new Set(fixture.items.map((i) => i.document)).size}`);
 console.log(`  model: ${ask.model} via ${ask.provider}, errors ${ask.errors}`);
 console.log(problems.length === 0 ? "  OK - no drift found" : `  ${problems.length} PROBLEM(S):`);
 for (const p of problems) console.log(`    - ${p}`);
+if (warnings.length > 0) {
+  console.log(`  ${warnings.length} STALE-PROVENANCE WARNING(S) - numbers verify, but the file is older than the harness:`);
+  for (const w of warnings) console.log(`    - ${w}`);
+}
 process.exit(problems.length === 0 ? 0 : 1);

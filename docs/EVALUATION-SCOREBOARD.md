@@ -227,6 +227,38 @@ patterns are a single word and an answer stating the opposite passes. It moved o
 100% for the first time when the corpus doubled, which is the clearest evidence that its
 old 100% was a property of the fixture.
 
+**The retrieval change on this branch is not measured by any of the ten.** `8d66975` widened
+the extraction query from the checklist `field` alone to `field + searchTerms`, and added
+those terms to `rules/evidence-checklist-v1.0.json`. It is a real change to product
+behaviour, and none of the ten benchmarks touch it: `retrieval-eval.ts` searches with the
+**fixture question** at k=16, while `extract.ts` is the only caller that uses `searchTerms`,
+at `perItem=6`. So metric 1's 95.2% neither validates the change nor is affected by it.
+The change also ships with no test. Its justifying comment says a stray term "costs a
+discarded proposal, never a wrong finding" — true about precision, and silent about the
+other direction: with only six slots, an added term can displace the correct passage out
+of the top six, and a displaced passage is reported as a **gap the document does not have**,
+which is the failure the change was made to remove.
+
+**The end-to-end file is a *before* measurement, and is not one of the ten.**
+`results/model-comparison/verdict-endtoend-gemini-3.5-flash.json` was written at `b5ead3a`
+(19:38), an hour before the retrieval change at `8d66975` (20:39), and was never
+regenerated — so it records the behaviour that change was meant to fix, not its effect.
+Read it with two things in mind: `sensitivity` is `k=0, n=0`, meaning **no hepatotoxic case
+was ever scored**, and `verdict-endtoend-eval.ts:179` sets `flagged = verdict ===
+"do_not_advance"`, so `cannot_conclude` counts as a correct negative. Both scored rows
+abstained. A system that abstains on everything scores 2/2 specificity here. No number in
+§1 comes from this file, and §8 does not list it, but it is committed and it invites being
+read as a result.
+
+**One cross-check in `verify_scoreboard.mjs` did not run.** `verdict-five-eval.ts` writes
+`scoredMetrics` and `guaranteedNotMeasured` as of `cef9ac3` (19:22); the committed
+`verdict-five-*.json` was last written at `b1e505e` (19:14) and has neither. The gap-recall
+guard keys off `scoredMetrics`, so against that file it silently no-ops while the tool
+prints "OK - no drift found". The guard now reports this as a stale-provenance warning
+rather than passing in silence. Every headline in §1 still recomputes from the raw rows —
+that was checked item by item — but the file is older than the harness that describes it,
+and it still carries `score.gaps` from before gap recall was reclassified.
+
 ---
 
 ## 6. How many independent things do these ten actually measure?
