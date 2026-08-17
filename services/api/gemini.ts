@@ -142,7 +142,6 @@ export function geminiEndpointLabel(env: NodeJS.ProcessEnv = process.env): strin
 }
 
 /**
-<<<<<<< HEAD
  * Why there are no Gemini credentials, and what to set.
  *
  * The 503 body stays `{"error":"no_key"}` - spec §10 pins it and three tests assert
