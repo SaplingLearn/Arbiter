@@ -41,19 +41,53 @@ import { readFileSync, existsSync } from "node:fs";
  *
  * `.env` still wins when both exist, so a developer's own configuration is never
  * silently replaced by a shared one that happens to be checked out beside it.
+ *
+ * `.env.defaults` is third and is the only one of the three that is TRACKED. It carries
+ * the settings a team has to agree on and that are not secret - which models, and
+ * whether the demonstration team is created on boot. Those belong in git: a model name
+ * disagreement is invisible until two developers compare answers and find they were
+ * asking different models, and the alternative was pasting them into a chat message
+ * that the next person to join never sees.
+ *
+ * A CREDENTIAL NEVER GOES IN IT. `.env.defaults` is checked out by everyone who can read
+ * the repository, which on a public repository is everyone. The key stays in `.env` or
+ * `.env.share`, both ignored.
  */
-export const ENV_FILES = [".env", ".env.share"] as const;
+export const ENV_FILES = [".env", ".env.share", ".env.defaults"] as const;
 
-/** Which of ENV_FILES is actually present, or null. The banner prints it. */
+/**
+ * Which of ENV_FILES is actually present, or null.
+ *
+ * The HIGHEST-PRECEDENCE one, which is the file that answers "where did this value come
+ * from" for anything contested. `envFilesInUse` is what the banner prints, because all
+ * present files are now read and naming only the first would hide the tracked defaults.
+ */
 export function envFileInUse(): string | null {
   return ENV_FILES.find((f) => existsSync(f)) ?? null;
 }
 
-/** @returns how many variables were newly set. */
+/** Every one of ENV_FILES that exists, in precedence order. */
+export function envFilesInUse(): string[] {
+  return ENV_FILES.filter((f) => existsSync(f));
+}
+
+/**
+ * @returns how many variables were newly set.
+ *
+ * LAYERED, not first-one-wins. Every present file is read in precedence order and each
+ * sets only the names still unset, so `.env` beats `.env.share` beats `.env.defaults`
+ * key by key rather than file by file. Whole-file precedence was wrong once a tracked
+ * defaults file existed: a developer whose `.env` holds nothing but their own API key
+ * would have silently lost the shared model names, and the failure - two people getting
+ * different answers from what they believe is one configuration - is exactly the one
+ * the tracked file exists to prevent.
+ *
+ * An explicit `path` still reads that file alone. The eval scripts pass one to pin a
+ * configuration, and layering repo files underneath would unpin it.
+ */
 export function loadEnv(path?: string): number {
-  const resolved = path ?? envFileInUse();
-  if (resolved === null || resolved === undefined) return 0;
-  return loadEnvFile(resolved);
+  if (path !== undefined) return loadEnvFile(path);
+  return envFilesInUse().reduce((applied, f) => applied + loadEnvFile(f), 0);
 }
 
 function loadEnvFile(path: string): number {

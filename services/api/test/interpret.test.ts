@@ -32,6 +32,24 @@ describe("the model this project runs on", () => {
     expect(resolveModel("summary", {})).toBe(DEFAULT_ADJUDICATION_MODEL);
   });
 
+  it("treats a blank override as unset, because that is how a layer says 'not this one'", () => {
+    // `??` is not enough: "" is not nullish, so a blank line resolved to an empty model
+    // name and failed at the first call with a 404 on `/models/:generateContent`.
+    // Blanking a name is the only way a file can decline a value a file below it sets,
+    // so this is reachable the moment loadEnv layers rather than picking one file.
+    expect(resolveModel("adjudication", { ARBITER_ADJUDICATION_MODEL: "" })).toBe(DEFAULT_ADJUDICATION_MODEL);
+    expect(resolveModel("adjudication", { ARBITER_MODEL: "   " })).toBe(DEFAULT_ADJUDICATION_MODEL);
+    expect(resolveModel("ask", { ARBITER_ASK_MODEL: "", ARBITER_MODEL: "" })).toBe(DEFAULT_ADJUDICATION_MODEL);
+    expect(resolveModel("short", { ARBITER_MODEL: "" })).toBe(DEFAULT_SHORT_MODEL);
+
+    // A blank HIGHER layer falls through to the next name rather than to the default.
+    expect(resolveModel("ask", { ARBITER_ASK_MODEL: "", ARBITER_MODEL: "gemini-2.5-pro" })).toBe("gemini-2.5-pro");
+
+    // And a real value is still taken, trimmed - a trailing space in a config file is
+    // invisible and would otherwise reach the URL.
+    expect(resolveModel("adjudication", { ARBITER_MODEL: " gemini-2.5-pro " })).toBe("gemini-2.5-pro");
+  });
+
   it("leaves the provider switch to the model name a person typed", () => {
     // Anthropic is reachable, and only deliberately: it takes naming a non-Gemini
     // model in an environment variable. No combination of settings drifts into it.

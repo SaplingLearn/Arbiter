@@ -26,7 +26,7 @@ import { LibraryStore } from "./library.js";
 import { can, denial, type CaseAction } from "./access.js";
 import { LoginThrottle } from "./throttle.js";
 import { ModelBudget, budgetFrom } from "./spend.js";
-import { envFileInUse, loadEnv } from "./env.js";
+import { envFilesInUse, loadEnv } from "./env.js";
 import type { ShareStoreApi } from "./postgres-share.js";
 import { deriveToken, shareSecret, verifyToken } from "./share.js";
 
@@ -1532,7 +1532,11 @@ if (invokedDirectly) {
   // Before anything reads configuration. A missing .env is not an error - every value
   // has a working default and the product runs with none of them set.
   loadEnv();
-  const envFile = envFileInUse();
+  // ALL of them, not the first. `loadEnv` layers per NAME now, so naming only the
+  // highest-precedence file would report one source for a configuration assembled from
+  // several - and "where did this value come from" is the entire question this line
+  // exists to answer.
+  const envFile = envFilesInUse().join(" + ") || null;
   const HOST = bindHost();
   const port = Number(process.env["PORT"] ?? 8787);
   const deps = await buildDeps("results/deliberation-log.jsonl");
