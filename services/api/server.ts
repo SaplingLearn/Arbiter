@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import { DeliberationService } from "./deliberation-service.js";
 import { FileStore } from "./store.js";
 import type { Position } from "./deliberation.js";
@@ -758,10 +758,51 @@ function handleDemo(deps: ServerDeps, res: ServerResponse, body: unknown, user: 
     });
   }
 
+  /**
+   * THE CASE OPENS HOLDING THE REVIEW IT WAS TRANSCRIBED FROM.
+   *
+   * The case file carries findings with the page each came from, and the library
+   * manifest knows which document those pages are in. Those two facts never met: a
+   * prepared case arrived with findings and no document, so Read & mark said "No
+   * documents on this case yet" on every case anybody opened, and the reader - which
+   * joins a finding to a page THROUGH a document id - had nothing to join to. Every
+   * usable case had to be assembled by hand.
+   *
+   * THROUGH THE SAME DOOR AS A PERSON'S OWN UPLOAD, deliberately. `documents.upload`
+   * measures before it accepts, so a scanned or off-topic source is refused here
+   * exactly as it would be on the Evidence stage, by the same code, with the same
+   * reason. Nothing about shipping a file with the product makes it readable.
+   *
+   * A FAILURE HERE DOES NOT LOSE THE CASE. The findings were transcribed by hand and
+   * stand on their own; the document is what a reader would like beside them. A
+   * missing file - the approval packages are not committed - or a refusal leaves the
+   * case exactly as it opened before, which is still a working case.
+   */
+  const source = deps.library.list().find((s) => s.name === b.case && s.askable);
+  let attached: string | null = null;
+  if (source !== undefined) {
+    try {
+      const r = deps.documents.upload({
+        caseId, filename: basename(source.document), bytes: readFileSync(source.document),
+        uploadedBy: user.id, at: new Date(now).toISOString(),
+      });
+      if (r.ok) attached = r.document.id;
+    } catch {
+      // Unreadable on disk between the manifest check and here. The case still opens.
+    }
+  }
+
+  /* A page number is only a citation once it names the document the page is in, so the
+     link is made where BOTH are known. A finding with no page is left alone: there is
+     no honest page to put it on, and read.tsx drops those rather than guessing one. */
+  const findings = attached === null
+    ? loaded.findings
+    : loaded.findings.map((f) => (f.sourcePage === undefined ? f : { ...f, sourceDocumentId: attached }));
+
   const { inventory } = deps.service.open({
     caseId, compoundLabel: loaded.compoundLabel, context: loaded.context,
     ownerId: user.id, participantIds: panel,
-    findings: loaded.findings, modality: loaded.modality,
+    findings, modality: loaded.modality,
     at: new Date(now).toISOString(),
   });
   return json(res, 201, { ...head, alreadyOpen: false, inventory });

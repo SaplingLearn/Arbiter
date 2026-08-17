@@ -18,9 +18,19 @@ import { stripBoilerplate } from "./pages.js";
  * fetch a better copy. Accepting everything and discovering later puts the discovery
  * after somebody has already formed an opinion from an empty inventory.
  *
- * DEDUPLICATED BY CONTENT HASH. The same PDF uploaded twice is one document. Storing
- * it twice would let two cases cite what looks like independent corroboration and is
- * actually one file uploaded on two days.
+ * DEDUPLICATED BY CONTENT HASH, WITHIN A CASE. The same PDF uploaded twice to the same
+ * case is one document; storing it twice would let two positions cite what looks like
+ * independent corroboration and is actually one file uploaded on two days.
+ *
+ * THAT KEY USED TO BE GLOBAL, and this note used to justify it as "two cases" rather
+ * than two positions. The wider version was wrong, and opening a prepared case is what
+ * proved it: the source review now arrives with the case, so the second person to open
+ * the same case uploaded identical bytes and got back the FIRST person's document -
+ * scoped to a case they cannot see. `forCase` returned nothing for them, and the
+ * findings pointed at a document that is not on the case they were filed under. Two
+ * people reading the same public FDA review are not corroborating each other; they are
+ * each holding their own copy, which is the argument the caseId suffix already makes
+ * one level up in server.ts.
  */
 
 export interface StoredDocument {
@@ -121,6 +131,22 @@ export function measurePdf(path: string, python = process.env["PYTHON"] ?? "pyth
   }
 }
 
+/**
+ * The dedup key: content hash SCOPED TO A CASE.
+ *
+ * Collapsing identical bytes is right inside one case - re-sending a file you already
+ * sent must not become a second document that a second position can cite. Across cases
+ * it is wrong, and the reason is the same one that put the opener's id in a prepared
+ * case's identifier: two people working the same public review are each holding their
+ * own copy, not sharing a room. Keyed globally, the second case's upload returned the
+ * FIRST case's document - so `forCase` found nothing for it, and a finding pointing at
+ * that id named a document that is not on the case it was filed under.
+ *
+ * A null byte separates the halves because neither a caseId nor a hex digest can
+ * contain one, so no pair of values can collide by concatenation.
+ */
+const hashKey = (caseId: string, sha256: string): string => `${caseId}\u0000${sha256}`;
+
 export class DocumentStore {
   private docs = new Map<string, StoredDocument>();
   private byHash = new Map<string, string>();
@@ -131,7 +157,7 @@ export class DocumentStore {
     if (existsSync(index)) {
       for (const d of JSON.parse(readFileSync(index, "utf8")) as StoredDocument[]) {
         this.docs.set(d.id, d);
-        this.byHash.set(d.sha256, d.id);
+        this.byHash.set(hashKey(d.caseId, d.sha256), d.id);
       }
     }
   }
@@ -153,11 +179,11 @@ export class DocumentStore {
     }
 
     const sha256 = createHash("sha256").update(input.bytes).digest("hex");
-    const existingId = this.byHash.get(sha256);
+    const existingId = this.byHash.get(hashKey(input.caseId, sha256));
     if (existingId !== undefined) {
-      // Same bytes, already here. Returned as a success with the original attached,
-      // because re-uploading a file you already sent is not an error - but it must
-      // not become a second document that a second position can cite.
+      // Same bytes, already on THIS case. Returned as a success with the original
+      // attached, because re-uploading a file you already sent is not an error - but
+      // it must not become a second document that a second position can cite.
       return { ok: true, document: this.docs.get(existingId)!, duplicateOf: existingId };
     }
 
@@ -179,7 +205,7 @@ export class DocumentStore {
       measurement,
     };
     this.docs.set(id, doc);
-    this.byHash.set(sha256, id);
+    this.byHash.set(hashKey(input.caseId, sha256), id);
     this.persist();
     return { ok: true, document: doc };
   }

@@ -242,6 +242,28 @@ describe("read screen", () => {
     expect(screen.getByText(/no documents/i)).toBeInTheDocument();
   });
 
+  /**
+   * ON A PLATE, like the evidence stage.
+   *
+   * This screen's copy sat directly on the WebGL scene: the document strip, the
+   * findings rail, and the sentence explaining why a citation could not be placed.
+   * The evidence stage puts the same kind of prose on `.glass` - a translucent ground
+   * with a blur behind it - and reads cleanly over every scene because of it. Bare
+   * type over a lit field is what the plate exists to stop, and reading is the surface
+   * where it matters most: it is the longest stretch of text in the product.
+   */
+  it("stands its content on a glass plate", () => {
+    const { container } = render(<Read caseId="c1" documents={DOCS} findings={SEED_FINDINGS} />);
+    expect(container.querySelector("section.glass")).not.toBeNull();
+  });
+
+  // The empty state is one paragraph and nothing else, which is the case MOST exposed
+  // to the scene behind it - there is no other object on the screen to sit on.
+  it("stands the empty state on one too", () => {
+    const { container } = render(<Read caseId="c1" documents={[]} findings={[]} />);
+    expect(container.querySelector("section.glass")).not.toBeNull();
+  });
+
   // The document strip navigates through real anchors (href()), so switching
   // documents is a URL change, not local state. Confirms both ends of that: the
   // route's documentId picks which document is open, and there is no useState

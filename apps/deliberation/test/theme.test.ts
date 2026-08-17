@@ -99,3 +99,70 @@ describe("seat tokens", () => {
     expect(css).toContain(".seat-none");
   });
 });
+
+/**
+ * EVERY CLASS THE MARKUP NAMES HAS A RULE.
+ *
+ * A className with no matching rule does not throw, does not warn, and does not show
+ * up in a type check - it renders as an unstyled element that looks like a mistake
+ * nobody made on purpose. That is not hypothetical: `.rail` and `.persona` survived a
+ * redesign that dropped them, so the three-way call control on the position form -
+ * the single most important input in the product - rendered as three words run
+ * together with no gap, no border and no pressed state.
+ *
+ * Only plain string classNames are read. Template literals interpolate a value
+ * (`state ${e.state}`) and the branch names are data, not markup, so they are covered
+ * by the state rules those files already have.
+ */
+describe("the stylesheet covers the markup", () => {
+  const sources = [
+    "screens.tsx", "pages.tsx", "read.tsx", "Layout.tsx", "App.tsx",
+    "Reviewer.tsx", "shell/Chrome.tsx", "shell/Backdrop.tsx",
+  ];
+
+  const defined = new Set<string>();
+  for (const m of css.matchAll(/\.([a-zA-Z][\w-]*)/g)) defined.add(m[1]!);
+
+  it("has a rule for every class the components ask for", () => {
+    const orphans: string[] = [];
+    for (const file of sources) {
+      const tsx = readFileSync(join(__dirname, "../src", file), "utf8");
+      for (const m of tsx.matchAll(/className="([^"{]+)"/g)) {
+        for (const cls of m[1]!.split(/\s+/)) {
+          if (cls !== "" && !defined.has(cls)) orphans.push(`${cls} (${file})`);
+        }
+      }
+    }
+    expect(orphans, `classes with no rule in app.css: ${orphans.join(", ")}`).toEqual([]);
+  });
+});
+
+/**
+ * A FIELD HAS TO READ AS A FIELD ON THE GROUND IT SITS ON.
+ *
+ * The form rule's own comment says a field is "darker than paper" - contrast comes
+ * from taking light OUT of the ground, because the ink is near-white. It was not:
+ * paper carries 0.50 alpha and the field carried 0.46, so once the position form was
+ * put on a plate the two composited to nearly the same colour and the textarea
+ * disappeared into the panel behind it. A reviewer could not see where to type.
+ *
+ * Alpha, not the colour channels, is what decides this. Both are near-black, so the
+ * one that covers more of what is behind it is the one that reads as lower.
+ */
+describe("a field against its plate", () => {
+  const alphaOf = (rgba: string): number => {
+    const m = rgba.match(/rgba\([^)]*,\s*([\d.]+)\s*\)/);
+    expect(m, `no alpha in "${rgba}"`).not.toBeNull();
+    return Number.parseFloat(m![1]!);
+  };
+
+  const paper = css.match(/--paper:\s*(rgba\([^)]+\))/);
+  const field = css.match(/textarea\s*\{[^}]*?background:\s*(rgba\([^)]+\))/s);
+
+  it("gives a field a heavier ground than the plate it sits in", () => {
+    expect(paper, "--paper should be an rgba value").not.toBeNull();
+    expect(field, "the field rule should set an rgba background").not.toBeNull();
+    expect(alphaOf(field![1]!), "a field must cover more than the paper behind it")
+      .toBeGreaterThan(alphaOf(paper![1]!));
+  });
+});

@@ -1,6 +1,5 @@
 import gsap from "gsap";
 import {
-  AdditiveBlending,
   BoxGeometry,
   Color,
   DoubleSide,
@@ -8,19 +7,17 @@ import {
   InstancedBufferAttribute,
   InstancedMesh,
   Matrix4,
-  Mesh,
   Object3D,
   PerspectiveCamera,
-  PlaneGeometry,
   Scene,
   ShaderMaterial,
   Vector3,
   WebGLRenderTarget,
 } from "three";
 import { PALETTE } from "../core/palette.js";
-import { SIMPLEX3 } from "../core/shaders.js";
 import { makeAirdrop, makeMotes, mulberry32, smoothstep } from "./common.js";
 import { APPEAR_IN, makeInterior } from "./interior.js";
+import { MAX_TERRAIN_LIGHTS, makeTerrain } from "./terrain.js";
 import type { AtmosphereScene, SceneContext } from "../core/types.js";
 
 /**
@@ -67,6 +64,15 @@ import type { AtmosphereScene, SceneContext } from "../core/types.js";
  * through the ground colour off the single value the camera is already tweening. A
  * refused case lands in the red grade of the same place - the body you flew at and the
  * ground you land on are one fact read twice.
+ *
+ * AND THEY STAND ON SOMETHING NOW. The floor was an additive plane of light bands with
+ * no depth write, which over a near-black ground is very nearly nothing: the bodies had
+ * a surface under them in the code and none in the frame, so a rank of standing volumes
+ * read as a rank of floating ones. It is a heightfield now, LIT BY THE BODIES - each
+ * case throws a pool on the ground it is standing in, azure if it is usable and a smaller
+ * red one if it was refused. Ported from the landing page's own library frame, which
+ * does exactly this and for the same reason: an object glowing over nothing is a shape,
+ * and the same object with ground catching its light is a place. See `terrain.ts`.
  */
 
 /** FNV-1a. Two callers now: which body a stray case lands on, and which plain is inside
@@ -82,9 +88,33 @@ function hash32(key: string): number {
 
 export function createArchive(ctx: SceneContext): AtmosphereScene {
   const scene = new Scene();
-  const camera = new PerspectiveCamera(50, 1, 0.1, 260);
+  /* Far plane out from 260, and the ground is why. A surface that runs to a horizon has
+     to reach past the point where the haze has finished eating it, or the far plane cuts
+     a hard arc across ground that is still visibly ground. Nothing else in this scene
+     goes beyond 100 units, so the cost is depth precision on geometry that does not
+     exist. */
+  const camera = new PerspectiveCamera(50, 1, 0.1, 420);
   const baseCam = new Vector3(0, 3.4, 26);
   camera.position.copy(baseCam);
+
+  /**
+   * Where the ground sits, and where every body's base goes. EXACTLY on it, not a
+   * fraction under it.
+   *
+   * A foot sunk into the surface is the better-looking arrangement and it is not
+   * available here: THE STEADY-STATE RENDER TARGET HAS NO DEPTH BUFFER. `Atmosphere`
+   * builds `rtC` with `depthBuffer: false` and renders straight into it whenever a
+   * transition is not running, so outside of a scene swap nothing in this file is depth
+   * tested — the frame is composited in draw order and an object cannot be hidden by a
+   * surface in front of it. Which is exactly why the thing this ground replaced was an
+   * additive plane: additive does not need to be occluded.
+   *
+   * So a buried foot would simply be DRAWN, hanging below the ground it is supposed to be
+   * in, and the bodies stand on the surface instead. The ground's near field is flat to
+   * the millimetre (see the `flat` option below), so "on the surface" is exact rather
+   * than approximate, and the contact holds all the way across the field.
+   */
+  const GROUND_Y = -1.05;
 
   /**
    * Headroom, not a population. The field is built by `populate` from the real case
@@ -292,6 +322,86 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
   scene.add(vitrines);
 
   /**
+   * ---- THE GROUND ----------------------------------------------------------------
+   *
+   * A heightfield the bodies stand IN, lit by the bodies themselves.
+   *
+   * WAS AN ADDITIVE PLANE with sweeping light bands and no depth write, which is a
+   * lighting effect rather than a surface: additive over near-black is near-black, so
+   * there was nothing under the field and a rank of standing volumes read as a rank of
+   * floating ones. The bands survive — they are what carries the lateral motion when the
+   * bodies themselves are static — but they are a term in this shader now rather than a
+   * second plane, so the light runs OVER the landform instead of through it.
+   *
+   * FLAT WHERE THE ARCHIVE STANDS, rolling behind it. Relief under a body either buries a
+   * foot or lifts one off the ground, and the topography is not doing its work down there
+   * anyway: the camera sits four units above the surface, so what reads is the swell in
+   * the mid-distance breaking the horizon. Bodies live between z = -8 and -40, so the
+   * height ramps in from -46 and is at full amplitude by -118.
+   *
+   * THE FAR EDGE GOES TO THE AIR'S OWN COLOUR. A plane this size seen from this low is
+   * looked down the whole length of, and any ground colour left at the end of it draws
+   * the plane's own edge across the frame as a horizontal line.
+   *
+   * Built HERE, above the ghost and the interior, for the same reason they are built
+   * before the prewarm render below: a material that is not in the scene when that render
+   * runs compiles its program on the first real frame instead, which is the hitch the
+   * prewarm exists to prevent.
+   */
+  const ground = makeTerrain({
+    width: 560,
+    depth: 460,
+    segments: Math.max(56, Math.round(150 * ctx.quality)),
+    amp: 4.2,
+    scale: 74,
+    seed: 5.1,
+    flat: { until: 46, over: 72 },
+    body: PALETTE.abyss.clone().lerp(PALETTE.violet, 0.07),
+    haze: PALETTE.abyss.clone().lerp(PALETTE.navy, 0.45),
+    /* PAST THE FIELD, not through it. The default range starts hazing a fifth of the way
+       in, which here is z = -23 - in among the bodies, washing the pools of the furthest
+       three toward the horizon colour before the eye has read them as pools at all. The
+       archive ends at z = -40, so the atmosphere starts at -90. */
+    hazeAt: { from: 90, to: 210 },
+    /* Up from the landing plain's 0.42, and the camera is the reason. That one looks down
+       at its ground from twenty-two units; this one sits four and a half above it, so the
+       same pool is seen at a grazing angle and squeezed into a few degrees of screen. The
+       light has to be stronger per unit of ground to survive the compression. */
+    gain: 0.85,
+    /* Enough to break the pools into a surface, well short of gravel. The near field is
+       flat by construction, so this is the only thing making the ground read as ground
+       where the bodies actually stand.
+
+       OFF ON A WEAK GPU, at zero rather than reduced. It is three noise samples per
+       fragment across most of the lower frame, and the shader branches on the uniform —
+       one value for the whole draw, so a machine that cannot afford it skips the samples
+       outright instead of paying for a quieter version of them. What it loses is texture
+       in the pools; what it keeps is the ground. */
+    bump: ctx.quality < 0.6 ? 0 : 0.85,
+    // The same value the bodies fade to, so the ground and the field leave through one
+    // door rather than two.
+    fog: PALETTE.abyss.clone(),
+    bands: { color: PALETTE.azure.clone(), deep: PALETTE.reflex.clone(), freq: 0.05, speed: 0.2 },
+  });
+  ground.mesh.position.y = GROUND_Y;
+  ground.mesh.frustumCulled = false;
+  /* FIRST, after the air. With no depth buffer in the steady state (see `GROUND_Y`), draw
+     order IS the depth order, and the ground is behind everything in this scene without
+     exception: the bodies stand on it, the motes hang over it, the interior only ever
+     appears once the camera is inside a body. Painting it before all of them is not a
+     workaround for the missing buffer, it is the correct answer for a scene whose one
+     opaque surface is the backmost thing in the frame. -100 is the air; this sits just
+     in front of it. */
+  ground.mesh.renderOrder = -50;
+  scene.add(ground.mesh);
+
+  /** What a body lights the ground with. Azure toward sky is the landing plain's own lit
+   *  value; a refusal gets the palette's stop red, well down, because it is a body with
+   *  the light off and the pool has to look like a body with the light off. */
+  const POOL_LIVE = PALETTE.azure.clone().lerp(PALETTE.sky, 0.36);
+  const POOL_DEAD = PALETTE.stop.clone().multiplyScalar(0.35);
+
+  /**
    * THE BODY YOU GO INSIDE, drawn as a second copy of the one you are flying at.
    *
    * A solid body cannot be entered - the camera arrives and the near plane clips into
@@ -417,13 +527,22 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
        one clump, and it has to grow with the count or a longer catalogue would stack. */
     const span = Math.max(30, n * 8.5);
 
+    /* Each body as a light on the ground, parallel to `centres` and deliberately not the
+       same point. `centres` is where the camera flies to; an emitter belongs where the
+       light comes FROM, which for a body lit through its whole facade is up around
+       two-thirds of its height. Hung at the centre, a short body lights a tight disc round
+       its own feet and stops; raised, the pool spreads far enough to reach the ground
+       between one body and the next. */
+    const emitters: Vector3[] = [];
+    const reaches: number[] = [];
+
     for (let i = 0; i < n; i++) {
       const s = subjects[i]!;
       const t = n === 1 ? 0.5 : i / (n - 1);
       const h = 2.6 + rnd() * rnd() * 5.2;
       dummy.position.set(
         (t - 0.5) * span + (rnd() - 0.5) * 4.0,
-        h / 2 - 1.0,
+        GROUND_Y + h / 2,
         // Staggered rather than ordered, so the sweep moves them past each other at
         // different rates. A line at one depth is a bar chart.
         -8 - rnd() * 32,
@@ -434,6 +553,13 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       vitrines.setMatrixAt(i, dummy.matrix);
       keys.push(s.key);
       centres.push(dummy.position.clone());
+      emitters.push(new Vector3(dummy.position.x, GROUND_Y + h * 0.62, dummy.position.z));
+      /* Reach off HEIGHT rather than footprint. The footprint barely varies — every body
+         is between 2.6 and 4.0 across — so a reach taken from it gives eight pools of the
+         same size under bodies of wildly different mass. Height is what the eye is already
+         reading as how much of a case there is, and a tall body throwing a wider pool is
+         the ground agreeing with it. */
+      reaches.push(9.0 + h * 2.4);
 
       // The refusals are DATA now. They were a 26% dice roll, which happened to be
       // about the library's real ratio - but the two refused cases are named, and the
@@ -448,6 +574,36 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
     vitrines.count = n;
     vitrines.instanceMatrix.needsUpdate = true;
     aState.needsUpdate = true;
+
+    /* ---- AND THE GROUND LEARNS WHERE THE LIGHT IS ---------------------------------
+       Eight emitter slots against a catalogue with no ceiling, so a library longer than
+       eight has to choose. STRIDED ACROSS THE FIELD rather than the head of the list:
+       bodies are laid out left to right in list order, so lighting the first eight would
+       put every pool at one end of the archive and leave the other end standing on unlit
+       ground. The bodies that miss out still stand IN the surface and still catch the
+       bands sweeping past — what they do not do is light it back.
+
+       Cleared first. A shorter list than last time would otherwise leave the tail of the
+       previous population still burning a hole in the ground where nothing stands. */
+    ground.clearLights();
+    const pools = Math.min(n, MAX_TERRAIN_LIGHTS);
+    for (let slot = 0; slot < pools; slot++) {
+      const i = n <= MAX_TERRAIN_LIGHTS
+        ? slot
+        : Math.round((slot * (n - 1)) / (MAX_TERRAIN_LIGHTS - 1));
+      /* A REFUSAL LIGHTS THE GROUND TOO, red and at under half the reach. It could as
+         easily cast nothing - a body with no interior has no light to throw - but a dark
+         gap in a rank of pools reads as a body the renderer forgot, where a small red one
+         reads as a case that failed. The colour is the tell either way; this way the tell
+         is on the ground as well as in the object. */
+      const live = state[i * 3]! > 0.5;
+      ground.setLight(
+        slot,
+        emitters[i]!,
+        reaches[i]! * (live ? 1 : 0.45),
+        live ? POOL_LIVE : POOL_DEAD,
+      );
+    }
 
     if (heldKey !== null) {
       // A re-populate can land while a body is being flown into, and the index it was
@@ -614,50 +770,6 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
     enter();
   }
 
-  // ---- floor: a dark reflective-ish plane with sweeping light bands, which is what
-  // carries the lateral motion when the vitrines themselves are static.
-  const floor = new Mesh(
-    new PlaneGeometry(420, 420),
-    new ShaderMaterial({
-      glslVersion: GLSL3,
-      transparent: true,
-      depthWrite: false,
-      blending: AdditiveBlending,
-      uniforms: {
-        uTime: { value: 0 },
-        uColor: { value: PALETTE.azure },
-        uDeep: { value: PALETTE.reflex },
-        // Goes out with the bodies. The interior stands on its own ground, and light
-        // bands from the archive's floor sweeping under it would be the outside world
-        // visibly still running.
-        uDissolve: { value: 0 },
-      },
-      vertexShader: `out vec2 vUv; out float vD;
-        void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position,1.0);
-        vD = -mv.z; gl_Position = projectionMatrix * mv; }`,
-      fragmentShader: /* glsl */ `
-        precision highp float;
-        in vec2 vUv; in float vD; out vec4 fragColor;
-        uniform float uTime, uDissolve; uniform vec3 uColor, uDeep;
-        ${SIMPLEX3}
-        void main(){
-          vec2 p = (vUv - 0.5) * 420.0;
-          // Long bands running with the aisles, drifting sideways.
-          float band = sin(p.x * 0.05 + uTime * 0.20 + snoise(vec3(p * 0.004, uTime * 0.05)) * 2.2);
-          band = pow(max(band, 0.0), 7.0);
-          float grid = smoothstep(0.96, 1.0, abs(sin(p.y * 0.13)));
-          float fade = 1.0 - smoothstep(20.0, 150.0, vD);
-          float a = (band * 0.30 + grid * 0.05) * fade * (1.0 - uDissolve);
-          fragColor = vec4(mix(uDeep, uColor, band) * a, a);
-        }
-      `,
-    }),
-  );
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -1.05;
-  floor.frustumCulled = false;
-  scene.add(floor);
-
   /**
    * The air goes red with the interior, and it has to.
    *
@@ -733,7 +845,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
     update(_dt, t) {
       vitMat.uniforms.uTime!.value = t;
       ghostMat.uniforms.uTime!.value = t;
-      (floor.material as ShaderMaterial).uniforms.uTime!.value = t;
+      ground.update(t);
       (air.material as ShaderMaterial).uniforms.uTime!.value = t;
       (motes.material as ShaderMaterial).uniforms.uTime!.value = t;
       interior.update(t);
@@ -751,8 +863,15 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       const inside = heldIndex !== -1 ? flight.k : 0;
       const dissolve = smoothstep(0.2, APPEAR_IN + 0.26, inside);
       vitMat.uniforms.uDissolve!.value = dissolve;
-      (floor.material as ShaderMaterial).uniforms.uDissolve!.value = dissolve;
       interior.setProgress(inside);
+
+      /* The ground goes out on the field's own curve — it is part of the field, and the
+         plain the camera lands on has ground of its own. Then the mesh is skipped
+         outright: a full-screen surface that is already 100% fog colour costs a quarter
+         of a million triangles to draw and changes nothing. */
+      ground.setDissolve(dissolve);
+      ground.mesh.visible = dissolve < 0.999;
+
       airInner.copy(AIR_LIVE).lerp(AIR_DEAD, heldDead ? dissolve : 0);
       /* The motes go with the field. This layer is a sphere centred on the middle of the
          wide shot, and the camera now ENDS inside it - eight hundred additive points at
@@ -832,7 +951,7 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
       ghostBox.dispose(); ghostMat.dispose(); ghost.dispose();
       interior.dispose();
       warmTarget.dispose();
-      floor.geometry.dispose(); (floor.material as ShaderMaterial).dispose();
+      ground.dispose();
       air.geometry.dispose(); (air.material as ShaderMaterial).dispose();
       motes.geometry.dispose(); (motes.material as ShaderMaterial).dispose();
     },
