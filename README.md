@@ -250,6 +250,60 @@ The code is deployable; the hosting decision is not made here.
   wiped on redeploy. Fine for a demo; if the record must persist, it needs a volume, and
   that is the largest single piece of work in deploying this.
 
+### Publishing a record
+
+Once a case has been adjudicated, its owner can publish the record from the report page
+(`#/case/:id/report`) - a link anyone can open, with a QR code printed onto sheet 1 of
+the document so a printed page carries its own way back online.
+
+**Anyone holding the link reads the whole record, without an account.** The decision,
+every position in full - including ones that disagreed with the adjudication - the
+evidence it was decided on, and the audit chain. It is served by an unauthenticated
+route, `GET /api/public/report/:caseId/:token`, that exists because a share link with a
+session requirement behind it is not a share link.
+
+**The email address is the only thing cut. Names, seats and every position are not.**
+Attribution is the record - a position with no author is a rumour, not a deliberation -
+so a stranger holding the link sees exactly who said what and where they sat. What they
+cannot see is how to reach that person outside the product, which they have no standing
+to be handed. The cut happens where the report object is built
+(`services/api/verdict-report.ts`), not in what the page chooses to draw, because a
+field present in the response and merely hidden by the UI is one devtools tab from
+being disclosed - and the public route has no session to gate that with.
+
+**Revoking stops the link. It cannot reach a copy already printed or saved.** The token
+is derived, not stored: an HMAC over the case id and a version number, recomputed on
+every request rather than looked up. Revoking bumps that version, so the token already
+handed out stops verifying - but the PDF already saved to someone's drive, or the sheet
+already sitting on a desk, still shows the same QR code and the same text. It just no
+longer resolves. A later republish mints a different token, so it cannot reactivate a
+code that already went out.
+
+**Rotating `ARBITER_SHARE_SECRET` invalidates every published link on the deployment at
+once**, not just the one somebody asked to revoke - the secret is the only thing that
+makes the HMAC unforgeable, so a new one makes every token derived under the old one
+wrong. There is no per-link rotation, only per-deployment.
+
+**Sharing is off unless `ARBITER_SHARE_SECRET` is set**, and the boot banner says which:
+`Share:  on - records can be published to a tokenised URL` or `Share:  off -
+ARBITER_SHARE_SECRET is unset, so records cannot be published`. Publishing without it
+answers `501`, naming the variable, rather than a silent no-op. The value must be at
+least 32 bytes - shorter, and the process refuses to start at all, naming the variable
+and why: a short secret produces links that look unguessable and are not.
+
+**Production static serving of `/r/*` does not exist on this branch.** The public page
+works under `npm run dev` - the Vite dev-server middleware answers `/r/*` with
+`public.html` - but a built container has nothing serving that route yet. The obvious
+fix, a `GET /` handler serving the deliberation app's own shell, was written and then
+removed before it shipped: that shell signs its visitor in automatically on load, which
+would make every case on the deployment readable by anyone who merely reached the
+origin - not just someone holding a share link. That is a bigger decision than "add a
+static file server," and it is left to whoever brings in PR #33
+(`worktree-supabase-deploy`), which already carries a full static-serving
+implementation built against a different `ServerDeps` shape and must answer the
+auto-sign-in question above before wiring `/r/*` up to anything reachable at `/`. See
+the comment at the top of `services/api/server.ts`.
+
 ### Verify everything
 
 ```bash
