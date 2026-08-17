@@ -213,6 +213,21 @@ describe("cases, with access control", () => {
     expect((await call("GET", "/api/cases", "outsider")).body).toEqual([]);
   });
 
+  /**
+   * WHETHER THE VIEWER HAS ANSWERED, which the listing could not say and the dashboard
+   * was guessing at.
+   *
+   * `submitted` is a COUNT, so the only way to infer "this one needs me" from the old
+   * shape was `submitted < of` - which is true of a case where three of four have
+   * answered whether or not the viewer is one of the three. A participant who had
+   * already answered kept seeing their case filed under "needs your position".
+   *
+   * SAFE TO SEND, and by the rule this codebase already applies to the same fact
+   * elsewhere: `Steps` shows the viewer their own mark count, on the argument that own
+   * activity is not an aggregate over other people and so leaks nothing blind
+   * submission protects. This is that argument again. What must NOT appear here is
+   * WHICH of the others have answered, or anything about what any of them said.
+   */
   it("reports how many documents each case holds", async () => {
     // The Ask page picks a case from this list and can ask nothing of a case with an
     // empty folder. Without the count it cannot tell the two apart, so it opens on
@@ -247,6 +262,69 @@ describe("cases, with access control", () => {
     expect(list).toHaveProperty("submitted");
     expect(list).toHaveProperty("of");
     expect(JSON.stringify(list)).not.toContain("advance");
+  });
+
+  /**
+   * WHETHER THE VIEWER HAS ANSWERED, which the listing could not say and the dashboard
+   * was therefore guessing at.
+   *
+   * `submitted` is a COUNT, so the only way to infer "this one needs me" from the old
+   * shape was `submitted < of` - true of a case where one of two has answered whether or
+   * not the viewer is the one. A participant who had already answered kept seeing their
+   * own case filed under "needs your position".
+   *
+   * SAFE TO SEND, by the rule this codebase already applies to the same fact elsewhere:
+   * `Layout.tsx`'s `Steps` shows the viewer their own mark count, on the argument that
+   * own activity is not an aggregate over other people and so leaks nothing blind
+   * submission protects. This is that argument again, for one bit. What must NOT appear
+   * is WHICH of the others have answered, or anything about what any of them said - the
+   * last test in this group is the guard on that.
+   *
+   * ON ITS OWN CASE, and placed after the two tests above that assert ann's list
+   * EXACTLY. The difference between two participants at one moment is the whole
+   * assertion, so it has to control that moment - and an extra case in the fixture is
+   * precisely what `[["c1", 2]]` above refuses.
+   */
+  it("says whether the viewer themselves has answered, not just how many have", async () => {
+    expect((await call("POST", "/api/cases", "owner", {
+      caseId: "c-own-answer", compoundLabel: "Own answer", context: "One of two has answered.",
+      participantIds: [uid["ann"], uid["bea"]], findings: FINDINGS, at: "t",
+    })).status).toBe(201);
+    expect((await call("POST", "/api/cases/c-own-answer/positions", "ann", position())).status).toBe(201);
+
+    const forAnn = (await call("GET", "/api/cases", "ann")).body
+      .find((c: any) => c.caseId === "c-own-answer");
+    const forBea = (await call("GET", "/api/cases", "bea")).body
+      .find((c: any) => c.caseId === "c-own-answer");
+
+    // THE COUNT IS IDENTICAL FOR BOTH, which is the whole problem with inferring from it:
+    // `submitted < of` holds for ann, who has answered, and for bea, who has not.
+    expect(forAnn.submitted).toBe(1);
+    expect(forBea.submitted).toBe(1);
+    expect(forAnn.of).toBe(2);
+
+    expect(forAnn.youSubmitted).toBe(true);
+    expect(forBea.youSubmitted).toBe(false);
+  });
+
+  /** The convener holds no position - they convene and sign - so the answer is false
+   *  rather than a third state. `isOwner` already carries that distinction, and making
+   *  this field mean two things would put the difference in the wrong place. */
+  it("reports the convener as not having answered, because an owner holds no position", async () => {
+    const mine = (await call("GET", "/api/cases", "owner")).body
+      .find((c: any) => c.caseId === "c-own-answer");
+    expect(mine.isOwner).toBe(true);
+    expect(mine.youSubmitted).toBe(false);
+  });
+
+  /** The negative half of the disclosure rule: one bit about yourself, and nothing at
+   *  all about who else has answered or what any of them said. bea has NOT answered
+   *  c-own-answer and ann has, so if the listing were carrying other people's
+   *  submissions this is where ann's id would surface. */
+  it("still names no other participant in the listing", async () => {
+    const body = JSON.stringify((await call("GET", "/api/cases", "bea")).body);
+    expect(body).not.toContain(uid["ann"]);
+    expect(body).not.toContain("Because.");
   });
 
   it("attributes a submission to the token, not to the body", async () => {

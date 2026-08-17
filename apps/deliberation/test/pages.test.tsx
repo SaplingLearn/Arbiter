@@ -1,8 +1,8 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { AskPage } from "../src/pages.js";
-import { api, type LibrarySource } from "../src/api.js";
+import { AskPage, bucketOf } from "../src/pages.js";
+import { api, type CaseListing, type LibrarySource } from "../src/api.js";
 
 const source = (over: Partial<LibrarySource> = {}): LibrarySource => ({
   name: "turalio", label: "Turalio - FDA NDA 211810 review",
@@ -162,5 +162,61 @@ describe("AskPage composer while an answer is in flight", () => {
     fireEvent.keyDown(box, { key: "Enter" });
     expect(screen.getByText(/still reading/i)).toBeInTheDocument();
     expect(box).toHaveValue("second");
+  });
+});
+
+/**
+ * WHICH PILE A CASE GOES IN, and the one that used to be wrong.
+ *
+ * The dashboard groups by what a case needs FROM THE READER, because "what is waiting on
+ * me" is the only question a person opens a dashboard to answer. That made the grouping
+ * dependent on a fact the listing did not carry - whether the reader had answered - and
+ * `bucketOf` inferred it from `submitted < of`, which is true of a case where three of
+ * four have answered whether or not the reader is one of the three.
+ *
+ * So a participant who had already submitted kept finding their case under "Needs your
+ * position". Now `youSubmitted` says it outright, and both this and the card's stage tag
+ * read it from `stageOf`, so the pile and the label cannot disagree.
+ */
+describe("bucketing a case by what it needs from the reader", () => {
+  const listing = (over: Partial<CaseListing> = {}): CaseListing => ({
+    caseId: "c1", compoundLabel: "TAK-994", status: "open", isOwner: false,
+    submitted: 0, of: 4, documents: 0, youSubmitted: false, ...over,
+  });
+
+  it("asks an unanswered participant for their position", () => {
+    expect(bucketOf(listing({ submitted: 1, of: 4, youSubmitted: false }))).toBe("yours");
+  });
+
+  /** The regression. Three of four in, the reader among them: the old inference put this
+   *  under "needs your position" and there was nothing left for them to do. */
+  it("does not ask again once the reader has answered, with the room still out", () => {
+    expect(bucketOf(listing({ submitted: 3, of: 4, youSubmitted: true }))).toBe("waiting");
+  });
+
+  it("never asks the convener for a position they cannot hold", () => {
+    expect(bucketOf(listing({ isOwner: true, submitted: 2, of: 4 }))).toBe("waiting");
+  });
+
+  it("puts a locked case in front of the convener and nobody else", () => {
+    expect(bucketOf(listing({ status: "locked", isOwner: true, submitted: 4, of: 4 }))).toBe("sign");
+    expect(bucketOf(listing({ status: "locked", isOwner: false, submitted: 4, of: 4 }))).toBe("waiting");
+  });
+
+  it("does the same for an adjudicated case, which still needs signing", () => {
+    expect(bucketOf(listing({ status: "adjudicated", isOwner: true }))).toBe("sign");
+    expect(bucketOf(listing({ status: "adjudicated", isOwner: false }))).toBe("waiting");
+  });
+
+  it("closes a signed case for everyone, convener included", () => {
+    expect(bucketOf(listing({ status: "signed", isOwner: true }))).toBe("closed");
+    expect(bucketOf(listing({ status: "signed", isOwner: false }))).toBe("closed");
+  });
+
+  /** An unrecognised status is somebody else's problem until this bundle is rebuilt -
+   *  never the reader's, because telling them to act on a stage the client cannot name
+   *  is worse than leaving it in the pile they scan rather than the pile they work. */
+  it("files a status it does not recognise as in progress, not as the reader's", () => {
+    expect(bucketOf(listing({ status: "escalated" }))).toBe("waiting");
   });
 });

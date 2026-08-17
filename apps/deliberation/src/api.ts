@@ -62,6 +62,13 @@ export interface CaseListing {
   isOwner: boolean;
   submitted: number;
   of: number;
+  /**
+   * Whether THIS reader has answered. Not derivable from `submitted` and `of`, which is
+   * why it is on the wire: one of two answered is the same count to the person who
+   * answered and the person who has not. False for the convener, who holds no position -
+   * `isOwner` is what separates those two, not this.
+   */
+  youSubmitted: boolean;
   /** How many PDFs the case holds. Ask can answer nothing against a case with none,
    *  and the picker has to say so before a question is typed into a void. */
   documents: number;
