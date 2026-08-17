@@ -48,3 +48,21 @@ describe("request deadlines", () => {
     await expect(api.people("tok")).rejects.toThrow(TypeError);
   });
 });
+
+describe("the printable record", () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("surfaces the service's own refusal rather than a status code", async () => {
+    // "This case is still open" tells the reader what to do. "Something went wrong"
+    // sends them to whoever built it.
+    vi.stubGlobal("fetch", () => Promise.resolve({
+      ok: false,
+      status: 409,
+      json: () => Promise.resolve({ error: "no_adjudication", detail: "This case is still open." }),
+    }));
+    const outcome = await api.report("tok", "case_1").catch((e: unknown) => e);
+    expect(outcome).toBeInstanceOf(ApiError);
+    expect((outcome as ApiError).kind).toBe("no_adjudication");
+    expect((outcome as ApiError).message).toBe("This case is still open.");
+  });
+});

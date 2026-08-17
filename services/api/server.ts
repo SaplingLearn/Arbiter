@@ -4,9 +4,10 @@ import { fileURLToPath } from "node:url";
 import { basename, resolve } from "node:path";
 import { DeliberationService } from "./deliberation-service.js";
 import { FileStore } from "./store.js";
-import type { Position } from "./deliberation.js";
+import type { DeliberationCase, Position } from "./deliberation.js";
 import type { CoveringFinding, EvidenceChecklist, Modality } from "./inventory.js";
-import { ADJUDICATOR_PROMPT_PATH, type AdjudicateRequest } from "./adjudicate.js";
+import { ADJUDICATOR_PROMPT_PATH, type Adjudication, type AdjudicateRequest } from "./adjudicate.js";
+import { buildCaseReport } from "./verdict-report.js";
 import { handleAsk } from "./ask.js";
 import { handleSummarise } from "./summarise.js";
 import { buildIndex, search } from "./retrieval.js";
@@ -489,6 +490,26 @@ export function makeHandler(deps: ServerDeps) {
             const r = deps.service.adjudicationRequest(caseId, deps.rules);
             return r === null ? json(res, 404, { error: "no_case" }) : json(res, 200, r);
           }
+          /**
+           * The adjudication, once it exists, to EVERY reader of the case.
+           *
+           * 200 with nulls rather than a 404 when there is none: "this case has not
+           * been adjudicated yet" is the ordinary state of every open case, and a
+           * client that has to catch an exception to learn it will eventually catch
+           * something else with it.
+           */
+          case "adjudication": {
+            const a = deps.service.adjudication(caseId);
+            return json(res, 200, a ?? { adjudication: null, source: null, at: null, signature: null });
+          }
+          /**
+           * The whole case as one record, for the preview page to draw. Readable by
+           * anyone named on the case - the action switch above resolves a GET to
+           * "read", so a participant gets exactly what the convener gets, and nobody
+           * has to ask them for a copy.
+           */
+          case "report":
+            return handleReport(deps, res, kase, user, new Date(now()).toISOString());
           default:
             return json(res, 404, { error: "not_found" });
         }
@@ -770,6 +791,65 @@ function handleAuth(
   }
 
   return json(res, 404, { error: "not_found" });
+}
+
+/**
+ * The deliberation record, for whoever on the case asks for it.
+ *
+ * IT REFUSES BEFORE IT IS A RECORD. A case with no adjudication has no verdict to
+ * report, and a page titled "deliberation record" with a blank verdict is worse than no
+ * page: it looks like the panel concluded nothing, when the truth is that nobody has
+ * run the adjudication yet. So the refusal names the state and what would fix it, and
+ * the verdict screen only offers the control once there is something to show.
+ *
+ * JSON, NOT A DOCUMENT. This route used to render HTML and print it through a headless
+ * browser on the server. The reader's own browser prints better, already has "save as
+ * PDF" in it, and needs no binary installed beside the API - so what crosses the wire
+ * is the record, and the preview page in the app draws it with the product's own design
+ * system rather than a second stylesheet imitating it.
+ */
+function handleReport(
+  deps: ServerDeps, res: ServerResponse,
+  kase: DeliberationCase, user: PublicUser, generatedAt: string,
+): void {
+  const record = deps.service.adjudication(kase.caseId);
+  if (record === null) {
+    return json(res, 409, {
+      error: "no_adjudication",
+      detail: kase.status === "open"
+        ? "This case is still open. A report is printed from the adjudication, and there is none until every position is in and the case has been closed and adjudicated."
+        : "This case has been revealed but not adjudicated. Run the adjudication first - a report with an empty verdict reads as a panel that concluded nothing.",
+    });
+  }
+
+  const inventory = deps.service.inventory(kase.caseId);
+  const unanimity = deps.service.unanimity(kase.caseId);
+  if (inventory === null || unanimity === null) return json(res, 404, { error: "no_case" });
+
+  const audit = deps.service.audit(kase.caseId);
+
+  return json(res, 200, buildCaseReport({
+    kase,
+    // Through the blind view rather than off the case, so this route reads positions
+    // by the same gate every other route does. It cannot return null here - the
+    // adjudication above only exists on a case that has been revealed - but the empty
+    // fallback keeps that an assumption rather than a crash.
+    positions: deps.service.view(kase.caseId, user.id)?.revealed ?? [],
+    inventory,
+    findings: deps.service.adjudicationRequest(kase.caseId, deps.rules)?.findings ?? [],
+    unanimity,
+    // Cast, not validated again: this object was checked against the output contract in
+    // adjudicate.ts before it was ever attached, and re-deriving that schema here would
+    // be a second copy of it to keep in step.
+    adjudication: record.adjudication as Adjudication,
+    adjudicationSource: record.source,
+    adjudicatedAt: record.at,
+    signature: record.signature,
+    audit: { chainFailures: audit.chain.length, sealFailures: audit.seals.length, entries: audit.entries },
+    person: (id) => deps.auth.get(id),
+    generatedById: user.id,
+    generatedAt,
+  }));
 }
 
 function handleDemo(deps: ServerDeps, res: ServerResponse, body: unknown, user: PublicUser, now: number): void {

@@ -192,6 +192,73 @@ export interface Adjudication {
   nextExperiment: string | null;
 }
 
+export interface CaseSignature {
+  by: string;
+  at: string;
+  /** False when the signer overrode the adjudication. */
+  agreesWithAdjudication: boolean;
+  reason: string;
+}
+
+/**
+ * The adjudication as the SERVER holds it, for everyone who did not press the button.
+ *
+ * It used to exist only in the browser of whoever ran it - the POST answered with it
+ * and nothing ever fetched it again - so a participant opening the verdict stage saw an
+ * empty screen and the owner lost it on reload. Every field is nullable because "not
+ * adjudicated yet" is the ordinary state of an open case, not an error.
+ */
+export interface AdjudicationRecord {
+  adjudication: Adjudication | null;
+  source: "stub" | "live" | null;
+  at: string | null;
+  signature: CaseSignature | null;
+}
+
+/** One person, as the printable record names them. The seat travels so the document
+ *  can wear the same badge every other screen gives them. */
+export interface ReportPerson {
+  id: string;
+  displayName: string;
+  email: string;
+  seat: number | null;
+}
+
+/**
+ * The whole case, assembled by the server for the preview page to draw.
+ *
+ * ONE REQUEST, not six. The reveal, the evidence stage and the record each hold a
+ * piece of this, and a page that stitched them together client-side would be a second
+ * definition of what "the record" contains - which is exactly the thing that drifts.
+ */
+export interface CaseReport {
+  caseId: string;
+  compoundLabel: string;
+  context: string;
+  status: string;
+  owner: ReportPerson;
+  panel: ReportPerson[];
+  positions: Position[];
+  closedEarly: { by: string; at: string; nonResponders: string[] } | null;
+  findings: Finding[];
+  inventory: Inventory;
+  unanimity: UnanimityReport;
+  disagreement: {
+    split: { call: Call; participantIds: string[] }[];
+    contested: string[];
+    oneSided: { findingId: string; call: Call }[];
+  } | null;
+  adjudication: Adjudication;
+  /** Labelled on the page in the loudest warning it has. An unlabelled stub looks
+   *  exactly like a judgment about a compound. */
+  adjudicationSource: "stub" | "live";
+  adjudicatedAt: string | null;
+  signature: CaseSignature | null;
+  audit: { chainFailures: number; sealFailures: number; entries: number; headHash: string | null };
+  generatedBy: ReportPerson;
+  generatedAt: string;
+}
+
 export interface Finding {
   id: string;
   label: string;
@@ -386,6 +453,16 @@ export const api = {
 
   unanimity: (token: string, caseId: string) =>
     call<UnanimityReport>("GET", `/api/cases/${caseId}/unanimity`, token),
+
+  /** What was adjudicated, to anybody named on the case. See `AdjudicationRecord`. */
+  adjudication: (token: string, caseId: string) =>
+    call<AdjudicationRecord>("GET", `/api/cases/${caseId}/adjudication`, token),
+
+  /** The whole case as one record, for the preview page. Any team member may ask:
+   *  the server resolves a GET to a read, so a participant gets what the convener
+   *  gets and nobody has to request a copy from them. */
+  report: (token: string, caseId: string) =>
+    call<CaseReport>("GET", `/api/cases/${caseId}/report`, token),
 
   adjudicate: (token: string, caseId: string, at: string) =>
     call<{ adjudication: Adjudication; source: "stub" | "live"; consensus: Consensus | null }>(

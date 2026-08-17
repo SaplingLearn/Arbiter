@@ -330,6 +330,60 @@ describe("cases, with access control", () => {
       await new Promise<void>((r) => alt.close(() => r()));
     }
   });
+
+  /**
+   * The verdict, and the document made from it. Both run against `c1`, which the case
+   * above leaves adjudicated and signed.
+   */
+  it("serves the adjudication to a participant, not only to whoever ran it", async () => {
+    // It used to live in one browser's React state. A participant reaching the verdict
+    // stage saw an empty screen, and the owner lost it on reload.
+    const r = await call("GET", "/api/cases/c1/adjudication", "bea");
+    expect(r.status).toBe(200);
+    expect(r.body.adjudication).not.toBeNull();
+    expect(["stub", "live"]).toContain(r.body.source);
+    expect(r.body.signature.agreesWithAdjudication).toBe(false);
+    expect(r.body.signature.reason).toBe("Holding for a margin.");
+  });
+
+  it("assembles the record for any team member, not just the convener", async () => {
+    const r = await call("GET", "/api/cases/c1/report", "bea");
+    expect(r.status).toBe(200);
+    // The reader's own words and the convener's override, in one object - the pieces
+    // the reveal, the evidence stage and the record each hold separately.
+    expect(r.body.positions.map((p: { reasoning: string }) => p.reasoning)).toContain("Because.");
+    expect(r.body.signature.reason).toBe("Holding for a margin.");
+    expect(r.body.signature.agreesWithAdjudication).toBe(false);
+    expect(r.body.compoundLabel).toBe("TAK-994");
+    expect(r.body.inventory.entries.length).toBeGreaterThan(0);
+    expect(r.body.audit.headHash).toEqual(expect.any(String));
+    // Assembled FOR the caller: the document says who produced it.
+    expect(r.body.generatedBy.id).toBe(uid["bea"]);
+  });
+
+  it("keeps the record away from an account that is not on the case", async () => {
+    const r = await call("GET", "/api/cases/c1/report", "outsider");
+    expect(r.status).toBe(404);
+  });
+
+  it("refuses a report on a case with no adjudication, and says what is missing", async () => {
+    // A PDF titled "deliberation record" with a blank verdict reads as a panel that
+    // concluded nothing, which is not what an un-adjudicated case means.
+    const opened = await call("POST", "/api/cases", "owner", {
+      caseId: "c-report-open", compoundLabel: "Unadjudicated", context: "",
+      participantEmails: [EMAIL["ann"]], findings: FINDINGS,
+    });
+    expect(opened.status).toBe(201);
+
+    const r = await call("GET", "/api/cases/c-report-open/report", "ann");
+    expect(r.status).toBe(409);
+    expect(r.body.error).toBe("no_adjudication");
+    expect(r.body.detail).toContain("still open");
+
+    const none = await call("GET", "/api/cases/c-report-open/adjudication", "ann");
+    expect(none.status).toBe(200);
+    expect(none.body.adjudication).toBeNull();
+  });
 });
 
 /**

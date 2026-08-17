@@ -1087,7 +1087,12 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 .cited-blind { font-style: italic; }
 
 .pager { display: flex; align-items: center; gap: var(--s4); }
-.pager .at { font: 500 12px/1 var(--mono); color: var(--muted); letter-spacing: .04em; }
+/* `--ink-2`, because `--muted` is not a token this system has: the declaration was
+   invalid, the colour fell through to whatever the pager happened to sit in, and it
+   only looked right by accident. Over a light surface it inherited near-black ink and
+   the reader's position - the one label that says where they are in the document -
+   disappeared into the page. */
+.pager .at { font: 500 12px/1 var(--mono); color: var(--ink-2); letter-spacing: .04em; }
 /* Kept in the flow rather than hidden at the ends of the document: a pager whose
    controls disappear on the first and last page changes width as you read, and the
    remaining control moves under the cursor mid-click. */
@@ -1231,3 +1236,280 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 /* A file input is a control, not a block: without this the section's flex stretches
    it to the full column and it reads as an empty field. */
 .upload { align-items: flex-start; }
+
+/* ---- the printable record ------------------------------------------------ */
+
+/* THE ONE LIGHT SURFACE IN THE PRODUCT, and it is light on purpose.
+
+   Everything else here is a heads-up display over a lit scene, because that is what a
+   screen is good at. This is a DOCUMENT: it exists to leave the building, be printed,
+   be read by somebody who has never seen this app, and sit in a folder beside an FDA
+   review. A near-black page with knocked-out white type is a page of toner and a
+   photocopier's worst case; paper is white, so the preview is white. What carries the
+   brand across the medium change is the wordmark, the type discipline and the voice -
+   not the background colour.
+
+   It is also WYSIWYG on purpose: what is on screen here is exactly what the print
+   dialog produces, because the print rules below only remove the chrome around it. A
+   preview that needed reinterpreting to become a document would be a preview nobody
+   could trust. */
+
+.rep-wrap { display: grid; gap: var(--s5); }
+
+.rep-bar { display: flex; flex-wrap: wrap; gap: var(--s4); align-items: flex-end; }
+.rep-bar > div:first-child { flex: 1 1 34ch; }
+.rep-bar h1 { margin: 0 0 var(--s2); }
+.rep-bar .btn-row { margin-left: auto; }
+
+/* THE DOCUMENT'S TYPOGRAPHY, which every sheet and the measuring column share.
+
+   It has to be one declaration used by both: the paginator decides where a page ends
+   by measuring blocks in the hidden column, and if that column set type even slightly
+   differently from the sheets, every break would land in the wrong place. */
+/* The viewer: the app's box, holding the pager and then the paper. `.pdfpage` in the
+   reading room is the same three lines, and this is the same act - a document being
+   read inside the product. */
+.rep-view { min-width: 0; display: flex; flex-direction: column; gap: var(--s3); }
+
+.report-doc {
+  color: #16181d;
+  /* Georgia, and not the product's display face. A record is read at length and in
+     print, which is what a serif is for; the interface face is a screen face doing a
+     different job three metres away. */
+  font: 10.7pt/1.6 Georgia, "Times New Roman", serif;
+  /* THE READING ROOM'S ARRANGEMENT, down to the gap: `.pdfpage` is a flex column of
+     pager-then-page, left aligned, `min-width: 0` so the box may be narrower than what
+     it holds. This is the same act - a document being read inside the product - and it
+     should not be a second way of doing it. */
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.report-doc :where(h1, h2, h3, p, td, th, li, span, strong) { text-shadow: none; }
+.report-doc p { margin: 0 0 8pt; }
+.report-doc ul { margin: 4pt 0 8pt; padding-left: 16pt; }
+.report-doc li { margin-bottom: 3pt; }
+
+/* ---- one sheet ----------------------------------------------------------- */
+
+/* A4, at the size it will be printed, with the page's own margins as padding. The
+   reader is looking at paper: the stack scrolls, each sheet does not. */
+.rep-page {
+  background: #fff;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 16mm 14mm;
+  /* The reader's page carries a hairline in the system's line colour and sits at the
+     start of its column; a sheet floating centre-stage on a drop shadow would be a
+     different object from the one three tabs away. The shadow is kept but quietened,
+     because paper on a dark ground with no lift at all reads as a pasted rectangle. */
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+}
+/* THE SHEETS THAT ARE NOT THE ONE YOU ARE READING.
+
+   Hidden, not unmounted. Printing takes the whole document, so every sheet has to
+   remain in it - dropping them from the DOM would print a one-page PDF of whichever
+   sheet happened to be on screen. The print block below puts them all back. */
+.rep-page--off { display: none; }
+
+/* `auto` on the top margin, so a short last page still puts its footer at the foot of
+   the sheet rather than floating under the text. */
+.rep-page-foot {
+  margin-top: auto;
+  padding-top: 7pt;
+  border-top: 1px solid #d7dae0;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s3);
+  font: 400 8pt/1.4 var(--mono);
+  color: #7b818a;
+}
+
+/* EACH BLOCK CONTAINS ITS OWN MARGINS, in the measuring column and on the sheet alike.
+
+   A plain wrapper does not: a child's top and bottom margins collapse straight through
+   it, so the wrapper measures shorter than the space the block actually occupies and
+   every page is packed too full. That was worth about 90px a sheet - enough that every
+   sheet spilled one line onto a second printed page. `flow-root` gives each block its
+   own formatting context, so what is measured is what is laid out. */
+.rep-block { display: flow-root; }
+
+/* The measuring pass: the same width of text area as a sheet, laid out but never
+   shown, and removed from the document the moment the pages exist. */
+.rep-measuring { position: absolute; visibility: hidden; pointer-events: none; left: -10000px; top: 0; }
+.rep-column { width: 182mm; }
+/* One page's text area, in millimetres. Read back in pixels, so the browser answers
+   what a millimetre is on this display instead of this file assuming a DPI. */
+.rep-gauge { width: 1px; height: 265mm; }
+
+/* THE DEEP ACCENT, NOT THE BRIGHT ONE. `--accent` is #4fc3ff, which is a colour
+   chosen to glow on a near-black ground; on white it is a pale line that a laser
+   printer renders as almost nothing. The brand's other accent - the deep blue the
+   design tokens call `accent-deep` - is the one that survives ink. */
+.rep-masthead {
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 2px solid #1e6fff; padding-bottom: 7pt; margin-bottom: 16pt;
+}
+/* The real mark from @arbiter/design, inked for paper. It is `currentColor`, so it
+   takes this and nothing else has to know about it. */
+.rep-wordmark { display: block; height: 13px; width: auto; color: #16181d; }
+.rep-kind {
+  font: 400 8.5pt/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: #5a6069;
+}
+
+.rep-title { font-size: 23pt; line-height: 1.15; letter-spacing: -.3pt; margin: 0 0 6pt; color: #16181d; }
+.rep-context { color: #5a6069; font-size: 10pt; margin-bottom: 14pt; }
+
+.rep-mono { font-family: var(--mono); font-size: 8.6pt; }
+.rep-tiny { font-size: 8.6pt; }
+.rep-muted { color: #5a6069; }
+.rep-ok { color: #12673a; font-weight: 700; }
+.rep-bad { color: #9a2418; font-weight: 700; }
+/* Red, green and amber mean something specific on a safety call and are never
+   decoration here, exactly as in the interface. */
+.report-sheet .stop { color: #9a2418; }
+.report-sheet .go { color: #12673a; }
+.report-sheet .hold { color: #8a5a00; }
+
+.rep-stub {
+  border: 2px solid #9a2418; color: #9a2418; padding: 10pt 12pt; margin: 0 0 14pt;
+}
+.rep-stub strong { display: block; font-size: 11pt; margin-bottom: 3pt; }
+
+.rep-decision { border: 1.5px solid #16181d; padding: 12pt 14pt; margin: 0 0 12pt; }
+.rep-label {
+  font: 400 8pt/1 var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  color: #5a6069; margin-bottom: 5pt;
+}
+.rep-call { font-size: 18pt; line-height: 1.2; font-weight: 700; }
+.rep-by { margin: 8pt 0 0; }
+.rep-unsigned {
+  border-left: 3px solid #8a5a00; padding: 2pt 0 2pt 10pt; margin: 0 0 12pt; color: #6b5410;
+}
+.rep-note { border-left: 2.5px solid #16181d; padding: 2pt 0 2pt 10pt; margin: 8pt 0 0; color: #33383f; }
+.rep-concern { border-left: 2.5px solid #8a5a00; padding: 2pt 0 2pt 10pt; margin: 8pt 0; color: #4a3c0c; }
+
+/* Label-and-value rows in a monospace block: the facts a reader may have to type back
+   into a terminal, set in the face that makes a hash checkable character by character. */
+.rep-meta {
+  font: 8.6pt/1.75 var(--mono); color: #41464e;
+  border: 1px solid #d7dae0; background: #fafbfc; padding: 8pt 10pt; margin: 12pt 0 0;
+}
+.rep-meta > div { display: flex; gap: 8pt; }
+.rep-meta span { color: #5a6069; min-width: 15ch; flex: none; }
+.rep-meta div > :not(span) { overflow-wrap: anywhere; }
+
+.rep-section { margin-top: 22pt; }
+.rep-section > h2 {
+  font-size: 13pt; margin: 0 0 7pt; padding-bottom: 3pt; border-bottom: 1.5px solid #16181d; color: #16181d;
+}
+.rep-section h3 { font-size: 10.7pt; margin: 14pt 0 4pt; color: #16181d; }
+
+/* `min-width: 480px` comes off the product's own table rule, where it stops a data
+   table collapsing on a phone. On a sheet with fixed page width it forces a horizontal
+   overflow instead, so it is unset here rather than there. */
+.rep-table { border-collapse: collapse; width: 100%; min-width: 0; margin: 6pt 0 10pt; font-size: 9.2pt; }
+.rep-table th {
+  text-align: left; border-bottom: 1.2px solid #16181d; padding: 4pt 5pt;
+  font: 700 8pt/1.4 var(--sans); letter-spacing: .04em; text-transform: uppercase; color: #16181d;
+  /* The interface's header row sits on `--sunken`, a dark translucent fill. Printed,
+     that is a grey bar across the top of every table on the page. */
+  background: transparent;
+}
+.rep-table td { border-bottom: .6px solid #e3e6ea; padding: 4pt 5pt; vertical-align: top; }
+.rep-table .rep-n { text-align: right; font-family: var(--mono); white-space: nowrap; }
+
+.rep-state {
+  display: inline-block; font: 400 7.6pt/1 var(--mono); letter-spacing: .06em;
+  text-transform: uppercase; padding: 2.5pt 4pt; border: 1px solid currentColor; white-space: nowrap;
+}
+.rep-state.present { color: #12673a; }
+.rep-state.absent { color: #9a2418; }
+.rep-state.inconclusive { color: #8a5a00; }
+.rep-state.not_applicable { color: #5a6069; }
+
+.rep-position { border-top: .8px solid #c8ccd3; padding: 9pt 0 4pt; }
+.rep-position:first-of-type { border-top: 1.2px solid #16181d; }
+.rep-who { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8pt; margin-bottom: 5pt; }
+.rep-name { font-weight: 700; font-size: 11.5pt; }
+.rep-call-chip {
+  font: 400 8.4pt/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
+  border: 1px solid #16181d; padding: 2.5pt 5pt;
+}
+.rep-basis { font-size: 8.8pt; color: #5a6069; }
+.rep-seat {
+  font: 700 7.6pt/1 var(--sans); color: #5a6069; border: 1px solid #c8ccd3; border-radius: 50%;
+  width: 16pt; height: 16pt; display: inline-flex; align-items: center; justify-content: center; flex: none;
+}
+.rep-cites { font-size: 9pt; color: #41464e; margin-top: 4pt; }
+
+/* First block on a sheet should not carry the top margin a section normally gets -
+   the page's own padding is that space, and doubling it makes page two look indented. */
+.rep-page-body > div:first-child .rep-section { margin-top: 0; }
+
+/* ---- print --------------------------------------------------------------- */
+
+/* WHAT LEAVES THE PRINTER IS THE SHEET AND NOTHING ELSE.
+
+   The chrome is removed rather than the document being rebuilt: same DOM, same CSS,
+   so the preview cannot disagree with the print. `.no-print` covers the controls that
+   belong to the screen - a button reading "Print or save as PDF" printed onto page one
+   is the tell of a page that never had this rule. */
+@media print {
+  @page { size: A4; margin: 16mm 14mm; }
+
+  .backdrop, .bezel, .hud-head, .corner, .work-foot, .tabbar, .pagehead, .no-print {
+    display: none !important;
+  }
+
+  /* PAGINATION IS THE WHOLE POINT, AND IT IS EASY TO LOSE.
+     A printed document is a stack of A4 sheets, not one very long one. Any ancestor
+     of the sheet that keeps a viewport height or clips its overflow collapses the
+     print to a single page with everything past the fold cut off - and the cut is
+     silent, because the preview on screen still scrolls perfectly. `.shell` already
+     carries `min-height: 100vh` for the screen, so the reset is not hypothetical; the
+     rest is a guard against the next wrapper that grows one. */
+  html, body {
+    background: #fff !important;
+    height: auto !important; min-height: 0 !important; overflow: visible !important;
+  }
+  .shell, .work, .work-col, .col, .rep-wrap, .report-doc {
+    display: block !important;
+    padding: 0 !important; margin: 0 !important; max-width: none !important;
+    height: auto !important; min-height: 0 !important; max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* THE BREAKS ARE THE ONES ON SCREEN. The page margins move to @page, the sheet keeps
+     only its content, and one hard break is forced between sheets - so the printer
+     reproduces the pagination the reader just scrolled through instead of computing a
+     different one. Without this the browser would repaginate a stack of 297mm boxes
+     against its own page height and land a break in the middle of every sheet. */
+  .rep-page {
+    width: auto !important; min-height: 0 !important;
+    margin: 0 !important; padding: 0 !important;
+    box-shadow: none !important; border: 0 !important;
+    display: block !important;
+    /* Chrome drops backgrounds and borders from print by default, which would take
+       every state chip's outline with it - and an ABSENT chip that prints as plain
+       grey text is a gap that stopped looking like one. */
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  /* EVERY SHEET PRINTS, including the ones the pager is not showing. On screen this is
+     a one-sheet-at-a-time viewer; a print of "the sheet I happen to be looking at" is
+     not the record, it is a page of it. */
+  .rep-page--off { display: block !important; }
+  .rep-page + .rep-page { break-before: page; }
+  .rep-page-foot { margin-top: 12pt; }
+
+  /* Belt and braces inside a sheet: the paginator already keeps these whole, but if a
+     block ever does overrun its sheet these are the seams it should not tear on. */
+  .rep-position, .rep-decision, .rep-stub, .rep-meta, tr { break-inside: avoid; }
+  .rep-section > h2, .rep-section h3 { break-after: avoid; }
+}

@@ -574,6 +574,44 @@ export class DeliberationService {
     return next;
   }
 
+  /**
+   * The adjudication as it was attached, for everybody who was not the person that ran it.
+   *
+   * WHY THIS IS A ROUTE AND NOT CLIENT STATE. The adjudication used to exist only in
+   * the browser of whoever pressed the button: it came back in the POST response, was
+   * held in React state, and was never fetched again. So a participant opening the
+   * verdict stage saw nothing at all, and the owner lost it on reload - the case said
+   * "adjudicated" and the screen for it was blank. Nothing was broken; it had simply
+   * never been readable by anyone else.
+   *
+   * NO NEW DISCLOSURE. The `audit` route already returns the adjudicated entry whole
+   * to every reader of the case, so this exposes nothing that was not reachable; it
+   * exposes it in the shape a screen can render rather than as a log entry a client
+   * would have to dig through.
+   *
+   * WHERE `source` COMES FROM. The server records the provenance in the log entry's
+   * actor - "stub" when no model was called, "model" when one was - so it is recovered
+   * from the chain rather than kept beside it. An adjudication whose entry cannot be
+   * found is reported as a stub: the two errors are not symmetrical, and labelling a
+   * stub as a model's judgment is the one that gets quoted.
+   */
+  adjudication(caseId: string): {
+    adjudication: unknown;
+    source: "stub" | "live";
+    at: string | null;
+    signature: Signature | null;
+  } | null {
+    const c = this.store.getCase(caseId);
+    if (c === null || c.adjudication === null) return null;
+    const entry = this.store.entries(caseId).filter((e) => e.kind === "adjudicated").at(-1);
+    return {
+      adjudication: c.adjudication,
+      source: entry?.actorId === "model" ? "live" : "stub",
+      at: entry?.at ?? null,
+      signature: c.signature,
+    };
+  }
+
   signOff(caseId: string, s: Signature): Result<DeliberationCase> {
     const c = this.store.getCase(caseId);
     if (c === null) return { ok: false, error: { kind: "no_adjudication", detail: `No case ${caseId}.` } };

@@ -77,7 +77,11 @@ export function sceneFor(route: Route): string {
   // bottom of this function already puts it in Section, which is where a page that
   // lists documents belongs.
   if (route.name === "read") return "read";
-  if (route.name === "case" || route.name === "position" || route.name === "reveal") {
+  // The printable record stands in the Archive with the rest of the case. It is the
+  // case as a finished document, not a seal closing - the Helix is for the record
+  // route, which is a different screen about a different subject.
+  if (route.name === "case" || route.name === "position" || route.name === "reveal"
+    || route.name === "report") {
     return "library";
   }
   return NAV.find((n) => n.to.name === route.name)?.scene ?? "dashboard";
@@ -158,7 +162,7 @@ export function currentNav(route: Route): NavItem | undefined {
    * routes: the case being recorded is one of the bodies in it.
    */
   if (route.name === "case" || route.name === "position"
-    || route.name === "reveal" || route.name === "record") {
+    || route.name === "reveal" || route.name === "report" || route.name === "record") {
     return navByScene("library");
   }
   return navByScene("dashboard");

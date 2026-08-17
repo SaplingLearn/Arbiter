@@ -22,6 +22,21 @@ export type Route =
   | { name: "case"; caseId: string }
   | { name: "position"; caseId: string }
   | { name: "reveal"; caseId: string }
+  /**
+   * The record as one printable document.
+   *
+   * A ROUTE RATHER THAN A DOWNLOAD, and that is the whole design of the feature. What
+   * a reader needs first is to SEE what they are about to send somebody; a file that
+   * lands in a downloads folder has to be opened before it can be checked, and by then
+   * it has usually already been forwarded. This page is the check, and the browser's
+   * own print dialog - which every reader already knows, and which has "Save as PDF"
+   * in it - is the export.
+   *
+   * THE SHEET NUMBER IS IN THE ROUTE, for the same reason the reader's page is: it
+   * makes a page shareable, bookmarkable and reachable with the back button, none of
+   * which survive a page number held in local state. Absent means the first sheet.
+   */
+  | { name: "report"; caseId: string; page?: number }
   | { name: "record"; caseId: string }
   | { name: "read"; caseId: string; documentId?: string; page?: number }
   /**
@@ -61,6 +76,15 @@ export function parseHash(hash: string): Route {
       case undefined: return { name: "case", caseId };
       case "position": return { name: "position", caseId };
       case "reveal": return { name: "reveal", caseId };
+      case "report": {
+        // #/case/:id/report/:sheet. A non-numeric tail is dropped rather than
+        // defaulted, the same way the reader drops one: a deep link that silently
+        // lands on sheet 1 is worse than one that lands on the document.
+        const page = parts[3] === undefined || !/^\d+$/.test(parts[3])
+          ? undefined
+          : Number.parseInt(parts[3], 10);
+        return { name: "report", caseId, ...(page === undefined ? {} : { page }) };
+      }
       case "record": return { name: "record", caseId };
       case "read": {
         // #/case/:id/read/:documentId/:page. Both tail segments are optional, and a
@@ -95,6 +119,10 @@ export function href(route: Route): string {
     case "case": return `#/case/${encodeURIComponent(route.caseId)}`;
     case "position": return `#/case/${encodeURIComponent(route.caseId)}/position`;
     case "reveal": return `#/case/${encodeURIComponent(route.caseId)}/reveal`;
+    case "report": {
+      const base = `#/case/${encodeURIComponent(route.caseId)}/report`;
+      return route.page === undefined ? base : `${base}/${route.page}`;
+    }
     case "record": return `#/case/${encodeURIComponent(route.caseId)}/record`;
     case "read": {
       const base = `#/case/${encodeURIComponent(route.caseId)}/read`;

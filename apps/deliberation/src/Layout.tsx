@@ -111,8 +111,11 @@ export function Section({ title, count, children }: {
  * with a gate in it, and the two must not look alike or the gate reads as a broken
  * link.
  */
-export function Steps({ caseId, route, revealed, answered, of, marks }: {
-  caseId: string; route: Route; revealed: boolean; answered?: number; of?: number;
+export function Steps({ caseId, route, revealed, adjudicated, answered, of, marks }: {
+  caseId: string; route: Route; revealed: boolean;
+  /** Whether an adjudication exists. Gates the report, which is printed from one. */
+  adjudicated?: boolean;
+  answered?: number; of?: number;
   /** The VIEWER's own mark count. Never another participant's - see the pip note. */
   marks?: number;
 }): ReactElement {
@@ -139,6 +142,24 @@ export function Steps({ caseId, route, revealed, answered, of, marks }: {
       why: "Opens once everyone has answered",
     },
     { label: "Record", to: { name: "record", caseId }, enabled: true },
+    {
+      /**
+       * LAST, AND VISIBLY LOCKED UNTIL THERE IS SOMETHING TO PRINT.
+       *
+       * The way through to the report used to exist only inside the verdict block, so
+       * on any case that had not been adjudicated there was no trace of it anywhere
+       * and nothing said why - the honest question it produced was "where is the
+       * button?", which is a product failing to explain its own sequence rather than a
+       * missing feature. The strip already has the answer for exactly this shape of
+       * thing: Reveal is a tab you can see and cannot open yet, with the reason on it.
+       *
+       * Gated on the ADJUDICATION rather than on the reveal, because that is what the
+       * document is printed from. A report with an empty verdict reads as a panel that
+       * concluded nothing, which is not what a revealed-but-unadjudicated case means.
+       */
+      label: "Report", to: { name: "report", caseId }, enabled: adjudicated === true,
+      why: "Opens once the case has been adjudicated",
+    },
   ];
 
   return (
