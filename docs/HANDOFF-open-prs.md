@@ -32,6 +32,15 @@ An earlier revision of this document said "five PRs" and listed five. There were
 - Local `main` can sit well behind `origin/main` — it was 24 commits behind at the start of
   this session, which makes every conflict you compute wrong in a way that looks like the
   base moved. `git fetch` before you believe any diff.
+- **`origin/main` also moves while you work.** On 2026-08-17 it went `d80f2ca` → `1c25747`
+  mid-session when #34 merged from another working session, and a branch that had been a
+  clean fast-forward twenty minutes earlier no longer was. Re-check immediately before
+  pushing, not only at the start.
+- **Count the open PRs against `gh pr list`, never against a prose sentence.** This document
+  has now miscounted twice in opposite directions: an early revision said "five" when six
+  were open and omitted #25, and the overnight prompt written from it said "four" when five
+  were open and omitted #34 — the very PR that then landed and moved `main`. Both times the
+  count was written as prose and nothing made the omission detectable.
 
 ## 2. The environment gotcha that will waste an hour
 
@@ -60,13 +69,19 @@ Before claiming any PR is good, run it and report actual numbers:
 npm run typecheck && npm run lint && npm test
 ```
 
-Baseline at `e8569a3` (current `main`): typecheck 0, lint 0, and **two** test numbers now,
-because #33 made the suite conditional on a database:
+Baseline at **`1c25747`** (current `main`, after #34): typecheck 0, lint 0, and **two** test
+numbers, because #33 made the suite conditional on a database. Measured 2026-08-17:
 
 | environment | result |
 |---|---|
-| no `DATABASE_URL` | 1048 passed / 76 skipped / 72 files |
-| Postgres + Storage | **1131 passed / 0 skipped / 72 files** |
+| no `DATABASE_URL` | 1185 passed / 95 skipped / 80 files |
+| Postgres + Storage | **1280 passed / 0 skipped / 80 files** |
+
+**The `d80f2ca` figures this table used to give were 1048/76 and 1131/0, and the first of
+those was wrong.** Re-measured at that same commit it is **1055** passed / 76 skipped. The
+arithmetic gives it away without re-running anything: 1055 + 76 = 1131, which is the
+Postgres total; 1048 + 76 = 1124, which is not. 1124 was the figure from #33's merge commit
+and appears to have been carried forward into a row it no longer belonged in.
 
 **A run without a database is not a verification of anything touching the stores.** 76
 tests skip, and a skipped suite and a passing suite are the same green. CI runs Postgres 17
@@ -247,23 +262,84 @@ files **auto-merge with no conflict**, so the stale claim would land silently.
 rebase and find it empty of everything except the traps above — but per §5, that
 conversation has not been had.
 
-### #25 — all ten benchmarks, and toxic drugs in the corpus (Darkest-Teddy)
+**EMPTINESS VERIFIED 2026-08-17, against current `main`.** All four harvested fixes are
+present: `codenameFor` (`nav.ts:136`, used at `Chrome.tsx:180`), `role="group"` with
+`aria-labelledby` (`screens.tsx:588`), `geminiCredentialAdvice` (`gemini.ts:153`, wired at
+`server.ts:1597`), and the working-directory suffix on the Config line (`server.ts:1608`).
 
-**This entry is a placeholder, and the omission is the point.** The first version of this
-document opened by saying "five PRs remain" and then named five. Six were open. #25 was
-created 2026-08-16T15:32 — half a day *before* this was written — and a merge-tree analysis
-of it was sitting in the same scratchpad the rest of these findings came from. It was
-simply left out, and nothing in the document made that detectable.
+`git merge-tree` against `1c25747` reports **five conflicts, all in files `main` has
+superseded**: `screens.tsx`, `shell/Chrome.tsx`, `shell/nav.ts`, and the two test files.
+Everything else auto-merges.
 
-What is known, and no more: base `feat/product-in-the-atmosphere`, 31 files,
-+12444/−441, `CONFLICTING`, last pushed 2026-08-17T01:21 — so it is actively being worked.
-The recorded conflict is in `.env.example`, which puts it in the same territory as #27 and
-#28. It touches `docs/HANDOFF-evaluation.md`, so it overlaps the evaluation work that
-document owns.
+**Two corrections to what this document said about it.** The paragraph above is wrong that
+resolving `gemini.ts` toward the PR deletes `responseSchemaFor`: neither merge base
+(`ec1c8e8`, `0d39766`) contains that function, so `main` ADDED it after this branch was cut
+and a merge keeps it. `gemini.ts` and `server.ts` are not in the conflict list at all. A
+two-snapshot `git diff main PR` *looks* like a deletion and is not one — that diff shows the
+branch being behind, not what a merge would produce.
 
-**Action:** review it from scratch. Nothing here has been verified, and the size alone
-(+12444) means it is not a quick read. Treat every claim in this entry as metadata, because
-that is all it is.
+The async-`auth.list()` hazard is real on the branch — it carries `deps.auth.list().length`
+at three places while `main` awaits it at four and warns against exactly that at
+`server.ts:1629` — but `server.ts` auto-merges to `main`'s version, so it would not land.
+
+**So: close it.** Not because it is dangerous, but because it is empty. Per §5 that close has
+not been actioned here.
+
+### #25 — all ten benchmarks, and toxic drugs in the corpus (Darkest-Teddy) — REVIEWED, prepared, not pushed
+
+Reviewed from scratch 2026-08-17. It was a placeholder before this; the entry below is
+what was checked, and how.
+
+**Merged and verified on `review/25-eval-scoreboard` (local).** One conflict, `.env.example`,
+in the `ARBITER_ADJUDICATION_RUNS` comment only — the PR's text is a strict superset of
+`main`'s (it keeps the cap-9 and the spend warning and adds why consensus exists), so it was
+taken whole and nothing of `main`'s was lost. typecheck 0, lint 0, **1190 passed / 95 skipped
+/ 81 files** with no database and **1285 passed / 0 skipped / 81 files** on Postgres and
+Storage — the baseline plus exactly the five tests added during review.
+
+**The numbers are sound.** `node tools/verify_scoreboard.mjs` exits 0, and every headline was
+independently re-derived from the raw rows rather than trusted: all five Ask metrics, all
+five verdict metrics, both `tested` denominators, and the counterfactual pass count. They
+agree with the summary fields once each is scoped to the rows that can fail it. The Wilson
+implementation matches the standard interval (Brown/Cai/DasGupta form) exactly. The Ask and
+retrieval results really do come from one fixture — the check at `verify_scoreboard.mjs:77`
+is real, and the fixture's 104 answerable ids are identical to Ask's.
+
+**Three defects found in the instrument, all now fixed on the branch.**
+
+1. *Metric 1 was the one headline read from a summary field.* It was
+   `Math.round(retrieval.hitRate * retrieval.answerable)`, in the file whose docstring says
+   it recomputes from raw items so a drifted number shows up. It now counts the rows, and
+   `hitRate`/`answerable` are asserted against them. The value does not move: 99/104.
+2. *A cross-check could not fire.* The gap-recall guard keys off `five.scoredMetrics`.
+   `verdict-five-eval.ts` has written that field since `cef9ac3` (19:22), but the committed
+   `verdict-five-*.json` was last written at `b1e505e` (19:14) and has neither it nor
+   `guaranteedNotMeasured` — so the guard no-opped while the tool printed "OK - no drift
+   found", and absent looked exactly like correct. It now reports stale provenance as a
+   warning. The results file is older than the harness that describes it and still carries
+   `score.gaps` from before gap recall was reclassified.
+3. *A product change rode along, unmeasured and untested.* `8d66975` widened the extraction
+   query from the checklist `field` to `field + searchTerms` and added those terms to
+   `rules/evidence-checklist-v1.0.json`. **This is not a §1.1 violation** — only
+   `ruleset-v1.0.json` is pre-registered and hashed (`preregistration.ts:54`), and the
+   checklist is not. But none of the ten benchmarks touch it: `retrieval-eval.ts:233`
+   searches with the fixture QUESTION at k=16, and `extract.ts:137` is the only caller of
+   `searchTerms`, at `perItem=6`. Its justifying comment said a stray term "costs a
+   discarded proposal, never a wrong finding" — true about precision, silent about recall.
+   Five tests now cover `proposeFindings`, which had none; one of them demonstrates the
+   displacement directly, at `perItem=1`.
+
+**The end-to-end file is a *before* measurement and should not be read as a result.**
+`results/model-comparison/verdict-endtoend-gemini-3.5-flash.json` was written at `b5ead3a`
+(19:38), an hour before the retrieval change, and never regenerated. `sensitivity` is
+`k=0, n=0` — no hepatotoxic case was ever scored — and `verdict-endtoend-eval.ts:179` sets
+`flagged = verdict === "do_not_advance"`, so `cannot_conclude` counts as a correct negative
+and both scored rows abstained. A system that abstains on everything scores 2/2 there. No
+number in the scoreboard comes from it and §8 does not list it, which is why this is a
+caveat rather than a blocker.
+
+**Action:** land it. The branch is a fast-forward of `main` and was verified against both
+databases after merging current `main` in. Nothing about it was pushed — see §8.
 
 ### #27 — shared cases on boot, and models in git (Darkest-Teddy)
 
@@ -291,6 +367,29 @@ were measured on.
 **Action:** split it. The per-name env layering and the empty-string-is-unset fix are good
 and land cleanly on their own. The seeder needs a redesign, not a rebase.
 
+**SPLIT DONE 2026-08-17, on `feat/env-layering-from-27` (local, not pushed).** It carries
+`env.ts`'s per-name layering, the PR's own seven env-share tests, `resolveModel`'s
+blank-is-unset fix, and one test for that fix, which the PR shipped without. The banner now
+names every file it read rather than the first — reporting one source for a configuration
+assembled from several defeats that line's only purpose. typecheck 0, lint 0, **1193 passed
+/ 95 skipped** with no database and **1288 passed / 0 skipped** on Postgres and Storage.
+
+Landing the layering *without* the tracked file is behaviour-preserving: `.env.*` is already
+gitignored on `main`, so no `.env.defaults` exists, `envFilesInUse()` returns what it always
+did, and nothing inherits a model it was not already inheriting. That is what makes the good
+half safe to take on its own.
+
+**A third blocker, not previously recorded.** The PR also reverts `SHAPE_ASK` from 64000 back
+to 16000 and deletes the comment explaining the raise — `main` raised it after measuring
+`truncated: max_tokens too low` on three of four Ask attempts against the Turalio review.
+It would not land silently: `interpret.test.ts:79` asserts `maxOutputTokens > 16000`, so the
+suite catches it. It is on the branch nonetheless and is a third reason not to merge it whole.
+
+**And it is six eval scripts calling bare `loadEnv()`, not four** — `ask-eval`,
+`counterfactual-eval`, `verdict-endtoend-eval`, `verdict-five-eval`, `verdict-eval` and
+`verdict-real-eval`. The layering change does not make this worse (an explicit `path` still
+reads that file alone, which is what pins a configuration), but the count above was wrong.
+
 ---
 
 ## 5. Standing decisions
@@ -305,10 +404,45 @@ and land cleanly on their own. The seeder needs a redesign, not a rebase.
 
 ## 6. Also outstanding
 
-- **9 dependabot alerts on `main`: 1 critical, 2 high, 6 moderate.** Untouched. GitHub
-  prints them on every push.
-- CI pins actions targeting Node 20, which GitHub now force-runs on Node 24. Cosmetic, but
-  it will break eventually.
+- **9 dependabot alerts on `main`: 1 critical, 2 high, 6 moderate. TRIAGED 2026-08-17;
+  one fixed, eight reported.** Every one is development-scope except the two Python ones.
+  - *Fixed*, on `fix/carried-over-risks`: `requests` 2.32.3 → 2.33.0, closing a `.netrc`
+    credential leak via malicious URLs (2.32.4) and insecure temp-file reuse in
+    `extract_zipped_paths` (2.33.0). Both moves are inside 2.x.
+  - *Needs a major upgrade, so not taken*: **vitest 2.1.9 → 3.2.6** (the critical one — but
+    it requires the Vitest UI server to be listening, and nothing in this repo runs
+    `--ui`), **vite 5.4.21 → 6.4.3** (both vite advisories are Windows-specific: UNC path
+    handling and `server.fs.deny` on alternate paths), and **pytest 8.3.4 → 9.0.3**.
+  - *Transitive, needs a lockfile regeneration*: **js-yaml → 4.3.1** (the other high; a
+    quadratic-CPU DoS in `!!omap`, reached through eslint) and **esbuild → 0.25.0**. Both
+    want an `overrides` entry and an `npm install`, which could not be done safely from a
+    worktree sharing `node_modules` with the primary checkout.
+- **The Node-20 note below was wrong and is corrected.** `.github/workflows/ci.yml` pins
+  `node-version: '22'`, not 20. The real item is the *action runtime*: `actions/checkout@v4`,
+  `setup-node@v4` and `cache@v4` run on the node20 runtime that GitHub is retiring, and the
+  fix is bumping those action majors, not the `node-version` input.
+- **The two risks #24 brought in are fixed**, on `fix/carried-over-risks`. `check-deps.mjs`
+  no longer compares an exact pin against a WORKSPACE — `apps/harness` pins `@arbiter/engine`
+  to `1.0.0` and npm symlinks it to `packages/engine` regardless, so bumping the engine
+  alone hard-failed `npm run dev` for everyone with a message about a stale install, which
+  is the one diagnosis that cannot be right. Resolved with `realpathSync`; the pin check is
+  untouched for real installs and there is now a test either side of the line.
+  `check-deps.test.mjs`'s "passes on this repo, which is installed" is left alone
+  deliberately — it does still fail `npm test` on a partial install, but its own comment
+  explains why it is there, and removing it would delete the only case that catches the
+  check reporting false problems.
+- **`withTransaction` is fixed**, same branch, and the concern was real. Its `catch` ran
+  `await client.query("ROLLBACK")` unguarded, so a rollback that threw REPLACED the error it
+  was rolling back; and `finally` called `release()` with no argument, offering a connection
+  that might still hold an open transaction back to the pool. Five tests against a fake pool,
+  three of which fail against the previous implementation — checked by reverting the file
+  and re-running, not assumed.
+- **`.gitignore` had `.venv/` with a trailing slash**, which matches a directory and not a
+  symlink — and a symlink is what §2 tells you to create. Following §2 and running
+  `git add -A` commits a mode-120000 blob holding an absolute path to one machine, which
+  then deletes itself from the next person's worktree on checkout and takes PDF extraction
+  with it, surfacing as the §2 gotcha rather than as something the repo did to itself. This
+  happened during this session and is fixed on `review/25-eval-scoreboard`.
 
 ## 7. Suggested order
 
@@ -317,19 +451,30 @@ and land cleanly on their own. The seeder needs a redesign, not a rebase.
 3. ~~**#28**~~ — harvested, `e8569a3`. The branch is still open and needs a decision, not
    a merge.
 4. ~~**#30**~~ — landed inside #34. **Close the PR; do not merge it** — see its entry.
-5. **#27** — split; land the env layering, redesign the seeder.
-6. **#25** — review from scratch. Never assessed; see its entry.
-7. Delete `feat/product-in-the-atmosphere`, and address the dependabot alerts.
+5. ~~**#27** — split~~ — the good half is prepared on `feat/env-layering-from-27`. The
+   seeder still needs a redesign, not a rebase.
+6. ~~**#25** — review from scratch~~ — done, prepared on `review/25-eval-scoreboard`.
+7. **Push the four prepared branches.** Nothing from this session reached the remote; the
+   push to `main` was refused by a permission gate and was not worked around. In order:
+   `review/25-eval-scoreboard` (#25, fast-forward), `feat/env-layering-from-27`,
+   `fix/carried-over-risks`, `docs/handoff-after-overnight`.
+8. Delete `feat/product-in-the-atmosphere` — it is still 0 ahead of `main`, and all three
+   PRs that targeted it were retargeted on 2026-08-17, so nothing points at it now.
 8. **Serve `/r/:caseId/:token` in production.** #34 shipped the public API route and the
    page, and the page is served only by `npm run deliberate:dev` - so a scanned QR code
    404s on a deployed host. Deliberately deferred, with the two decisions it needs written
    up beside `staticRoot()` in `services/api/server.ts` and in the README. This is the one
    gap that makes a shipped feature look broken rather than absent.
 
-**`main` is now 17 commits ahead of `feat/product-in-the-atmosphere`, which is 0 ahead of
-it.** That is the §1 divergence starting over, and three of the four remaining PRs (#30,
-#27, #25) still target the atmosphere branch. Retarget them to `main` before the gap grows
-into something that needs reconciling rather than rebasing. #28 already points at `main`.
+**RETARGETING DONE 2026-08-17.** #25, #27 and #30 were moved to `main` with
+`gh pr edit <n> --base main`; #28 already pointed there. `feat/product-in-the-atmosphere` is
+now 0 ahead of `main` with nothing aimed at it, so deleting it is safe and is item 8 above.
+
+**`main` moved under this session, and that is worth knowing about.** It was `d80f2ca` at
+the start and `1c25747` by the middle — #34 merged while the work below was in progress, and
+a background fetch picked it up at 05:23. Everything here was re-verified against the new
+`main` afterwards. The lesson is §1's: `git fetch` before believing any diff, and check
+again before pushing, because the answer changes while you are reading it.
 
 Two items of `main` are worth knowing about when reading any conflict below: #24's
 dependency preflight and #33's Postgres swap both landed after every one of these branches
