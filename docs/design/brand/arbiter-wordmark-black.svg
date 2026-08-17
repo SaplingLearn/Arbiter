@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 102.84 14" width="4407" height="600" fill="#000000" role="img" aria-label="Arbiter">
+  <!-- ARBITER wordmark. Every shape is an axis-aligned rect on a 10x14 grid except
+       the leading notched square, so this file needs no font and no background. -->
+  <path d="M 0 0 H 14 V 8.68 L 8.68 14 H 0 Z"/>
+  <rect x="19.44" y="0" width="3" height="14"/>
+  <rect x="26.44" y="0" width="3" height="14"/>
+  <rect x="19.44" y="0" width="10" height="3"/>
+  <rect x="19.44" y="6" width="10" height="3"/>
+  <rect x="32.84" y="0" width="3" height="14"/>
+  <rect x="32.84" y="0" width="8" height="3"/>
+  <rect x="37.84" y="0" width="3" height="8.5"/>
+  <rect x="32.84" y="5.5" width="8" height="3"/>
+  <rect x="39.84" y="8.5" width="3" height="5.5"/>
+  <rect x="46.24" y="0" width="3" height="14"/>
+  <rect x="46.24" y="0" width="10" height="3"/>
+  <rect x="46.24" y="5.5" width="10" height="3"/>
+  <rect x="46.24" y="11" width="10" height="3"/>
+  <rect x="53.24" y="0" width="3" height="8.5"/>
+  <rect x="53.24" y="5.5" width="3" height="8.5"/>
+  <rect x="59.64" y="0" width="3" height="14"/>
+  <rect x="66.04" y="0" width="10" height="3"/>
+  <rect x="69.54" y="0" width="3" height="14"/>
+  <rect x="79.44000000000001" y="0" width="3" height="14"/>
+  <rect x="79.44000000000001" y="0" width="10" height="3"/>
+  <rect x="79.44000000000001" y="5.5" width="8" height="3"/>
+  <rect x="79.44000000000001" y="11" width="10" height="3"/>
+  <rect x="92.84000000000002" y="0" width="3" height="14"/>
+  <rect x="92.84000000000002" y="0" width="8" height="3"/>
+  <rect x="97.84000000000002" y="0" width="3" height="8.5"/>
+  <rect x="92.84000000000002" y="5.5" width="8" height="3"/>
+  <rect x="99.84000000000002" y="8.5" width="3" height="5.5"/>
+</svg>
