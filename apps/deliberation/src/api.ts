@@ -185,6 +185,50 @@ export interface AdjudicationRecord {
   signature: CaseSignature | null;
 }
 
+/** One person, as the printable record names them. The seat travels so the document
+ *  can wear the same badge every other screen gives them. */
+export interface ReportPerson {
+  id: string;
+  displayName: string;
+  email: string;
+  seat: number | null;
+}
+
+/**
+ * The whole case, assembled by the server for the preview page to draw.
+ *
+ * ONE REQUEST, not six. The reveal, the evidence stage and the record each hold a
+ * piece of this, and a page that stitched them together client-side would be a second
+ * definition of what "the record" contains - which is exactly the thing that drifts.
+ */
+export interface CaseReport {
+  caseId: string;
+  compoundLabel: string;
+  context: string;
+  status: string;
+  owner: ReportPerson;
+  panel: ReportPerson[];
+  positions: Position[];
+  closedEarly: { by: string; at: string; nonResponders: string[] } | null;
+  findings: Finding[];
+  inventory: Inventory;
+  unanimity: UnanimityReport;
+  disagreement: {
+    split: { call: Call; participantIds: string[] }[];
+    contested: string[];
+    oneSided: { findingId: string; call: Call }[];
+  } | null;
+  adjudication: Adjudication;
+  /** Labelled on the page in the loudest warning it has. An unlabelled stub looks
+   *  exactly like a judgment about a compound. */
+  adjudicationSource: "stub" | "live";
+  adjudicatedAt: string | null;
+  signature: CaseSignature | null;
+  audit: { chainFailures: number; sealFailures: number; entries: number; headHash: string | null };
+  generatedBy: ReportPerson;
+  generatedAt: string;
+}
+
 export interface Finding {
   id: string;
   label: string;
@@ -236,8 +280,6 @@ export class ApiError extends Error {
 const TIMEOUT_MS = 60_000;
 const ASK_TIMEOUT_MS = 120_000;
 const SUMMARY_TIMEOUT_MS = 300_000;
-/** A browser is started to print it. See `downloadReport`. */
-const REPORT_TIMEOUT_MS = 60_000;
 
 async function call<T>(
   method: string, path: string, token: string | null, body?: unknown,
@@ -309,55 +351,6 @@ export async function uploadDocument(token: string, caseId: string, file: File):
     // their file was rejected while they still have it in front of them.
     throw new ApiError(res.status, body.error ?? "upload_failed", body.detail ?? `Upload failed (${res.status}).`);
   }
-}
-
-/**
- * The report, which cannot go through `call` because the body is a PDF.
- *
- * THE FILENAME COMES FROM THE SERVER. It is built there from the compound and the date,
- * and rebuilding it here would be the same string in two places - which diverges the
- * first time either side changes, leaving a folder of files named two ways for the same
- * kind of document. The header is parsed rather than trusted blindly: it becomes a
- * filename on somebody's disk, so anything path-shaped in it is dropped.
- *
- * A LONGER DEADLINE THAN A JSON CALL. The service prints this through a real browser,
- * which it has to start; measured at a second or two, and a 60-second ceiling would
- * still be generous while leaving a stalled request recoverable.
- */
-export async function downloadReport(token: string, caseId: string): Promise<{ blob: Blob; filename: string }> {
-  const deadline = new AbortController();
-  const timer = setTimeout(() => { deadline.abort(); }, REPORT_TIMEOUT_MS);
-  let res: Response;
-  try {
-    res = await fetch(`/api/cases/${caseId}/report`, {
-      signal: deadline.signal,
-      headers: { authorization: `Bearer ${token}` },
-    });
-  } catch (e) {
-    if (deadline.signal.aborted) {
-      throw new ApiError(504, "timeout", `The report did not arrive within ${Math.round(REPORT_TIMEOUT_MS / 1000)} seconds. The service may be restarting - try again.`);
-    }
-    throw e;
-  } finally {
-    clearTimeout(timer);
-  }
-
-  if (!res.ok) {
-    // The service's own refusals, verbatim: "this case has not been adjudicated" and
-    // "this deployment has no browser to print with" are different problems with
-    // different fixes, and only the server knows which one happened.
-    const body = await res.json().catch(() => ({})) as { error?: string; detail?: string };
-    throw new ApiError(res.status, body.error ?? "report_failed", body.detail ?? `The report could not be produced (${res.status}).`);
-  }
-
-  const disposition = res.headers.get("content-disposition") ?? "";
-  const named = /filename="?([^";]+)"?/.exec(disposition)?.[1];
-  return {
-    blob: await res.blob(),
-    filename: named === undefined || named.includes("/") || named.includes("\\")
-      ? `arbiter-report-${caseId}.pdf`
-      : named,
-  };
 }
 
 export const api = {
@@ -434,6 +427,12 @@ export const api = {
   /** What was adjudicated, to anybody named on the case. See `AdjudicationRecord`. */
   adjudication: (token: string, caseId: string) =>
     call<AdjudicationRecord>("GET", `/api/cases/${caseId}/adjudication`, token),
+
+  /** The whole case as one record, for the preview page. Any team member may ask:
+   *  the server resolves a GET to a read, so a participant gets what the convener
+   *  gets and nobody has to request a copy from them. */
+  report: (token: string, caseId: string) =>
+    call<CaseReport>("GET", `/api/cases/${caseId}/report`, token),
 
   adjudicate: (token: string, caseId: string, at: string) =>
     call<{ adjudication: Adjudication; source: "stub" | "live" }>("POST", `/api/cases/${caseId}/adjudicate`, token, { at }),

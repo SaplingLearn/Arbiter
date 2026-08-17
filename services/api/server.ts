@@ -4,11 +4,10 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { DeliberationService } from "./deliberation-service.js";
 import { FileStore } from "./store.js";
-import { disagreementReport, type DeliberationCase, type Position } from "./deliberation.js";
+import type { DeliberationCase, Position } from "./deliberation.js";
 import type { CoveringFinding, EvidenceChecklist, Modality } from "./inventory.js";
 import { ADJUDICATOR_PROMPT_PATH, type Adjudication, type AdjudicateRequest } from "./adjudicate.js";
-import { renderReportHtml, reportFilename, type ReportInput, type ReportPerson } from "./verdict-report.js";
-import { BrowserMissingError, htmlToPdf } from "./pdf.js";
+import { buildCaseReport } from "./verdict-report.js";
 import { handleAsk } from "./ask.js";
 import { handleSummarise } from "./summarise.js";
 import { buildIndex, search } from "./retrieval.js";
@@ -481,12 +480,13 @@ export function makeHandler(deps: ServerDeps) {
             return json(res, 200, a ?? { adjudication: null, source: null, at: null, signature: null });
           }
           /**
-           * The whole case as one document. Readable by anyone named on the case -
-           * the action switch above resolves a GET to "read", so a participant prints
-           * exactly what the convener prints, and nobody has to ask them for it.
+           * The whole case as one record, for the preview page to draw. Readable by
+           * anyone named on the case - the action switch above resolves a GET to
+           * "read", so a participant gets exactly what the convener gets, and nobody
+           * has to ask them for a copy.
            */
           case "report":
-            return await handleReport(deps, res, url, kase, user, new Date(now()).toISOString());
+            return handleReport(deps, res, kase, user, new Date(now()).toISOString());
           default:
             return json(res, 404, { error: "not_found" });
         }
@@ -737,22 +737,24 @@ function handleAuth(
 }
 
 /**
- * The deliberation record as a document, for whoever on the case asks for it.
+ * The deliberation record, for whoever on the case asks for it.
  *
  * IT REFUSES BEFORE IT IS A RECORD. A case with no adjudication has no verdict to
- * report, and a PDF titled "deliberation record" with a blank verdict is worse than no
- * PDF: it looks like the panel concluded nothing, when the truth is that nobody has run
- * the adjudication yet. So the refusal names the state and what would fix it, and the
- * verdict screen only offers the control once there is something to print.
+ * report, and a page titled "deliberation record" with a blank verdict is worse than no
+ * page: it looks like the panel concluded nothing, when the truth is that nobody has
+ * run the adjudication yet. So the refusal names the state and what would fix it, and
+ * the verdict screen only offers the control once there is something to show.
  *
- * `?format=html` RETURNS THE SAME DOCUMENT AS MARKUP. It is what the PDF is printed
- * from, so it is the honest fallback on a machine with no browser binary, and it is how
- * anyone debugging the layout looks at it without a print pipeline in the way.
+ * JSON, NOT A DOCUMENT. This route used to render HTML and print it through a headless
+ * browser on the server. The reader's own browser prints better, already has "save as
+ * PDF" in it, and needs no binary installed beside the API - so what crosses the wire
+ * is the record, and the preview page in the app draws it with the product's own design
+ * system rather than a second stylesheet imitating it.
  */
-async function handleReport(
-  deps: ServerDeps, res: ServerResponse, url: URL,
+function handleReport(
+  deps: ServerDeps, res: ServerResponse,
   kase: DeliberationCase, user: PublicUser, generatedAt: string,
-): Promise<void> {
+): void {
   const record = deps.service.adjudication(kase.caseId);
   if (record === null) {
     return json(res, 409, {
@@ -768,37 +770,17 @@ async function handleReport(
   if (inventory === null || unanimity === null) return json(res, 404, { error: "no_case" });
 
   const audit = deps.service.audit(kase.caseId);
-  const person = (id: string): ReportPerson => {
-    const p = deps.auth.get(id);
-    return {
-      id,
-      // An account that has been deleted still has positions in the record, and the
-      // record must still print. The id is not a name, and it is not pretending to be.
-      displayName: p?.displayName ?? id,
-      email: p?.email ?? "",
-      seat: kase.seats[id] ?? null,
-    };
-  };
 
-  const input: ReportInput = {
-    caseId: kase.caseId,
-    compoundLabel: kase.compoundLabel,
-    context: kase.context,
-    status: kase.status,
-    owner: person(kase.ownerId),
-    // Seat order, which is roster order, which is the order every screen shows them
-    // in. Ordering by call would group the room into camps on the page.
-    panel: [...kase.participantIds].map(person).sort((a, b) => (a.seat ?? 99) - (b.seat ?? 99)),
+  return json(res, 200, buildCaseReport({
+    kase,
     // Through the blind view rather than off the case, so this route reads positions
     // by the same gate every other route does. It cannot return null here - the
     // adjudication above only exists on a case that has been revealed - but the empty
-    // fallback is what keeps that an assumption rather than a crash.
+    // fallback keeps that an assumption rather than a crash.
     positions: deps.service.view(kase.caseId, user.id)?.revealed ?? [],
-    closedEarly: kase.closedEarly,
-    findings: deps.service.adjudicationRequest(kase.caseId, deps.rules)?.findings ?? [],
     inventory,
+    findings: deps.service.adjudicationRequest(kase.caseId, deps.rules)?.findings ?? [],
     unanimity,
-    disagreement: disagreementReport(kase),
     // Cast, not validated again: this object was checked against the output contract in
     // adjudicate.ts before it was ever attached, and re-deriving that schema here would
     // be a second copy of it to keep in step.
@@ -806,54 +788,11 @@ async function handleReport(
     adjudicationSource: record.source,
     adjudicatedAt: record.at,
     signature: record.signature,
-    audit: {
-      chainFailures: audit.chain.length,
-      sealFailures: audit.seals.length,
-      // This case's entries. The chain itself is verified over the WHOLE log - a
-      // per-case slice has holes wherever another case interleaved - but the count and
-      // the head hash a reader would go and check are this case's.
-      entries: audit.entries.length,
-      headHash: audit.entries.at(-1)?.hash ?? null,
-    },
-    generatedBy: person(user.id),
+    audit: { chainFailures: audit.chain.length, sealFailures: audit.seals.length, entries: audit.entries },
+    person: (id) => deps.auth.get(id),
+    generatedById: user.id,
     generatedAt,
-  };
-
-  const html = renderReportHtml(input);
-  if (url.searchParams.get("format") === "html") {
-    const bytes = Buffer.from(html, "utf8");
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8", "content-length": bytes.length });
-    res.end(bytes);
-    return;
-  }
-
-  let pdf: Buffer;
-  try {
-    pdf = await htmlToPdf(html, { label: `ARBITER · ${kase.compoundLabel} · ${kase.caseId}` });
-  } catch (e) {
-    // 503, not 500: the request was correct and the SERVICE is missing a part. The
-    // detail names the command that fixes it and the format that works meanwhile,
-    // because "internal error" on a download button teaches people to stop pressing it.
-    if (e instanceof BrowserMissingError) {
-      return json(res, 503, {
-        error: "no_pdf_renderer",
-        detail: `${e.detail}\nThe same report is available as HTML at ${url.pathname}?format=html.`,
-      });
-    }
-    throw e;
-  }
-
-  res.writeHead(200, {
-    "content-type": "application/pdf",
-    "content-length": pdf.length,
-    // `attachment`, so a click downloads a filed document rather than opening a
-    // viewer tab that the reader then has to save by hand.
-    "content-disposition": `attachment; filename="${reportFilename(input)}"`,
-    // Unpublished safety data: never a shared cache, and never a stale copy of a
-    // record that gains a signature five minutes later.
-    "cache-control": "private, no-store",
-  });
-  res.end(pdf);
+  }));
 }
 
 function handleDemo(deps: ServerDeps, res: ServerResponse, body: unknown, user: PublicUser, now: number): void {
