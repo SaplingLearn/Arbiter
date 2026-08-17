@@ -478,10 +478,26 @@ export function PositionForm({ token, caseId, findings, onDone }: {
         see nobody - until everyone has answered.
       </p>
 
-      <label htmlFor="call">Your call</label>
-      <div className="rail" id="call">
+      {/* THE SYSTEM'S CHOICE GROUP, not two class names the stylesheet stopped
+          answering to. This was `.rail` wrapping `.persona` buttons, and both rules
+          were dropped when the product went dark - app.css defines neither, so the
+          three options rendered as bare buttons with no border, no ground and no
+          gap, running together as one line of prose: "AdvanceDo not advanceCannot
+          conclude". The most consequential control in the product read as a typo.
+
+          `.choice` + `button.ghost[aria-pressed]` is what this app already uses for
+          a mutually exclusive set - the finding's "What it shows" a few hundred
+          lines up, and the new case form's modality - so this is the existing
+          pattern rather than a fourth way of drawing the same control. No new CSS.
+
+          LABELLED BY, NOT `htmlFor`. A label's `for` names a form control, and a div
+          is not one, so the old attribute pointed at nothing and the group had no
+          accessible name. `role="group"` plus `aria-labelledby` is the arrangement
+          that actually carries "Your call" to a screen reader. */}
+      <label id="call-label">Your call</label>
+      <div className="choice" role="group" aria-labelledby="call-label">
         {(["advance", "do_not_advance", "cannot_conclude"] as const).map((c) => (
-          <button key={c} type="button" className="persona" aria-pressed={call === c} onClick={() => setCall(c)}>
+          <button key={c} type="button" className="ghost" aria-pressed={call === c} onClick={() => setCall(c)}>
             {CALL_LABEL[c]}
           </button>
         ))}

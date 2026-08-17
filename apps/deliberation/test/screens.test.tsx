@@ -187,6 +187,60 @@ describe("the position tab's ground", () => {
   });
 });
 
+/**
+ * THE MOST CONSEQUENTIAL CONTROL IN THE PRODUCT HAS TO LOOK LIKE A CONTROL.
+ *
+ * "Your call" was written against `.rail` and `.persona`, two class names the
+ * stylesheet stopped answering to when the product went dark - app.css defines
+ * neither. Unstyled, the three options rendered with no border, no ground and no gap,
+ * and ran together as one line of prose: "AdvanceDo not advanceCannot conclude".
+ *
+ * ASSERTED AGAINST THE PATTERN, NOT AGAINST A CLASS SPELLING. `.choice` wrapping
+ * `button.ghost[aria-pressed]` is what this app already uses for a mutually exclusive
+ * set, in the finding editor and the new case form. The test that matters is that this
+ * control uses the same one, because a fourth spelling is how the first three drifted.
+ */
+describe("the call the reviewer makes", () => {
+  const callGroup = (c: HTMLElement): HTMLElement | null =>
+    c.querySelector("[role='group'].choice");
+
+  it("draws the three options as the app's own choice group", () => {
+    const { container } = render(
+      <PositionForm token="t" caseId="c1" findings={[]} onDone={() => {}} />,
+    );
+    const group = callGroup(container);
+    expect(group).not.toBeNull();
+    const options = group!.querySelectorAll("button.ghost");
+    expect(options).toHaveLength(3);
+    for (const o of options) expect(o).toHaveAttribute("aria-pressed");
+  });
+
+  it("uses no class the stylesheet has stopped answering to", () => {
+    const { container } = render(
+      <PositionForm token="t" caseId="c1" findings={[]} onDone={() => {}} />,
+    );
+    expect(container.querySelector(".persona")).toBeNull();
+    expect(container.querySelector(".rail")).toBeNull();
+  });
+
+  it("carries an accessible name, which a label pointing at a div did not", () => {
+    // `htmlFor` names a form control and a div is not one, so the old attribute
+    // resolved to nothing and the group had no name at all.
+    render(<PositionForm token="t" caseId="c1" findings={[]} onDone={() => {}} />);
+    expect(screen.getByRole("group", { name: "Your call" })).toBeInTheDocument();
+  });
+
+  it("still records which option is pressed", () => {
+    const { container } = render(
+      <PositionForm token="t" caseId="c1" findings={[]} onDone={() => {}} />,
+    );
+    const options = [...callGroup(container)!.querySelectorAll("button.ghost")];
+    const advance = options.find((o) => o.textContent?.includes("Advance"))!;
+    fireEvent.click(advance);
+    expect(advance).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
 describe("Waiting", () => {
   const view: BlindView = {
     status: "open",
