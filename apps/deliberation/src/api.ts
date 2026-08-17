@@ -449,6 +449,18 @@ export const api = {
   report: (token: string, caseId: string) =>
     call<CaseReport>("GET", `/api/cases/${caseId}/report`, token),
 
+  /** Whether the convener has published this case to a tokenised link, and the link
+   *  itself if so. Owner-only on the server, so the client fetches it only for the
+   *  owner too - see the effect that calls this in App.tsx. */
+  shareState: (token: string, caseId: string) =>
+    call<{ published: boolean; url: string | null }>("GET", `/api/cases/${caseId}/share`, token),
+
+  publish: (token: string, caseId: string) =>
+    call<{ url: string; token: string; createdAt: string }>("POST", `/api/cases/${caseId}/share`, token, {}),
+
+  revoke: (token: string, caseId: string) =>
+    call<{ revoked: boolean }>("DELETE", `/api/cases/${caseId}/share`, token),
+
   adjudicate: (token: string, caseId: string, at: string) =>
     call<{ adjudication: Adjudication; source: "stub" | "live"; consensus: Consensus | null }>(
       "POST", `/api/cases/${caseId}/adjudicate`, token, { at }),

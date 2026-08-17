@@ -1498,6 +1498,27 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
    the page's own padding is that space, and doubling it makes page two look indented. */
 .rep-page-body > div:first-child .rep-section { margin-top: 0; }
 
+/* ---- the QR block and the share control ----------------------------------- */
+
+/* On the sheet, coloured with the same --rep-* tokens as the rest of the document, so
+   it stays dark-on-screen and light-on-paper along with everything else - no rule of
+   its own in @media print, and none needed, since only colour ever changes there. */
+.rep-qr-block {
+  display: flex; gap: 16px; align-items: flex-start; margin-top: 18px;
+  padding: 14px; border: 1px solid var(--rep-rule); background: var(--rep-panel);
+}
+/* Always dark-on-light, in both palettes: scanners expect it, and an inverted code is
+   one many readers refuse. The one part of the sheet that does not follow the theme.
+   The padding above is layout only - QrCode draws its own quiet zone into the SVG, so
+   it does not depend on this box for the white margin a scanner needs. */
+.rep-qr { background: #fff; flex: 0 0 auto; }
+
+/* The convener's control, outside the sheet - `.no-print` on the element itself keeps
+   it off the printed page, same as `.rep-bar` above it. `--line` rather than a --rep-*
+   token: this sits in the product's own chrome, never on paper, so it takes the
+   product's palette rather than the document's. */
+.rep-share { margin-top: 24px; padding: 16px; border: 1px solid var(--line); }
+
 /* ---- print --------------------------------------------------------------- */
 
 /* WHAT LEAVES THE PRINTER IS THE SHEET AND NOTHING ELSE.

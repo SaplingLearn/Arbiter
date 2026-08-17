@@ -97,6 +97,10 @@ export function App(): ReactElement {
    */
   const [report, setReport] = useState<CaseReport | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
+  /** Whether the convener has published this case, and to what link - owner-only, so
+   *  this stays null for anybody else. See the effect below for why it is fetched only
+   *  for the owner rather than for anyone who reaches the report route. */
+  const [share, setShare] = useState<{ published: boolean; url: string | null } | null>(null);
 
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
@@ -122,6 +126,27 @@ export function App(): ReactElement {
   useEffect(() => { setRefusal(null); }, [route]);
 
   const caseId = caseIdOf(route);
+
+  /**
+   * WHO CONVENED THIS CASE, computed here rather than down with the rest of the case
+   * routes' derived state.
+   *
+   * The brief for this had `isOwner` used inside an effect placed beside the report
+   * fetch below, on the assumption that it was already in scope there - it is not: the
+   * case-routes `isOwner` used to live past the `if (token === null || me === null)`
+   * early return further down this component, and an effect is a hook, so it cannot be
+   * declared conditionally past a return that hooks above it do not take. Hoisting the
+   * computation here, alongside `caseId`, is what puts it in scope for that effect
+   * without turning the effect itself into something that runs only sometimes.
+   *
+   * `me !== null &&` guards the one case hoisting introduces that the original spot
+   * never had to consider: before that early return, `me` can still be null, and
+   * without the guard `roster?.ownerId === me?.id` would compare two `undefined`s and
+   * read as true for everyone until both have loaded.
+   */
+  const listing = mine.find((c) => c.caseId === caseId);
+  const isOwner = me !== null && (roster?.ownerId === me.id || (listing?.isOwner ?? false));
+
   const nameOf = useCallback(
     (id: string): string => people.find((p) => p.id === id)?.displayName ?? id,
     [people],
@@ -208,6 +233,26 @@ export function App(): ReactElement {
     })();
     return () => { live = false; };
   }, [token, caseId, route.name]);
+
+  /* Whether the case is published, fetched beside the report itself and gated the same
+     way - on arrival at the report route, and nowhere else. `!isOwner` is the one extra
+     guard the report fetch above does not need: `GET /share` 403s for anybody who is
+     not the convener, and firing it for every participant who opens their report would
+     be a console error on a page that is otherwise working correctly for them. */
+  useEffect(() => {
+    if (token === null || caseId === null || route.name !== "report" || !isOwner) return;
+    let live = true;
+    setShare(null);
+    void (async () => {
+      try {
+        const s = await api.shareState(token, caseId);
+        if (live) setShare(s);
+      } catch {
+        if (live) setShare(null);
+      }
+    })();
+    return () => { live = false; };
+  }, [token, caseId, route.name, isOwner]);
 
   /* Establish the session on arrival rather than asking for it. Runs once; a failure
      surfaces as a message on the opening panel, never as a login form. */
@@ -398,9 +443,9 @@ export function App(): ReactElement {
     return shell(<p className="muted">Loading the case…</p>);
   }
 
-  const listing = mine.find((c) => c.caseId === caseId);
+  // `listing` and `isOwner` are computed above, alongside `caseId` - see the comment
+  // there for why. Only `label` is local to the case routes.
   const label = listing?.compoundLabel ?? head.compoundLabel ?? caseId;
-  const isOwner = roster?.ownerId === me.id || (listing?.isOwner ?? false);
   const revealed = view.status !== "open";
   const frozen = view.own !== null || view.others.some((o) => o.submitted)
     ? "Somebody has already answered against this evidence. Changing it now would put a position on the record against an inventory its author never saw."
@@ -567,7 +612,29 @@ export function App(): ReactElement {
           </div>
         : report === null
           ? <p className="muted">Assembling the record…</p>
-          : <ReportPage report={report} {...(route.page === undefined ? {} : { page: route.page })} />,
+          : (
+            <ReportPage report={report} {...(route.page === undefined ? {} : { page: route.page })}
+              /* `share !== null` rather than `isOwner` alone: the fetch above is
+                 in flight for a moment after the route opens, and passing an
+                 empty `share` object during that window would flash a "Publish
+                 this record" button that immediately swaps for the real state a
+                 beat later - the same instant the page as a whole is still
+                 rendering "Assembling the record…". No prop at all until the
+                 fetch has actually landed is the honest version of "loading". */
+              {...(isOwner && share !== null ? {
+                share: {
+                  url: share.url,
+                  onPublish: () => act(async () => {
+                    const r = await api.publish(token, caseId);
+                    setShare({ published: true, url: r.url });
+                  }),
+                  onRevoke: () => act(async () => {
+                    await api.revoke(token, caseId);
+                    setShare({ published: false, url: null });
+                  }),
+                },
+              } : {})} />
+          ),
     );
   }
 

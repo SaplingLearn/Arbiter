@@ -270,3 +270,61 @@ describe("the printable record", () => {
       .toBe("arbiter-case-1-2026-08-16");
   });
 });
+
+describe("publishing from the report", () => {
+  it("prints no QR and no URL when the record was never published", () => {
+    const { container } = render(
+      <ReportPage report={report()} share={{ url: null, onPublish: () => {}, onRevoke: () => {} }} />,
+    );
+    expect(container.querySelector(".rep-qr")).toBeNull();
+    // A printed link that never worked is worse than no link at all.
+    expect(container.textContent).not.toContain("/r/");
+  });
+
+  it("prints the QR and the URL beside it once published", () => {
+    const { container } = render(
+      <ReportPage report={report()}
+        share={{ url: "https://arbiter.test/r/c1/tok", onPublish: () => {}, onRevoke: () => {} }} />,
+    );
+    expect(container.querySelector(".rep-qr")).not.toBeNull();
+    // Readable beside the code, for anyone who cannot scan it.
+    expect(container.textContent).toContain("https://arbiter.test/r/c1/tok");
+  });
+
+  it("keeps the QR whole, so the paginator can never split it across a sheet", () => {
+    const { container } = render(
+      <ReportPage report={report()}
+        share={{ url: "https://arbiter.test/r/c1/tok", onPublish: () => {}, onRevoke: () => {} }} />,
+    );
+    const qr = container.querySelector(".rep-qr")!;
+    expect(qr.closest(".rep-block")).not.toBeNull();
+  });
+
+  it("keeps the controls off the paper", () => {
+    const { container } = render(
+      <ReportPage report={report()} share={{ url: null, onPublish: () => {}, onRevoke: () => {} }} />,
+    );
+    expect(container.querySelector(".rep-share")?.classList.contains("no-print")).toBe(true);
+  });
+
+  it("shows no controls at all with no share prop, which is how the public page renders", () => {
+    const { container } = render(<ReportPage report={report()} />);
+    expect(container.querySelector(".rep-share")).toBeNull();
+  });
+
+  it("still prints the QR on the public page, where there is a URL but no controls", () => {
+    const { container } = render(
+      <ReportPage report={report()} publishedUrl="https://arbiter.test/r/c1/tok" />,
+    );
+    expect(container.querySelector(".rep-qr")).not.toBeNull();
+    expect(container.querySelector(".rep-share")).toBeNull();
+  });
+
+  it("says plainly that revoking cannot reach a page already printed", () => {
+    const { container } = render(
+      <ReportPage report={report()}
+        share={{ url: "https://arbiter.test/r/c1/tok", onPublish: () => {}, onRevoke: () => {} }} />,
+    );
+    expect(container.textContent).toMatch(/already printed|already saved/i);
+  });
+});
