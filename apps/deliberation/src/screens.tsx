@@ -1,5 +1,6 @@
 import { useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type BlindView, type Consensus, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
+import { api, ApiError, type Adjudication, type BlindView, type Consensus, type Finding, type Inventory, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
+import { basisOf } from "./basis.js";
 import { Markdown } from "./markdown.js";
 import { Reviewer, collidingInitials } from "./Reviewer.js";
 import { initials } from "./Layout.js";
@@ -13,12 +14,6 @@ import { href } from "./router.js";
  * order is exactly what §3.1 exists to protect, because reading anybody else's call
  * before writing your own is the failure blind submission was built to prevent.
  */
-
-export function basisOf(p: Position): "cited" | "external" | "unsupported" {
-  if (p.citedFindingIds.length > 0) return "cited";
-  if (p.external.length > 0) return "external";
-  return "unsupported";
-}
 
 const CALL_LABEL: Record<string, string> = {
   advance: "Advance",

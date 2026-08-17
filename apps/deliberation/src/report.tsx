@@ -4,7 +4,7 @@ import {
 } from "react";
 import { Wordmark } from "@arbiter/design";
 import type { CaseReport, Position, ReportPerson } from "./api.js";
-import { basisOf } from "./screens.js";
+import { basisOf } from "./basis.js";
 import { href } from "./router.js";
 
 /**

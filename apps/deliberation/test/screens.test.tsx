@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { Documents, InventoryPanel, PositionForm, Refused, Reveal, RosterPanel, Verdict, Waiting, basisOf } from "../src/screens.js";
+import { Documents, InventoryPanel, PositionForm, Refused, Reveal, RosterPanel, Verdict, Waiting } from "../src/screens.js";
 import type { Adjudication, BlindView, Inventory, Position, Roster } from "../src/api.js";
 
 const inv: Inventory = {
@@ -257,15 +257,6 @@ describe("Waiting", () => {
     render(<Waiting nameOf={(id) => id} view={asConvener} isOwner onReveal={() => {}} />);
     expect(screen.queryByText(/Sealed\. Waiting for the others/)).toBeNull();
     expect(screen.getByText(/Waiting for the panel/)).toBeInTheDocument();
-  });
-});
-
-describe("basisOf", () => {
-  it("matches the server's derivation", () => {
-    expect(basisOf(pos("a", { citedFindingIds: ["f1"] }))).toBe("cited");
-    expect(basisOf(pos("a", { external: [{ claim: "x" }] }))).toBe("external");
-    expect(basisOf(pos("a"))).toBe("unsupported");
-    expect(basisOf(pos("a", { citedFindingIds: ["f1"], external: [{ claim: "x" }] }))).toBe("cited");
   });
 });
 
