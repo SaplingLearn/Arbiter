@@ -97,9 +97,20 @@ if (invokedDirectly) {
   const limitArg = process.argv.find((a) => a.startsWith("--limit="));
   const limit = limitArg === undefined ? Infinity : Number(limitArg.split("=")[1]);
 
+  /**
+   * `foundItems` and `missingItems` carry the CHECKLIST IDS, not just counts.
+   *
+   * Counts said extraction was thin and nothing more, which is not actionable: "4 of 12"
+   * does not say whether the four were mechanism or consequence, and the adjudicator's
+   * behaviour turns entirely on that. `consequenceBasis` can only be populated from
+   * CONSEQUENCE-half items, and the prompt requires `cannot_conclude` when it is empty -
+   * so six mechanism findings and no consequence ones produce an abstention that looks
+   * like caution and is really a retrieval result.
+   */
   type Row = {
     id: string; expectFlag: boolean; outcomeTier: string;
     proposed: number; detectedGaps: number; discarded: number;
+    foundItems: string[]; missingItems: string[];
     verdict: string; flagged: boolean; correct: boolean; error?: string;
   };
   const rows: Row[] = [];
@@ -151,11 +162,14 @@ if (invokedDirectly) {
 
       // 4. The product's own consensus path.
       const { response } = await adjudicateConsensus(req, complete, prompt, runs);
+      const foundItems = [...new Set(result.proposals.map((p) => p.itemId))].sort();
+      const missingItems = [...new Set(result.notFound.map((n) => n.itemId))].sort();
+
       if (response.status !== 200) {
         row = {
           id: c.id, expectFlag: c.expectFlag, outcomeTier: c.outcomeTier,
           proposed: result.proposals.length, detectedGaps: result.notFound.length,
-          discarded: result.discarded.length,
+          discarded: result.discarded.length, foundItems, missingItems,
           verdict: "error", flagged: false, correct: false,
           error: JSON.stringify((response.body as { error?: string }).error ?? "unverified"),
         };
@@ -166,14 +180,14 @@ if (invokedDirectly) {
         row = {
           id: c.id, expectFlag: c.expectFlag, outcomeTier: c.outcomeTier,
           proposed: result.proposals.length, detectedGaps: result.notFound.length,
-          discarded: result.discarded.length,
+          discarded: result.discarded.length, foundItems, missingItems,
           verdict, flagged, correct: flagged === c.expectFlag,
         };
       }
     } catch (e) {
       row = {
         id: c.id, expectFlag: c.expectFlag, outcomeTier: c.outcomeTier,
-        proposed: 0, detectedGaps: 0, discarded: 0,
+        proposed: 0, detectedGaps: 0, discarded: 0, foundItems: [], missingItems: [],
         verdict: "error", flagged: false, correct: false,
         error: e instanceof Error ? e.message.slice(0, 120) : String(e),
       };
@@ -185,6 +199,10 @@ if (invokedDirectly) {
       `proposed=${String(row.proposed).padStart(2)} gaps=${String(row.detectedGaps).padStart(2)} ` +
       `verdict=${row.verdict.padEnd(15)} ${row.correct ? "ok" : "XX"}${row.error ? `  ${row.error}` : ""}`,
     );
+    // The consequence half is what decides whether an abstention was reasoning or
+    // retrieval, so print it rather than leaving it in the JSON.
+    const cons = (ids: string[]): string => ids.filter((i) => i.startsWith("C")).join(",") || "-";
+    console.log(`                  consequence found [${cons(row.foundItems)}] missing [${cons(row.missingItems)}]`);
   }
 
   const scored = rows.filter((r) => r.verdict !== "error");

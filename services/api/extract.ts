@@ -119,7 +119,22 @@ export async function proposeFindings(
     // for it would invite the model to invent some.
     if (item.appliesTo !== undefined && !item.appliesTo.includes(modality)) continue;
 
-    const passages = search(index, item.field, perItem);
+    // THE QUERY IS WIDER THAN THE FIELD, and the field alone was the bug. A checklist
+    // field is written for a person reading a checklist: "Projected human daily dose".
+    // The document says "the maximum recommended human dose (MRHD) for ADPKD is 120
+    // mg/day". The fact is present, the words do not overlap, and a lexical retriever
+    // returns nothing - so the item was reported as a gap the document does not have.
+    //
+    // Measured before this change: four of the six CONSEQUENCE items came back empty on
+    // every drug, which empties `consequenceBasis`, which the adjudicator prompt says
+    // must produce `cannot_conclude`. Every end-to-end verdict was an abstention caused
+    // by vocabulary rather than by evidence.
+    //
+    // What a proposal must still carry is unchanged - a verbatim quote and a page, judged
+    // against the FIELD - so a search term that drags in an irrelevant passage costs a
+    // discarded proposal, never a wrong finding.
+    const query = [item.field, ...(item.searchTerms ?? [])].join(" ");
+    const passages = search(index, query, perItem);
     if (passages.length === 0) { notFound.push({ itemId: item.id, field: item.field }); continue; }
 
     const pages = passages.map((p) => p.page);
