@@ -1,6 +1,9 @@
 pandas==2.2.3
 openpyxl==3.1.5
-requests==2.32.3
+# 2.33.0, not 2.32.3: closes a .netrc credential leak via malicious URLs (fixed 2.32.4)
+# and insecure temp-file reuse in extract_zipped_paths (fixed 2.33.0). Both are patch
+# and minor moves inside 2.x, so nothing here changes shape.
+requests==2.33.0
 rdkit==2024.9.4
 scikit-learn==1.5.2
 numpy==2.1.3
