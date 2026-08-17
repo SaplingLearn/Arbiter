@@ -15,6 +15,7 @@ import {
   WebGLRenderTarget,
 } from "three";
 import { PALETTE } from "../core/palette.js";
+import { hash32, resolveBody } from "../core/subjects.js";
 import { makeAirdrop, makeMotes, mulberry32, smoothstep } from "./common.js";
 import { APPEAR_IN, makeInterior } from "./interior.js";
 import { MAX_TERRAIN_LIGHTS, makeTerrain } from "./terrain.js";
@@ -75,16 +76,8 @@ import type { AtmosphereScene, SceneContext } from "../core/types.js";
  * and the same object with ground catching its light is a place. See `terrain.ts`.
  */
 
-/** FNV-1a. Two callers now: which body a stray case lands on, and which plain is inside
- *  the body it lands on. Both need the same case to give the same answer forever. */
-function hash32(key: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < key.length; i++) {
-    h ^= key.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return Math.abs(h);
-}
+/* hash32 and the body lookup live in core/subjects.ts, which imports no graphics, so
+   the one rule in this scene that makes a claim about a case can be tested. */
 
 export function createArchive(ctx: SceneContext): AtmosphereScene {
   const scene = new Scene();
@@ -645,35 +638,11 @@ export function createArchive(ctx: SceneContext): AtmosphereScene {
   const _tmpAim = new Vector3();
   const _mat = new Matrix4();
 
-  /**
-   * Which body a case is.
-   *
-   * EXACT, THEN PREFIX, THEN A HASH, and the order is the whole point.
-   *
-   * A prepared case opened from the library gets a caseId built from the case file's
-   * own id and the opener's account - `nipocalimab-imaavy--<userId>` for the catalogue
-   * entry named `nipocalimab`. So the route's key is neither the catalogue name nor
-   * equal between two people who opened the same case. Cutting at `--` and matching the
-   * remainder by prefix lands both of them on the same body, which is the behaviour a
-   * reader would expect and the reason this is not a plain lookup.
-   *
-   * THE HASH IS FOR CASES THAT ARE NOT IN THE LIBRARY AT ALL. A case somebody opened
-   * themselves has no entry in the catalogue and therefore no body of its own - there
-   * is nothing here to fly into, and the honest options are to stay wide or to pick one
-   * deterministically. Picking one keeps the gesture consistent for every case; it is
-   * also the one place in this scene where the environment is showing something it does
-   * not know, and it is worth saying so out loud.
-   */
+  /** Which body a case is. The rule, and why the hash may not land on a refused body,
+   *  are in `core/subjects.ts`. Usability is read back off the state buffer the field
+   *  is painted from, so the answer here and the colour on screen cannot disagree. */
   function resolve(key: string): number {
-    if (keys.length === 0) return -1;
-    const exact = keys.indexOf(key);
-    if (exact !== -1) return exact;
-
-    const stem = key.split("--")[0] ?? key;
-    const byPrefix = keys.findIndex((k) => stem === k || stem.startsWith(`${k}-`));
-    if (byPrefix !== -1) return byPrefix;
-
-    return hash32(key) % keys.length;
+    return resolveBody(keys, keys.map((_, i) => state[i * 3]! >= 0.5), key);
   }
 
   /** Point the ghost at a body, hide the field's copy of it, and stand the interior in it. */
