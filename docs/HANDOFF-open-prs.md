@@ -5,10 +5,15 @@ Written 2026-08-17, for whoever picks this up. Sibling to `HANDOFF-evaluation.md
 that has since become `main`. Those two own the numbers and the reading surface; this one
 owns the open PRs and the branch topology underneath them.
 
-A previous session reconciled that topology and merged what was ready. #24, #33 and #34
-have since landed and #28 has been harvested; **two still need work** — #25 and #27 — with
-#28 open but empty of anything worth taking, and #30 open but now entirely contained in
-#34, so it wants closing rather than merging. Read all of this before touching anything.
+A previous session reconciled that topology and merged what was ready. As of the overnight
+review on 2026-08-17, **no pull request is open**: #24, #25, #33 and #34 merged; #27, #28
+and #30 closed, each for a reason recorded in §4. What remains is one gap in a shipped
+feature (§7 item 9), not a queue. Read all of this before touching anything.
+
+**This document is now mostly a record rather than a plan**, and the parts of it that were
+wrong are marked where they were wrong rather than deleted — twice this session a stale
+paragraph nearly produced the opposite of the right decision, and both times what saved it
+was the sentence that had been left in place to argue with.
 
 An earlier revision of this document said "five PRs" and listed five. There were six, and
 #25 was the one missing. Count against `gh pr list` rather than against this section.
@@ -144,13 +149,25 @@ a clean worktree at the merge commit. typecheck 0, lint 0. The API boots on Post
 serves an authenticated round trip; that is where both banner resolutions were confirmed
 against a running process rather than by reading them.
 
-**One defect found, not fixed, and it is not this PR's code.**
+**One defect found, not fixed, and it is not this PR's code.** ~~
 `tools/seed-demo-documents.mjs --reset` is file-only: it deletes `results/*`, prints
-"Store cleared", and on a Postgres deployment leaves every row intact. The ordinary seeding
-path goes through the HTTP API and so follows whichever backing the server opened — only
-`--reset` reaches around it. This matters more than it looks, because §4's #27 entry names
-`--reset` as the *only* way to repair a duplicated seed. On Postgres that escape hatch now
-silently does nothing while reporting success.
+"Store cleared", and on a Postgres deployment leaves every row intact.~~ **FIXED
+2026-08-17.** The ordinary seeding path goes through the HTTP API and so follows whichever
+backing the server opened — only `--reset` reaches around it to the disk, and since #33 the
+disk is not always where the store is.
+
+It now **refuses** when `DATABASE_URL` is set, rather than clearing Postgres itself.
+Deleting rows from a database the script never opened, on a URL it cannot verify is a
+demonstration deployment rather than a live one, is a worse failure than not doing it — and
+the log is hash-chained, so a partial delete is not something the product can be talked out
+of noticing later. It names the two migrations to re-apply and the bucket to empty instead.
+
+The guard sits at the **top of the file, above the fetch and the PyMuPDF gate**, and that
+placement is the point: a Postgres host is the machine least likely to have 363 MB of PDFs
+or PyMuPDF on it, so a guard below the gate would have been unreachable from exactly the
+deployment that needed it — the run would die on a missing extractor instead. Checked both
+ways: with `DATABASE_URL` set it refuses and exits 1 having touched nothing; unset, it falls
+through to the ordinary path.
 
 **One thing worth a second look**, unproven and non-blocking: `withTransaction` in
 `services/api/db.ts` calls `await client.query("ROLLBACK")` inside its own `catch`. If the
@@ -341,7 +358,39 @@ caveat rather than a blocker.
 **Action:** land it. The branch is a fast-forward of `main` and was verified against both
 databases after merging current `main` in. Nothing about it was pushed — see §8.
 
-### #27 — shared cases on boot, and models in git (Darkest-Teddy)
+### ~~#27 — shared cases on boot, and models in git (Darkest-Teddy)~~ — SPLIT, then CLOSED 2026-08-17
+
+The good half landed (below). The remainder was closed rather than rebased, because it does
+not compile against `main` and the idea in it is worth more than the diff:
+
+- `seed-cases.ts` calls `service.count()`, which **`DeliberationService` does not have**, and
+  `auth.findByEmail(...)` **without awaiting** — it is `async` since #33 (`auth.ts:365`), so
+  `owner === null` is never true. Both of its two guards are broken by the same async drift
+  that killed #30's duplicate transport. "Needs a redesign, not a rebase" is now demonstrated
+  rather than predicted.
+- A tracked `.env.defaults` was **considered and rejected on second look.** The mechanism
+  landed — `ENV_FILES` reads `.env.defaults` when present — but there is nothing safe to put
+  in it. The models it proposed (`gemini-flash-latest`, `gemini-3.1-flash-lite`) are not the
+  ones the scoreboard was measured on, and the six bare `loadEnv()` eval scripts would
+  inherit them; `gemini-flash-latest` is a floating alias, which is worse again for
+  reproducing a committed number. The models that ARE agreed are already in git as
+  `DEFAULT_ADJUDICATION_MODEL` / `DEFAULT_SHORT_MODEL`, with the measurement behind them
+  written out beside them. A tracked file restating them is a second place for one fact to
+  live, and `.gitignore`'s `.env.*` blanket exists precisely so no new `.env.*` name has to
+  be remembered. So: no negation was added, and `.env.defaults` stays ignored.
+
+**What is genuinely lost by closing it, and worth rebuilding.** A fresh clone has the case
+CONTENT in git (`data/cases/*.json`) but nothing OPEN, so the product looks empty and a new
+developer reasonably concludes the data was not shared. Nothing on `main` fixes that. The
+PR's reasoning about deliberately NOT seeding the refusal cases — tolcapone and troglitazone
+exist in the catalogue precisely because they cannot become cases, and seeding them would
+make that refusal decorative — is the part to keep.
+
+One correction to this document, while the branch is still readable: on the id collision the
+seeder was on the *right* side. It mirrors the picker, which builds `${loaded.caseId}--${user.id}`
+(`server.ts:1400`); it is `tools/seed-demo-documents.mjs` that opens a bare, unsuffixed id.
+
+### #27, as reviewed before the close
 
 **Two blockers, both semantic.**
 
@@ -448,12 +497,11 @@ reads that file alone, which is what pins a configuration), but the count above 
 
 1. ~~**#24**~~ — done, `94ed8e4`.
 2. ~~**#33**~~ — done, `f4469a8`, joined in `bf0e605`.
-3. ~~**#28**~~ — harvested, `e8569a3`. The branch is still open and needs a decision, not
-   a merge.
-4. ~~**#30**~~ — landed inside #34. **Close the PR; do not merge it** — see its entry.
-5. ~~**#27** — split~~ — the good half is prepared on `feat/env-layering-from-27`. The
-   seeder still needs a redesign, not a rebase.
-6. ~~**#25** — review from scratch~~ — done, prepared on `review/25-eval-scoreboard`.
+3. ~~**#28**~~ — harvested, `e8569a3`; emptiness verified against `1c25747`, then **CLOSED**.
+4. ~~**#30**~~ — landed inside #34, then **CLOSED**.
+5. ~~**#27** — split~~ — the good half landed; the remainder **CLOSED**, because it does not
+   compile against `main`. The seeder idea is worth rebuilding — see its entry.
+6. ~~**#25** — review from scratch~~ — done, and **MERGED** (`ba2a060`).
 7. ~~**Push the four prepared branches**~~ — merged together on `integrate/overnight` and
    pushed to `main`. They were prepared separately (`review/25-eval-scoreboard`,
    `feat/env-layering-from-27`, `fix/carried-over-risks`, `docs/handoff-after-overnight`),
@@ -466,17 +514,22 @@ reads that file alone, which is what pins a configuration), but the count above 
    this history. If you are bisecting through them and PDF extraction starts failing, that
    is why. The lesson is `git add -A` in a worktree, twice in one session: stage by path, or
    check `git status` for a `.venv` that is not showing as ignored.
-8. Delete `feat/product-in-the-atmosphere` — it is still 0 ahead of `main`, and all three
-   PRs that targeted it were retargeted on 2026-08-17, so nothing points at it now.
-8. **Serve `/r/:caseId/:token` in production.** #34 shipped the public API route and the
+8. ~~Delete `feat/product-in-the-atmosphere`~~ — **DONE**, remote and local. It was 0 ahead
+   of `main` and fully contained in it (the local copy was a different commit, `51bc0df`,
+   and also fully contained), and no open PR targeted it.
+9. **Serve `/r/:caseId/:token` in production.** #34 shipped the public API route and the
    page, and the page is served only by `npm run deliberate:dev` - so a scanned QR code
    404s on a deployed host. Deliberately deferred, with the two decisions it needs written
    up beside `staticRoot()` in `services/api/server.ts` and in the README. This is the one
    gap that makes a shipped feature look broken rather than absent.
 
-**RETARGETING DONE 2026-08-17.** #25, #27 and #30 were moved to `main` with
-`gh pr edit <n> --base main`; #28 already pointed there. `feat/product-in-the-atmosphere` is
-now 0 ahead of `main` with nothing aimed at it, so deleting it is safe and is item 8 above.
+**NO PULL REQUESTS REMAIN OPEN as of 2026-08-17.** #25 merged; #27, #28 and #30 closed;
+#33 and #34 merged earlier. The retargeting that made this possible — #25, #27 and #30
+moved to `main` with `gh pr edit <n> --base main`, #28 already there — is what let
+`feat/product-in-the-atmosphere` be deleted without stranding anything.
+
+Item 9 is therefore the only open thread, and it is a gap in a shipped feature rather than
+a pull request. Everything else in this document is a record.
 
 **`main` moved under this session, and that is worth knowing about.** It was `d80f2ca` at
 the start and `1c25747` by the middle — #34 merged while the work below was in progress, and

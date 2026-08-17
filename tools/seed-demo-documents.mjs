@@ -18,7 +18,12 @@
  *
  *   node tools/seed-demo-documents.mjs            top up what is missing
  *   node tools/seed-demo-documents.mjs --fetch    fetch and verify only, write nothing
- *   node tools/seed-demo-documents.mjs --reset    DISCARD the store and rebuild it
+ *   node tools/seed-demo-documents.mjs --reset    DISCARD the FILE store and rebuild it
+ *
+ * `--reset` IS FILE-ONLY, and refuses when `DATABASE_URL` is set rather than reporting a
+ * success it did not have. The ordinary seeding path goes through the HTTP API, so it
+ * follows whichever backing the server opened; `--reset` is the one step that reaches
+ * around the API to the disk, and since #33 the disk is not always where the store is.
  *
  * `--reset` deletes the case log, the case file and the uploaded documents, because a
  * closed case cannot be given anything - not a document, not a finding, not a quote.
@@ -56,6 +61,37 @@ const API = process.env["ARBITER_API"] ?? "http://127.0.0.1:8787";
 const DIR = "data/raw/approval-packages";
 const FETCH_ONLY = process.argv.includes("--fetch");
 const RESET = process.argv.includes("--reset");
+
+/* THIS RESET IS FILE-ONLY, AND IT HAS TO SAY SO WHEN THAT IS NOT THE STORE.
+   Since #33 the backing is chosen by DATABASE_URL in one place - buildStores() in
+   services/api/stores.ts - and when it is set, the record, the accounts, the invites and
+   the documents are all in Postgres and Storage. The rmSync calls further down then
+   delete files nobody is reading, and the old "Store cleared" was a lie told to the one
+   person who most needed the truth: whoever is about to re-seed. They would seed on top
+   of everything still there, which is the duplicate-cases state this is usually being
+   run to escape.
+
+   FIRST, before the fetch and the PyMuPDF gate. A Postgres deployment is exactly the
+   machine least likely to have 363 MB of PDFs or PyMuPDF on it, so leaving this below
+   the gate meant the honest message was unreachable from the place that needed it - the
+   run died on a missing extractor instead.
+
+   It REFUSES rather than clearing Postgres itself. Deleting rows from a database this
+   script never opened, on a URL it cannot verify is a demonstration deployment rather
+   than a live one, is a much worse failure than not doing it - and the audit log is
+   hash-chained, so a partial delete is not something the product can be talked out of
+   noticing later. Naming the exact thing to run is the honest amount of help. */
+if (RESET && (process.env["DATABASE_URL"] ?? "").trim() !== "") {
+  console.log("\n--reset only clears the FILE store, and DATABASE_URL is set.");
+  console.log("The record, accounts, invites and documents are in Postgres and Storage,");
+  console.log("so this would delete nothing and report success. Refusing instead.");
+  console.log("\nTo clear a demonstration database deliberately, re-apply the schema:");
+  console.log("  psql \"$DATABASE_URL\" -f supabase/migrations/0001_init.sql");
+  console.log("  psql \"$DATABASE_URL\" -f supabase/migrations/0002_share_links.sql");
+  console.log("and empty the Storage bucket named by SUPABASE_BUCKET (default `documents`).");
+  console.log("\nOr unset DATABASE_URL to reset the local files this script does own.");
+  process.exit(1);
+}
 
 const OWNER = { email: "r.okafor@arbiter.demo", password: "arbiter-demo-2026" };
 /** The two seated reviewers. The owner convenes and does not hold a seat. */
@@ -284,6 +320,8 @@ if (FETCH_ONLY) {
  * on the connection refused that is the precondition here, not the error.
  */
 if (RESET) {
+  // The DATABASE_URL guard for this is at the top of the file, above the fetch and the
+  // PyMuPDF gate - a Postgres host is the least likely to get past either.
   const live = await fetch(`${API}/api/cases`).then(() => true).catch(() => false);
   if (live) {
     console.log("\n--reset needs the API stopped, or it will rewrite the log from memory.");
@@ -293,7 +331,7 @@ if (RESET) {
   for (const f of STORE) if (existsSync(f)) { rmSync(f); console.log(`removed  ${f}`); }
   rmSync("results/documents", { recursive: true, force: true });
   console.log("removed  results/documents");
-  console.log("\nStore cleared. Start `npm run dev` and run this again without --reset.");
+  console.log("\nFile store cleared. Start `npm run dev` and run this again without --reset.");
   process.exit(0);
 }
 
