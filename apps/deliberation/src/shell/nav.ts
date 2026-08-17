@@ -12,18 +12,39 @@ import type { Route } from "../router.js";
  */
 export interface NavItem {
   label: string;
-  /** The environment's own name, as the rail shows it on the active entry. */
-  codename: string;
   /** Scene id in `@arbiter/atmosphere`. */
   scene: string;
   to: Route;
 }
 
+/**
+ * EVERY ENVIRONMENT'S NAME, keyed by the scene id the backdrop mounts.
+ *
+ * This used to be a `codename` field on the four menu entries, and that shape could
+ * only ever name the four environments a menu entry points at. Two of the six have no
+ * entry - reading and the record are reached from inside a case, not from the menu -
+ * so the corner readout fell back to whichever menu item happened to be lit and named
+ * the wrong world out loud: ARCHIVE while Section was drawing behind the reading
+ * surface, CULTURE while the Helix was closing over the record.
+ *
+ * That is the exact failure this file's opening note warns about, arriving from the
+ * side it did not expect: not a stale table, but a table that never covered the case.
+ * Keyed by scene, it cannot happen - the key IS what the backdrop mounted.
+ */
+export const CODENAME: Record<string, string> = {
+  dashboard: "Culture",
+  new: "Genesis",
+  library: "Archive",
+  ask: "Synapse",
+  read: "Section",
+  record: "Helix",
+};
+
 export const NAV: NavItem[] = [
-  { label: "Dashboard", codename: "Culture", scene: "dashboard", to: { name: "dashboard" } },
-  { label: "New case", codename: "Genesis", scene: "new", to: { name: "new" } },
-  { label: "Library", codename: "Archive", scene: "library", to: { name: "cases" } },
-  { label: "Ask", codename: "Synapse", scene: "ask", to: { name: "ask" } },
+  { label: "Dashboard", scene: "dashboard", to: { name: "dashboard" } },
+  { label: "New case", scene: "new", to: { name: "new" } },
+  { label: "Library", scene: "library", to: { name: "cases" } },
+  { label: "Ask", scene: "ask", to: { name: "ask" } },
 ];
 
 /**
@@ -67,6 +88,19 @@ export function sceneFor(route: Route): string {
     return "library";
   }
   return NAV.find((n) => n.to.name === route.name)?.scene ?? "dashboard";
+}
+
+/**
+ * The name of the environment drawn behind a route — what the corner readout says.
+ *
+ * DERIVED FROM `sceneFor`, NOT FROM THE MENU, and that is the whole fix. The chrome
+ * asks two different questions and they had one answer between them: which part of the
+ * product you are in (the menu highlight, below) and which place you are standing in
+ * (this). Reading and the record have no menu entry, so answering the second question
+ * with the first named the wrong world out loud on both of them.
+ */
+export function codenameFor(route: Route): string | undefined {
+  return CODENAME[sceneFor(route)];
 }
 
 /** Rail entry by scene id, so inserting a NAV entry cannot silently repoint another. */
@@ -120,10 +154,18 @@ export function currentNav(route: Route): NavItem | undefined {
   if (route.name === "cases") return navByScene("library");
   const direct = NAV.find((n) => n.to.name === route.name);
   if (direct !== undefined) return direct;
-  // Reading has no rail entry of its own yet - there is no top-level route to give one,
-  // since `read` needs a caseId and a menu entry has none. It lights the Library, which
-  // is where the case it belongs to lives.
-  if (route.name === "read") return navByScene("library");
+  // EVERY CASE ROUTE LIGHTS THE LIBRARY, including the record.
+  //
+  // Reading and the record have no rail entry of their own - there is no top-level
+  // route to give either one, since both need a caseId and a menu entry has none - so
+  // they light the Library, which is where the case they belong to lives.
+  //
+  // `record` was missing from this list and fell through to the Dashboard, which is the
+  // one entry that is not where you are: opening a case from the Library and stepping
+  // to its Record moved the highlight back to Dashboard, so the menu disagreed with the
+  // breadcrumb, the case title and the stage strip all at once. It is the last stage of
+  // a case, not a different part of the product.
+  if (route.name === "read" || route.name === "record") return navByScene("library");
   if (route.name === "case" || route.name === "position" || route.name === "reveal") {
     return navByScene("library");
   }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactElement } from "react";
 import { Decode, Wordmark } from "@arbiter/design";
 import { href, type Route } from "../router.js";
 import type { Person } from "../api.js";
-import { NAV, currentNav } from "./nav.js";
+import { NAV, codenameFor, currentNav } from "./nav.js";
 
 /**
  * THE PRODUCT'S CHROME, rebuilt as a heads-up display over a live scene.
@@ -172,13 +172,18 @@ function Tabs({ route }: { route: Route }): ReactElement {
  * is how the tab and the scene behind it are tied together at all.
  */
 export function CornerReadout({ route }: { route: Route }): ReactElement | null {
-  const active = currentNav(route);
-  if (active === undefined) return null;
+  /* FROM THE SCENE, NOT FROM THE MENU ENTRY. This read the codename off whichever rail
+     entry was lit, and the two are not the same question - reading and the record have
+     no rail entry, so both borrowed one and this corner named a place the reader was
+     not in: ARCHIVE over the Section, CULTURE over the Helix. `codenameFor` answers
+     from `sceneFor`, which is what the backdrop actually mounted. */
+  const codename = codenameFor(route);
+  if (codename === undefined) return null;
 
   return (
     <div className="corner" aria-hidden="true">
       <span className="corner-dot" />
-      {active.codename}
+      {codename}
     </div>
   );
 }
