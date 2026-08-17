@@ -125,21 +125,44 @@ export async function closePool(): Promise<void> {
  * and for the chain append that means the advisory lock is held on a connection doing
  * nothing while the insert races unprotected on a second one. The bug looks like the lock
  * simply not working.
+ *
+ * THE ROLLBACK MUST NOT BE ABLE TO EAT THE ERROR IT IS ROLLING BACK. A bare
+ * `await client.query("ROLLBACK")` inside the catch throws in exactly the case that
+ * matters - the connection died mid-transaction - and its error then REPLACES the real
+ * one, so the caller is told the rollback failed and never told what failed first.
+ *
+ * AND A CLIENT THAT MAY STILL BE IN A TRANSACTION MUST NOT GO BACK IN THE POOL.
+ * `release()` with no argument returns it for reuse; if the ROLLBACK did not land, the
+ * next caller to be handed that connection inherits an open transaction and whatever
+ * the failed one left in it. `release(err)` destroys the connection instead, which is
+ * the cheap and correct answer - the pool opens another.
  */
 export async function withTransaction<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
   p: pg.Pool = pool(),
 ): Promise<T> {
   const client = await p.connect();
+  // Held rather than re-derived, because `finally` has to know whether the connection
+  // is safe to reuse and cannot see the catch's error otherwise.
+  let failure: Error | undefined;
   try {
     await client.query("BEGIN");
     const result = await fn(client);
     await client.query("COMMIT");
     return result;
   } catch (err) {
-    await client.query("ROLLBACK");
+    failure = err instanceof Error ? err : new Error(String(err));
+    try {
+      await client.query("ROLLBACK");
+      // It rolled back, so the connection is clean and may be reused. The original
+      // error still propagates; only the client's fate changes.
+      failure = undefined;
+    } catch {
+      // Deliberately swallowed. The ROLLBACK's own error is the less informative of
+      // the two and `failure` staying set is what destroys the connection below.
+    }
     throw err;
   } finally {
-    client.release();
+    client.release(failure);
   }
 }
