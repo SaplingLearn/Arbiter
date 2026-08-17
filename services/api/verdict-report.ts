@@ -101,6 +101,22 @@ export function buildCaseReport(args: {
   person: (id: string) => { displayName: string; email: string } | null;
   generatedById: string;
   generatedAt: string;
+  /**
+   * Who the assembled record is for.
+   *
+   * REDACTION HAPPENS HERE, not in the rendering. A field absent from the page but
+   * present in the response body is one devtools tab from being disclosed, and the
+   * public path answers to anybody holding a URL - there is no session on that path to
+   * gate what the browser already received. So the cut is made while the object is
+   * still being built, not by a page that later chooses not to draw a field.
+   *
+   * THE ADDRESS IS THE ONLY THING CUT. Names and seats stay on the public copy, because
+   * attribution IS the record: a position without an author is a rumour, not a
+   * deliberation. An email is a way to reach someone outside the product, which a
+   * stranger holding a link has no standing to be handed - a display name and a seat
+   * are not.
+   */
+  audience: "case" | "public";
 }): CaseReport {
   const { kase } = args;
   const person = (id: string): ReportPerson => {
@@ -110,7 +126,7 @@ export function buildCaseReport(args: {
       // An account that has been deleted still has positions in the record, and the
       // record must still print. The id is not a name and does not pretend to be.
       displayName: p?.displayName ?? id,
-      email: p?.email ?? "",
+      email: args.audience === "public" ? "" : (p?.email ?? ""),
       seat: kase.seats[id] ?? null,
     };
   };

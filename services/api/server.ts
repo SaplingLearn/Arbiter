@@ -822,6 +822,9 @@ function handleReport(
     person: (id) => deps.auth.get(id),
     generatedById: user.id,
     generatedAt,
+    // This route sits behind an authenticated session, so the reader is already on the
+    // case: the addresses stay.
+    audience: "case",
   }));
 }
 

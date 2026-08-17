@@ -61,7 +61,7 @@ const PEOPLE: Record<string, { displayName: string; email: string }> = {
   "u-b": { displayName: "B. Mehta", email: "b@arbiter.demo" },
 };
 
-const build = (over: { kase?: DeliberationCase; source?: "stub" | "live"; audit?: { chainFailures: number; sealFailures: number; entries: { hash: string }[] } } = {}) =>
+const build = (over: { kase?: DeliberationCase; source?: "stub" | "live"; audit?: { chainFailures: number; sealFailures: number; entries: { hash: string }[] }; audience?: "case" | "public" } = {}) =>
   buildCaseReport({
     kase: over.kase ?? kase(),
     positions: (over.kase ?? kase()).positions,
@@ -76,6 +76,7 @@ const build = (over: { kase?: DeliberationCase; source?: "stub" | "live"; audit?
     person: (id) => PEOPLE[id] ?? null,
     generatedById: "u-a",
     generatedAt: "2026-08-16T12:00:00.000Z",
+    audience: over.audience ?? "case",
   });
 
 describe("buildCaseReport", () => {
@@ -96,6 +97,7 @@ describe("buildCaseReport", () => {
       audit: { chainFailures: 0, sealFailures: 0, entries: [] },
       person: () => null,
       generatedById: "u-a", generatedAt: "2026-08-16T12:00:00.000Z",
+      audience: "case",
     });
     expect(r.panel.map((p) => p.displayName)).toEqual(["u-b", "u-a"]);
     expect(r.panel.every((p) => p.email === "")).toBe(true);
@@ -131,5 +133,35 @@ describe("buildCaseReport", () => {
   it("says who asked for it", () => {
     // A document that leaves the system says who made it.
     expect(build().generatedBy.displayName).toBe("A. Silva");
+  });
+});
+
+describe("the public audience", () => {
+  it("carries no email address anywhere in the document", () => {
+    const r = build({ audience: "public" });
+    // Over the serialised body, not field by field: a field added later that carries an
+    // address would slip past a per-field assertion, and the response body is what leaks.
+    expect(JSON.stringify(r)).not.toContain("@");
+  });
+
+  it("keeps every name and seat, because a position without an author is a rumour", () => {
+    const r = build({ audience: "public" });
+    expect(r.panel.map((p) => p.displayName)).toContain("A. Silva");
+    expect(r.panel.every((p) => p.email === "")).toBe(true);
+    expect(r.owner.displayName).not.toBe("");
+    expect(r.generatedBy.displayName).not.toBe("");
+  });
+
+  it("keeps every position, adjudication and inventory entry, since the dissent is the record", () => {
+    const pub = build({ audience: "public" });
+    const priv = build({ audience: "case" });
+    expect(pub.positions).toEqual(priv.positions);
+    expect(pub.adjudication).toEqual(priv.adjudication);
+    expect(pub.inventory).toEqual(priv.inventory);
+  });
+
+  it("leaves the case audience holding the addresses", () => {
+    const r = build({ audience: "case" });
+    expect(r.panel.some((p) => p.email !== "")).toBe(true);
   });
 });
