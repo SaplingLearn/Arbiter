@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState, type ReactElement } from "react";
 import {
   api, ApiError, uploadDocument,
   type Adjudication, type AuditResult, type BlindView, type CaseListing,
-  type CaseSummary, type Finding, type Inventory, type LibrarySource, type Person, type Refusal,
-  type Roster, type StoredDocument, type UnanimityReport,
+  type CaseSignature, type CaseSummary, type Finding, type Inventory, type LibrarySource,
+  type Person, type Refusal, type Roster, type StoredDocument, type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
 import { AskPage, Dashboard, LibraryPage, NewCasePage } from "./pages.js";
@@ -66,7 +66,18 @@ export function App(): ReactElement {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [view, setView] = useState<BlindView | null>(null);
   const [unanimity, setUnanimity] = useState<UnanimityReport | null>(null);
-  const [adjudication, setAdjudication] = useState<{ adjudication: Adjudication; source: "stub" | "live" } | null>(null);
+  /**
+   * Loaded from the server, not merely remembered from the button that produced it.
+   *
+   * This state used to be written only by the POST that runs the adjudication, so it
+   * existed in exactly one browser until that tab was reloaded: a participant reaching
+   * the verdict stage saw nothing, and the owner lost it on refresh. `loadCase` fills
+   * it now, which is what makes the stage - and the report on it - the same for
+   * everyone named on the case.
+   */
+  const [adjudication, setAdjudication] = useState<
+    { adjudication: Adjudication; source: "stub" | "live"; signature: CaseSignature | null } | null
+  >(null);
   const [audit, setAudit] = useState<AuditResult | null>(null);
   const [docs, setDocs] = useState<StoredDocument[]>([]);
   const [roster, setRoster] = useState<Roster | null>(null);
@@ -117,9 +128,21 @@ export function App(): ReactElement {
       if (v.status === "open") {
         setUnanimity(null);
         setAudit(null);
+        setAdjudication(null);
       } else {
         setUnanimity(await api.unanimity(t, id));
         setAudit(await api.audit(t, id));
+        const a = await api.adjudication(t, id);
+        // Null adjudication clears the state rather than leaving the last one on
+        // screen: a case can be revealed with nothing adjudicated yet, and that is a
+        // stage with no verdict, not a stage whose verdict failed to arrive.
+        setAdjudication(a.adjudication === null ? null : {
+          adjudication: a.adjudication,
+          // An adjudication whose provenance the log cannot confirm is treated as a
+          // stub, because the dangerous mislabelling is the other one.
+          source: a.source ?? "stub",
+          signature: a.signature,
+        });
       }
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
@@ -462,12 +485,26 @@ export function App(): ReactElement {
         <Reveal view={view} unanimity={unanimity} nameOf={nameOf} seats={roster?.seats ?? {}} />
         {adjudication === null && view.status !== "signed" && isOwner && (
           <button className="primary" style={{ alignSelf: "flex-start" }}
-            onClick={() => act(async () => { setAdjudication(await api.adjudicate(token, caseId, new Date().toISOString())); })}>
+            onClick={() => act(async () => {
+              const r = await api.adjudicate(token, caseId, new Date().toISOString());
+              // No signature, and not because none was returned: signing comes AFTER
+              // an adjudication exists, so a case cannot be signed in the instant one
+              // is produced. `act` reloads straight after and reads the real state.
+              setAdjudication({ ...r, signature: null });
+            })}>
             Adjudicate across the positions
           </button>
         )}
         {adjudication !== null && (
           <Verdict adjudication={adjudication.adjudication} source={adjudication.source}
+            token={token} caseId={caseId}
+            canSign={isOwner && view.status !== "signed"}
+            signed={adjudication.signature === null ? null : {
+              name: nameOf(adjudication.signature.by),
+              at: adjudication.signature.at,
+              agreesWithAdjudication: adjudication.signature.agreesWithAdjudication,
+              reason: adjudication.signature.reason,
+            }}
             onSign={(agrees, reason) => act(() => api.sign(token, caseId, {
               at: new Date().toISOString(), agreesWithAdjudication: agrees, reason,
             }))} />

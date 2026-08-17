@@ -162,6 +162,29 @@ export interface Adjudication {
   nextExperiment: string | null;
 }
 
+export interface CaseSignature {
+  by: string;
+  at: string;
+  /** False when the signer overrode the adjudication. */
+  agreesWithAdjudication: boolean;
+  reason: string;
+}
+
+/**
+ * The adjudication as the SERVER holds it, for everyone who did not press the button.
+ *
+ * It used to exist only in the browser of whoever ran it - the POST answered with it
+ * and nothing ever fetched it again - so a participant opening the verdict stage saw an
+ * empty screen and the owner lost it on reload. Every field is nullable because "not
+ * adjudicated yet" is the ordinary state of an open case, not an error.
+ */
+export interface AdjudicationRecord {
+  adjudication: Adjudication | null;
+  source: "stub" | "live" | null;
+  at: string | null;
+  signature: CaseSignature | null;
+}
+
 export interface Finding {
   id: string;
   label: string;
@@ -213,6 +236,8 @@ export class ApiError extends Error {
 const TIMEOUT_MS = 60_000;
 const ASK_TIMEOUT_MS = 120_000;
 const SUMMARY_TIMEOUT_MS = 300_000;
+/** A browser is started to print it. See `downloadReport`. */
+const REPORT_TIMEOUT_MS = 60_000;
 
 async function call<T>(
   method: string, path: string, token: string | null, body?: unknown,
@@ -286,6 +311,55 @@ export async function uploadDocument(token: string, caseId: string, file: File):
   }
 }
 
+/**
+ * The report, which cannot go through `call` because the body is a PDF.
+ *
+ * THE FILENAME COMES FROM THE SERVER. It is built there from the compound and the date,
+ * and rebuilding it here would be the same string in two places - which diverges the
+ * first time either side changes, leaving a folder of files named two ways for the same
+ * kind of document. The header is parsed rather than trusted blindly: it becomes a
+ * filename on somebody's disk, so anything path-shaped in it is dropped.
+ *
+ * A LONGER DEADLINE THAN A JSON CALL. The service prints this through a real browser,
+ * which it has to start; measured at a second or two, and a 60-second ceiling would
+ * still be generous while leaving a stalled request recoverable.
+ */
+export async function downloadReport(token: string, caseId: string): Promise<{ blob: Blob; filename: string }> {
+  const deadline = new AbortController();
+  const timer = setTimeout(() => { deadline.abort(); }, REPORT_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`/api/cases/${caseId}/report`, {
+      signal: deadline.signal,
+      headers: { authorization: `Bearer ${token}` },
+    });
+  } catch (e) {
+    if (deadline.signal.aborted) {
+      throw new ApiError(504, "timeout", `The report did not arrive within ${Math.round(REPORT_TIMEOUT_MS / 1000)} seconds. The service may be restarting - try again.`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!res.ok) {
+    // The service's own refusals, verbatim: "this case has not been adjudicated" and
+    // "this deployment has no browser to print with" are different problems with
+    // different fixes, and only the server knows which one happened.
+    const body = await res.json().catch(() => ({})) as { error?: string; detail?: string };
+    throw new ApiError(res.status, body.error ?? "report_failed", body.detail ?? `The report could not be produced (${res.status}).`);
+  }
+
+  const disposition = res.headers.get("content-disposition") ?? "";
+  const named = /filename="?([^";]+)"?/.exec(disposition)?.[1];
+  return {
+    blob: await res.blob(),
+    filename: named === undefined || named.includes("/") || named.includes("\\")
+      ? `arbiter-report-${caseId}.pdf`
+      : named,
+  };
+}
+
 export const api = {
   register: (email: string, displayName: string, password: string) =>
     call<Person>("POST", "/api/auth/register", null, { email, displayName, password }),
@@ -356,6 +430,10 @@ export const api = {
 
   unanimity: (token: string, caseId: string) =>
     call<UnanimityReport>("GET", `/api/cases/${caseId}/unanimity`, token),
+
+  /** What was adjudicated, to anybody named on the case. See `AdjudicationRecord`. */
+  adjudication: (token: string, caseId: string) =>
+    call<AdjudicationRecord>("GET", `/api/cases/${caseId}/adjudication`, token),
 
   adjudicate: (token: string, caseId: string, at: string) =>
     call<{ adjudication: Adjudication; source: "stub" | "live" }>("POST", `/api/cases/${caseId}/adjudicate`, token, { at }),

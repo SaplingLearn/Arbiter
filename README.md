@@ -64,7 +64,7 @@ fixed order, because the order is the point:
 |---|---|
 | **Evidence** | The compound in front of you: findings, documents, what is absent |
 | **Your position** | Your call, written **before** you can see anyone else's |
-| **Reveal & verdict** | Unreachable until everyone has answered. Then the split, the disagreement analysis, and the AI adjudication |
+| **Reveal & verdict** | Unreachable until everyone has answered. Then the split, the disagreement analysis, the AI adjudication, and the report - anyone named on the case can print the whole record as a PDF (`GET /api/cases/:id/report`, `?format=html` for the markup it is printed from) |
 | **Record** | Sign-off and the hash-chained audit log |
 
 Blind submission is enforced server-side by not returning the data, not by asking the

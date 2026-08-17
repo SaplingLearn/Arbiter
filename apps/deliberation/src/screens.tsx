@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
+import { api, ApiError, downloadReport, type Adjudication, type BlindView, type Finding, type Inventory, type Position, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
 import { Reviewer, collidingInitials } from "./Reviewer.js";
 import { initials } from "./Layout.js";
 
@@ -638,9 +638,83 @@ export function Reveal({ view, unanimity, nameOf, seats }: {
   );
 }
 
+/** -------------------------------------------------------------- the report */
+/**
+ * Take the whole case away as one document.
+ *
+ * ANY TEAM MEMBER, not just the convener. The people who most need this are the ones
+ * who cannot show anybody the screen: a reviewer forwarding the panel's reasoning to a
+ * programme lead, somebody filing what was decided, the person who inherits the
+ * compound in two years. Making it the owner's button would mean everyone else asks
+ * the owner for a copy, and what actually gets sent in that situation is a screenshot -
+ * which carries the verdict, drops the dissent, and can be checked against nothing.
+ *
+ * THE FILE IS BUILT BY THE SERVER, from the record rather than from this screen. What
+ * is on this tab is what the viewer has loaded; the document has to hold the positions,
+ * the evidence, the chain and the signature, and half of that is not on this page. A
+ * client-side print would also quietly print whatever the reader's session could see,
+ * which is not the same thing as what the case holds.
+ */
+function ReportButton({ token, caseId }: { token: string; caseId: string }): ReactElement {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const download = (): void => {
+    setBusy(true);
+    setError(null);
+    void (async () => {
+      try {
+        const { blob, filename } = await downloadReport(token, caseId);
+        // An object URL and a synthetic click, because the request carries a bearer
+        // token in a header and a plain <a href> cannot. Revoked afterwards: an
+        // un-revoked blob URL pins the whole PDF in memory for the life of the tab.
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        setError(e instanceof ApiError ? e.message : String(e));
+      } finally {
+        setBusy(false);
+      }
+    })();
+  };
+
+  return (
+    <div className="panel sunken">
+      <div>
+        <h3>Take this away as a document</h3>
+        <p className="hint">
+          One PDF holding the decision, every position in full, the adjudication, the
+          evidence it was decided on and the state of the record. Anyone on this case can
+          produce it. Nothing in it is summarised - a shorter document would be one that
+          chose which dissent to carry.
+        </p>
+      </div>
+      <div className="btn-row">
+        <button className="ghost" onClick={download} disabled={busy}>
+          {busy ? "Printing…" : "Download the report"}
+        </button>
+      </div>
+      {error !== null && <div className="err">{error}</div>}
+    </div>
+  );
+}
+
 /** ------------------------------------------------------------------- verdict */
-export function Verdict({ adjudication, source, onSign }: {
+export function Verdict({ adjudication, source, token, caseId, canSign, signed, onSign }: {
   adjudication: Adjudication; source: "stub" | "live";
+  /** For the report, which is fetched with the viewer's own session. */
+  token: string; caseId: string;
+  /** The convener signs; everyone else reads. §6.7 - a committee advises and one
+   *  named individual decides, so this is false for most people who see this screen. */
+  canSign: boolean;
+  /** Already signed, resolved to a name by the caller. Null while nobody has. */
+  signed: { name: string; at: string; agreesWithAdjudication: boolean; reason: string } | null;
   onSign: (agrees: boolean, reason: string) => void;
 }): ReactElement {
   const [reason, setReason] = useState("");
@@ -686,17 +760,43 @@ export function Verdict({ adjudication, source, onSign }: {
       <h2 style={{ marginTop: 32 }}>Sign</h2>
       <p className="muted">
         One named person. No quorum, no threshold, no consensus mechanism - a committee
-        advises and an individual decides, and you may override this adjudication.
+        advises and an individual decides, and the signer may override this adjudication.
       </p>
-      <div className="rail">
-        <button type="button" className="persona" aria-pressed={agrees} onClick={() => setAgrees(true)}>Agree</button>
-        <button type="button" className="persona" aria-pressed={!agrees} onClick={() => setAgrees(false)}>Override</button>
-      </div>
-      <label htmlFor="reason">{agrees ? "Anything to add (optional)" : "Why you are overriding - required"}</label>
-      <textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
-      <button className="primary" disabled={!agrees && reason.trim() === ""} onClick={() => onSign(agrees, reason)}>
-        Sign the record
-      </button>
+
+      {/* WHAT IS ON SCREEN DEPENDS ON WHO IS READING, and the three states are
+          genuinely different. A participant used to see a sign form they were not
+          permitted to use: the server answers 403, so the control was a promise the
+          product could not keep. */}
+      {signed !== null ? (
+        <div className="note">
+          <strong>
+            {signed.agreesWithAdjudication
+              ? `${signed.name} signed this record.`
+              : `${signed.name} signed, overriding the adjudication.`}
+          </strong>
+          <div className="small muted mono">{signed.at}</div>
+          {signed.reason.trim() !== "" && <p style={{ marginBottom: 0 }}>{signed.reason}</p>}
+        </div>
+      ) : canSign ? (
+        <>
+          <div className="rail">
+            <button type="button" className="persona" aria-pressed={agrees} onClick={() => setAgrees(true)}>Agree</button>
+            <button type="button" className="persona" aria-pressed={!agrees} onClick={() => setAgrees(false)}>Override</button>
+          </div>
+          <label htmlFor="reason">{agrees ? "Anything to add (optional)" : "Why you are overriding - required"}</label>
+          <textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+          <button className="primary" disabled={!agrees && reason.trim() === ""} onClick={() => onSign(agrees, reason)}>
+            Sign the record
+          </button>
+        </>
+      ) : (
+        <p className="small muted">
+          The convener signs this one. Until they do, nothing here has been decided - and
+          when they do, it appears on this screen and in the report below.
+        </p>
+      )}
+
+      <ReportButton token={token} caseId={caseId} />
     </section>
   );
 }

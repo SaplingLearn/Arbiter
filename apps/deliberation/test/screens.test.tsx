@@ -335,32 +335,78 @@ describe("Verdict", () => {
     nextExperiment: "Measure Cmax against the tested concentration.",
   };
 
+  /** The props every one of these cases shares, so a new one does not have to restate
+   *  the session. Overridden per test where the case is about who is reading. */
+  const verdict = (over: Partial<Parameters<typeof Verdict>[0]> = {}): ReturnType<typeof render> =>
+    render(<Verdict adjudication={adj} source="live" token="tok" caseId="case_1"
+      canSign={true} signed={null} onSign={() => {}} {...over} />);
+
   it("marks a stub result as a stub, in the place a reader cannot miss", () => {
-    render(<Verdict adjudication={adj} source="stub" onSign={() => {}} />);
+    verdict({ source: "stub" });
     expect(screen.getByText(/STUB - no model was called/)).toBeInTheDocument();
   });
 
   it("carries no stub banner on a live result", () => {
-    const { container } = render(<Verdict adjudication={adj} source="live" onSign={() => {}} />);
+    const { container } = verdict();
     expect(container.textContent).not.toContain("STUB");
   });
 
   it("answers mechanism and consequence as two separate questions", () => {
-    render(<Verdict adjudication={adj} source="live" onSign={() => {}} />);
+    verdict();
     expect(screen.getByText(/is there a route to liver injury/)).toBeInTheDocument();
     expect(screen.getByText(/is it severe enough to stop/)).toBeInTheDocument();
   });
 
   it("discloses every rule, including one that does not apply", () => {
-    render(<Verdict adjudication={adj} source="live" onSign={() => {}} />);
+    verdict();
     expect(screen.getByText(/Human evidence is present/)).toBeInTheDocument();
+  });
+
+  it("offers the report to a reader who cannot sign", () => {
+    // The people who most need to send this record are the ones who cannot show
+    // anybody the screen. Making it the convener's button would mean everybody else
+    // asks the convener for a copy, and what gets sent in that situation is a
+    // screenshot - which carries the verdict and drops the dissent.
+    verdict({ canSign: false });
+    expect(screen.getByRole("button", { name: /Download the report/ })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /Sign the record/ })).toBeNull();
+  });
+
+  it("does not offer a sign form to somebody the server will refuse", () => {
+    // A participant used to be shown the sign controls and answered 403 on use: a
+    // control that is a promise the product cannot keep.
+    verdict({ canSign: false });
+    expect(screen.getByText(/The convener signs this one/)).toBeInTheDocument();
+  });
+
+  it("shows who signed, and that they overrode, once it is signed", () => {
+    verdict({
+      canSign: false,
+      signed: { name: "R. Okafor", at: "2026-08-16T10:00:00.000Z", agreesWithAdjudication: false, reason: "Margin is 40x." },
+    });
+    expect(screen.getByText(/R. Okafor signed, overriding the adjudication/)).toBeInTheDocument();
+    expect(screen.getByText("Margin is 40x.")).toBeInTheDocument();
+    // Signed is signed: the form does not come back for the person who used it.
+    expect(screen.queryByRole("button", { name: /Sign the record/ })).toBeNull();
+  });
+
+  it("says why a report could not be produced rather than failing silently", async () => {
+    vi.stubGlobal("fetch", () => Promise.resolve({
+      ok: false, status: 503,
+      headers: { get: () => null },
+      json: () => Promise.resolve({ error: "no_pdf_renderer", detail: "No Chromium binary on this machine." }),
+    }));
+    verdict();
+    fireEvent.click(screen.getByRole("button", { name: /Download the report/ }));
+    expect(await screen.findByText(/No Chromium binary on this machine/)).toBeInTheDocument();
+    vi.unstubAllGlobals();
   });
 
   it("blocks an override with no reason, and allows agreement without one", () => {
     // An override is always available - forbidding it would make the model the
     // decider - but it is the one moment the record exists for, so it must be argued.
     const onSign = vi.fn();
-    render(<Verdict adjudication={adj} source="live" onSign={onSign} />);
+    verdict({ onSign });
 
     expect(screen.getByRole("button", { name: /Sign the record/ })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Override" }));
