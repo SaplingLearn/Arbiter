@@ -26,9 +26,10 @@ export default defineConfig({
     tailwindcss(),
     /* `/r/:caseId/:token` is a real path, not a hash route, because it is what a QR code
        carries and what somebody pastes into a chat. In dev Vite must be told which HTML
-       answers it; in production the API's static handler does the same job (server.ts,
-       `serveStatic`). Rewriting `req.url` rather than adding a second `server.proxy`
-       entry, because Vite's own middleware - the part that turns `public.html`'s
+       answers it; production static serving does not exist yet on this line of work -
+       see the comment in services/api/server.ts where it would go, and why it is not
+       there. Rewriting `req.url` rather than adding a second `server.proxy` entry,
+       because Vite's own middleware - the part that turns `public.html`'s
        `<script src="/src/public.tsx">` into a served module - only runs for requests it
        recognises as HTML, and it recognises them by path, not by content negotiation. */
     {
@@ -51,13 +52,38 @@ export default defineConfig({
    * is always index.html and a relative asset path never resolves against a
    * deeper directory. apps/web sets the same thing for its own reason.
    *
-   * NOT SAFE FOR public.html, which is why that file overrides it with its own
-   * `<base href="/">`. `/r/:caseId/:token` is two real path segments deep, so a
-   * relative reference from that document would resolve against `/r/<caseId>/`
-   * and 404 - the fragment trick above does not apply to a document that is not
-   * always served from the same shallow path.
+   * NOT SAFE FOR public.html, which `/r/:caseId/:token` serves two real path
+   * segments deep - a relative reference from that document would resolve against
+   * `/r/<caseId>/` and 404. The first fix tried was `<base href="/">` on that one
+   * document, and it was wrong in a way that mattered more than the 404: a `<base>`
+   * override changes the resolution target of EVERY relative URL on the page, not
+   * just the ones this config controls, and `report.tsx` prints several - "Back to
+   * the verdict", the sheet pager - as fragment-only hrefs. Those normally resolve
+   * against the current URL, so clicking one is an ordinary hash change. Under a
+   * `<base href="/">` they resolve against `/` instead, which is a DIFFERENT path
+   * than `/r/<caseId>/<token>` - so the browser does a real navigation, off the
+   * public page and onto whatever answers `/`. That is `index.html` once a static
+   * host is wired up, and `index.html` signs its visitor in as AUTO_EMAIL on load.
+   * One stray link would have turned an anonymous reader into an authenticated
+   * session. `renderBuiltUrl` below fixes the same 404 by rewriting only the
+   * ASSET references this build controls, and touches nothing already on the page.
    */
   base: "./",
+  experimental: {
+    /**
+     * Only public.html's OWN references get rewritten to an absolute path; index.html's
+     * stay relative, unchanged, for the subpath-mounting reason above. `hostId` is the
+     * HTML file doing the referencing - Vite calls this for every `<script>`/`<link>`
+     * it injects into an entry, as well as for assets imported from JS - so this checks
+     * which entry is asking rather than assuming every HTML file wants the same answer.
+     * Returning `undefined` for everything else falls through to the default `base`
+     * behaviour untouched.
+     */
+    renderBuiltUrl(filename, { hostId, hostType }) {
+      if (hostType === "html" && hostId === "public.html") return `/${filename}`;
+      return undefined;
+    },
+  },
   server: {
     port: 5174,
     // Bound to the IPv4 loopback explicitly. Left to itself Vite binds ::1 only, and

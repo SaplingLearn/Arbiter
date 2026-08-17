@@ -6,15 +6,16 @@
     <!-- Not indexed: a published record is for whoever holds the link, and a search
          engine is not that. This is courtesy rather than a control - the token is the
          control - but a record that turns up in results is a surprise nobody wanted. -->
-    <meta name="robots" content="noindex, nofollow" />
-    <!-- FORCES ASSET RESOLUTION BACK TO THE ROOT. index.html can afford `vite.config.ts`'s
-         `base: "./"` because every route in the signed-in app is a hash fragment, so the
-         DOCUMENT is always served from the same shallow path and "./assets/..." always
-         resolves from there. This document is different: the browser fetches its bytes
-         for a URL shaped like /r/<caseId>/<token> - two real path segments deep, and a
-         relative reference would resolve against /r/<caseId>/ and 404. A fixed root
-         anchor is what the QR's fixed URL shape actually requires. -->
-    <base href="/" />
+    <!-- NO <base> TAG HERE, DELIBERATELY - it was tried and reverted. Setting one to
+         fix asset resolution (this document is served at /r/<caseId>/<token>, two real
+         path segments deep, where a relative "./assets/..." reference would 404)
+         changes the resolution target of every OTHER relative URL on the page too,
+         including the fragment-only hrefs report.tsx prints for its sheet pager and its
+         "back to the case" link. Under a <base href="/">, "#/case/x/reveal" stops being
+         an in-page hash change and becomes a real navigation to "/" - which, once a
+         static host answers it, is index.html signing its visitor in as AUTO_EMAIL.
+         vite.config.ts's `renderBuiltUrl` fixes the asset paths instead, without
+         touching what any link on the page resolves against. -->
     <title>Deliberation record</title>
   </head>
   <body>

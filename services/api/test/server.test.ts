@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { createServer, type Server } from "node:http";
-import { mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AddressInfo } from "node:net";
@@ -1173,89 +1173,5 @@ describe("routing", () => {
       method: "POST", headers: { "content-type": "application/json" }, body: "{not json",
     });
     expect(res.status).toBe(400);
-  });
-});
-
-describe("serving the built site", () => {
-  it("404s every non-/api path when ARBITER_STATIC_DIR is unset", async () => {
-    // This suite's shared `deps` never sets `staticDir` - which is what every dev run
-    // and every test but the ones below leaves it as. Task 9's whole point rests on
-    // this default: the record's own bundle is unreachable until a deployment opts in.
-    expect((await fetchPublic("/")).status).toBe(404);
-    expect((await fetchPublic("/r/c1/tok")).status).toBe(404);
-  });
-
-  /**
-   * A SECOND, ISOLATED SERVER, not the shared one above. The rest of this suite asserts
-   * on `deps.staticDir` being unset; reusing it here would mean either mutating shared
-   * state a later test depends on or racing this block against whichever test happens
-   * to run next. `service`, `auth` and the rest are reused as-is - nothing below touches
-   * a route those own.
-   */
-  const root = mkdtempSync(join(tmpdir(), "arb-site-"));
-  writeFileSync(join(root, "index.html"), "<html>the app shell</html>");
-  writeFileSync(join(root, "public.html"), "<html>the public record</html>");
-  mkdirSync(join(root, "assets"));
-  writeFileSync(join(root, "assets", "app-abc123.js"), "console.log('built');");
-
-  let staticServer: Server;
-  let staticBase: string;
-  beforeAll(async () => {
-    const handler = makeHandler({ ...deps, staticDir: root });
-    staticServer = createServer((req, res) => { void handler(req, res); });
-    await new Promise<void>((r) => staticServer.listen(0, "127.0.0.1", r));
-    staticBase = `http://127.0.0.1:${(staticServer.address() as AddressInfo).port}`;
-  });
-  afterAll(async () => { await new Promise<void>((r) => staticServer.close(() => r())); });
-
-  it("answers / with index.html", async () => {
-    const res = await fetch(`${staticBase}/`);
-    expect(res.status).toBe(200);
-    expect(await res.text()).toContain("the app shell");
-  });
-
-  /**
-   * `/r/:caseId/:token` ANSWERS WITH public.html, NEVER index.html, WHATEVER THE TOKEN
-   * SAYS. This is the one behaviour Task 9 exists to prove: a share link - real token,
-   * wrong token, or a token nobody ever minted - reaches the bundle that cannot sign
-   * anybody in, not the one that does. `GET /api/public/report/...` is what tells a
-   * real token from a fake one; this route does not, and must not start trying to.
-   */
-  it("answers a share link with public.html, not index.html", async () => {
-    const res = await fetch(`${staticBase}/r/case_1/tok-does-not-matter`);
-    expect(res.status).toBe(200);
-    expect(await res.text()).toContain("the public record");
-  });
-
-  it("answers a share-shaped path with public.html even when nothing was ever published there", async () => {
-    // Same document either way - a wrong token and a case that was never published
-    // both fail LATER, inside the fetch this document makes, and both read as the one
-    // message `public.tsx` shows for every failure.
-    const res = await fetch(`${staticBase}/r/no-such-case/no-such-token`);
-    expect(res.status).toBe(200);
-    expect(await res.text()).toContain("the public record");
-  });
-
-  it("serves a hashed asset with an immutable cache header", async () => {
-    const res = await fetch(`${staticBase}/assets/app-abc123.js`);
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toContain("javascript");
-    expect(res.headers.get("cache-control")).toContain("immutable");
-  });
-
-  it("404s a missing asset rather than falling back to index.html", async () => {
-    // No SPA rewrite table: this app routes on the hash fragment, so an unmatched path
-    // is a broken reference, not an unknown client-side route. A 200 here would hide
-    // a bad deploy behind a page that looks fine until something on it 404s instead.
-    const res = await fetch(`${staticBase}/assets/does-not-exist.js`);
-    expect(res.status).toBe(404);
-  });
-
-  it("refuses a path that walks out of the static root, even percent-encoded", async () => {
-    // decodeURIComponent("/%2e%2e%2f%2e%2e%2fpackage.json") is "/../../package.json" -
-    // a plain ".." in the URL is already collapsed by `new URL()` before this handler
-    // ever sees it, so the attack this guards against is the encoded form only.
-    const res = await fetch(`${staticBase}/%2e%2e%2f%2e%2e%2fpackage.json`);
-    expect(res.status).toBe(404);
   });
 });

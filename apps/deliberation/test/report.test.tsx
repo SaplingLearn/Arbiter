@@ -194,8 +194,13 @@ describe("the printable record", () => {
     expect(document.title).toBe("arbiter-arb-114-2026-08-16");
   });
 
-  it("gives the reader a way back to the case", () => {
-    const { container } = render(<ReportPage report={report()} />);
+  it("gives the convener a way back to the case", () => {
+    // `share` present, even with no link published yet, is what marks this as the
+    // convener's own render of the page rather than a stranger's - see the "public
+    // page" tests below for the other half of this.
+    const { container } = render(
+      <ReportPage report={report()} share={{ url: null, onPublish: () => {}, onRevoke: () => {} }} />,
+    );
     expect(container.querySelector('a[href="#/case/case_1/reveal"]')).not.toBeNull();
   });
 
@@ -254,6 +259,22 @@ describe("publishing from the report", () => {
     );
     expect(container.querySelector(".rep-qr")).not.toBeNull();
     expect(container.querySelector(".rep-share")).toBeNull();
+  });
+
+  it("carries no link into the signed-in app on the public page", () => {
+    // Fix round 1: the top bar used to render unconditionally, so a stranger reading a
+    // share link saw "The record, ready to print" - written for the convener - and a
+    // "Back to the verdict" link into the app that owns AUTO_EMAIL. Gated on the same
+    // `share !== undefined` signal that already decides whether the publish/revoke
+    // section shows, so there is one rule, not two, for "is this the convener's page".
+    const { container } = render(
+      <ReportPage report={report()} publishedUrl="https://arbiter.test/r/c1/tok" />,
+    );
+    expect(screen.queryByText("The record, ready to print")).toBeNull();
+    expect(screen.queryByText("Back to the verdict")).toBeNull();
+    expect(container.querySelector('a[href="#/case/case_1/reveal"]')).toBeNull();
+    // Printing still works without an account - that button is not convener-specific.
+    expect(screen.getByRole("button", { name: /Print or save as PDF/ })).toBeInTheDocument();
   });
 
   it("says plainly that revoking cannot reach a page already printed", () => {

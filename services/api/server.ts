@@ -1,8 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { createReadStream, existsSync, readFileSync, type Stats } from "node:fs";
-import { stat } from "node:fs/promises";
+import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { basename, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, resolve } from "node:path";
 import { DeliberationService } from "./deliberation-service.js";
 import { FileStore } from "./store.js";
 import type { DeliberationCase, Position } from "./deliberation.js";
@@ -73,268 +72,27 @@ function bindHost(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 /**
- * THE BUILT SITE IS SERVED ONLY WHEN ARBITER_STATIC_DIR SAYS SO, AND THE UNSET CASE IS
- * NOT AN OVERSIGHT.
+ * NO STATIC-FILE SERVING HERE, DELIBERATELY. A branch that answered `GET /` with
+ * `apps/deliberation/dist/index.html` was written for this task and removed before it
+ * shipped: `index.html` loads `App.tsx`, which signs its visitor in as AUTO_EMAIL on
+ * load, so serving it to anyone who merely reached this origin - not someone who signed
+ * in, not someone holding a share link, ANYONE - is anonymous access to every case on
+ * whatever deployment turns that branch on. That is a materially bigger decision than
+ * "add a static file server" reads as, and it does not belong inside a task about one
+ * public route.
  *
- * `npm run deliberate:dev` puts this app's own Vite server in front of every path
- * outside `/api` (its `vite.config.ts` proxies `/api` back here), so during development
- * this process would be answering paths Vite already owns - from whatever
- * `apps/deliberation/dist` last held, or nothing at all, if this branch also served
- * them. Unset is the correct default for every dev run, and for every test except the
- * ones in server.test.ts's "serving the built site" block that set it deliberately; the
- * 404 that has always been returned for a non-/api path stays exactly that until a
- * deployment opts in.
+ * PR #33 (`worktree-supabase-deploy`) already carries a full implementation, built
+ * against a different `ServerDeps` shape (Postgres-backed stores, not the file-backed
+ * ones this branch still has) - so the version this task wrote would have conflicted
+ * with it in exactly the code where a conflict is least affordable. Whoever brings that
+ * branch's version in must answer the AUTO_EMAIL question above FIRST, as its own
+ * decision, before wiring `ARBITER_STATIC_DIR` up to anything that can reach `/`.
  *
- * Set, `ARBITER_STATIC_DIR` names a directory holding this app's build
- * (`npm run deliberate:build` writes `apps/deliberation/dist`) and puts it on the same
- * origin as `/api` - not a preference, a requirement: this app calls `/api/...`
- * same-origin and this service sends no CORS headers, so a client served from anywhere
- * else fails on its first request.
- *
- * Read through a function rather than at module load, for the same reason `bindHost`
- * is: `.env` is loaded by the entry point, and a module-level read would happen first
- * and miss it.
+ * Nothing currently needs this. `apps/deliberation/vite.config.ts`'s dev-server
+ * middleware already answers `/r/*` with `public.html` during `npm run deliberate:dev`,
+ * which is what a manual walk-through of this feature uses.
  */
-function staticRoot(env: NodeJS.ProcessEnv = process.env): string | null {
-  const dir = env["ARBITER_STATIC_DIR"];
-  if (dir === undefined || dir.trim() === "") return null;
-  // Resolved once, here, so every containment check downstream compares two absolute
-  // paths. A relative root would be re-resolved against the process's CWD on each
-  // request, and `relative()` on a relative root answers a different question.
-  return resolve(dir.trim());
-}
 
-/**
- * Content types by extension, and this table is load-bearing rather than tidy. A `.js`
- * bundle served as `text/plain` does not degrade gracefully: browsers refuse to execute
- * a module script whose MIME type is not a JavaScript one, so the page loads, renders an
- * empty root element, and reads as a broken BUILD rather than a wrong header. `.css`
- * under strict styling rules is dropped the same way and leaves an unstyled document.
- *
- * The fallback is `application/octet-stream`, deliberately, and not `text/plain`. An
- * unknown type that downloads is a visible bug somebody files; an unknown type the
- * browser is willing to sniff or render is a silent one that behaves differently in
- * each browser.
- */
-const CONTENT_TYPES: Record<string, string> = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8",
-  ".mjs": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".map": "application/json; charset=utf-8",
-  ".webmanifest": "application/manifest+json",
-  ".txt": "text/plain; charset=utf-8",
-  ".svg": "image/svg+xml",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".webp": "image/webp",
-  ".avif": "image/avif",
-  ".ico": "image/x-icon",
-  ".woff": "font/woff",
-  ".woff2": "font/woff2",
-  ".ttf": "font/ttf",
-  ".otf": "font/otf",
-};
-
-/** `stat` that answers "no" instead of throwing, because a missing file is the ordinary
- *  case here (every 404 is one) and not an exceptional one. */
-async function statOrNull(path: string): Promise<Stats | null> {
-  try {
-    return await stat(path);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Serve one file out of the built site.
- *
- * PATH TRAVERSAL IS THE ONLY THING HERE THAT CAN LOSE SOMETHING, and it is worth being
- * explicit about what is at stake: this process's CWD is the repo root, so an escape
- * reads `.env`, the account store with its password hashes, and
- * `results/deliberation-log.jsonl` - the record itself. Everything below is arranged
- * around not letting that happen.
- */
-async function serveStatic(
-  root: string, url: URL, req: IncomingMessage, res: ServerResponse,
-): Promise<void> {
-  const method = req.method ?? "GET";
-  // A static file has nothing to POST to. HEAD is served because a health checker or a
-  // link checker uses it and answering 405 to one looks like the site is down.
-  if (method !== "GET" && method !== "HEAD") return json(res, 405, { error: "method_not_allowed" });
-
-  /**
-   * DECODED FIRST, CHECKED SECOND - and that order is the whole vulnerability.
-   *
-   * `new URL()` resolves literal dot segments while parsing, so `/../../.env` is already
-   * `/.env` by the time it reaches here and never looks dangerous. It does NOT
-   * percent-decode the pathname, so `/%2e%2e%2f%2e%2e%2f.env` arrives with its escapes
-   * intact, survives that normalisation untouched, and turns into `../../.env` the
-   * instant anything reads it as a filename. A containment check written against the
-   * undecoded string would be checking a path the filesystem never sees.
-   */
-  let decoded: string;
-  try {
-    decoded = decodeURIComponent(url.pathname);
-  } catch {
-    // A `%` that is not a valid escape. There is no filename this could name.
-    return json(res, 400, { error: "bad_request" });
-  }
-  // A NUL byte truncates a path inside libc without truncating the JavaScript string
-  // holding it, so `/index.html%00.png` is one filename to the extension lookup below
-  // and a different one to the kernel. Node's own fs calls reject it too, but they do so
-  // by throwing into `statOrNull`, which would report it as an ordinary missing file -
-  // and "that is not here" is the wrong answer to a request that was never a path.
-  // Refused before anything constructs a filename from it.
-  if (decoded.includes("\0")) return json(res, 400, { error: "bad_request" });
-
-  /**
-   * `/r/:caseId/:token` IS ANSWERED BY public.html, NEVER BY index.html, AND THE TWO
-   * MUST NOT BE SWAPPED. index.html loads `main.tsx`, which imports `App.tsx`, which
-   * signs its visitor in as AUTO_EMAIL on load - the whole point of `src/public.tsx`
-   * being its own Vite entry is that its bundle cannot do that, because the code that
-   * does it is not in it. Answering a share link with index.html would silently hand
-   * every anonymous visitor holding a printed QR code a signed-in session; there is no
-   * later check that would catch it, because the shell never expected an unauthenticated
-   * caller to reach it at all. Matched on shape alone - a real caseId or token is
-   * validated by `GET /api/public/report/:caseId/:token`, not here; a share link with a
-   * wrong token reaches this file and then reaches that check, exactly like a right one
-   * does. Deciding that here would let a static-file handler distinguish "wrong token"
-   * from "not a share link", which is a distinction the API's own 404 exists to refuse.
-   */
-  const shareParts = decoded.split("/").filter((p) => p !== "");
-  if (shareParts[0] === "r") {
-    const file = join(root, "public.html");
-    const info = await statOrNull(file);
-    if (info === null || !info.isFile()) return json(res, 404, { error: "not_found" });
-    return void sendFile(file, info, req, res, false);
-  }
-
-  const target = resolve(root, `.${decoded}`);
-
-  /**
-   * CONTAINMENT BY `relative()`, NOT BY `startsWith()` ON THE JOINED STRING.
-   *
-   * A prefix test is the obvious way to write this and it is wrong twice over: a root of
-   * `/srv/site` "contains" `/srv/site-backup/secrets` by prefix, and remembering to
-   * append the separator is a correctness detail that has to be got right at every call
-   * site forever. `relative()` answers the real question - the target is inside the root
-   * exactly when walking from one to the other needs no `..` and does not restart from
-   * an absolute path. `resolve()` above has already collapsed every `.`, `..` and
-   * duplicate separator, so this compares two normalised absolute paths and nothing else.
-   *
-   * SYMLINKS ARE NOT FOLLOWED HERE, and that is a stated scope rather than a gap: the
-   * directory being served is a build output this repo creates (`npm run
-   * deliberate:build`), so there is no link inside it to walk out of. A root assembled
-   * some other way - a mount, an unpacked archive - would want a `realpath` on the
-   * resolved target and the same check again against the real root.
-   *
-   * 404 rather than 403, matching what the case routes below do: a 403 confirms that
-   * something is there, which is the one fact the request was fishing for.
-   */
-  const rel = relative(root, target);
-  if (rel !== "" && (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel))) {
-    return json(res, 404, { error: "not_found" });
-  }
-
-  let info = await statOrNull(target);
-
-  /**
-   * A DIRECTORY REDIRECTS TO ITS TRAILING-SLASH FORM BEFORE IT RESOLVES TO index.html.
-   * apps/deliberation builds with `base: "./"` (its vite.config.ts explains why), so its
-   * index.html asks for `./assets/index-<hash>.js`. At the served root without a
-   * trailing slash that reference can resolve one directory too high; at the
-   * trailing-slash form it resolves against the directory that was actually staged.
-   *
-   * The query string is carried across because a redirect that drops it silently loses
-   * whatever the link was carrying; the fragment never reaches a server at all, which is
-   * what makes this app's own hash routing invisible here.
-   */
-  if (info !== null && info.isDirectory() && !decoded.endsWith("/")) {
-    res.writeHead(301, { location: `${url.pathname}/${url.search}`, "content-length": 0 });
-    res.end();
-    return;
-  }
-
-  /**
-   * NO SPA REWRITE TABLE, deliberately. This app routes on the fragment - `#/case/123` -
-   * so every route in it is a request for `index.html` and nothing else; the one path
-   * that is not a fragment route, `/r/:caseId/:token`, was already answered above. The
-   * usual "rewrite any unmatched path to index.html" rule would buy nothing here and
-   * would cost the ability to answer 404: a missing asset would come back as an HTML
-   * page with status 200, which is how a broken deploy hides.
-   */
-  let file = target;
-  if (info !== null && info.isDirectory()) {
-    file = join(target, "index.html");
-    info = await statOrNull(file);
-  }
-  if (info === null || !info.isFile()) return json(res, 404, { error: "not_found" });
-
-  return void sendFile(file, info, req, res, method === "HEAD");
-}
-
-/**
- * Write the headers and, unless this is a HEAD request, stream the body.
- *
- * TWO CACHE POLICIES, because the two kinds of file fail in opposite directions. Vite
- * writes a content hash into every filename it emits under `assets/`, so one URL there
- * can only ever mean one set of bytes - different bytes get a different name. That is
- * what makes `immutable` correct rather than optimistic: there is no revalidation being
- * skipped, because there is nothing the file could become.
- *
- * `index.html` and `public.html` have FIXED names and are the documents that NAME those
- * hashed files, so they are the one thing a redeploy changes in place. Cached for even a
- * minute, a returning reader gets the previous build's asset names - which the new
- * deployment no longer has - and sees a blank page with 404s in the console that heals
- * only on a hard refresh nobody knows to perform. `no-cache` is not "do not cache": it
- * stores the copy and forbids using it without revalidating, which is exactly what the
- * ETag below makes cheap.
- */
-function sendFile(
-  file: string, info: Stats, req: IncomingMessage, res: ServerResponse, headOnly: boolean,
-): void {
-  const immutable = file.split(sep).includes("assets");
-
-  // A weak-ish validator built from size and mtime rather than a hash of the bytes.
-  // Hashing every response would mean reading the whole file to answer a request that
-  // usually ends in "no change" - the opposite of the streaming this route exists to do.
-  const etag = `"${info.size.toString(16)}-${Math.floor(info.mtimeMs).toString(16)}"`;
-  const headers = {
-    "content-type": CONTENT_TYPES[extname(file).toLowerCase()] ?? "application/octet-stream",
-    "cache-control": immutable ? "public, max-age=31536000, immutable" : "no-cache",
-    etag,
-  };
-
-  if (req.headers["if-none-match"] === etag) {
-    res.writeHead(304, headers);
-    res.end();
-    return;
-  }
-
-  res.writeHead(200, { ...headers, "content-length": info.size });
-  if (headOnly) {
-    res.end();
-    return;
-  }
-
-  /**
-   * STREAMED, NEVER READ WHOLE. This process already peaks near 160 MB on one upload -
-   * `readRaw()` buffers the body and `MAX_BYTES` is 80 MB, so `Buffer.concat` briefly
-   * holds two copies - and adding a few MB of resident bundle per concurrent page load on
-   * top of that is a needless way to get closer to that ceiling.
-   */
-  const stream = createReadStream(file);
-  // Same reason as the document route below: this fires after the handler has returned,
-  // so the try/catch around the caller cannot see it. Left unhandled, Node treats an
-  // 'error' event with no listener as an uncaught exception - which crashes the whole
-  // process, taking down every in-flight request rather than this one.
-  stream.on("error", () => res.destroy());
-  stream.pipe(res);
-}
 
 export interface ServerDeps {
   service: DeliberationService;
@@ -351,16 +109,6 @@ export interface ServerDeps {
   rules: AdjudicateRequest["rules"];
   prompt: { system: string[]; userTemplate: string[] };
   now?: () => number;
-  /**
-   * The built site to serve for every path outside /api, already resolved to an
-   * absolute path by `staticRoot()`, or absent to answer 404 as this service always has.
-   *
-   * A DEPENDENCY RATHER THAN A DIRECT READ OF process.env INSIDE THE HANDLER, so the
-   * test that asserts the unset behaviour and a future test serving a fixture directory
-   * can run in the same process without one setting a variable the other reads.
-   * `buildDeps` is where the environment is consulted.
-   */
-  staticDir?: string | null;
   /**
    * How the four paid routes get a completer. Defaults to the process environment,
    * which is what the real server wants and what every caller had hard-coded.
@@ -439,15 +187,10 @@ export function makeHandler(deps: ServerDeps) {
     const method = req.method ?? "GET";
     const remote = req.socket.remoteAddress ?? "unknown";
 
-    // Anything outside /api is the SITE, when there is one to serve. Unset - which is
-    // every development run and nearly every test - keeps the 404 this line has always
-    // returned; see `staticRoot()` for why that is the behaviour to preserve rather than
-    // an omission to fix.
-    if (parts[0] !== "api") {
-      const root = deps.staticDir ?? null;
-      if (root === null) return json(res, 404, { error: "not_found" });
-      return await serveStatic(root, url, req, res);
-    }
+    // Anything outside /api is a 404. See the "NO STATIC-FILE SERVING HERE" comment
+    // just below `bindHost`, above, for why that stays true rather than growing a
+    // static-file branch here.
+    if (parts[0] !== "api") return json(res, 404, { error: "not_found" });
 
     // Uploads get the document limit; everything else gets a small JSON limit, so a
     // 80 MB body cannot be posted at a route that expects a few hundred bytes.
@@ -1382,7 +1125,6 @@ export function buildDeps(logPath: string): ServerDeps {
     budget: new ModelBudget(budgetFrom(process.env)),
     rules: probe.rules,
     prompt,
-    staticDir: staticRoot(process.env),
   };
 }
 
@@ -1462,13 +1204,6 @@ if (invokedDirectly) {
     console.log(`Share:  ${deps.shareSecret === null
       ? "off - ARBITER_SHARE_SECRET is unset, so records cannot be published"
       : "on - records can be published to a tokenised URL"}`);
-    if (deps.staticDir === null || deps.staticDir === undefined) {
-      console.log("Site:   not served. ARBITER_STATIC_DIR is unset, so anything outside /api is a 404 (correct in dev; wrong in a deployed container).");
-    } else if (!existsSync(deps.staticDir)) {
-      console.log(`Site:   WARNING - ARBITER_STATIC_DIR points at ${deps.staticDir}, which does not exist. Every page will 404. Run \`npm run deliberate:build\`.`);
-    } else {
-      console.log(`Site:   ${deps.staticDir} served on this origin for every path outside /api. /r/* answers with public.html, never index.html.`);
-    }
     console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token.`);
     console.log(HOST === "127.0.0.1"
       ? "Bound to loopback. This process terminates no TLS; set ARBITER_HOST only behind a proxy that does."

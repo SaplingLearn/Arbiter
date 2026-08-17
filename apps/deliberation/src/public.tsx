@@ -28,9 +28,38 @@ export function parsePublicPath(path: string): { caseId: string; token: string }
   return { caseId: decodeURIComponent(parts[1]!), token: parts[2]! };
 }
 
+/**
+ * ONE MESSAGE FOR EVERY FAILURE, AND ONE COMPONENT FOR IT. Never published, wrong
+ * token, revoked, no such case, and a URL that was not even share-link shaped all read
+ * the same - telling them apart is exactly the probe the server's uniform 404 exists to
+ * refuse. `PublicReport`'s failed fetch and `Boot`'s unparseable path used to each carry
+ * their own copy of this text; two copies are two things to keep in sync, and a diff
+ * that touched one and not the other would have reopened the distinction without either
+ * author intending to.
+ */
+function LinkNotValid(): ReactElement {
+  return (
+    <div className="empty">
+      <h3>This link is not valid</h3>
+      {/* NOT "revoked" - not "does not exist" - not any reason at all. Naming a reason
+          would tell an outside reader something the server's own uniform 404 was built
+          not to say: whether a case by this id ever existed, or only ever had this one
+          token die. One sentence, true of every cause at once. */}
+      <p className="muted">
+        It may be out of date or mistyped. Ask whoever shared it for a current one.
+      </p>
+    </div>
+  );
+}
+
 export function PublicReport({ caseId, token }: { caseId: string; token: string }): ReactElement {
   const [report, setReport] = useState<CaseReport | null>(null);
   const [dead, setDead] = useState(false);
+  // Which sheet is on screen. A hash route would be the ordinary way to hold this - see
+  // `report.tsx`'s own note on why `Paginate` prefers one - but this bundle imports no
+  // router, on purpose: `/r/:caseId/:token` is already the one real path this page
+  // answers, and a hash fragment change here has nowhere to go but local state anyway.
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     void (async () => {
@@ -52,34 +81,15 @@ export function PublicReport({ caseId, token }: { caseId: string; token: string 
     if (report !== null) document.title = `${report.compoundLabel} - deliberation record`;
   }, [report]);
 
-  /* ONE MESSAGE FOR EVERY FAILURE. Never published, wrong token, revoked and no such
-     case all read the same, because telling them apart is exactly the probe the 404 on
-     the server exists to refuse. */
-  if (dead) {
-    // NOT "revoked" - not "does not exist" - not any reason at all. Naming a reason
-    // would tell an outside reader something the server's own uniform 404 was built
-    // not to say: whether a case by this id ever existed, or only ever had this one
-    // token die. One sentence, true of every cause at once.
-    return (
-      <div className="empty">
-        <h3>This link is not valid</h3>
-        <p className="muted">
-          It may be out of date or mistyped. Ask whoever shared it for a current one.
-        </p>
-      </div>
-    );
-  }
-
+  if (dead) return <LinkNotValid />;
   if (report === null) return <p className="muted">Opening the record…</p>;
 
-  return <ReportPage report={report} publishedUrl={window.location.href} />;
+  return <ReportPage report={report} publishedUrl={window.location.href} page={page} onNavigate={setPage} />;
 }
 
 function Boot(): ReactElement {
   const at = parsePublicPath(window.location.pathname);
-  if (at === null) {
-    return <div className="empty"><h3>This link is not valid</h3></div>;
-  }
+  if (at === null) return <LinkNotValid />;
   return <PublicReport caseId={at.caseId} token={at.token} />;
 }
 
