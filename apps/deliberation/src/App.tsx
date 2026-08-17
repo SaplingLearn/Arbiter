@@ -473,7 +473,7 @@ export function App(): ReactElement {
 
   if (route.name === "read") {
     return caseShell(
-      <Read caseId={caseId} documents={docs} findings={findings}
+      <Read caseId={caseId} token={token} documents={docs} findings={findings}
         {...(route.documentId === undefined ? {} : { documentId: route.documentId })}
         {...(route.page === undefined ? {} : { page: route.page })} />,
     );

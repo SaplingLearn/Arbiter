@@ -27,13 +27,13 @@ const getPage = vi.fn((n: number) => Promise.resolve({
   render: () => ({ promise: Promise.resolve() }),
 }));
 
-const getDocument = vi.fn((src: string) => ({
-  promise: Promise.resolve({ numPages: 300, getPage, fingerprint: src }),
+const getDocument = vi.fn((src: { url: string; httpHeaders?: Record<string, string> }) => ({
+  promise: Promise.resolve({ numPages: 300, getPage, fingerprint: src.url }),
   destroy: () => Promise.resolve(),
 }));
 
 vi.mock("pdfjs-dist", () => ({
-  getDocument: (src: string) => getDocument(src),
+  getDocument: (src: { url: string; httpHeaders?: Record<string, string> }) => getDocument(src),
   GlobalWorkerOptions: {},
 }));
 
@@ -359,10 +359,34 @@ describe("the viewer", () => {
       <Read caseId="c1" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />,
     );
     await waitFor(() => { expect(getDocument).toHaveBeenCalledTimes(1); });
-    expect(getDocument).toHaveBeenCalledWith("/api/cases/c1/documents/doc_1/raw");
+    expect(getDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ url: "/api/cases/c1/documents/doc_1/raw" }),
+    );
 
     rerender(<Read caseId="c1" documentId="doc_2" documents={DOCS} findings={LINKED_FINDINGS} />);
     await waitFor(() => { expect(getDocument).toHaveBeenCalledTimes(2); });
-    expect(getDocument).toHaveBeenCalledWith("/api/cases/c1/documents/doc_2/raw");
+    expect(getDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ url: "/api/cases/c1/documents/doc_2/raw" }),
+    );
+  });
+
+  /**
+   * THE BYTES ARE BEHIND THE SAME AUTH AS EVERYTHING ELSE.
+   *
+   * pdf.js does not go through api.ts - it is handed a URL and issues its OWN request -
+   * so the bearer token this app keeps in memory never reached the one endpoint that
+   * serves a document's bytes. `/raw` answered 401 and the reading surface showed
+   * "Failed to fetch" for every document that has ever been uploaded.
+   *
+   * It stayed invisible because no case in the demo data had a document on it: the
+   * screen said "No documents on this case yet" and nobody got as far as the fetch.
+   */
+  it("sends the bearer token with the document request", async () => {
+    render(<Read caseId="c1" token="tok_abc" documentId="doc_1" documents={DOCS} findings={LINKED_FINDINGS} />);
+    await waitFor(() => { expect(getDocument).toHaveBeenCalledTimes(1); });
+    expect(getDocument).toHaveBeenCalledWith(expect.objectContaining({
+      url: "/api/cases/c1/documents/doc_1/raw",
+      httpHeaders: { Authorization: "Bearer tok_abc" },
+    }));
   });
 });

@@ -55,8 +55,14 @@ export function unresolvedCitations(findings: Finding[], documents: StoredDocume
   ).length;
 }
 
-export function Read({ caseId, documentId, page, documents, findings }: {
+export function Read({ caseId, token, documentId, page, documents, findings }: {
   caseId: string;
+  /**
+   * The session bearer, needed HERE rather than only in api.ts because pdf.js issues
+   * its own request for the document bytes and never passes through that layer. See
+   * the note on `getDocument` in PdfView.
+   */
+  token?: string;
   documentId?: string;
   page?: number;
   documents: StoredDocument[];
@@ -125,6 +131,7 @@ export function Read({ caseId, documentId, page, documents, findings }: {
         : (
           <PdfView caseId={caseId} document={open} highlights={highlights}
             unresolved={unresolvedCitations(findings, documents)}
+            {...(token === undefined ? {} : { token })}
             {...(page === undefined ? {} : { page })} />
         )}
     </section>
@@ -142,8 +149,8 @@ export function Read({ caseId, documentId, page, documents, findings }: {
  * The `import type` at the top of this file is erased at compile time and pulls in
  * nothing at runtime, so holding a typed PDFDocumentProxy in state costs no load.
  */
-function PdfView({ caseId, document: doc, page, highlights, unresolved }: {
-  caseId: string; document: StoredDocument; page?: number; highlights: Finding[];
+function PdfView({ caseId, token, document: doc, page, highlights, unresolved }: {
+  caseId: string; token?: string; document: StoredDocument; page?: number; highlights: Finding[];
   unresolved: number;
 }): ReactElement {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -181,7 +188,24 @@ function PdfView({ caseId, document: doc, page, highlights, unresolved }: {
         GlobalWorkerOptions.workerSrc = workerUrl;
 
         if (cancelled) return;
-        const loadingTask = getDocument(`/api/cases/${caseId}/documents/${doc.id}/raw`);
+        /**
+         * THE BYTES ARE BEHIND THE SAME BEARER AS EVERY OTHER ENDPOINT, and pdf.js
+         * does not know that. It is handed a URL and issues its OWN request - it
+         * never passes through api.ts, which is where this app's token is attached -
+         * so `/raw` answered 401 and the viewer showed "Failed to fetch" for every
+         * document ever uploaded.
+         *
+         * It hid for as long as it did because no case had a document on it: the
+         * screen said "No documents on this case yet" and nothing reached this line.
+         *
+         * `httpHeaders` rather than a query parameter. A token in the URL is a token
+         * in the browser history, in the referrer, and in any log the request passes
+         * through, and this is the endpoint that streams unpublished safety data.
+         */
+        const loadingTask = getDocument({
+          url: `/api/cases/${caseId}/documents/${doc.id}/raw`,
+          ...(token === undefined ? {} : { httpHeaders: { Authorization: `Bearer ${token}` } }),
+        });
         task = loadingTask;
         const loaded = await loadingTask.promise;
         if (cancelled) return;
