@@ -567,8 +567,14 @@ export function PositionForm({ token, caseId, findings, onDone }: {
        `.glass` is the product's one surface that carries a ground, and this is the
        screen where failing to read a sentence costs a reviewer their answer rather than
        their patience - the fields already made that argument for themselves further
-       down in app.css, and the prose around them had no equivalent. */
-    <section className="glass">
+       down in app.css, and the prose around them had no equivalent.
+
+       `.section` WITH IT, not instead of it. The two do different halves of the job and
+       neither implies the other: `.glass` is the ground - blur, rim, chamfer, padding -
+       and `.section` is the rhythm, a flex column with a gap. This carried only the
+       ground, so the heading sat flush on the paragraph under it while the evidence
+       stage, which uses `<Section>` and therefore both, breathed. */
+    <section className="section glass">
       <h2>Your position</h2>
       <p className="muted">
         Sealed the moment you submit, and you cannot change it. Nobody sees it - and you
@@ -666,8 +672,10 @@ export function Waiting({ view, isOwner, nameOf, onReveal }: {
   return (
     // The other half of the position tab, and it carries the plate for the same reason
     // the form does: this is what that tab becomes once you have sealed, so a ground on
-    // only one of them would disappear at the moment you submit.
-    <section className="glass">
+    // only one of them would disappear at the moment you submit. `.section` for the
+    // same reason too - the rhythm has to survive the swap, or submitting reflows the
+    // page as well as changing it.
+    <section className="section glass">
       <h2>{sealed ? "Sealed. Waiting for the others." : "Waiting for the panel."}</h2>
       <p className="muted">
         This screen shows one bit per person, and that is all the server will send: not
@@ -718,8 +726,13 @@ export function Reveal({ view, unanimity, nameOf, seats }: {
        is not a neutral wrapper in this app, it is no rhythm at all. Every child here is
        `margin: 0`, so the heading sat flush on the first position and the four position
        plates touched each other - they read as separated only because two adjacent 1px
-       borders make a 2px line, which is a coincidence of the border and not a layout. */
-    <section className="section">
+       borders make a 2px line, which is a coincidence of the border and not a layout.
+
+       `.glass` WITH IT, because this one is not nested inside a `<Section>` the way
+       Documents and the inventory are - the reveal route renders it straight into a
+       `stack-l`, so the rhythm landed on a live scene with no ground under it. The
+       evidence stage looks finished next to this one for exactly that reason. */
+    <section className="section glass">
       <h2>Every position, at once</h2>
       <div className="stack">
         {revealed.map((p) => (
@@ -839,7 +852,13 @@ export function Verdict({ adjudication, source, caseId, canSign = true, consensu
   const verdict = adjudication.consequence.verdict;
 
   return (
-    <section className="verdict">
+    /* `.verdict` already carries the rhythm - a flex column at the wider `--s6` gap,
+       because the groups inside it are whole arguments rather than fields - so this
+       needs the GROUND and nothing else. It is rendered straight into the reveal
+       route's `stack-l`, so without a plate the longest reading on the product sat
+       directly on a lit scene. Declared after `.section` in app.css, so the wider gap
+       still wins if both ever land on one element. */
+    <section className="verdict glass">
       <div className="verdict-group">
         <h2>The adjudication</h2>
         {source === "stub" && (
@@ -995,7 +1014,9 @@ export function Audit({ audit, nameOf }: {
 }): ReactElement {
   const clean = audit.chain.length === 0 && audit.seals.length === 0;
   return (
-    <section className="section">
+    /* Ground as well as rhythm: the record route renders this on its own, so like
+       Reveal it had the gaps and no plate to put them on. */
+    <section className="section glass">
       <h2>The record</h2>
       <p className={clean ? "ok" : "err"}>
         {clean

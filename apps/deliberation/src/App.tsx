@@ -539,7 +539,11 @@ export function App(): ReactElement {
             one - so the states that used to render this button could only buy an
             error. The API refuses them too, now before it spends anything. */}
         {view.status === "locked" && isOwner && (
-          <div className="stack">
+          /* On a plate like everything else on this route. It is the one control that
+             spends money and takes a minute and a half, and it was the only thing on
+             the stage sitting on bare scene - which read as an afterthought beside the
+             reveal it follows. `<Section>` with no title is exactly `.section.glass`. */
+          <Section>
             <button className="primary" style={{ alignSelf: "flex-start" }}
               /* DISABLED WHILE IT RUNS. Three model calls, sequential, measured at 102
                  seconds live - long enough that an enabled button reads as one that did
@@ -553,7 +557,7 @@ export function App(): ReactElement {
               {busy === null ? "Adjudicate across the positions" : "Adjudicating…"}
             </button>
             {busy !== null && <div className="note working">{busy}</div>}
-          </div>
+          </Section>
         )}
         {view.adjudication !== null && (
           <Verdict adjudication={view.adjudication} source={view.adjudicationSource ?? "stub"}
