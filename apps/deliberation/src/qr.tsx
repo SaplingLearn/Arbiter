@@ -16,6 +16,10 @@ import qrcode from "qrcode-generator";
  * trees rather than to libraries, and a QR encoder is Reed-Solomon and mask evaluation
  * rather than the thirty lines that argument permits us to write ourselves. A wrong
  * implementation here also fails loudly: the code simply does not scan.
+ *
+ * THE QUIET ZONE IS DRAWN, NOT LEFT TO SURROUNDING CSS. See the comment above the
+ * return below for why: a margin that depends on a caller's padding is a margin that
+ * disappears the moment that padding changes for an unrelated reason.
  */
 export function QrCode({ value, size }: { value: string; size: number }): ReactElement {
   const { modules, count } = useMemo(() => {
@@ -31,23 +35,38 @@ export function QrCode({ value, size }: { value: string; size: number }): ReactE
     return { modules: dark, count: n };
   }, [value]);
 
+  // The spec's quiet zone is four modules of white on every side. That margin used to
+  // be left to the caller's CSS padding - and a margin that depends on a sibling's
+  // padding, a flex gap and a panel background all staying in a particular relationship
+  // is a margin that silently disappears the first time any one of those changes. So
+  // the component draws its own: the white square and the viewBox both grow by four
+  // modules per edge, and every dark module is shifted in by the same four modules,
+  // which is uniform, self-contained, and unaffected by whatever surrounds it.
+  const padded = count + 8;
+
   return (
     <svg
       className="rep-qr"
       role="img"
       width={size}
       height={size}
-      /* The viewBox is in MODULES, so the same drawing serves the 120px preview and a
-         600dpi print without re-encoding and without rounding modules to whole pixels. */
-      viewBox={`0 0 ${String(count)} ${String(count)}`}
+      /* The viewBox is in MODULES (padded to include the quiet zone), so the same
+         drawing serves the 120px preview and a 600dpi print without re-encoding and
+         without rounding modules to whole pixels. */
+      viewBox={`0 0 ${String(padded)} ${String(padded)}`}
       shapeRendering="crispEdges"
     >
       <title>{value}</title>
-      {/* The quiet zone is the white background; the spec requires four modules of it,
-          which the printed block provides as padding around this element. */}
-      <rect width={count} height={count} fill="#fff" />
+      <rect width={padded} height={padded} fill="#fff" />
       {modules.map((m) => (
-        <rect key={`${String(m.x)}-${String(m.y)}`} x={m.x} y={m.y} width={1} height={1} fill="#000" />
+        <rect
+          key={`${String(m.x)}-${String(m.y)}`}
+          x={m.x + 4}
+          y={m.y + 4}
+          width={1}
+          height={1}
+          fill="#000"
+        />
       ))}
     </svg>
   );

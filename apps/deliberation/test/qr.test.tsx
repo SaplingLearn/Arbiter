@@ -34,4 +34,32 @@ describe("the QR code", () => {
     const b = render(<QrCode value="https://example.test/b" size={120} />).container.innerHTML;
     expect(a).not.toBe(b);
   });
+
+  it("keeps its own four-module quiet zone, so it stays scannable regardless of what CSS surrounds it", () => {
+    const { container } = render(<QrCode value="https://example.test/r/c1/tok" size={120} />);
+    const svg = container.querySelector("svg")!;
+    const padded = Number(svg.getAttribute("viewBox")!.split(" ")[2]);
+
+    // Every QR code's finder patterns touch the module grid's own corners, so the
+    // darkest module always reaches the edge of the raw grid - meaning the nearest a
+    // dark module ever gets to the SVG's edge is exactly the margin this component
+    // adds. That makes the margin observable without needing to know the raw module
+    // count independently: if the quiet zone shrank, grew, or vanished, these bounds
+    // would move with it.
+    const darkRects = Array.from(container.querySelectorAll('rect[fill="#000"]'));
+    expect(darkRects.length).toBeGreaterThan(0);
+    const xs = darkRects.map((r) => Number(r.getAttribute("x")));
+    const ys = darkRects.map((r) => Number(r.getAttribute("y")));
+
+    // The viewBox spans eight modules more than the module grid: four of quiet zone on
+    // each side. Confirmed here as (rightmost edge) - (leftmost edge) = padded - 8.
+    expect(Math.max(...xs) + 1 - Math.min(...xs)).toBe(padded - 8);
+    expect(Math.max(...ys) + 1 - Math.min(...ys)).toBe(padded - 8);
+
+    // No dark module is drawn within four units of any edge.
+    for (const x of xs) expect(x).toBeGreaterThanOrEqual(4);
+    for (const y of ys) expect(y).toBeGreaterThanOrEqual(4);
+    for (const x of xs) expect(x + 1).toBeLessThanOrEqual(padded - 4);
+    for (const y of ys) expect(y + 1).toBeLessThanOrEqual(padded - 4);
+  });
 });
