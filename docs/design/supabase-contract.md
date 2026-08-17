@@ -230,7 +230,18 @@ or the killed link comes back. `check (version >= 1)` is in the migration for th
 rather than for tidiness, and the shared store contract
 (`services/api/test/share-store-contract.ts`) pins the rule from the other end.
 
+**Moving backings without rotating the secret resurrects revoked tokens.** This is the one
+place the share store is *not* backing-agnostic, and it is a consequence of holding no
+token: `share_links` starts empty and nothing backfills the file store's versions, so a
+case that was revoked on files is unknown in Postgres, gets re-published at version 1, and
+under an unchanged `ARBITER_SHARE_SECRET` that is byte-identical to the token the revoke
+killed. Rotate the secret when changing backings — it invalidates everything, which is the
+fail-safe direction — or copy the rows across first. Written up at length at the foot of
+`0002_share_links.sql`.
+
 **A new table is a new file.** `0001_init.sql` has been applied to deployed databases, so
 editing it would leave this repository describing a schema no running cluster has. The
 test fixture applies every `.sql` in the directory in filename order, which is also what a
-deployment does.
+deployment does — and `migrationSql()` in `services/api/test/postgres-fixture.ts` is the
+single place that knows that, because two suites used to hold their own hardcoded path to
+`0001_init.sql` and would have gone on building a schema no deployment has.

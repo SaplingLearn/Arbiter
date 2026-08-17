@@ -345,6 +345,16 @@ once**, not just the one somebody asked to revoke - the secret is the only thing
 makes the HMAC unforgeable, so a new one makes every token derived under the old one
 wrong. There is no per-link rotation, only per-deployment.
 
+**Rotate it if you ever move backings — files to Postgres, or back.** `share_links` starts
+empty and nothing carries the old store's version numbers into it, so a case that was
+published and then revoked on one backing is *unknown* on the other: the convener is
+offered "Publish this record" again and the new link is minted at version 1, which under
+an unchanged secret is byte-identical to the token that was killed. Every QR printed
+before the revoke starts resolving again. Rotating the secret makes that impossible,
+because nothing minted under the old one verifies afterwards. The alternative, if live
+links cannot be invalidated, is to copy the rows across before the first publish on the
+new backing — see `supabase/migrations/0002_share_links.sql`.
+
 **Sharing is off unless `ARBITER_SHARE_SECRET` is set**, and the boot banner says which:
 `Share:  on - records can be published to a tokenised URL` or `Share:  off -
 ARBITER_SHARE_SECRET is unset, so records cannot be published`. Publishing without it

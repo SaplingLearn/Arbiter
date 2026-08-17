@@ -63,3 +63,32 @@ create table share_links (
 -- `case_id` - `get`, the upsert in `publish`, the update in `revoke` - and the primary
 -- key index answers all three. There is no "list every published case" screen; if one
 -- is ever added it will want an index on `revoked_at`, and it can add it then.
+
+-- ---------------------------------------------------------------------------
+-- THIS TABLE STARTS EMPTY, AND MOVING BACKINGS WITHOUT ROTATING THE SECRET
+-- RESURRECTS EVERY REVOKED TOKEN.
+-- ---------------------------------------------------------------------------
+--
+-- There is no backfill here and nothing imports the file store's
+-- `results/deliberation-log.jsonl.shares.json` into it. That is fine for the version
+-- numbers of cases that were never published, and it is NOT fine for the ones that were
+-- revoked, because the version is half the HMAC preimage and this table has no memory of
+-- how high it had climbed.
+--
+-- Concretely: a deployment publishes case `c` on files, revokes it (the file store is now
+-- at version 3, and the sheets carrying `HMAC(secret, "c:1")` are dead), then sets
+-- `DATABASE_URL`. `get("c")` finds no row, so the convener is offered "Publish this
+-- record" again, and `publish` inserts version 1. With the same `ARBITER_SHARE_SECRET`
+-- the minted token is byte-identical to the one that was killed - `revoked_at` is null
+-- and the version matches, so `verifyToken` accepts it, and every QR code printed before
+-- the revoke resolves again. The same hazard runs in reverse, Postgres back to files.
+--
+-- ROTATE `ARBITER_SHARE_SECRET` WHEN YOU CHANGE BACKINGS. Rotating invalidates every
+-- token derived under the old secret at once - which is exactly the blunt, fail-safe
+-- outcome wanted here: it cannot resurrect anything, because nothing minted before the
+-- rotation verifies afterwards. Conveners re-publish the records they still want live.
+--
+-- The alternative, if a deployment cannot afford to invalidate live links, is to carry the
+-- versions across before the first publish on the new backing - insert one row per case
+-- from the old store, `revoked_at` and all. Nothing in this repository does that yet, and
+-- doing it by hand is a smaller job than it sounds: the file is five fields per case.

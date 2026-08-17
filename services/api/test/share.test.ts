@@ -98,6 +98,40 @@ describe("the file-backed share store", () => {
     expect(verifyToken(SECRET, link, deriveToken(SECRET, "c1", 1))).toBe(true);
   });
 
+  /**
+   * THE SECURITY CLAIM, ASSERTED AGAINST THE DEFAULT BACKING.
+   *
+   * `postgres-share.test.ts` pins this by reading `information_schema.columns` back and
+   * demanding exactly five names. Files are what `npm test`, `npm run e2e` and every
+   * deployment without `DATABASE_URL` actually run on, so the same claim needs the same
+   * kind of assertion here - and against the FILE TEXT rather than against the returned
+   * link, because a token cached in a sidecar key would never appear on a `ShareLink` and
+   * would pass every other test in this suite.
+   *
+   * Same shape as `auth.test.ts`'s "stores only the token's digest, so a stolen file
+   * yields no session". A working capability URL sitting in
+   * `results/deliberation-log.jsonl.shares.json` is exactly what deriving the token
+   * instead of storing it exists to prevent.
+   */
+  it("writes no token and no secret to disk, so a stolen file yields no working link", async () => {
+    const path = join(mkdtempSync(join(tmpdir(), "arb-share-")), "shares.json");
+    const store = await ShareStore.open(path);
+    await store.publish("c1", "u-own", "2026-08-17T10:00:00.000Z");
+    await store.revoke("c1", "2026-08-17T11:00:00.000Z");
+    await store.publish("c1", "u-own", "2026-08-17T12:00:00.000Z");
+
+    const text = readFileSync(path, "utf8");
+    expect(text).not.toContain(SECRET);
+    // Every version this case has ever been on, not just the live one: a cache keyed by
+    // the dead version is a URL somebody revoked, sitting in a file.
+    for (const version of [1, 2, 3]) {
+      expect(text, `token for version ${String(version)}`).not.toContain(deriveToken(SECRET, "c1", version));
+    }
+    // And the five fields that ARE expected, so this cannot pass by the file being empty.
+    expect(Object.keys(JSON.parse(text).links[0]).sort())
+      .toEqual(["caseId", "createdAt", "createdBy", "revokedAt", "version"]);
+  });
+
   // A revoke is the write whose loss is worst - it is the one that has to reach paper -
   // and it is written by the same whole-file rewrite as a publish.
   it("keeps a revocation across a restart, so a killed QR stays killed", async () => {

@@ -449,6 +449,50 @@ describe("cases, with access control", () => {
       expect(r.status).toBe(403);
     });
 
+    /**
+     * A STORE THAT THROWS MUST ANSWER 500, NOT TAKE THE PROCESS DOWN - and this is the
+     * one assertion that can tell those apart from outside.
+     *
+     * `handleShare` and `handleReport` were synchronous until the Postgres stores made
+     * them async, and the four call sites kept their bare `return`. A returned promise
+     * does not hand its rejection to the handler's own catch: it goes to
+     * `void makeHandler(deps)(req, res)`, which is an unhandled rejection, and with no
+     * `process.on("unhandledRejection")` anywhere here that is Node terminating the
+     * process - every in-flight request dies and this one never gets a reply at all.
+     * `return await` at each site is what routes it to the 500 below.
+     *
+     * Nothing else in this file makes a store throw, which is exactly why the omission
+     * survived a typecheck, a lint and 89 passing tests. Reachable in production on
+     * either backing: a Postgres pool timeout, or `ShareStore.persist`'s
+     * `writeFileSync` hitting ENOSPC.
+     */
+    it("answers 500 when the share store throws, rather than dropping the request and the process", async () => {
+      const exploding = {
+        get: () => { throw new Error("connection terminated unexpectedly"); },
+        publish: () => { throw new Error("connection terminated unexpectedly"); },
+        revoke: () => { throw new Error("connection terminated unexpectedly"); },
+      };
+      const handler = makeHandler({ ...deps, shares: exploding });
+      const alt = createServer((req, res) => { void handler(req, res); });
+      await new Promise<void>((r) => alt.listen(0, "127.0.0.1", r));
+      const at = `http://127.0.0.1:${(alt.address() as AddressInfo).port}`;
+      try {
+        // All three methods, because all three reach the store through their own call
+        // site and each one had to be fixed separately.
+        for (const method of ["GET", "POST", "DELETE"]) {
+          const res = await fetch(`${at}/api/cases/c1/share`, {
+            method,
+            headers: { authorization: `Bearer ${tok["owner"]}`, "content-type": "application/json" },
+            ...(method === "POST" ? { body: "{}" } : {}),
+          });
+          expect(res.status, `${method} /share`).toBe(500);
+          expect((await res.json() as { error: string }).error).toBe("internal");
+        }
+      } finally {
+        await new Promise<void>((r) => alt.close(() => r()));
+      }
+    });
+
     it("refuses a participant, who may read it but not publish it", async () => {
       // The body is checked, not just the status. handleShare's own denial() check
       // would produce the same 403 on its own - the "error": "forbidden" key can only

@@ -48,6 +48,27 @@ async function migrations(): Promise<string[]> {
   return names.map((n) => join(MIGRATIONS, n));
 }
 
+/**
+ * Every migration's SQL, in order, for the two suites that build their own database
+ * rather than going through `freshDatabase`.
+ *
+ * EXPORTED SO THIS FILE IS THE ONLY PLACE THAT KNOWS WHERE THE SCHEMA COMES FROM.
+ * `postgres-store.test.ts` and `supabase-documents.test.ts` each held their own
+ * `new URL(".../0001_init.sql")`, which was true when it was written and became a lie the
+ * moment a second migration existed: they would have gone on building a database that had
+ * the tables of 2026-08-17 and none added since, so a later `alter table` would be applied
+ * by production and by three of the five store suites and NOT by those two. The suite for
+ * a store would then pass against a schema no deployment has - or fail on "column does not
+ * exist" while pointing at the store rather than at the fixture, which is the exact failure
+ * this file's header says it exists to prevent.
+ *
+ * A LIST RATHER THAN ONE CONCATENATED STRING, because `postgres-store.test.ts` re-applies
+ * these between every test and a failure has to name the file it came from.
+ */
+export async function migrationSql(): Promise<string[]> {
+  return Promise.all((await migrations()).map((f) => readFile(f, "utf8")));
+}
+
 /** The name each test file actually gets. Exported so a leftover from a killed run is
  *  recognisable: they are all `arbiter_test_*_<pid>` and safe to drop by hand. */
 export function testDatabaseName(base: string): string {
@@ -108,7 +129,7 @@ export async function freshDatabase(base: string): Promise<pg.Pool> {
   // One statement batch per file, in order, so a later migration sees the tables an
   // earlier one created. Applied serially rather than concatenated: a failure names the
   // file it came from.
-  for (const file of await migrations()) await p.query(await readFile(file, "utf8"));
+  for (const sql of await migrationSql()) await p.query(sql);
   return p;
 }
 

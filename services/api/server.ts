@@ -924,8 +924,13 @@ export function makeHandler(deps: ServerDeps) {
            * "read", so a participant gets exactly what the convener gets, and nobody
            * has to ask them for a copy.
            */
+          // `return await`, not a bare `return`, for the reason spelled out at the
+          // `handleAuth` call site above: both of these were SYNCHRONOUS until the
+          // Postgres stores made them async, and a returned promise hands its rejection
+          // to `void makeHandler(deps)(req, res)` rather than to the catch below - an
+          // unhandled rejection that takes the process down instead of answering 500.
           case "report":
-            return handleReport(deps, res, kase, user.id, new Date(now()).toISOString());
+            return await handleReport(deps, res, kase, user.id, new Date(now()).toISOString());
           /**
            * Whether this case is published, and where. Convener only - the
            * action switch above leaves GET resolved to "read" so a
@@ -933,7 +938,7 @@ export function makeHandler(deps: ServerDeps) {
            * `denial(kase, user.id, "share")` itself before answering.
            */
           case "share":
-            return handleShare(deps, req, res, kase, user, method, new Date(now()).toISOString());
+            return await handleShare(deps, req, res, kase, user, method, new Date(now()).toISOString());
           default:
             return json(res, 404, { error: "not_found" });
         }
@@ -1083,7 +1088,7 @@ export function makeHandler(deps: ServerDeps) {
             return r.ok ? json(res, 200, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
           }
           case "share":
-            return handleShare(deps, req, res, kase, user, method, new Date(now()).toISOString());
+            return await handleShare(deps, req, res, kase, user, method, new Date(now()).toISOString());
           default:
             return json(res, 404, { error: "not_found" });
         }
@@ -1108,7 +1113,9 @@ export function makeHandler(deps: ServerDeps) {
       }
 
       if (method === "DELETE" && tail === "share") {
-        return handleShare(deps, req, res, kase, user, method, new Date(now()).toISOString());
+        // `return await`, as at the other three `handleShare` call sites and for the
+        // reason given at the first of them.
+        return await handleShare(deps, req, res, kase, user, method, new Date(now()).toISOString());
       }
 
       return json(res, 405, { error: "method_not_allowed" });
