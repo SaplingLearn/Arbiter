@@ -1,0 +1,133 @@
+# ARBITER on Railway.
+#
+# THE DEFAULT DEPLOYMENT TARGET. `fly.toml` beside this file is the same deployment
+# expressed for a different host and is kept as a working alternative; either one runs
+# the same image against the same Supabase project. Railway is the default because it
+# needs no CLI and no config to get started - it reads the Dockerfile, builds it, and
+# gives the service an HTTPS URL - and because this project stopped needing the one
+# thing Fly was chosen for. That was a persistent volume, and the Supabase migration
+# removed the requirement entirely.
+#
+#   1. New Project -> Deploy from GitHub repo. Railway finds Dockerfile and this file.
+#   2. Paste the variables listed under VARIABLES below into the service.
+#   3. Settings -> Generate Domain.
+#
+# Railway redeploys on push, so there is no deploy command to run.
+#
+# TOML RATHER THAN railway.json, WHICH IS THE MORE COMMON SPELLING, for one reason:
+# JSON has no comments. Every value in this file is a decision with a consequence, and a
+# railway.json would carry the numbers with none of the reasons - which is how somebody
+# later "tidies" numReplicas up to 3 and quietly triples the model spend cap.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+
+# ONE REPLICA, AND THIS IS A SPEND DECISION RATHER THAN A CORRECTNESS ONE.
+#
+# The record is safe at any replica count - the log's append serialises on a Postgres
+# advisory lock held across every writer, which is exactly why the migration used
+# `pg_advisory_xact_lock` and not an in-process mutex. Scaling out does not fork the
+# chain.
+#
+# THE SPEND CAP IS NOT THE RECORD. `ARBITER_MODEL_BUDGET` is counted in process memory
+# (spend.ts), so N replicas is N times the cap for one account, and a replica that
+# restarts resets its own window. Four endpoints cost money and every one of them is
+# reachable by anyone holding an account, so the cap is the thing standing between a
+# public URL and somebody else's bill. Raise this only with that in mind - and if you
+# do, lower ARBITER_MODEL_BUDGET to match, because the two multiply.
+#
+# The login throttle (throttle.ts) is in-process for the same reason and thins out the
+# same way.
+numReplicas = 1
+
+# AN HTTP CHECK, BECAUSE THERE IS SOMETHING HONEST TO CALL.
+#
+# A 200 from /api/health means the process accepted a connection, parsed a request, ran
+# the handler and wrote a response. A port check proves only that something bound the
+# port - which a process wedged before its first response still does, and which is
+# precisely the state a health check exists to catch.
+#
+# The route is unauthenticated and says nothing about the configuration, deliberately:
+# anything that can reach the service can call it.
+healthcheckPath = "/api/health"
+
+# Generous because a cold container pays for `tsx` compiling the service from TypeScript
+# source before it listens, and `buildStores` opens a Postgres pool and probes the
+# Storage bucket on the way up. A tight timeout here fails a deploy that was only slow.
+healthcheckTimeout = 60
+
+# ON_FAILURE, not ALWAYS. A container that exits 0 has been asked to stop; restarting it
+# fights the platform. A container that dies on a bad DATABASE_URL exits non-zero and
+# SHOULD be retried, because the usual cause is a database that is not up yet.
+#
+# The retry count is bounded so a genuinely broken configuration - a missing
+# SUPABASE_URL, which buildStores refuses to start without - crashes visibly instead of
+# looping forever and looking like a slow deploy.
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# ---------------------------------------------------------------------------
+# VARIABLES. None of these belong in this file - it is committed. Set them in the
+# Railway service, under Variables.
+#
+# REQUIRED, or the deployment is not the one you think it is:
+#
+#   ARBITER_HOST=0.0.0.0
+#     server.ts binds 127.0.0.1 unless told otherwise, because it terminates no TLS.
+#     In a container loopback means the process talks only to itself: Railway's proxy
+#     connects and gets nothing, and the deploy fails its health check with a
+#     listening, healthy-looking process inside. Safe here because Railway's edge
+#     terminates TLS in front. The startup banner prints a WARNING whenever this is not
+#     loopback, and that warning is correct to keep printing.
+#
+#   DATABASE_URL=postgresql://...@...pooler.supabase.com:6543/postgres
+#     THE POOLER PORT, 6543, NOT 5432. A container that restarts, scales, or redeploys
+#     opens a fresh pool each time, and direct connections exhaust a Supabase project's
+#     connection limit quickly. Transaction-mode pooling is safe for this codebase
+#     specifically because the chain append takes `pg_advisory_xact_lock` - a
+#     transaction-scoped lock, released at COMMIT, which is the unit the pooler
+#     multiplexes on. A session-scoped `pg_advisory_lock` would break silently behind a
+#     pooler; do not change it to one.
+#
+#   SUPABASE_URL=https://<project>.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY=eyJ...
+#     THE SERVICE ROLE KEY BYPASSES ROW-LEVEL SECURITY - it reads every row in the
+#     project. It must never be given a VITE_ name: Vite compiles anything so named into
+#     the client bundle, readable by anyone who loads the page. The access boundary this
+#     product enforces lives in access.ts and is enforced in this process; that key in a
+#     browser deletes it entirely.
+#
+#     Set DATABASE_URL without these two and the service REFUSES TO START, by design
+#     (stores.ts). Postgres for the record plus local disk for the documents is a
+#     container that looks healthy and loses every uploaded PDF on redeploy while
+#     keeping the log entries that cite them - a record pointing at evidence that no
+#     longer exists.
+#
+# ALREADY SET IN THE IMAGE, listed so nobody wonders where they went:
+#
+#   ARBITER_STATIC_DIR=/app/apps/landing/dist   the built site, served on this origin
+#   PYTHON=/usr/local/bin/python3               the interpreter with PyMuPDF
+#   PORT=8787                                   Railway may inject its own; server.ts
+#                                               reads whichever is set
+#
+# WORTH SETTING:
+#
+#   SUPABASE_BUCKET=documents      default is `documents`; it must exist and be PRIVATE
+#   ARBITER_MODEL_BUDGET=30        model calls per account per 10 minutes; see above
+#
+# FOR LIVE AI, one of:
+#
+#   GEMINI_API_KEY=AQ...           (with ARBITER_GEMINI_HOST if not the default)
+#   ANTHROPIC_API_KEY=sk-ant-...   ARBITER_MODEL=claude-sonnet-5
+#
+# With neither, adjudication runs against a stub that labels every response
+# `source: "stub"`, and ask and summary answer 503 {"error":"no_key"}. That is a working
+# deployment, not a broken one.
+#
+# ARBITER_DEMO_SEED=1 creates the five demonstration accounts on first boot, sharing one
+# published password. It signs everyone in as one identity, so the record attributes
+# every decision to that person. Fine for a demo; never for anything real.
+# ---------------------------------------------------------------------------

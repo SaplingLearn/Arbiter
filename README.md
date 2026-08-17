@@ -227,9 +227,24 @@ One key shared across a team is one budget shared across a team. See
 
 ### Deploying it
 
-The hosting decision is still not made here, but it is now a worked example rather than a
-paragraph: `Dockerfile`, `fly.toml`, and `supabase/migrations/0001_init.sql`. Any host
-that can run the container and reach a Postgres is fine; Fly is just the one written down.
+**Two services: Supabase holds the data, one container holds everything else.** There is
+no separate frontend deployment - the site is built into the image and served by the same
+process that answers `/api`, on the same port. `railway.toml` is the default target and
+`fly.toml` is the same deployment expressed for another host; any host that can run the
+container and reach Postgres will do.
+
+```
+browser ──► container (Railway)                     ──► Supabase Postgres  (the record,
+              /                  landing page                               accounts, invites,
+              /deliberation/     the app                                    document metadata)
+              /api/*             the API             ──► Supabase Storage   (the PDF bytes)
+              Python + PyMuPDF   every upload        ──► Gemini / Anthropic (model calls)
+```
+
+Deploying is three steps: apply `supabase/migrations/0001_init.sql` to a Supabase project
+and create a private `documents` bucket; point Railway at this repo, which finds the
+`Dockerfile` and `railway.toml` on its own; set the variables listed in `railway.toml` and
+generate a domain. There is no deploy command - it builds on push.
 
 - **State goes to Supabase, not to a disk.** What used to be four files -
   `results/deliberation-log.jsonl` (the record itself), the account store with its
@@ -238,8 +253,17 @@ that can run the container and reach a Postgres is fine; Fly is just the one wri
   `DATABASE_URL`. **Absent, it silently falls back to those files**, which is the right
   default for CI and a laptop and is exactly the arrangement that loses everything on the
   next redeploy. A deployment missing `DATABASE_URL` looks healthy until it isn't.
+  Setting it *without* the two Supabase Storage variables is refused at boot rather than
+  half-honoured: Postgres for the record and local disk for the documents is a container
+  that keeps the log and loses the evidence it cites.
+- **Use Supabase's pooler, port 6543, not 5432.** A container that redeploys or scales
+  opens a fresh pool each time, and direct connections exhaust a project's connection
+  limit fast. Transaction-mode pooling is safe here *specifically* because the chain
+  append takes `pg_advisory_xact_lock`, which is released at COMMIT - the unit the pooler
+  multiplexes on. A session-scoped `pg_advisory_lock` would break silently behind a
+  pooler, so that choice is load-bearing rather than incidental.
 - **The container is not a plain Node image, in two ways that both bite.** It needs
-  Python 3.12 with PyMuPDF beside Node 20, because `services/api` shells out to
+  Python 3.12 with PyMuPDF beside Node 22, because `services/api` shells out to
   `data/prep/measure_pdf.py` for every upload; without it every upload comes back 422
   *unreadable*, which reads as a bad document rather than a missing dependency. And it
   runs from TypeScript source through `tsx`, which is a **devDependency** - so
@@ -275,9 +299,10 @@ that can run the container and reach a Postgres is fine; Fly is just the one wri
 - **`GET /api/health` is the one unauthenticated route**, returning
   `{"ok":true,"service":"arbiter-api","uptimeSeconds":N}`. It exists so a health check
   can confirm the process *serves* rather than that something bound the port - a process
-  wedged before its first response passes a TCP connect. `fly.toml` uses it; it was a TCP
-  check only because no such route existed. It discloses nothing about the configuration,
-  because anyone who can reach the machine can call it.
+  wedged before its first response passes a TCP connect. Both `railway.toml` and
+  `fly.toml` use it; Fly's was a TCP check only because no such route existed. It
+  discloses nothing about the configuration, because anyone who can reach the machine can
+  call it.
 
 ### Verify everything
 

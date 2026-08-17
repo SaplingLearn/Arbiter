@@ -1,9 +1,14 @@
 # ARBITER on Fly.io.
 #
-# ONE CONCRETE EXAMPLE, not a recommendation. The hosting decision is not made in this
-# repo; this file exists because "deployable" is a claim worth being able to check, and
-# a config somebody can run is a stronger form of that claim than a paragraph saying it
-# would work. Any host that can run the Dockerfile and reach Supabase will do.
+# THE ALTERNATIVE, NOT THE DEFAULT - see `railway.toml`, which is the target the README
+# walks through. This file was written first, when the deployment still needed a
+# persistent volume and Fly was the cheapest host offering one; the Supabase migration
+# removed that requirement, and with it the only reason to prefer Fly over a host that
+# needs no CLI. It is kept, current, and deployable, because a second working
+# expression of the same deployment is what stops the first one from quietly becoming
+# host-specific.
+#
+# Any host that can run the Dockerfile and reach Supabase will do.
 #
 # WHAT IT ASSUMES: a Supabase project holding the schema in supabase/migrations, and
 # the four variables from docs/design/supabase-contract.md set as SECRETS rather than
@@ -156,9 +161,16 @@ primary_region = "iad"
 # SECRETS. None of these belong in this file - it is committed.
 #
 #   fly secrets set \
-#     DATABASE_URL='postgresql://postgres:...@db.<project>.supabase.co:5432/postgres' \
+#     DATABASE_URL='postgresql://postgres.<project>:...@...pooler.supabase.com:6543/postgres' \
 #     SUPABASE_URL='https://<project>.supabase.co' \
 #     SUPABASE_SERVICE_ROLE_KEY='eyJ...'
+#
+# THE POOLER PORT, 6543, NOT THE DIRECT 5432. A machine that restarts or redeploys opens
+# a fresh pool each time and direct connections exhaust a Supabase project's connection
+# limit quickly. Transaction-mode pooling is safe for this codebase specifically because
+# the chain append takes `pg_advisory_xact_lock` - transaction-scoped, released at
+# COMMIT, which is the unit the pooler multiplexes on. A session-scoped
+# `pg_advisory_lock` would break silently behind a pooler; do not change it to one.
 #
 # THE SERVICE ROLE KEY BYPASSES ROW-LEVEL SECURITY. It is the key that can read every
 # row in the project, and it must never be given a VITE_ name: Vite compiles anything
