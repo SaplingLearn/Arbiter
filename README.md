@@ -292,8 +292,12 @@ least 32 bytes - shorter, and the process refuses to start at all, naming the va
 and why: a short secret produces links that look unguessable and are not.
 
 **Production static serving of `/r/*` does not exist on this branch.** The public page
-works under `npm run dev` - the Vite dev-server middleware answers `/r/*` with
-`public.html` - but a built container has nothing serving that route yet. The obvious
+works under `npm run deliberate:dev` - the deliberation workspace's own Vite dev server,
+whose middleware answers `/r/*` with `public.html`. **The unified `npm run dev` does
+not**: that command fronts everything with the landing app's Vite server, which proxies
+`/deliberation` and `/api` but never `/r/*` - so a share URL opened there 200s with the
+landing page's `index.html` instead, which reads as a broken feature rather than as the
+gap it is. A built container has nothing serving that route yet either. The obvious
 fix, a `GET /` handler serving the deliberation app's own shell, was written and then
 removed before it shipped: that shell signs its visitor in automatically on load, which
 would make every case on the deployment readable by anyone who merely reached the
