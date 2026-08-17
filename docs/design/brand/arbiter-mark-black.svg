@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15 15" width="600" height="600" role="img" aria-label="Arbiter">
+  <!-- The four-square mark from apps/atmosphere/src/shell.css .brand .mark:
+       a 15x15 box, 2x2 grid, 2px gutters, so each tile is 6.5 units square.
+       Solid black, no background rect, so it drops onto any slide colour. -->
+  <rect x="0"   y="0"   width="6.5" height="6.5" fill="#000000"/>
+  <rect x="8.5" y="0"   width="6.5" height="6.5" fill="#000000"/>
+  <rect x="0"   y="8.5" width="6.5" height="6.5" fill="#000000"/>
+  <rect x="8.5" y="8.5" width="6.5" height="6.5" fill="#000000"/>
+</svg>
