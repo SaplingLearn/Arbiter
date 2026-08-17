@@ -575,7 +575,7 @@ export function App(): ReactElement {
           </div>
         : report === null
           ? <p className="muted">Assembling the record…</p>
-          : <ReportPage report={report} />,
+          : <ReportPage report={report} {...(route.page === undefined ? {} : { page: route.page })} />,
     );
   }
 

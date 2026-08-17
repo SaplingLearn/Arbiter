@@ -197,12 +197,50 @@ describe("the printable record", () => {
   it("lays the document onto numbered sheets", () => {
     // The preview was one continuous sheet that the browser cut up only at print time,
     // which is a preview that cannot be trusted: the reader could not see what landed
-    // where, or even how many pages there were.
+    // where, or even how many sheets there were.
     const { container } = render(<ReportPage report={report()} />);
     const pages = container.querySelectorAll(".rep-page");
     expect(pages.length).toBeGreaterThan(0);
-    expect(pages[0]).toHaveAttribute("aria-label", `Page 1 of ${pages.length}`);
+    expect(pages[0]).toHaveAttribute("aria-label", `Sheet 1 of ${pages.length}`);
     expect(container.querySelector(".rep-page-foot")?.textContent).toContain(`1 of ${pages.length}`);
+  });
+
+  /**
+   * One sheet at a time, turned with a control - the reading room's arrangement,
+   * because it is the same act. Under jsdom nothing has a height, so the document
+   * lands on a single sheet and the pager correctly does not appear; these cases pin
+   * the parts that hold either way.
+   */
+  describe("the pager", () => {
+    it("keeps every sheet in the document, showing one", () => {
+      // Unmounting the rest would print a one-page PDF of whatever was on screen.
+      const { container } = render(<ReportPage report={report()} page={1} />);
+      const shown = [...container.querySelectorAll(".rep-page")]
+        .filter((p) => !p.className.includes("rep-page--off"));
+      expect(shown).toHaveLength(1);
+    });
+
+    it("marks the sheets it is not showing as hidden from assistive tech", () => {
+      const { container } = render(<ReportPage report={report()} page={1} />);
+      for (const off of container.querySelectorAll(".rep-page--off")) {
+        expect(off).toHaveAttribute("aria-hidden", "true");
+      }
+    });
+
+    it("keeps the pager off the printed page", () => {
+      const { container } = render(<ReportPage report={report()} />);
+      const pager = container.querySelector(".pager");
+      if (pager !== null) expect(pager.className).toContain("no-print");
+    });
+
+    it("lands on the last sheet rather than nothing when the link is stale", () => {
+      // A bookmark to sheet 9 of a record that is now shorter should still open it.
+      const { container } = render(<ReportPage report={report()} page={99} />);
+      const shown = [...container.querySelectorAll(".rep-page")]
+        .filter((p) => !p.className.includes("rep-page--off"));
+      expect(shown).toHaveLength(1);
+      expect(shown[0]).toHaveAttribute("aria-label", expect.stringContaining("Sheet"));
+    });
   });
 
   it("renders the document exactly once", () => {

@@ -674,9 +674,13 @@ function documentBlocks(report: CaseReport, nameOf: (id: string) => string): Blo
  * complete and in order. Degrading to one long page is the correct failure: it is what
  * this looked like before, and it loses nothing but the page breaks.
  */
-function Paginate({ blocks, foot }: {
+function Paginate({ blocks, foot, at, toSheet }: {
   blocks: Block[];
   foot: (page: number, of: number) => ReactNode;
+  /** Which sheet is on screen. Clamped below - a stale link to sheet 9 of a document
+   *  that is now 7 sheets long should land on the last one, not on nothing. */
+  at: number;
+  toSheet: (n: number) => string;
 }): ReactElement {
   const column = useRef<HTMLDivElement>(null);
   const probe = useRef<HTMLDivElement>(null);
@@ -731,7 +735,7 @@ function Paginate({ blocks, foot }: {
 
   if (pages === null) {
     return (
-      <div className="rep-measuring" aria-hidden="true">
+      <div className="report-doc rep-measuring" aria-hidden="true">
         <div ref={probe} className="rep-gauge" />
         <div ref={column} className="rep-column">
           {blocks.map((b) => <div className="rep-block" key={b.key}>{b.node}</div>)}
@@ -742,17 +746,65 @@ function Paginate({ blocks, foot }: {
     );
   }
 
+  // The same clamp the reader applies to a page number out of a document's range.
+  const current = Math.min(Math.max(at, 1), pages.length);
+
   return (
-    <>
-      {pages.map((page, i) => (
-        <section className="rep-page" key={i} aria-label={`Page ${i + 1} of ${pages.length}`}>
-          <div className="rep-page-body">
-            {page.map((b) => <div className="rep-block" key={b.key}>{b.node}</div>)}
-          </div>
-          <footer className="rep-page-foot">{foot(i + 1, pages.length)}</footer>
-        </section>
-      ))}
-    </>
+    /* THE PAGER BELONGS TO THE PRODUCT, THE SHEET TO THE DOCUMENT, and they must not
+       share an ink. Inside `.report-doc` the controls inherited the document's near
+       black - correct on paper, invisible on the app's dark ground, which took
+       "Previous" and "Sheet 1 of 7" off the screen entirely and left a lone Next
+       floating above the page. So the viewer is the app's box, `.report-doc` is the
+       paper inside it, and the boundary between them is where the palette changes. */
+    <div className="rep-view">
+      {/*
+        ONE SHEET AT A TIME, TURNED WITH A CONTROL - the reading room's arrangement,
+        because it is the same act: reading a document inside a product rather than
+        scrolling a web page. Stacking every sheet made the length of the record the
+        first thing about it and buried the decision, which is on sheet one.
+
+        Links through the hash, not buttons over local state, for the reason the
+        reader's pager gives: the route already carries the sheet, and that is what
+        makes it shareable, bookmarkable and reachable with the back button.
+
+        ABOVE THE SHEET. An A4 page is taller than most windows, so a pager underneath
+        sits a full sheet past the fold - turning to sheet 2 of 7 would mean scrolling
+        to the bottom of sheet 1 first, every time.
+      */}
+      {pages.length > 1 && (
+        <nav className="pager no-print" aria-label="Sheets of the record">
+          {current > 1
+            ? <a className="ghost" rel="prev" href={toSheet(current - 1)}>Previous</a>
+            : <span className="ghost off">Previous</span>}
+          <span className="at">Sheet {current} of {pages.length}</span>
+          {current < pages.length
+            ? <a className="ghost" rel="next" href={toSheet(current + 1)}>Next</a>
+            : <span className="ghost off">Next</span>}
+        </nav>
+      )}
+
+      {/*
+        EVERY SHEET STAYS IN THE DOCUMENT; only one is shown. Unmounting the others
+        would mean printing whatever happened to be on screen - a one-page PDF of sheet
+        4 - and the print rules put them all back. It also keeps find-on-page working
+        across the whole record.
+      */}
+      <div className="report-doc">
+        {pages.map((page, i) => (
+          <section
+            className={`rep-page${i + 1 === current ? "" : " rep-page--off"}`}
+            key={i}
+            aria-label={`Sheet ${i + 1} of ${pages.length}`}
+            aria-hidden={i + 1 === current ? undefined : true}
+          >
+            <div className="rep-page-body">
+              {page.map((b) => <div className="rep-block" key={b.key}>{b.node}</div>)}
+            </div>
+            <footer className="rep-page-foot">{foot(i + 1, pages.length)}</footer>
+          </section>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -763,7 +815,7 @@ function Paginate({ blocks, foot }: {
  * nothing else - no app chrome, and no button reading "print" printed onto the page it
  * printed.
  */
-export function ReportPage({ report }: { report: CaseReport }): ReactElement {
+export function ReportPage({ report, page }: { report: CaseReport; page?: number }): ReactElement {
   const nameOf = (id: string): string =>
     report.panel.concat(report.owner).find((p) => p.id === id)?.displayName ?? id;
 
@@ -799,17 +851,17 @@ export function ReportPage({ report }: { report: CaseReport }): ReactElement {
         </div>
       </div>
 
-      <div className="report-doc">
-        <Paginate
-          blocks={blocks}
-          foot={(page, of) => (
-            <>
-              <span>ARBITER · {report.compoundLabel} · {report.caseId}</span>
-              <span>{page} of {of}</span>
-            </>
-          )}
-        />
-      </div>
+      <Paginate
+        blocks={blocks}
+        at={page ?? 1}
+        toSheet={(n) => href({ name: "report", caseId: report.caseId, page: n })}
+        foot={(sheet, of) => (
+          <>
+            <span>ARBITER · {report.compoundLabel} · {report.caseId}</span>
+            <span>{sheet} of {of}</span>
+          </>
+        )}
+      />
     </div>
   );
 }

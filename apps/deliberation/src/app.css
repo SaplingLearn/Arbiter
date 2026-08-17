@@ -935,7 +935,12 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 .cited-blind { font-style: italic; }
 
 .pager { display: flex; align-items: center; gap: var(--s4); }
-.pager .at { font: 500 12px/1 var(--mono); color: var(--muted); letter-spacing: .04em; }
+/* `--ink-2`, because `--muted` is not a token this system has: the declaration was
+   invalid, the colour fell through to whatever the pager happened to sit in, and it
+   only looked right by accident. Over a light surface it inherited near-black ink and
+   the reader's position - the one label that says where they are in the document -
+   disappeared into the page. */
+.pager .at { font: 500 12px/1 var(--mono); color: var(--ink-2); letter-spacing: .04em; }
 /* Kept in the flow rather than hidden at the ends of the document: a pager whose
    controls disappear on the first and last page changes width as you read, and the
    remaining control moves under the cursor mid-click. */
@@ -1023,15 +1028,25 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
    It has to be one declaration used by both: the paginator decides where a page ends
    by measuring blocks in the hidden column, and if that column set type even slightly
    differently from the sheets, every break would land in the wrong place. */
+/* The viewer: the app's box, holding the pager and then the paper. `.pdfpage` in the
+   reading room is the same three lines, and this is the same act - a document being
+   read inside the product. */
+.rep-view { min-width: 0; display: flex; flex-direction: column; gap: var(--s3); }
+
 .report-doc {
   color: #16181d;
   /* Georgia, and not the product's display face. A record is read at length and in
      print, which is what a serif is for; the interface face is a screen face doing a
      different job three metres away. */
   font: 10.7pt/1.6 Georgia, "Times New Roman", serif;
-  display: grid;
-  gap: var(--s5);
-  justify-items: center;
+  /* THE READING ROOM'S ARRANGEMENT, down to the gap: `.pdfpage` is a flex column of
+     pager-then-page, left aligned, `min-width: 0` so the box may be narrower than what
+     it holds. This is the same act - a document being read inside the product - and it
+     should not be a second way of doing it. */
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
 }
 
 .report-doc :where(h1, h2, h3, p, td, th, li, span, strong) { text-shadow: none; }
@@ -1048,11 +1063,23 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
   width: 210mm;
   min-height: 297mm;
   padding: 16mm 14mm;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, .55);
-  border-radius: 2px;
+  /* The reader's page carries a hairline in the system's line colour and sits at the
+     start of its column; a sheet floating centre-stage on a drop shadow would be a
+     different object from the one three tabs away. The shadow is kept but quietened,
+     because paper on a dark ground with no lift at all reads as a pasted rectangle. */
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+  align-self: flex-start;
   display: flex;
   flex-direction: column;
 }
+/* THE SHEETS THAT ARE NOT THE ONE YOU ARE READING.
+
+   Hidden, not unmounted. Printing takes the whole document, so every sheet has to
+   remain in it - dropping them from the DOM would print a one-page PDF of whichever
+   sheet happened to be on screen. The print block below puts them all back. */
+.rep-page--off { display: none; }
+
 /* `auto` on the top margin, so a short last page still puts its footer at the foot of
    the sheet rather than floating under the text. */
 .rep-page-foot {
@@ -1229,13 +1256,17 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
   .rep-page {
     width: auto !important; min-height: 0 !important;
     margin: 0 !important; padding: 0 !important;
-    box-shadow: none !important; border-radius: 0 !important;
+    box-shadow: none !important; border: 0 !important;
     display: block !important;
     /* Chrome drops backgrounds and borders from print by default, which would take
        every state chip's outline with it - and an ABSENT chip that prints as plain
        grey text is a gap that stopped looking like one. */
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
+  /* EVERY SHEET PRINTS, including the ones the pager is not showing. On screen this is
+     a one-sheet-at-a-time viewer; a print of "the sheet I happen to be looking at" is
+     not the record, it is a page of it. */
+  .rep-page--off { display: block !important; }
   .rep-page + .rep-page { break-before: page; }
   .rep-page-foot { margin-top: 12pt; }
 

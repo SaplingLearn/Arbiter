@@ -46,6 +46,32 @@ describe("read route", () => {
   });
 });
 
+/**
+ * The printed record carries its sheet in the route for the same reason the reader
+ * carries its page: a sheet you can link to is one you can send somebody, bookmark,
+ * and get back to with the browser's own back button.
+ */
+describe("the report route", () => {
+  it("parses the record with and without a sheet", () => {
+    expect(parseHash("#/case/c1/report")).toEqual({ name: "report", caseId: "c1" });
+    expect(parseHash("#/case/c1/report/4")).toEqual({ name: "report", caseId: "c1", page: 4 });
+  });
+
+  it("drops a sheet that is not a number rather than defaulting to the first", () => {
+    // The same rule the reader applies: a deep link that silently lands on sheet 1 is
+    // worse than one that lands on the document.
+    expect(parseHash("#/case/c1/report/xyz")).toEqual({ name: "report", caseId: "c1" });
+    expect(parseHash("#/case/c1/report/2pages")).toEqual({ name: "report", caseId: "c1" });
+  });
+
+  it("round-trips through href", () => {
+    const r = { name: "report" as const, caseId: "c1", page: 3 };
+    expect(parseHash(href(r))).toEqual(r);
+    expect(href(r)).toBe("#/case/c1/report/3");
+    expect(href({ name: "report", caseId: "c1" })).toBe("#/case/c1/report");
+  });
+});
+
 describe("the reading room route", () => {
   it("parses the top-level read route", () => {
     expect(parseHash("#/read")).toEqual({ name: "reading" });
