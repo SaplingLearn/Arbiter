@@ -227,21 +227,29 @@ two are equal. Option 2 keeps that test; option 3 changes it deliberately.
   every path, not just the large ones, and that page will happily save itself as a
   `.pdf` and fail much later as a corrupt document. It looks like a standing block and
   is not one: the same URL that was refused for an hour afterwards served 6MB to plain
-  `fetch`, with no change of client. `npm run library:fetch` restores the whole
-  `data/raw/approval-packages/` corpus — 16 files, addressed by the application number
-  already in each filename — retrying on refusal and checking `%PDF-` magic bytes on
-  every download. **If a run comes back mostly empty, run it again later.** Reaching
-  for a browser user-agent is bypassing bot detection, and it is also unnecessary.
+  `fetch`, with no change of client. `npm run library:fetch` rebuilds the whole
+  `data/raw/approval-packages/` corpus — addressed by the application number already in
+  each filename, so there is no URL table to maintain — retrying on refusal and
+  checking `%PDF-` magic bytes on every download. **If a run comes back mostly empty,
+  run it again later.** Reaching for a browser user-agent is bypassing bot detection,
+  and it is also unnecessary.
+- **The corpus is committed, and the fetch script is no longer the only way in.**
+  `d4449a9` put 363MB of PDFs in the repository *because* no fetch script existed —
+  "retrieval meant hand-searching FDA's site for thirty-five documents. The stated
+  escape hatch did not exist." It exists now. That does not make the commit wrong: the
+  files never change, and committing them makes a first clone work offline. It does
+  mean the 363MB is now a choice that can be argued on its merits — the commit itself
+  names Git LFS as the next move — and that `library:fetch --verify` can check a
+  checkout's documents against what the manifest expects.
 - **The library is 17 sources and the dashboard is the cases you are on.** They are
   different lists and it is not a bug: `library.ts` explains at length why library
   documents are read in place instead of being copied into the upload store ("a public
-  FDA review indistinguishable from unpublished safety data a team uploaded"). On a
-  fresh clone every library entry answers *not in this checkout*, because the PDFs are
-  gitignored — that is what `library:fetch` is for. Three entries stay unaskable
-  afterwards and should: TAK-994 never had a source document, tolcapone is 48 scanned
-  pages with no extractable text, and troglitazone is a labelling supplement with no
-  nonclinical chapter. A prepared case still shows full findings with its document
-  absent, because the findings are hand-transcribed into `data/cases/` and committed.
+  FDA review indistinguishable from unpublished safety data a team uploaded"). Three
+  entries are unaskable and should be: TAK-994 never had a source document, tolcapone
+  is 48 scanned pages with no extractable text, and troglitazone is a labelling
+  supplement with no nonclinical chapter. A prepared case still shows full findings
+  with its document absent, because the findings are hand-transcribed into
+  `data/cases/` and committed.
 - **`apps/atmosphere/shot.mjs` carries its own copy of the scene list.** It silently
   skipped `read` when that scene was added and reported "no console errors" about a
   scene it had never mounted. Add new scenes to that list too.

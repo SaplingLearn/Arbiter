@@ -191,11 +191,13 @@ const SOURCES = {
 
 /**
  * The rest of the corpus - the FDA reviews the LIBRARY searches, as opposed to the
- * three EMA reports the demo cases are built on - is fetched by
- * `npm run library:fetch`. It used to be listed here as manual-only, on the basis
- * that accessdata.fda.gov refuses scripted clients; that turned out to be a
- * TRANSIENT abuse-detection state rather than a standing block, and the same URLs
- * later served all sixteen files to plain `fetch` with no disguise of any kind.
+ * three EMA reports the demo cases are built on - is COMMITTED, so a fresh clone has
+ * it already. `npm run library:fetch` rebuilds or verifies it against the agencies.
+ *
+ * It was listed here as manual-only for a while, on the basis that accessdata.fda.gov
+ * refuses scripted clients. That turned out to be a transient abuse-detection state
+ * rather than a standing block: the same URLs later served every file to plain
+ * `fetch`, with no disguise of any kind.
  */
 const ALSO = "npm run library:fetch";
 

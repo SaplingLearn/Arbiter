@@ -1,11 +1,28 @@
 /**
- * Restore `data/raw/approval-packages/` - the documents the library searches.
+ * Rebuild `data/raw/approval-packages/` - the documents the library searches - from
+ * the agencies that published them.
  *
- * WHY IT IS NOT COMMITTED. 21MB and growing of public regulatory reviews, gitignored
- * on purpose: what the repo tracks is the SPLIT output and the manifest, not the
- * source PDFs. So a fresh clone has a library that answers "not in this checkout" to
- * every question, which is a true statement about the checkout and a useless one to a
- * reader. This puts the files back.
+ * THE CORPUS IS COMMITTED NOW, so nobody needs this to get a working library: a fresh
+ * clone already has all thirty-five files. This is the escape hatch that was supposed
+ * to exist and did not.
+ *
+ * `d4449a9` put 363MB of PDFs in the repository and said why in as many words: "The
+ * rule this reverses said the files were retrievable ... 'by the URL the spec
+ * records'. No URL is recorded anywhere ... there is no fetch script, and so retrieval
+ * meant hand-searching FDA's site for thirty-five documents. The stated escape hatch
+ * did not exist." That was true when it was written. This is the script, and it needs
+ * no URL table to be maintained - every FDA review is addressed by the application
+ * number already in the filename the manifest names.
+ *
+ * So the 363MB is now a CHOICE rather than the only option, and it is a reasonable
+ * one: the files never change, committing them makes the demo work offline and on the
+ * first clone, and that commit already names Git LFS as the next move. What this adds
+ * is the ability to verify the corpus against its source, restore a file somebody
+ * deleted, and extend the set without a manual download - and it means the argument
+ * for LFS, or for dropping the blobs again, can now be had on its merits.
+ *
+ * `--verify` measures what is on disk without fetching, which is the fastest way to
+ * find out whether a checkout's documents are the ones the manifest expects.
  *
  * EVERY FDA REVIEW IS ADDRESSABLE BY ITS APPLICATION NUMBER, which is already in the
  * filename the manifest names - `turalio-211810-multidiscipline.pdf` is NDA 211810 -
