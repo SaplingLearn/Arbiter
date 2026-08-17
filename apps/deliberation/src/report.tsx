@@ -31,6 +31,15 @@ import { href } from "./router.js";
  * a table never loses its header. That is why the document is built as a flat list of
  * blocks rather than as nested markup: the list IS the set of legal break points.
  *
+ * LIGHT ON PAPER, DARK ON SCREEN, one document either way. The sheet used to be light
+ * in both places, on the argument that it exists to be printed - which is right about
+ * paper and wrong about the screen, where a white page floating in a dark product reads
+ * as something that already left the building. The reader checking it has not left yet.
+ *
+ * The two differ by COLOUR AND NOTHING ELSE. Same blocks, same paginator, same breaks,
+ * so "what you scroll is what comes out" survives the change - see the token note in
+ * app.css, and the test that keeps it honest.
+ *
  * NOTHING HERE IS SUMMARISED, and there is no model on this path. Every position is
  * printed whole, in its author's words, at the same size as every other. A shorter
  * document would be one that chose which dissent to carry.

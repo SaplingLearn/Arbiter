@@ -1239,17 +1239,25 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 
 /* ---- the printable record ------------------------------------------------ */
 
-/* THE ONE LIGHT SURFACE IN THE PRODUCT, and it is light on purpose.
+/* THE SAME DOCUMENT IN TWO PALETTES.
+   On screen this belongs to the product, so it is dark like everything else - a light
+   sheet glowing in a dark app reads as a foreign object, and the reader is still IN
+   Arbiter while they check it. On paper it is a document: paper is white, and a
+   near-black page with knocked-out type is a photocopier's worst case and a toner bill.
 
-   Everything else here is a heads-up display over a lit scene, because that is what a
-   screen is good at. This is a DOCUMENT: it exists to leave the building, be printed,
-   be read by somebody who has never seen this app, and sit in a folder beside an FDA
-   review. A near-black page with knocked-out white type is a page of toner and a
-   photocopier's worst case; paper is white, so the preview is white. What carries the
-   brand across the medium change is the wordmark, the type discipline and the voice -
-   not the background colour.
+   ONLY THESE TOKENS CHANGE BETWEEN THE TWO. Not one size, spacing or width - those feed
+   the measurement pass in `Paginate`, and a print stylesheet that moved one would make
+   the preview lie about where the pages break, which is the failure the paginator was
+   written to prevent. apps/deliberation/test/print-invariant.test.ts enforces it. */
+.report-doc {
+  --rep-paper: var(--paper);
+  --rep-ink: var(--ink);
+  --rep-ink-soft: var(--ink-2);
+  --rep-rule: var(--line);
+  --rep-panel: var(--sunken);
+}
 
-   It is also WYSIWYG on purpose: what is on screen here is exactly what the print
+/* It is also WYSIWYG on purpose: what is on screen here is exactly what the print
    dialog produces, because the print rules below only remove the chrome around it. A
    preview that needed reinterpreting to become a document would be a preview nobody
    could trust. */
@@ -1272,7 +1280,7 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 .rep-view { min-width: 0; display: flex; flex-direction: column; gap: var(--s3); }
 
 .report-doc {
-  color: #16181d;
+  color: var(--rep-ink);
   /* Georgia, and not the product's display face. A record is read at length and in
      print, which is what a serif is for; the interface face is a screen face doing a
      different job three metres away. */
@@ -1297,7 +1305,7 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 /* A4, at the size it will be printed, with the page's own margins as padding. The
    reader is looking at paper: the stack scrolls, each sheet does not. */
 .rep-page {
-  background: #fff;
+  background: var(--rep-paper);
   width: 210mm;
   min-height: 297mm;
   padding: 16mm 14mm;
@@ -1323,12 +1331,12 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 .rep-page-foot {
   margin-top: auto;
   padding-top: 7pt;
-  border-top: 1px solid #d7dae0;
+  border-top: 1px solid var(--rep-rule);
   display: flex;
   justify-content: space-between;
   gap: var(--s3);
   font: 400 8pt/1.4 var(--mono);
-  color: #7b818a;
+  color: var(--rep-ink-soft);
 }
 
 /* EACH BLOCK CONTAINS ITS OWN MARGINS, in the measuring column and on the sheet alike.
@@ -1358,17 +1366,17 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 }
 /* The real mark from @arbiter/design, inked for paper. It is `currentColor`, so it
    takes this and nothing else has to know about it. */
-.rep-wordmark { display: block; height: 13px; width: auto; color: #16181d; }
+.rep-wordmark { display: block; height: 13px; width: auto; color: var(--rep-ink); }
 .rep-kind {
-  font: 400 8.5pt/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: #5a6069;
+  font: 400 8.5pt/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--rep-ink-soft);
 }
 
-.rep-title { font-size: 23pt; line-height: 1.15; letter-spacing: -.3pt; margin: 0 0 6pt; color: #16181d; }
-.rep-context { color: #5a6069; font-size: 10pt; margin-bottom: 14pt; }
+.rep-title { font-size: 23pt; line-height: 1.15; letter-spacing: -.3pt; margin: 0 0 6pt; color: var(--rep-ink); }
+.rep-context { color: var(--rep-ink-soft); font-size: 10pt; margin-bottom: 14pt; }
 
 .rep-mono { font-family: var(--mono); font-size: 8.6pt; }
 .rep-tiny { font-size: 8.6pt; }
-.rep-muted { color: #5a6069; }
+.rep-muted { color: var(--rep-ink-soft); }
 .rep-ok { color: #12673a; font-weight: 700; }
 .rep-bad { color: #9a2418; font-weight: 700; }
 /* Red, green and amber mean something specific on a safety call and are never
@@ -1382,47 +1390,47 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 }
 .rep-stub strong { display: block; font-size: 11pt; margin-bottom: 3pt; }
 
-.rep-decision { border: 1.5px solid #16181d; padding: 12pt 14pt; margin: 0 0 12pt; }
+.rep-decision { border: 1.5px solid var(--rep-ink); padding: 12pt 14pt; margin: 0 0 12pt; }
 .rep-label {
   font: 400 8pt/1 var(--mono); letter-spacing: .12em; text-transform: uppercase;
-  color: #5a6069; margin-bottom: 5pt;
+  color: var(--rep-ink-soft); margin-bottom: 5pt;
 }
 .rep-call { font-size: 18pt; line-height: 1.2; font-weight: 700; }
 .rep-by { margin: 8pt 0 0; }
 .rep-unsigned {
   border-left: 3px solid #8a5a00; padding: 2pt 0 2pt 10pt; margin: 0 0 12pt; color: #6b5410;
 }
-.rep-note { border-left: 2.5px solid #16181d; padding: 2pt 0 2pt 10pt; margin: 8pt 0 0; color: #33383f; }
+.rep-note { border-left: 2.5px solid var(--rep-ink); padding: 2pt 0 2pt 10pt; margin: 8pt 0 0; color: var(--rep-ink); }
 .rep-concern { border-left: 2.5px solid #8a5a00; padding: 2pt 0 2pt 10pt; margin: 8pt 0; color: #4a3c0c; }
 
 /* Label-and-value rows in a monospace block: the facts a reader may have to type back
    into a terminal, set in the face that makes a hash checkable character by character. */
 .rep-meta {
-  font: 8.6pt/1.75 var(--mono); color: #41464e;
-  border: 1px solid #d7dae0; background: #fafbfc; padding: 8pt 10pt; margin: 12pt 0 0;
+  font: 8.6pt/1.75 var(--mono); color: var(--rep-ink-soft);
+  border: 1px solid var(--rep-rule); background: var(--rep-panel); padding: 8pt 10pt; margin: 12pt 0 0;
 }
 .rep-meta > div { display: flex; gap: 8pt; }
-.rep-meta span { color: #5a6069; min-width: 15ch; flex: none; }
+.rep-meta span { color: var(--rep-ink-soft); min-width: 15ch; flex: none; }
 .rep-meta div > :not(span) { overflow-wrap: anywhere; }
 
 .rep-section { margin-top: 22pt; }
 .rep-section > h2 {
-  font-size: 13pt; margin: 0 0 7pt; padding-bottom: 3pt; border-bottom: 1.5px solid #16181d; color: #16181d;
+  font-size: 13pt; margin: 0 0 7pt; padding-bottom: 3pt; border-bottom: 1.5px solid var(--rep-ink); color: var(--rep-ink);
 }
-.rep-section h3 { font-size: 10.7pt; margin: 14pt 0 4pt; color: #16181d; }
+.rep-section h3 { font-size: 10.7pt; margin: 14pt 0 4pt; color: var(--rep-ink); }
 
 /* `min-width: 480px` comes off the product's own table rule, where it stops a data
    table collapsing on a phone. On a sheet with fixed page width it forces a horizontal
    overflow instead, so it is unset here rather than there. */
 .rep-table { border-collapse: collapse; width: 100%; min-width: 0; margin: 6pt 0 10pt; font-size: 9.2pt; }
 .rep-table th {
-  text-align: left; border-bottom: 1.2px solid #16181d; padding: 4pt 5pt;
-  font: 700 8pt/1.4 var(--sans); letter-spacing: .04em; text-transform: uppercase; color: #16181d;
+  text-align: left; border-bottom: 1.2px solid var(--rep-ink); padding: 4pt 5pt;
+  font: 700 8pt/1.4 var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--rep-ink);
   /* The interface's header row sits on `--sunken`, a dark translucent fill. Printed,
      that is a grey bar across the top of every table on the page. */
   background: transparent;
 }
-.rep-table td { border-bottom: .6px solid #e3e6ea; padding: 4pt 5pt; vertical-align: top; }
+.rep-table td { border-bottom: .6px solid var(--rep-rule); padding: 4pt 5pt; vertical-align: top; }
 .rep-table .rep-n { text-align: right; font-family: var(--mono); white-space: nowrap; }
 
 .rep-state {
@@ -1432,22 +1440,22 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 .rep-state.present { color: #12673a; }
 .rep-state.absent { color: #9a2418; }
 .rep-state.inconclusive { color: #8a5a00; }
-.rep-state.not_applicable { color: #5a6069; }
+.rep-state.not_applicable { color: var(--rep-ink-soft); }
 
-.rep-position { border-top: .8px solid #c8ccd3; padding: 9pt 0 4pt; }
-.rep-position:first-of-type { border-top: 1.2px solid #16181d; }
+.rep-position { border-top: .8px solid var(--rep-rule); padding: 9pt 0 4pt; }
+.rep-position:first-of-type { border-top: 1.2px solid var(--rep-ink); }
 .rep-who { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8pt; margin-bottom: 5pt; }
 .rep-name { font-weight: 700; font-size: 11.5pt; }
 .rep-call-chip {
   font: 400 8.4pt/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
-  border: 1px solid #16181d; padding: 2.5pt 5pt;
+  border: 1px solid var(--rep-ink); padding: 2.5pt 5pt;
 }
-.rep-basis { font-size: 8.8pt; color: #5a6069; }
+.rep-basis { font-size: 8.8pt; color: var(--rep-ink-soft); }
 .rep-seat {
-  font: 700 7.6pt/1 var(--sans); color: #5a6069; border: 1px solid #c8ccd3; border-radius: 50%;
+  font: 700 7.6pt/1 var(--sans); color: var(--rep-ink-soft); border: 1px solid var(--rep-rule); border-radius: 50%;
   width: 16pt; height: 16pt; display: inline-flex; align-items: center; justify-content: center; flex: none;
 }
-.rep-cites { font-size: 9pt; color: #41464e; margin-top: 4pt; }
+.rep-cites { font-size: 9pt; color: var(--rep-ink-soft); margin-top: 4pt; }
 
 /* First block on a sheet should not carry the top margin a section normally gets -
    the page's own padding is that space, and doubling it makes page two look indented. */
@@ -1463,6 +1471,19 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
    is the tell of a page that never had this rule. */
 @media print {
   @page { size: A4; margin: 16mm 14mm; }
+
+  /* The document goes back to being paper. Tokens only - see the note above. */
+  .report-doc {
+    --rep-paper: #fff;
+    --rep-ink: #16181d;
+    --rep-ink-soft: #5a6069;
+    --rep-rule: #d7dae0;
+    --rep-panel: #fafbfc;
+  }
+
+  /* Backgrounds are dropped by default in print; the sheet's panels and rules carry
+     meaning, so they are asked for explicitly. */
+  .report-doc, .report-doc * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   .backdrop, .bezel, .hud-head, .corner, .work-foot, .tabbar, .pagehead, .no-print {
     display: none !important;
