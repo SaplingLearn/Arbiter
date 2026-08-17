@@ -454,10 +454,18 @@ reads that file alone, which is what pins a configuration), but the count above 
 5. ~~**#27** — split~~ — the good half is prepared on `feat/env-layering-from-27`. The
    seeder still needs a redesign, not a rebase.
 6. ~~**#25** — review from scratch~~ — done, prepared on `review/25-eval-scoreboard`.
-7. **Push the four prepared branches.** Nothing from this session reached the remote; the
-   push to `main` was refused by a permission gate and was not worked around. In order:
-   `review/25-eval-scoreboard` (#25, fast-forward), `feat/env-layering-from-27`,
-   `fix/carried-over-risks`, `docs/handoff-after-overnight`.
+7. ~~**Push the four prepared branches**~~ — merged together on `integrate/overnight` and
+   pushed to `main`. They were prepared separately (`review/25-eval-scoreboard`,
+   `feat/env-layering-from-27`, `fix/carried-over-risks`, `docs/handoff-after-overnight`),
+   verified separately, then merged as one fast-forward and verified again — the four touch
+   disjoint files, so every merge was clean.
+
+   **`.venv` was committed a second time on the way here**, by the three branches cut before
+   the `.gitignore` fix landed on the #25 branch. It is removed at the tip and cannot come
+   back now that the pattern covers a symlink, but it is present in intermediate commits on
+   this history. If you are bisecting through them and PDF extraction starts failing, that
+   is why. The lesson is `git add -A` in a worktree, twice in one session: stage by path, or
+   check `git status` for a `.venv` that is not showing as ignored.
 8. Delete `feat/product-in-the-atmosphere` — it is still 0 ahead of `main`, and all three
    PRs that targeted it were retargeted on 2026-08-17, so nothing points at it now.
 8. **Serve `/r/:caseId/:token` in production.** #34 shipped the public API route and the
