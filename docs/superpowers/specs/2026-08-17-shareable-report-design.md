@@ -85,7 +85,9 @@ Server-side, not a client-side hide. An email absent from the rendering but pres
 
 ### Storage
 
-A `ShareStore` interface with file and Postgres implementations, built in `stores.ts` beside the other four and taking the same `env` parameter.
+A `ShareStore` following the pattern this branch already uses for accounts and invitations: an in-memory `Map` behind a JSON file, constructed in `buildDeps` as `new ShareStore(`${logPath}.shares.json`)` beside `AuthStore` and `InviteStore`.
+
+**Not a Postgres-backed store**, deliberately. The `stores.ts` abstraction with file and Postgres implementations lives on the unmerged Supabase branch (PR #33) and does not exist here. Writing `ShareStore` against an interface this branch does not have would be building for a merge that has not happened. When PR #33 lands, `ShareStore` joins `stores.ts` the same way the other four did — one constructor call moves — and the Postgres implementation and its migration are that merge's work, not this one's.
 
 ---
 
@@ -159,7 +161,9 @@ The QR block is a `Block` like every other, so the paginator treats it as indivi
 
 **New:** `services/api/share.ts`, `services/api/test/share.test.ts`, `apps/deliberation/public.html`, `apps/deliberation/src/public.tsx`, `apps/deliberation/src/qr.tsx`, `apps/deliberation/src/basis.ts`.
 
-**Changed:** `services/api/access.ts`, `services/api/server.ts`, `services/api/verdict-report.ts`, `services/api/stores.ts`, `services/api/store.ts`, `services/api/postgres-store.ts`, `apps/deliberation/src/report.tsx`, `apps/deliberation/src/screens.tsx`, `apps/deliberation/src/api.ts`, `apps/deliberation/src/app.css`, `apps/deliberation/vite.config.ts`, `.env.example`, `supabase/migrations/`.
+**Changed:** `services/api/access.ts`, `services/api/server.ts`, `services/api/verdict-report.ts`, `apps/deliberation/src/report.tsx`, `apps/deliberation/src/screens.tsx`, `apps/deliberation/src/api.ts`, `apps/deliberation/src/app.css`, `apps/deliberation/vite.config.ts`, `.env.example`.
+
+No Postgres files and no migration: see Storage above — that layer is not on this branch.
 
 ## Risks
 
