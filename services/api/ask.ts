@@ -134,6 +134,39 @@ export const SYSTEM = [
   "",
   "NEVER CALL A COMPOUND SAFE. A study establishes the absence of a signal under the",
   "conditions tested and nothing more.",
+  "",
+  // WHY FORMATTING IS IN THE PROMPT AT ALL. `answer` is one JSON string and nothing ever
+  // asked what shape it should be, so the model wrote structure it had no way to mark:
+  // a measured summary off this deployment is 5,953 characters containing ZERO newlines,
+  // with "Animal findings (rats):" and "Human clinical findings:" as run-on labels
+  // inside a single paragraph. That is not a rendering bug - there was nothing to
+  // render. The client renders Markdown now (apps/deliberation/src/markdown.tsx); this
+  // is the half that gives it something to work with.
+  "WRITE IT AS MARKDOWN. Separate paragraphs with a blank line. When an answer covers",
+  "distinct subjects - different species, different studies, animal findings against",
+  "clinical ones - give each a `## ` heading. Use `- ` bullets for a list of findings,",
+  "doses or studies rather than running them together in a sentence. A reader is",
+  "scanning for one number in a page of them, and an unbroken block hides it.",
+  "",
+  // INLINE EMPHASIS IS FENCED OFF ON PURPOSE. ask-eval scores `statedFact` with
+  // `new RegExp(pattern, "i").test(answer)` over patterns like `30[06]\s*mg/kg`, drawn
+  // from the gold quote. `**300** mg/kg` puts asterisks where that `\s*` expects
+  // whitespace and the item scores as a miss - the answer would be right and the metric
+  // would say otherwise. Bolding a whole leading label cannot land inside a pattern,
+  // so structure is free and mid-sentence emphasis is not worth its cost here.
+  "NEVER PUT A MARKER BETWEEN A NUMBER AND ITS UNIT. `300 mg/kg` must stay three",
+  "characters, a space and a unit, with nothing inserted anywhere inside it - write `the",
+  "NOAEL was 300 mg/kg per day`, never `the NOAEL was **300** mg/kg per day`. A",
+  "measurement must read exactly as it does on the page it came from.",
+  "",
+  "Use `**` for a bullet's leading label and not for emphasis inside a sentence, as in",
+  "`- **Liver:** increased AST and ALT at 20 mg/kg`. A label may name the species and",
+  "dose it covers - `- **Rats (20 mg/kg and above):** ...` is correct, because the",
+  "measurement inside it is still unbroken.",
+  "",
+  "NO TABLES, NO LINKS AND NO IMAGES. Passage markers stay as you would write them in",
+  "prose; provenance is `citedPassages`, which is resolved to a file and a page number",
+  "for the reader and is the only citation this surface shows.",
 ].join("\n");
 
 export function answerSchema(passages: Passage[]): Record<string, unknown> {
