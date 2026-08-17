@@ -142,6 +142,26 @@ export function geminiEndpointLabel(env: NodeJS.ProcessEnv = process.env): strin
 }
 
 /**
+ * Why there are no Gemini credentials, and what to set.
+ *
+ * The 503 body stays `{"error":"no_key"}` - spec §10 pins it and three tests assert
+ * the exact object - so the diagnosis goes where a developer starting the service will
+ * actually read it. Without this the banner said "no credentials" and left them to
+ * work out WHICH of four mechanisms was missing, which is the same silence that let a
+ * `GEMINI_API_KEY` sit in a `.env` doing nothing for weeks.
+ */
+export function geminiCredentialAdvice(env: NodeJS.ProcessEnv = process.env): string {
+  if (apiKeyFrom(env) !== "") return "";
+  const project = projectId(env);
+  if (project === "") {
+    return "set GEMINI_API_KEY (one line, shareable), or ARBITER_GCP_PROJECT plus `gcloud auth application-default login`";
+  }
+  // A project is named, so ADC was the intent; say which of its three forms is absent
+  // rather than repeating that there are no credentials.
+  return `ARBITER_GCP_PROJECT=${project} is set but no credentials were found for it - run \`gcloud auth application-default login\`, or set GOOGLE_APPLICATION_CREDENTIALS(_JSON), or set GEMINI_API_KEY instead`;
+}
+
+/**
  * The schema as the chosen host will actually accept it.
  *
  * THE TWO HOSTS DO NOT TAKE THE SAME SCHEMA, and the comment below this function

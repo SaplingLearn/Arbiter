@@ -91,13 +91,37 @@ dist/
 # anything - `.vite/` and not `apps/web/.vite/` so it is ignored wherever it appears.
 .vite/
 *.tsbuildinfo
+# EVERY .env EXCEPT THE TEMPLATES, by pattern rather than by name.
+#
+# This was a list of the three that existed - .env, .env.local, .env.share - which
+# meant `.env.production`, `.env.staging` and every other variant anyone invents next
+# was tracked by default. A rule that has to be extended before each new secret file
+# is safe is a rule that fails on the file nobody remembered to add, and the cost of
+# being wrong here is a live credential in a public repository forever: history is
+# fetched by every clone, so deleting it afterwards does not un-leak it.
+#
+# `.env.example` is negated back in because it is the tracked template and deliberately
+# holds no secret - every credential line in it is commented out. `.env.share` is NOT
+# negated: it is the hand-out copy and carries a live service-account key once section
+# 1 is filled in, which is the whole reason it exists as a separate file rather than as
+# an edit to the template.
 .env
-.env.local
-# The hand-out copy. `.env.example` is the tracked template and holds no secret;
-# this one carries a live service-account key once section 1 is filled in, which
-# is the whole reason it exists as a separate file rather than as an edit to the
-# template.
-.env.share
+.env.*
+!.env.example
+
+# Credential material that is not an .env at all. Vertex AI authenticates with
+# Application Default Credentials, and the thing `gcloud auth` writes is a JSON key
+# file - so the format most likely to be dropped in this repository by accident is
+# exactly the one the old rules did not mention.
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+credentials.json
+service-account*.json
+application_default_credentials.json
+gha-creds-*.json
 
 # Python
 __pycache__/
@@ -113,12 +137,21 @@ Thumbs.db
 .~lock.*#
 ~$*
 
-# Downloaded regulatory review PDFs. 21MB for four documents and growing, and every
-# one is retrievable from accessdata.fda.gov or ema.europa.eu by the URL recorded in
-# the spec. What must be tracked is the SPLIT output and the human manifest, not the
-# source PDFs - and data/prep/split_review.py refuses anything it cannot split, so a
-# missing source cannot silently become a hand-trimmed one.
-data/raw/approval-packages/
+# Regulatory review PDFs. TRACKED as of 2026-08-16, reversing the earlier decision.
+#
+# The old rule said they were retrievable from accessdata.fda.gov or ema.europa.eu by
+# the URL the spec records. In practice no URL is recorded anywhere - library-sources.json
+# names filenames and an NDA number, and there is no fetch script - so "retrievable"
+# meant a person hand-searching FDA's site for 35 documents. What a fresh clone actually
+# got was a Library where every entry read "cannot be searched: not in this checkout",
+# which is the product's central surface failing for a reason that looks like a bug.
+#
+# 363 MB, and that cost is accepted deliberately: the Ask surface is the thing being
+# demonstrated, and a demonstration nobody else can run is not one. Revisit with Git LFS
+# if the repository becomes unwieldy - the files are static, so LFS would fit them well.
+#
+# data/prep/split_review.py still refuses anything it cannot split, so a missing source
+# still cannot silently become a hand-trimmed one.
 
 # The DILIrank workbook was downloaded a second time into documents/. It is
 # byte-identical to the tracked data/raw/dilirank.xlsx (sha256 1ca1352ff727af68...),

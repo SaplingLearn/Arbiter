@@ -15,9 +15,23 @@ import { mkdirSync } from "node:fs";
 const OUT = process.argv[2] ?? "shots";
 const BASE = process.env.SHOT_URL ?? "http://127.0.0.1:5173/deliberation/";
 
-/** Every surface, plus the transition frame on the way into each. */
+/**
+ * Every surface, plus the transition frame on the way into each.
+ *
+ * A SECOND COPY OF THE MENU, and its sibling in `apps/atmosphere/shot.mjs` carries the
+ * warning this list needs: that one silently skipped `read` when the scene was added
+ * and then reported "no console errors" about a scene it had never mounted. The same
+ * trap is here, one level up - a surface missing from this array is a surface nobody
+ * ever looks at, and looking is the entire purpose of the file. Keep it in step with
+ * `NAV` in `src/shell/nav.ts`.
+ *
+ * The case routes are still absent, and that is not an oversight: they need a caseId
+ * this harness has no way to choose. The reading room needs none, which is half the
+ * reason it exists.
+ */
 const ROUTES = [
   ["dashboard", "#/dashboard"],
+  ["read", "#/read"],
   ["new", "#/new"],
   ["library", "#/library"],
   ["ask", "#/ask"],

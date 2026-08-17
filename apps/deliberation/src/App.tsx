@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState, type ReactElement } from "react";
 import {
   api, ApiError, uploadDocument,
   type AuditResult, type BlindView, type CaseListing,
-  type CaseSummary, type Finding, type Inventory, type LibrarySource, type Person, type Refusal,
-  type Roster, type StoredDocument, type UnanimityReport,
+  type CaseReport, type CaseSummary, type Finding, type Inventory,
+  type LibrarySource, type Person, type Refusal, type Roster, type StoredDocument,
+  type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
 import { AskPage, Dashboard, LibraryPage, NewCasePage } from "./pages.js";
@@ -11,7 +12,8 @@ import {
   Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
   Refused, Reveal, RosterPanel, Verdict, Waiting,
 } from "./screens.js";
-import { Read } from "./read.js";
+import { Read, ReadingRoom } from "./read.js";
+import { ReportPage } from "./report.js";
 import { caseIdOf, href, navigate, parseHash, type Route } from "./router.js";
 import "./app.css";
 
@@ -68,15 +70,33 @@ export function App(): ReactElement {
   const [unanimity, setUnanimity] = useState<UnanimityReport | null>(null);
   /* NO `adjudication` STATE. It used to live here, written only by the POST that
      produced it, and that was the whole of the bug: the verdict existed in the tab
-     that ran it and nowhere else. `view` carries it now - `act` reloads the case after
-     every action, so the freshly-adjudicated case arrives by the same path a reload
-     does, and there is one source of truth instead of two that disagree. */
+     that ran it and nowhere else - a participant reaching the verdict stage saw
+     nothing, and the owner lost it on refresh. `view` carries it now - `act` reloads
+     the case after every action, so the freshly-adjudicated case arrives by the same
+     path a reload does, and there is one source of truth instead of two that disagree.
+
+     The report branch fixed the same bug with a route of its own, `GET /adjudication`.
+     One of the two had to go, and this is the one that stayed: the verdict stage
+     already fetches `view`, so carrying the adjudication on it costs no extra request
+     and leaves no second endpoint to drift. */
   const [audit, setAudit] = useState<AuditResult | null>(null);
   const [docs, setDocs] = useState<StoredDocument[]>([]);
   const [roster, setRoster] = useState<Roster | null>(null);
   const [inviteNotice, setInviteNotice] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [head, setHead] = useState({ compoundLabel: "", context: "", scope: null as string | null });
+
+  /**
+   * The printable record, fetched ONCE per visit rather than polled.
+   *
+   * Every other case route polls, because "has everyone answered yet" is the one piece
+   * of stale state that matters. A document is the opposite: it carries a "generated
+   * at" line and a reader is holding it still to read it, so re-fetching every three
+   * seconds would reshuffle the page under them and restamp the time they are about to
+   * print. Leaving and coming back is what re-reads it.
+   */
+  const [report, setReport] = useState<CaseReport | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
@@ -168,6 +188,26 @@ export function App(): ReactElement {
     const t = setInterval(() => { void loadCase(token, caseId); }, 3000);
     return () => clearInterval(t);
   }, [token, caseId, loadCase]);
+
+  /* The record, on arrival at its own route and nowhere else. Not part of `loadCase`:
+     every case route would then assemble a document nobody asked for. */
+  useEffect(() => {
+    if (token === null || caseId === null || route.name !== "report") return;
+    let live = true;
+    setReport(null);
+    setReportError(null);
+    void (async () => {
+      try {
+        const r = await api.report(token, caseId);
+        if (live) setReport(r);
+      } catch (e) {
+        // The service's own refusal, verbatim. "This case has not been adjudicated" is
+        // a sentence that tells the reader what to do; "something went wrong" is not.
+        if (live) setReportError(e instanceof ApiError ? e.message : String(e));
+      }
+    })();
+    return () => { live = false; };
+  }, [token, caseId, route.name]);
 
   /* Establish the session on arrival rather than asking for it. Runs once; a failure
      surfaces as a message on the opening panel, never as a login form. */
@@ -318,6 +358,14 @@ export function App(): ReactElement {
     case "ask":
       return shell(<AskPage token={token} library={library} />);
 
+    /* The reading room, and it sits with the other top-level routes rather than below
+       with the case screens. It has no caseId, so none of the case machinery under
+       this switch applies to it: nothing to poll, no stage strip, no blind view to
+       wait for. Reaching it through `caseShell` would have needed a case it does not
+       have. */
+    case "reading":
+      return shell(<ReadingRoom token={token} mine={mine} />);
+
     /**
      * A REFUSAL IS THE LIBRARY'S, and it is rendered here rather than above this switch.
      *
@@ -365,7 +413,12 @@ export function App(): ReactElement {
         title={label}
         {...(lede === undefined ? {} : { lede })}
       />
+      {/* `adjudicated` comes off the case status rather than off the loaded
+          adjudication: the strip is drawn on every case route, and the record is only
+          fetched on its own. A tab that unlocked when a fetch happened to have landed
+          would flicker. */}
       <Steps caseId={caseId} route={route} revealed={revealed}
+        adjudicated={view.status === "adjudicated" || view.status === "signed"}
         {...(listing === undefined ? {} : { answered: listing.submitted, of: listing.of })} />
       {children}
     </>,
@@ -468,7 +521,21 @@ export function App(): ReactElement {
         )}
         {view.adjudication !== null && (
           <Verdict adjudication={view.adjudication} source={view.adjudicationSource ?? "stub"}
-            consensus={view.consensus} signature={view.signature}
+            consensus={view.consensus}
+            caseId={caseId}
+            /* The convener signs, and only while the record is still open. Asked here
+               rather than inside `Verdict` because the answer is the server's: a
+               participant used to be shown a form that could only earn them a 403. */
+            canSign={isOwner && view.status !== "signed"}
+            /* The signature names its signer by id; the roster that turns that into a
+               person lives here, so the resolution happens here and `Verdict` stays
+               presentational. */
+            signed={view.signature === null ? null : {
+              name: nameOf(view.signature.by),
+              at: view.signature.at,
+              agreesWithAdjudication: view.signature.agreesWithAdjudication,
+              reason: view.signature.reason,
+            }}
             onSign={(agrees, reason) => act(() => api.sign(token, caseId, {
               at: new Date().toISOString(), agreesWithAdjudication: agrees, reason,
             }))} />
@@ -480,9 +547,38 @@ export function App(): ReactElement {
     );
   }
 
+  /**
+   * The printable record.
+   *
+   * INSIDE `caseShell`, so the strip shows where the reader is and how to get back.
+   * The page head and the strip are both hidden by the print stylesheet, so what comes
+   * out of the dialog is the sheet alone - navigation on screen costs the document
+   * nothing.
+   */
+  if (route.name === "report") {
+    return caseShell(
+      reportError !== null
+        ? <div className="empty">
+            <h3>There is no record to print yet</h3>
+            <p className="muted">{reportError}</p>
+            <div className="btn-row" style={{ justifyContent: "center" }}>
+              <a href={href({ name: "reveal", caseId })}><button className="ghost">Back to the verdict</button></a>
+            </div>
+          </div>
+        : report === null
+          ? <p className="muted">Assembling the record…</p>
+          : <ReportPage report={report} {...(route.page === undefined ? {} : { page: route.page })} />,
+    );
+  }
+
   if (route.name === "read") {
     return caseShell(
+      // `view.revealed` straight through, null and all. The reader shows who cited a
+      // finding only once the server has released the positions - passing anything
+      // reconstructed here would move blindness into the client, which the handoff
+      // names as the way the blind stage stops meaning anything.
       <Read caseId={caseId} token={token} documents={docs} findings={findings}
+        positions={view.revealed} people={people} seats={roster?.seats ?? {}}
         {...(route.documentId === undefined ? {} : { documentId: route.documentId })}
         {...(route.page === undefined ? {} : { page: route.page })} />,
     );

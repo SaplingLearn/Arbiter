@@ -22,8 +22,35 @@ export type Route =
   | { name: "case"; caseId: string }
   | { name: "position"; caseId: string }
   | { name: "reveal"; caseId: string }
+  /**
+   * The record as one printable document.
+   *
+   * A ROUTE RATHER THAN A DOWNLOAD, and that is the whole design of the feature. What
+   * a reader needs first is to SEE what they are about to send somebody; a file that
+   * lands in a downloads folder has to be opened before it can be checked, and by then
+   * it has usually already been forwarded. This page is the check, and the browser's
+   * own print dialog - which every reader already knows, and which has "Save as PDF"
+   * in it - is the export.
+   *
+   * THE SHEET NUMBER IS IN THE ROUTE, for the same reason the reader's page is: it
+   * makes a page shareable, bookmarkable and reachable with the back button, none of
+   * which survive a page number held in local state. Absent means the first sheet.
+   */
+  | { name: "report"; caseId: string; page?: number }
   | { name: "record"; caseId: string }
   | { name: "read"; caseId: string; documentId?: string; page?: number }
+  /**
+   * The reading room: every document this account can open, across every case it is
+   * named on, with no case of its own.
+   *
+   * A SEPARATE NAME FROM `read`, not an optional caseId on it. `read` carries a
+   * caseId in its type and forty lines of this app narrow on that fact - `caseIdOf`,
+   * the case shell, the polling effect, `Steps`. Making it optional would turn every
+   * one of those into a null check to express a page that shares none of their
+   * behaviour: it has no stage strip, no poll, and no case to load. Two names cost
+   * one line in each switch and keep the case routes' invariant intact.
+   */
+  | { name: "reading" }
   | { name: "ask" };
 
 export const DEFAULT_ROUTE: Route = { name: "dashboard" };
@@ -34,6 +61,12 @@ export function parseHash(hash: string): Route {
 
   if (parts[0] === "ask") return { name: "ask" };
   if (parts[0] === "new") return { name: "new" };
+  // `#/read` and nothing after it. A trailing segment is NOT treated as a caseId and
+  // quietly forwarded into the case reader: `#/read/abc` names no route this app
+  // publishes, and guessing that `abc` is a case would send somebody who mistyped a
+  // URL into a case they may not be on, to be told it does not exist. The reading
+  // room lists what they can actually open instead.
+  if (parts[0] === "read") return { name: "reading" };
   if (parts[0] === "library") return { name: "cases" };
   if (parts[0] === "dashboard") return { name: "dashboard" };
 
@@ -43,6 +76,15 @@ export function parseHash(hash: string): Route {
       case undefined: return { name: "case", caseId };
       case "position": return { name: "position", caseId };
       case "reveal": return { name: "reveal", caseId };
+      case "report": {
+        // #/case/:id/report/:sheet. A non-numeric tail is dropped rather than
+        // defaulted, the same way the reader drops one: a deep link that silently
+        // lands on sheet 1 is worse than one that lands on the document.
+        const page = parts[3] === undefined || !/^\d+$/.test(parts[3])
+          ? undefined
+          : Number.parseInt(parts[3], 10);
+        return { name: "report", caseId, ...(page === undefined ? {} : { page }) };
+      }
       case "record": return { name: "record", caseId };
       case "read": {
         // #/case/:id/read/:documentId/:page. Both tail segments are optional, and a
@@ -77,6 +119,10 @@ export function href(route: Route): string {
     case "case": return `#/case/${encodeURIComponent(route.caseId)}`;
     case "position": return `#/case/${encodeURIComponent(route.caseId)}/position`;
     case "reveal": return `#/case/${encodeURIComponent(route.caseId)}/reveal`;
+    case "report": {
+      const base = `#/case/${encodeURIComponent(route.caseId)}/report`;
+      return route.page === undefined ? base : `${base}/${route.page}`;
+    }
     case "record": return `#/case/${encodeURIComponent(route.caseId)}/record`;
     case "read": {
       const base = `#/case/${encodeURIComponent(route.caseId)}/read`;
@@ -84,6 +130,7 @@ export function href(route: Route): string {
       const doc = `${base}/${encodeURIComponent(route.documentId)}`;
       return route.page === undefined ? doc : `${doc}/${route.page}`;
     }
+    case "reading": return "#/read";
     case "ask": return "#/ask";
   }
 }

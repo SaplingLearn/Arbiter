@@ -64,7 +64,7 @@ fixed order, because the order is the point:
 |---|---|
 | **Evidence** | The compound in front of you: findings, documents, what is absent |
 | **Your position** | Your call, written **before** you can see anyone else's |
-| **Reveal & verdict** | Unreachable until everyone has answered. Then the split, the disagreement analysis, and the AI adjudication |
+| **Reveal & verdict** | Unreachable until everyone has answered. Then the split, the disagreement analysis, the AI adjudication, and the way through to the record: anyone named on the case can open it as one printable page (`#/case/:id/report`, assembled by `GET /api/cases/:id/report`) and print or save it as a PDF from the browser |
 | **Record** | Sign-off and the hash-chained audit log |
 
 Blind submission is enforced server-side by not returning the data, not by asking the
@@ -185,7 +185,9 @@ One command, one origin. The landing page is at `/`, the product at `/deliberati
 
 The demo team is five accounts whose shared password is printed in `services/api/seed-demo.ts`, because the fixture is the secrecy, not the check. A fresh clone has none of them - the account store is gitignored - so create them with `npm run seed:demo`, or set `ARBITER_DEMO_SEED=1` and let the first boot do it. The banner prints the account count either way, so a forgotten demo team is visible rather than silent.
 
-Configuration is read from `.env`, or from `.env.share` if there is no `.env`. The second name exists so a file prepared for somebody else works where it lands: an unread share file and no credentials at all look identical from the outside, and that ambiguity was worth a line of code to remove. The banner names the file it read.
+Configuration is read from `.env`, or from `.env.share` if there is no `.env`. The second name exists so a file prepared for somebody else works where it lands: an unread share file and no credentials at all look identical from the outside, and that ambiguity was worth a line of code to remove. The banner names the file it read, **and the directory it read it from** - a server started in a second checkout reads that checkout's configuration while you are looking at this one.
+
+The thirty-five regulatory reviews the Library searches are committed, 363 MB of them, so Ask works in a fresh clone. They were excluded until 2026-08-16 on the grounds that they were retrievable by URL; no URL was recorded anywhere, so in practice a clone showed "cannot be searched" on every entry. Fourteen of the sixteen library documents are askable - `tak994` has no source document, `tolcapone` is a scan with no extractable text, and `troglitazone` has no nonclinical chapter heading. Those are refusals the product makes on purpose, and they read differently from a missing file.
 
 ### It runs with no credentials, and says so
 
@@ -215,12 +217,17 @@ GEMINI_API_KEY=AQ....                                         # Gemini on a key
 teammate. `GEMINI_API_KEY` is the shareable form: one line, sufficient on its own, and
 still a cloud credential that bills the project it belongs to.
 
-A key also picks a **host**, and the two are not interchangeable:
-`ARBITER_GEMINI_HOST=vertex` (the default, `aiplatform.googleapis.com`, the catalogue
-every committed number was measured on) or `=developer`
-(`generativelanguage.googleapis.com`, no project setup, a different and smaller
-catalogue - `gemini-2.5-flash-lite` is a 404 there). The startup banner prints which one
-is in use, so a misconfiguration cannot hide behind the word "Vertex".
+A key also picks a **host**, and only one of them works here. `ARBITER_GEMINI_HOST=vertex`
+is the default and the catalogue every committed number was measured on. `=developer`
+(`generativelanguage.googleapis.com`) **cannot serve this codebase**: it rejects
+`additionalProperties: false` with a 400, and every schema in `services/api` sets it.
+Unconstrained calls succeed there and the banner reads LIVE, so that misconfiguration
+looks healthy right up until the first real adjudication fails - which is exactly why
+the banner prints the endpoint rather than inferring "Vertex" from the model name.
+
+A key must also be on a project with **billing linked**. Without it the key is free-tier
+only, capped at 20 requests/minute shared across every holder, and Vertex refuses
+outright with `requires billing to be enabled`.
 
 One key shared across a team is one budget shared across a team. See
 `ARBITER_MODEL_BUDGET` below.

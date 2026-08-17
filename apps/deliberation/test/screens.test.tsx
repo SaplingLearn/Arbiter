@@ -376,18 +376,24 @@ describe("Verdict", () => {
     nextExperiment: "Measure Cmax against the tested concentration.",
   };
 
+  /** The props every one of these cases shares, so a new one does not have to restate
+   *  the session. Overridden per test where the case is about who is reading. */
+  const verdict = (over: Partial<Parameters<typeof Verdict>[0]> = {}): ReturnType<typeof render> =>
+    render(<Verdict adjudication={adj} source="live" caseId="case_1"
+      canSign={true} signed={null} onSign={() => {}} {...over} />);
+
   it("marks a stub result as a stub, in the place a reader cannot miss", () => {
-    render(<Verdict adjudication={adj} source="stub" onSign={() => {}} />);
+    verdict({ source: "stub" });
     expect(screen.getByText(/STUB - no model was called/)).toBeInTheDocument();
   });
 
   it("carries no stub banner on a live result", () => {
-    const { container } = render(<Verdict adjudication={adj} source="live" onSign={() => {}} />);
+    const { container } = verdict();
     expect(container.textContent).not.toContain("STUB");
   });
 
   it("answers mechanism and consequence as two separate questions", () => {
-    render(<Verdict adjudication={adj} source="live" onSign={() => {}} />);
+    verdict();
     // Case-insensitive: the two questions moved out of their headings and into the
     // plates they now label, so each one opens a sentence rather than following a dash.
     expect(screen.getByText(/is there a route to liver injury/i)).toBeInTheDocument();
@@ -397,15 +403,50 @@ describe("Verdict", () => {
   });
 
   it("discloses every rule, including one that does not apply", () => {
-    render(<Verdict adjudication={adj} source="live" onSign={() => {}} />);
+    verdict();
     expect(screen.getByText(/Human evidence is present/)).toBeInTheDocument();
+  });
+
+  it("offers the record to a reader who cannot sign", () => {
+    // The people who most need to send this record are the ones who cannot show
+    // anybody the screen. Making it the convener's control would mean everybody else
+    // asks the convener for a copy, and what gets sent in that situation is a
+    // screenshot - which carries the verdict and drops the dissent.
+    verdict({ canSign: false });
+    expect(screen.getByRole("button", { name: /Open the printable record/ })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /Sign the record/ })).toBeNull();
+  });
+
+  it("links to the record rather than pushing a file at the reader", () => {
+    // A file in a downloads folder has to be opened before anybody can check it, and
+    // by then it has usually already been forwarded.
+    const { container } = verdict();
+    expect(container.querySelector('a[href="#/case/case_1/report"]')).not.toBeNull();
+  });
+
+  it("does not offer a sign form to somebody the server will refuse", () => {
+    // A participant used to be shown the sign controls and answered 403 on use: a
+    // control that is a promise the product cannot keep.
+    verdict({ canSign: false });
+    expect(screen.getByText(/The convener signs this one/)).toBeInTheDocument();
+  });
+
+  it("shows who signed, and that they overrode, once it is signed", () => {
+    verdict({
+      canSign: false,
+      signed: { name: "R. Okafor", at: "2026-08-16T10:00:00.000Z", agreesWithAdjudication: false, reason: "Margin is 40x." },
+    });
+    expect(screen.getByText(/R. Okafor signed, overriding the adjudication/)).toBeInTheDocument();
+    expect(screen.getByText("Margin is 40x.")).toBeInTheDocument();
+    // Signed is signed: the form does not come back for the person who used it.
+    expect(screen.queryByRole("button", { name: /Sign the record/ })).toBeNull();
   });
 
   it("blocks an override with no reason, and allows agreement without one", () => {
     // An override is always available - forbidding it would make the model the
     // decider - but it is the one moment the record exists for, so it must be argued.
     const onSign = vi.fn();
-    render(<Verdict adjudication={adj} source="live" onSign={onSign} />);
+    verdict({ onSign });
 
     expect(screen.getByRole("button", { name: /Sign the record/ })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Override" }));
@@ -430,7 +471,7 @@ describe("Verdict", () => {
         reasoning: "The **margin** is unestablished.\n\n- No Cmax was projected\n- No NOAEL was set",
       },
     };
-    const { container } = render(<Verdict adjudication={md} source="live" onSign={() => {}} />);
+    const { container } = verdict({ adjudication: md });
     expect(container.querySelectorAll("li")).toHaveLength(2);
     // Not `querySelector("strong")`: the verdict label is itself a <strong> and comes
     // first, so the bare query asserts on the wrong element and passes either way.
@@ -442,13 +483,17 @@ describe("Verdict", () => {
      a signature invites a second one the state machine will refuse, and shows the
      reader a live control where the record wants a fact. */
   it("shows the signature on a signed case instead of asking for another", () => {
-    render(
-      <Verdict adjudication={adj} source="live" onSign={() => {}}
-        signature={{ by: "Ruth Okafor", at: "2026-08-14T10:00:00Z", agreesWithAdjudication: false, reason: "Margin is 40x." }} />,
-    );
+    // `signed`, already resolved to a name: the signature on `view` carries an id, and
+    // App.tsx holds the roster that turns it into a person.
+    verdict({
+      signed: {
+        name: "Ruth Okafor", at: "2026-08-14T10:00:00Z",
+        agreesWithAdjudication: false, reason: "Margin is 40x.",
+      },
+    });
     expect(screen.queryByRole("button", { name: /Sign the record/ })).not.toBeInTheDocument();
     expect(screen.getByText(/Margin is 40x./)).toBeInTheDocument();
-    expect(screen.getByText(/Overrode/)).toBeInTheDocument();
+    expect(screen.getByText(/overriding the adjudication/)).toBeInTheDocument();
   });
 
   /* OUR OWN DELIMITER, COMING BACK. adjudicate.ts renders each recorded absence into
@@ -461,7 +506,7 @@ describe("Verdict", () => {
       ...adj,
       missing: [{ field: "Exposure margin", whyItMatters: "blocks: Rule R3 cannot be applied." }],
     };
-    render(<Verdict adjudication={withPrefix} source="live" onSign={() => {}} />);
+    verdict({ adjudication: withPrefix });
     expect(screen.getByText("Rule R3 cannot be applied.")).toBeInTheDocument();
     expect(screen.queryByText(/blocks:/)).not.toBeInTheDocument();
   });
@@ -469,10 +514,9 @@ describe("Verdict", () => {
   /* consensus.ts: a 2-of-3 verdict and a 3-of-3 verdict are different objects, and
      the reader of a safety record is exactly who should be told which one they have. */
   it("reports a split across the runs rather than presenting one draw as settled", () => {
-    render(
-      <Verdict adjudication={adj} source="live" onSign={() => {}}
-        consensus={{ runs: 3, votes: 2, agreement: 2 / 3, distribution: { cannot_conclude: 2, do_not_advance: 1 }, split: true }} />,
-    );
+    verdict({
+      consensus: { runs: 3, votes: 2, agreement: 2 / 3, distribution: { cannot_conclude: 2, do_not_advance: 1 }, split: true },
+    });
     expect(screen.getByText(/2 of 3/)).toBeInTheDocument();
   });
 });

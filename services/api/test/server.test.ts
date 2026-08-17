@@ -330,7 +330,80 @@ describe("cases, with access control", () => {
       await new Promise<void>((r) => alt.close(() => r()));
     }
   });
+
+  /**
+   * The verdict, and the document made from it. Both run against `c1`, which the case
+   * above leaves adjudicated and signed.
+   */
+  it("serves the adjudication to a participant, not only to whoever ran it", async () => {
+    // It used to live in one browser's React state. A participant reaching the verdict
+    // stage saw an empty screen, and the owner lost it on reload. `view` carries it, so
+    // this is the request the stage already makes rather than a route of its own.
+    const r = await call("GET", "/api/cases/c1/view", "bea");
+    expect(r.status).toBe(200);
+    expect(r.body.adjudication).not.toBeNull();
+    expect(["stub", "live"]).toContain(r.body.adjudicationSource);
+    expect(r.body.signature.agreesWithAdjudication).toBe(false);
+    expect(r.body.signature.reason).toBe("Holding for a margin.");
+  });
+
+  it("assembles the record for any team member, not just the convener", async () => {
+    const r = await call("GET", "/api/cases/c1/report", "bea");
+    expect(r.status).toBe(200);
+    // The reader's own words and the convener's override, in one object - the pieces
+    // the reveal, the evidence stage and the record each hold separately.
+    expect(r.body.positions.map((p: { reasoning: string }) => p.reasoning)).toContain("Because.");
+    expect(r.body.signature.reason).toBe("Holding for a margin.");
+    expect(r.body.signature.agreesWithAdjudication).toBe(false);
+    expect(r.body.compoundLabel).toBe("TAK-994");
+    expect(r.body.inventory.entries.length).toBeGreaterThan(0);
+    expect(r.body.audit.headHash).toEqual(expect.any(String));
+    // Assembled FOR the caller: the document says who produced it.
+    expect(r.body.generatedBy.id).toBe(uid["bea"]);
+  });
+
+  it("keeps the record away from an account that is not on the case", async () => {
+    const r = await call("GET", "/api/cases/c1/report", "outsider");
+    expect(r.status).toBe(404);
+  });
+
+  it("refuses a report on a case with no adjudication, and says what is missing", async () => {
+    // A PDF titled "deliberation record" with a blank verdict reads as a panel that
+    // concluded nothing, which is not what an un-adjudicated case means.
+    const opened = await call("POST", "/api/cases", "owner", {
+      caseId: "c-report-open", compoundLabel: "Unadjudicated", context: "",
+      participantEmails: [EMAIL["ann"]], findings: FINDINGS,
+    });
+    expect(opened.status).toBe(201);
+
+    const r = await call("GET", "/api/cases/c-report-open/report", "ann");
+    expect(r.status).toBe(409);
+    expect(r.body.error).toBe("no_adjudication");
+    expect(r.body.detail).toContain("still open");
+
+    // And the stage that would draw it says the same thing without raising: "not
+    // adjudicated yet" is the ordinary state of an open case, not an error.
+    const none = await call("GET", "/api/cases/c-report-open/view", "ann");
+    expect(none.status).toBe(200);
+    expect(none.body.adjudication).toBeNull();
+  });
 });
+
+/**
+ * What a seeding test costs, stated rather than left to the 5s default.
+ *
+ * `POST /api/demo` opens a real library case: it copies the regulatory review off
+ * disk, transcribes its findings and writes the opening links of the hash chain. One
+ * of these runs about 1.4s on its own and the two-opener test below does the whole
+ * thing TWICE, which is 3.5s before the machine is doing anything else.
+ *
+ * That fits inside the default alone and does not fit under a full run, where the
+ * suite's other files are competing for the same cores - so the failure moved with
+ * the size of the run rather than with anything in the code, which is the signature
+ * of a limit set too close rather than of a slow path worth chasing. It is stated
+ * here so a green file and a red suite stop being the same commit.
+ */
+const SEEDING = 30_000;
 
 describe("the case catalogue and demo seeding", () => {
   it("serves the catalogue to a signed-in caller", async () => {
@@ -354,7 +427,7 @@ describe("the case catalogue and demo seeding", () => {
     const r = await call("POST", "/api/demo", "owner", { case: "slynd", participantIds: [uid["ann"]], at: "t" });
     expect(r.status).toBe(201);
     expect(r.body.documentScope).toContain("THE SAFETY STUDIES FOR THIS DRUG WERE NEVER RUN");
-  });
+  }, SEEDING);
 
   /**
    * OPENING A PREPARED CASE BRINGS ITS DOCUMENT WITH IT.
@@ -420,7 +493,7 @@ describe("the case catalogue and demo seeding", () => {
     } finally {
       await new Promise<void>((r) => srv.close(() => r()));
     }
-  });
+  }, SEEDING);
 
   /**
    * A source that cannot be read must not stop the case opening. The findings were
@@ -456,7 +529,7 @@ describe("the case catalogue and demo seeding", () => {
     } finally {
       await new Promise<void>((r) => srv.close(() => r()));
     }
-  });
+  }, SEEDING);
 
   it("gives each opener their own copy of a library case", async () => {
     // Regression. A fixed identifier meant the second person to open a library case
@@ -473,7 +546,7 @@ describe("the case catalogue and demo seeding", () => {
     expect((await call("GET", `/api/cases/${theirs.body.caseId}/view`, "ann")).status).toBe(200);
     // But not each other's.
     expect((await call("GET", `/api/cases/${mine.body.caseId}/view`, "outsider")).status).toBe(404);
-  });
+  }, SEEDING);
 
   it("re-opening a library case returns the copy you already have", async () => {
     const first = await call("POST", "/api/demo", "bea", { case: "slynd", at: "t" });
@@ -481,7 +554,7 @@ describe("the case catalogue and demo seeding", () => {
     expect(again.status).toBe(200);
     expect(again.body.alreadyOpen).toBe(true);
     expect(again.body.caseId).toBe(first.body.caseId);
-  });
+  }, SEEDING);
 });
 
 describe("the roster is on the record", () => {
@@ -930,6 +1003,47 @@ describe("a finding keeps its document", () => {
     });
     expect(r.status).toBe(400);
     expect(r.body.detail).toContain("not on this case");
+  });
+
+  /**
+   * The quote is what the reader's viewer draws a mark from, so it travels the same
+   * route the document id does. A quote that never arrives is a highlight that never
+   * appears, with nothing on screen to explain the difference.
+   */
+  it("carries sourceQuote back out with the page it was quoted from", async () => {
+    const add = await call("POST", "/api/cases/c-linked/findings", "owner", {
+      id: "f-quoted", label: "Hepatic necrosis", assertion: "toxic", detail: "Seen at week 13.",
+      sourceDocumentId: linkedDocId, sourcePage: 3,
+      sourceQuote: "Liver: ALT and AST elevations, transaminase changes, hepatic necrosis noted.",
+      covers: [],
+    });
+    expect(add.status).toBe(201);
+
+    const req = await call("GET", "/api/cases/c-linked/adjudication-request", "ann");
+    const f = req.body.findings.find((x: any) => x.id === "f-quoted");
+    expect(f.sourceQuote).toBe("Liver: ALT and AST elevations, transaminase changes, hepatic necrosis noted.");
+  });
+
+  /**
+   * An unanchored quote is refused for the same reason "page 26" with no document is:
+   * it names a passage nobody can navigate to, and it would sit in the record looking
+   * like provenance while pointing nowhere.
+   */
+  it("refuses a quote with no page to find it on", async () => {
+    const r = await call("POST", "/api/cases/c-linked/findings", "owner", {
+      id: "f-floating", label: "Unanchored", assertion: "toxic", detail: "d",
+      sourceDocumentId: linkedDocId, sourceQuote: "somewhere in here", covers: [],
+    });
+    expect(r.status).toBe(400);
+    expect(r.body.detail).toContain("document and the page");
+  });
+
+  it("refuses a quote with no document either", async () => {
+    const r = await call("POST", "/api/cases/c-linked/findings", "owner", {
+      id: "f-floating-2", label: "Unanchored too", assertion: "toxic", detail: "d",
+      sourcePage: 3, sourceQuote: "somewhere in here", covers: [],
+    });
+    expect(r.status).toBe(400);
   });
 });
 
