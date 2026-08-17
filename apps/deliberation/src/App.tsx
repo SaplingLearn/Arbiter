@@ -426,7 +426,12 @@ export function App(): ReactElement {
         title={label}
         {...(lede === undefined ? {} : { lede })}
       />
+      {/* `adjudicated` comes off the case status rather than off the loaded
+          adjudication: the strip is drawn on every case route, and the record is only
+          fetched on its own. A tab that unlocked when a fetch happened to have landed
+          would flicker. */}
       <Steps caseId={caseId} route={route} revealed={revealed}
+        adjudicated={view.status === "adjudicated" || view.status === "signed"}
         {...(listing === undefined ? {} : { answered: listing.submitted, of: listing.of })} />
       {children}
     </>,
@@ -553,13 +558,13 @@ export function App(): ReactElement {
   /**
    * The printable record.
    *
-   * OUTSIDE `caseShell`, and that is the point of the page. The stage strip and the
-   * page head belong to working on a case; this is the case as a finished document,
-   * and the sheet is the subject. It carries its own way back rather than borrowing
-   * the strip's.
+   * INSIDE `caseShell`, so the strip shows where the reader is and how to get back.
+   * The page head and the strip are both hidden by the print stylesheet, so what comes
+   * out of the dialog is the sheet alone - navigation on screen costs the document
+   * nothing.
    */
   if (route.name === "report") {
-    return shell(
+    return caseShell(
       reportError !== null
         ? <div className="empty">
             <h3>There is no record to print yet</h3>
