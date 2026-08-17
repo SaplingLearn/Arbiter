@@ -24,7 +24,7 @@
  * exactly the lockfile". Deliberately: it has to run in the second before a dev server
  * boots, so it stats directories rather than resolving a full tree.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -79,6 +79,23 @@ function installedAt(root, pkgDir, name) {
 const isExactPin = (range) => /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(range);
 
 /**
+ * Does this resolved path lead back into the repo rather than into an installed copy?
+ *
+ * `realpathSync` because that is the whole question: npm links a workspace by SYMLINK,
+ * so `node_modules/@arbiter/engine` and `packages/engine` are the same directory wearing
+ * two names, and only resolving it tells them apart from a package that was fetched.
+ */
+function isWorkspaceLink(root, at) {
+  try {
+    const real = realpathSync(at);
+    const inRepo = realpathSync(root);
+    return real.startsWith(inRepo) && !real.slice(inRepo.length).includes("node_modules");
+  } catch {
+    return false;
+  }
+}
+
+/**
  * `root` is a parameter rather than the module's own ROOT so this can be aimed at a
  * fixture tree. A guard's own failure mode is to pass while checking nothing, and the
  * only way to prove it does not is to hand it a tree that is definitely broken and
@@ -96,7 +113,14 @@ export function checkDeps(root = ROOT) {
         problems.push(`${name} (${range}) declared by ${label} — not installed`);
         continue;
       }
-      if (isExactPin(range)) {
+      // A WORKSPACE IS NOT AN INSTALL, so its version is not an install fact. npm links
+      // `@arbiter/engine` to packages/engine whatever either file says, so comparing the
+      // pin against it can only fire when the two drift inside this repo - and then it
+      // fails `npm run dev` for everybody with a message about a stale install, which is
+      // the one thing that is certainly not wrong. Bumping the engine and not the
+      // harness's pin is a versioning question; this tool answers "is what is on disk
+      // what was asked for", and for a symlink into the repo the answer is always yes.
+      if (isExactPin(range) && !isWorkspaceLink(root, at)) {
         const found = read(join(at, "package.json")).version;
         if (found !== range) {
           problems.push(`${name} pinned to ${range} by ${label} — found ${found}`);
