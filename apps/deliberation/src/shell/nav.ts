@@ -21,6 +21,16 @@ export interface NavItem {
 
 export const NAV: NavItem[] = [
   { label: "Dashboard", codename: "Culture", scene: "dashboard", to: { name: "dashboard" } },
+  /**
+   * SECOND, between the dashboard and opening a case, because that is where reading
+   * sits in the work. The dashboard says what is waiting on you; the next thing a
+   * reviewer does about it is read the evidence. Putting it after "New case" would
+   * order the rail by how often a screen is BUILT rather than by how often it is used.
+   *
+   * It points at the reading room rather than at a document, because a menu entry has
+   * no caseId and `read` requires one. See `{ name: "reading" }` in router.ts.
+   */
+  { label: "Read", codename: "Section", scene: "read", to: { name: "reading" } },
   { label: "New case", codename: "Genesis", scene: "new", to: { name: "new" } },
   { label: "Library", codename: "Archive", scene: "library", to: { name: "cases" } },
   { label: "Ask", codename: "Synapse", scene: "ask", to: { name: "ask" } },
@@ -62,6 +72,10 @@ export function sceneFor(route: Route): string {
   // exactly that: a volume with a focal plane moving through it. A field of vitrines
   // behind somebody reading page 112 is the case's neighbourhood answering a question
   // about a paragraph.
+  //
+  // The reading ROOM needs no line here: it is a NAV entry, so the lookup at the
+  // bottom of this function already puts it in Section, which is where a page that
+  // lists documents belongs.
   if (route.name === "read") return "read";
   if (route.name === "case" || route.name === "position" || route.name === "reveal") {
     return "library";
@@ -120,11 +134,31 @@ export function currentNav(route: Route): NavItem | undefined {
   if (route.name === "cases") return navByScene("library");
   const direct = NAV.find((n) => n.to.name === route.name);
   if (direct !== undefined) return direct;
-  // Reading has no rail entry of its own yet - there is no top-level route to give one,
-  // since `read` needs a caseId and a menu entry has none. It lights the Library, which
-  // is where the case it belongs to lives.
-  if (route.name === "read") return navByScene("library");
-  if (route.name === "case" || route.name === "position" || route.name === "reveal") {
+  // READING LIGHTS READ, and it lit the Library until this entry existed.
+  //
+  // That was not a preference, it was the drift this file's opening note is about. A
+  // `read` route stands in Section - `sceneFor` says so, and the corner readout prints
+  // the active entry's codename - so the rail read ARCHIVE over a focal plane moving
+  // through a stained section, naming a world the reader was not in. The entry the
+  // route lights and the scene behind it are one decision; now there is an entry to
+  // make it with.
+  if (route.name === "read") return navByScene("read");
+  /**
+   * RECORD IS IN THIS LIST, and leaving it out was a silent drift of exactly the kind
+   * this file's opening note describes.
+   *
+   * It is a case route with no rail entry of its own - the Helix has no tab - so it
+   * fell past every branch here to the closing `dashboard` fallback. The rail and the
+   * corner readout therefore said CULTURE, naming a field of colonies, while the
+   * screen sat in front of a seal closing. Nothing threw: the fallback is a legitimate
+   * answer for a route that has no better one, which is why it was able to be wrong
+   * for so long.
+   *
+   * The Library is the honest answer for the same reason it is for the other case
+   * routes: the case being recorded is one of the bodies in it.
+   */
+  if (route.name === "case" || route.name === "position"
+    || route.name === "reveal" || route.name === "record") {
     return navByScene("library");
   }
   return navByScene("dashboard");

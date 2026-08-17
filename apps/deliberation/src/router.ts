@@ -24,6 +24,18 @@ export type Route =
   | { name: "reveal"; caseId: string }
   | { name: "record"; caseId: string }
   | { name: "read"; caseId: string; documentId?: string; page?: number }
+  /**
+   * The reading room: every document this account can open, across every case it is
+   * named on, with no case of its own.
+   *
+   * A SEPARATE NAME FROM `read`, not an optional caseId on it. `read` carries a
+   * caseId in its type and forty lines of this app narrow on that fact - `caseIdOf`,
+   * the case shell, the polling effect, `Steps`. Making it optional would turn every
+   * one of those into a null check to express a page that shares none of their
+   * behaviour: it has no stage strip, no poll, and no case to load. Two names cost
+   * one line in each switch and keep the case routes' invariant intact.
+   */
+  | { name: "reading" }
   | { name: "ask" };
 
 export const DEFAULT_ROUTE: Route = { name: "dashboard" };
@@ -34,6 +46,12 @@ export function parseHash(hash: string): Route {
 
   if (parts[0] === "ask") return { name: "ask" };
   if (parts[0] === "new") return { name: "new" };
+  // `#/read` and nothing after it. A trailing segment is NOT treated as a caseId and
+  // quietly forwarded into the case reader: `#/read/abc` names no route this app
+  // publishes, and guessing that `abc` is a case would send somebody who mistyped a
+  // URL into a case they may not be on, to be told it does not exist. The reading
+  // room lists what they can actually open instead.
+  if (parts[0] === "read") return { name: "reading" };
   if (parts[0] === "library") return { name: "cases" };
   if (parts[0] === "dashboard") return { name: "dashboard" };
 
@@ -84,6 +102,7 @@ export function href(route: Route): string {
       const doc = `${base}/${encodeURIComponent(route.documentId)}`;
       return route.page === undefined ? doc : `${doc}/${route.page}`;
     }
+    case "reading": return "#/read";
     case "ask": return "#/ask";
   }
 }

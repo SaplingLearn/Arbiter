@@ -66,11 +66,30 @@ export function Backdrop({ route, catalogue, focusKey }: {
         if (!live) return;
 
         atmo = new mod.Atmosphere(canvas);
-        atmo.register("dashboard", mod.createCulture);
-        atmo.register("new", mod.createGenesis);
-        atmo.register("library", mod.createArchive);
-        atmo.register("ask", mod.createSynapse);
-        atmo.register("record", mod.createHelix);
+
+        /**
+         * REGISTERED FROM THE REGISTRY, and this was five hand-written lines that had
+         * gone stale.
+         *
+         * `createSection` was missing from them. Nothing said so: the scene existed, it
+         * was registered in `scenes/registry.ts`, the demo shell in `apps/atmosphere`
+         * mounted it happily because that shell iterates STATES - and this list, the
+         * only one the PRODUCT reads, had never gained the entry. So every reader who
+         * opened Read & mark hit `transitionTo("read")` against an engine that had
+         * never heard of it.
+         *
+         * This is the third copy of one list to go wrong the same way in this codebase
+         * - `apps/atmosphere/shot.mjs` skipped a scene it had never mounted, then
+         * `apps/deliberation/shot.mjs` did it again - so the copy is removed rather
+         * than corrected. `STATES` is what `sceneFor` and `NAV` are already checked
+         * against; registering from it means a scene that exists is a scene the product
+         * can mount, with nothing in between to forget.
+         *
+         * It registers `landing` too, which the product never mounts. Registering is
+         * not mounting: the factory sits in a map costing nothing until `sceneFor`
+         * names it, and no route does.
+         */
+        for (const state of mod.STATES) atmo.register(state.id, state.factory);
 
         atmo.resize(window.innerWidth, window.innerHeight);
         atmo.populate(wantedSubjects.current);
@@ -118,7 +137,27 @@ export function Backdrop({ route, catalogue, focusKey }: {
     wanted.current = scene;
     const atmo = atmoRef.current;
     if (atmo === null || atmo.activeId === scene) return;
-    atmo.transitionTo(scene, transitionFor(scene));
+    /**
+     * GUARDED, because the mount path was and this was not - and the gap was the whole
+     * difference between a missing background and a blank product.
+     *
+     * `transitionTo` throws on a scene the engine does not know, exactly as `mount`
+     * does. `mount` runs inside the try/catch above, whose comment states the rule this
+     * file lives by: a background may not take the product down with it. This call sat
+     * outside any catch, in an effect, so the throw went up through React and unmounted
+     * the entire tree - over a fault in the DECORATION behind the type. A reviewer
+     * opening Read & mark got a blank page, not a plain one.
+     *
+     * The registration list above is fixed and no scene is unknown today. The guard
+     * stays because the failure it prevents is out of proportion to its cause, and a
+     * driver can refuse a transition for reasons that have nothing to do with this
+     * repo's spelling.
+     */
+    try {
+      atmo.transitionTo(scene, transitionFor(scene));
+    } catch (e) {
+      console.error("[atmosphere] the transition failed; the product does not:", e);
+    }
   }, [scene]);
 
   /**

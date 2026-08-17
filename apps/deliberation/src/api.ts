@@ -176,6 +176,10 @@ export interface Finding {
    *  on findings that predate an upload. */
   sourceDocumentId?: string;
   sourcePage?: number;
+  /** The passage, verbatim, that this finding was read off. Highlighted on the page by
+   *  EXACT match only - see `highlightRects` in read.tsx, and the note on the server's
+   *  `Finding` for why nothing here is ever matched approximately. */
+  sourceQuote?: string;
 }
 
 export interface AuditResult {

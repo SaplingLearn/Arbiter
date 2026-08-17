@@ -159,7 +159,7 @@ export function FindingsEditor({ checklist, findings, documents, frozen, onAdd, 
   findings: Finding[];
   documents: StoredDocument[];
   frozen: string | null;
-  onAdd: (f: { id: string; label: string; assertion: "toxic" | "safe" | "ambiguous"; detail: string; sourcePage?: number; sourceDocumentId?: string; covers: string[] }) => void;
+  onAdd: (f: { id: string; label: string; assertion: "toxic" | "safe" | "ambiguous"; detail: string; sourcePage?: number; sourceDocumentId?: string; sourceQuote?: string; covers: string[] }) => void;
   onRemove: (id: string) => void;
   error: string | null;
 }): ReactElement {
@@ -168,6 +168,7 @@ export function FindingsEditor({ checklist, findings, documents, frozen, onAdd, 
   const [detail, setDetail] = useState("");
   const [page, setPage] = useState("");
   const [docId, setDocId] = useState("");
+  const [quote, setQuote] = useState("");
   const [covers, setCovers] = useState<string[]>([]);
 
   const toggle = (id: string): void =>
@@ -180,9 +181,14 @@ export function FindingsEditor({ checklist, findings, documents, frozen, onAdd, 
       label: label.trim(), assertion, detail: detail.trim(),
       ...(page.trim() === "" ? {} : { sourcePage: Number(page) }),
       ...(docId === "" ? {} : { sourceDocumentId: docId }),
+      // Dropped unless it is anchored, which is the same rule the server enforces:
+      // a quote with no document and no page names a passage nobody can find.
+      ...(quote.trim() === "" || docId === "" || page.trim() === ""
+        ? {}
+        : { sourceQuote: quote.trim() }),
       covers,
     });
-    setLabel(""); setDetail(""); setPage(""); setCovers([]); setAssertion("safe");
+    setLabel(""); setDetail(""); setPage(""); setQuote(""); setCovers([]); setAssertion("safe");
   };
 
   return (
@@ -263,6 +269,17 @@ export function FindingsEditor({ checklist, findings, documents, frozen, onAdd, 
             <input id="f-page" type="number" min="1" value={page} onChange={(e) => setPage(e.target.value)}
               style={{ maxWidth: 140 }} />
             <span className="hint">So anyone can go and check it.</span>
+          </div>
+
+          <div className="field">
+            <label htmlFor="f-quote">The passage, word for word</label>
+            <textarea id="f-quote" value={quote} onChange={(e) => setQuote(e.target.value)}
+              placeholder="Paste the sentence exactly as it appears in the document." />
+            <span className="hint">
+              {docId === "" || page.trim() === ""
+                ? "Name the document and the page first - a quote with nowhere to point cannot be marked, and is dropped."
+                : "Marked on the page for every reader. Matched exactly: if a word is changed the mark is not drawn, and the reader is told why rather than shown the nearest similar sentence."}
+            </span>
           </div>
 
           <div className="field">

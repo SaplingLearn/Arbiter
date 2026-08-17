@@ -83,10 +83,31 @@ renders a case's PDFs and draws what extraction already found on top of them.
    bug. **Do not add fuzzy matching here.** A wrong highlight on a safety document is
    worse than an honest empty state.
 
+   The same rule now governs the passage highlight. `Finding.sourceQuote` is recorded
+   by whoever wrote the finding and matched against the page EXACTLY — whitespace is
+   dropped from both sides and nothing else is touched, so a changed word, a different
+   case or a merely similar sentence all mark nothing and say so. Whitespace has to go
+   because pdf.js splits fragments **mid-word**: the real Sotyktu report yields
+   `"...No mortality in the repeat"` + `"-dose toxicity studies were"`, and the first
+   version of this joined fragments with a space, produced `"repeat -dose"`, and
+   reported every hyphenated quote as absent. `read.test.tsx` carries that exact pair
+   as a fixture. The one approximation in the file is *geometric*: the position of the
+   match inside a fragment is interpolated by character count, because per-glyph
+   advances would mean shipping font metrics to move a mark a few pixels.
+
 3. **Blindness is server-side.** Positions stay hidden before reveal because the API
    does not return them (`visibleTo`), not because the client hides them. Any new
    reading-surface endpoint has to go inside the same `can(kase, user.id, "read")`
    guard, or the blind stage stops meaning anything.
+
+   The reader's "who cited this, and why" rail obeys this by construction and adds no
+   endpoint: it is computed from `BlindView.revealed`, which the server sends as
+   `null` for the whole blind stage. `citationsFor(null, …)` therefore yields nothing,
+   and the rail says *who cited this is sealed* rather than *nobody cited this* —
+   different facts, and only the first one is true before reveal. Do not be tempted to
+   assemble it from anything the client already holds; a per-finding tally before
+   people have answered is the anchoring the two-phase design exists to prevent, and
+   spec §6.4 forbids the tally directly.
 
 ### SECTION — the scene behind reading
 
@@ -107,26 +128,64 @@ case among its neighbours.
 
 ---
 
-## 3. The one piece of the design that is not built
+## 3. The reading room — BUILT, and what it turned up
 
-**There is no top-level "Read" entry in the rail after Dashboard.** The user asked for
-it and approved the "launcher" shape for it; it is not done.
+**Done.** There is a top-level Read entry in the rail, second, between Dashboard and
+New case, and a launcher behind it.
 
-It is blocked on nothing technical any more — the scene exists, which was the previous
-blocker — but it needs a decision made in code:
+| Piece | File |
+|---|---|
+| Route `{ name: "reading" }` at `#/read` | `apps/deliberation/src/router.ts` |
+| The page | `ReadingRoom` in `apps/deliberation/src/read.tsx` |
+| `NAV` entry (`Read` / `Section` / `read`) | `apps/deliberation/src/shell/nav.ts` |
+| Document row styling | `app.css`, `a.inv-row` |
 
-- `NAV` entries bind to a `Route` (`shell/nav.ts:22`), and `read` requires a `caseId`.
-  A menu entry has none.
-- So it needs a **launcher route** — a `read` landing page with no case, listing cases
-  and their documents, that jumps into `{ name: "read", caseId, documentId }`.
-- Then a `NAV` entry between Dashboard and New case, and `currentNav` updated: today
-  `read` lights the Library (`shell/nav.ts:126`) precisely because it has no entry of
-  its own. That comment is the marker for this work.
+It lists **documents, not cases** — each is its own link straight to
+`{ name: "read", caseId, documentId }`. A launcher that stopped at the case would land
+everyone on `documents[0]` and make them pick again, which is what the case reader
+already does. Only cases whose `CaseListing.documents` count is non-zero are fetched,
+and the ones skipped are counted at the foot rather than dropped.
+
+`read` is a **separate route name from `reading`** on purpose: `read` carries a `caseId`
+in its type and a lot of this app narrows on that fact. See the comment in `router.ts`.
 
 **Do not do this by index.** `currentNav` used `NAV[2]` and `NAV[0]` until an entry was
 inserted second; that moved Library from 2 to 3 and would have lit the wrong rail entry
 on every case route, silently, because an index that still resolves does not throw. It
-is `navByScene(...)` now. Keep it that way.
+is `navByScene(...)` now. Keep it that way. An entry HAS now been inserted second and
+nothing moved, which is the lookup doing its job.
+
+### Three bugs this uncovered, all pre-existing, all invisible to the suite
+
+Every one was found by running the product and looking at it, which is what §5's last
+bullet has been saying.
+
+1. **The product could not draw its own reading scene.** `Backdrop.tsx` registered
+   scenes with five hand-written `atmo.register(...)` lines and `createSection` was
+   never among them, so `transitionTo("read")` threw `unknown scene "read"`. The throw
+   was in an effect *outside* the mount try/catch, so React unmounted the whole tree:
+   opening Read & mark blanked the product. It now registers from `STATES`, so the
+   copy is gone rather than corrected.
+
+2. **The viewer had never loaded a PDF.** pdf.js does not go through `api.ts`; handed a
+   bare URL it makes its own request, which carried no `Authorization` header, and
+   `/raw` is behind the same `can(..., "read")` guard as everything else — so it
+   answered **401** every time. `getDocument` now takes `{ url, httpHeaders }`. The
+   tests could not see this: `read.test.tsx` mocks pdf.js so no request is made, and
+   `server.test.ts` calls `/raw` *with* a header. Neither covered the only thing the
+   product actually does.
+
+3. **The record lit the wrong rail entry.** `record` was not in `currentNav`'s
+   case-route branch, so it fell to the `dashboard` fallback and the rail read CULTURE
+   over the Helix. Nothing threw, because a fallback is a legitimate answer.
+
+`apps/deliberation/test/nav.test.ts` is new and exists for this class: it checks the
+rail against the real scene registry, and asserts every route names a scene that
+exists — which is exactly the condition for the backdrop not throwing.
+
+**`apps/deliberation/shot.mjs` had its own copy of the route list too**, and did not
+include `read`. Same trap as its sibling, one level up. Fixed; keep it in step with
+`NAV`.
 
 ---
 
@@ -152,6 +211,45 @@ two are equal. Option 2 keeps that test; option 3 changes it deliberately.
 
 ## 5. Gotchas already paid for
 
+- **The demo store used to be stocked from a TEST FIXTURE, under real filenames.**
+  Every document in `results/documents` was output from `readablePdfBytes()` in
+  `services/api/test/server.test.ts` — the same four sentences on every page with the
+  page number swapped, written to clear the gate's vocabulary floors and nothing else —
+  filed under names like `turalio-211810-multidiscipline.pdf` that name real FDA
+  reviews. It is a fine test fixture and it was indefensible as demo content: the
+  reader looked like it was rendering regulatory reviews and was rendering a
+  keyword-stuffed stub. `npm run seed:documents` now fetches the real reports from EMA
+  and puts each one through `measure_pdf.py` before uploading it. **If the reader ever
+  shows a page reading "Page N of the nonclinical toxicology review", the fixture is
+  back.**
+- **`accessdata.fda.gov` refuses scripted clients INTERMITTENTLY — wait, do not
+  disguise the request.** It answers with a 420-byte Akamai abuse-detection page on
+  every path, not just the large ones, and that page will happily save itself as a
+  `.pdf` and fail much later as a corrupt document. It looks like a standing block and
+  is not one: the same URL that was refused for an hour afterwards served 6MB to plain
+  `fetch`, with no change of client. `npm run library:fetch` rebuilds the whole
+  `data/raw/approval-packages/` corpus — addressed by the application number already in
+  each filename, so there is no URL table to maintain — retrying on refusal and
+  checking `%PDF-` magic bytes on every download. **If a run comes back mostly empty,
+  run it again later.** Reaching for a browser user-agent is bypassing bot detection,
+  and it is also unnecessary.
+- **The corpus is committed, and the fetch script is no longer the only way in.**
+  `d4449a9` put 363MB of PDFs in the repository *because* no fetch script existed —
+  "retrieval meant hand-searching FDA's site for thirty-five documents. The stated
+  escape hatch did not exist." It exists now. That does not make the commit wrong: the
+  files never change, and committing them makes a first clone work offline. It does
+  mean the 363MB is now a choice that can be argued on its merits — the commit itself
+  names Git LFS as the next move — and that `library:fetch --verify` can check a
+  checkout's documents against what the manifest expects.
+- **The library is 17 sources and the dashboard is the cases you are on.** They are
+  different lists and it is not a bug: `library.ts` explains at length why library
+  documents are read in place instead of being copied into the upload store ("a public
+  FDA review indistinguishable from unpublished safety data a team uploaded"). Three
+  entries are unaskable and should be: TAK-994 never had a source document, tolcapone
+  is 48 scanned pages with no extractable text, and troglitazone is a labelling
+  supplement with no nonclinical chapter. A prepared case still shows full findings
+  with its document absent, because the findings are hand-transcribed into
+  `data/cases/` and committed.
 - **`apps/atmosphere/shot.mjs` carries its own copy of the scene list.** It silently
   skipped `read` when that scene was added and reported "no console errors" about a
   scene it had never mounted. Add new scenes to that list too.
@@ -191,7 +289,20 @@ two are equal. Option 2 keeps that test; option 3 changes it deliberately.
   what is actually mounted before trusting anything under `sections/`.
 - **Run the scene and look at it.** The previous handoff said this and it earned its
   place three times over in one session: typecheck, lint and the full suite all passed
-  on a scene that rendered nothing at all.
+  on a scene that rendered nothing at all. It then earned it three more times — see
+  §3. A blanked product, a viewer that had never once loaded a PDF, and a rail naming
+  the wrong world were all sitting behind a green suite, and all three were obvious
+  within a minute of opening the page.
+- **`npm run dev` binds 8787, 5274 and 5173 with `--strictPort`.** A stale API from an
+  earlier session holds 8787 and the whole stack refuses to start; `ARBITER_PORT` moves
+  only the public port, so it does not help. Find the owner
+  (`Get-NetTCPConnection -LocalPort 8787`) before assuming it is yours.
+- **Seeding accounts is not seeding cases.** `npm run seed:demo` creates the five
+  people and nothing else, so the reading room correctly says "No cases yet" on a fresh
+  checkout. To see it with data, open a case and upload through the real routes — the
+  upload gate measures every file, so the PDF has to be four-plus pages of genuine
+  toxicology vocabulary. `readablePdfBytes` in `services/api/test/server.test.ts`
+  builds one that passes.
 
 ---
 
@@ -201,6 +312,9 @@ two are equal. Option 2 keeps that test; option 3 changes it deliberately.
 npm install                    # first, always, after any pull
 npm run check:deps             # after PR #24 — says what npm install would fix
 npm run dev                    # http://localhost:5173/deliberation/
+npm run seed:demo              # the five accounts. NOT the cases, and not the documents
+npm run seed:documents         # the real EMA reports, gate-checked, onto the demo cases
+npm run library:fetch          # the 16-document library corpus into data/raw/approval-packages
 npx vitest run                 # 821 tests / 58 files here; 829 / 59 once #24 lands
 npm run typecheck
 npm run lint
@@ -212,8 +326,27 @@ ATMOSPHERE_URL=http://127.0.0.1:5187/ node apps/atmosphere/shot.mjs shots
 
 ## 7. State at handoff
 
-- 821 tests / 58 files, typecheck clean, lint clean locally, on `652adf5` + this
-  document. (829 / 59 on PR #24, which adds eight tests of its own.)
+- **901 tests / 60 files**, typecheck clean, lint clean, `deliberate:build` clean, and
+  `apps/deliberation/shot.mjs` reports no console errors on all five surfaces. This is
+  after the reading room (§3), which adds `nav.test.ts` and `readingRoom.test.tsx`, and
+  after the viewer work below. (Was 821 / 58 before it; PR #24 adds eight more of its
+  own on top.)
+- **The viewer rasterises to the column and to the device.** It painted at a fixed
+  scale of 1.4 and let `max-width: 100%` resample the result, so the page was soft on
+  every display and squashed out of its aspect ratio on a narrow one. It now measures
+  its column with a `ResizeObserver`, paints at `fit × devicePixelRatio`, and sets the
+  CSS box explicitly in both dimensions. The four guards are in `read.test.tsx` under
+  "the page raster" — they only work because the canvas is sized BEFORE `getContext` is
+  asked for, since jsdom has no 2d context and the paint returns early.
+- **A 144-page document can be read past page 1.** There was no pager at all: the only
+  route to any page but the first was a finding in the rail that happened to cite one.
+  The controls are links through the existing `:documentId/:page` route, so a page is
+  shareable and the back button works, and they sit ABOVE the canvas because a page
+  fitted to the column is taller than the window.
+- **Local `npx vitest run` needs PyMuPDF**, or two `beforeAll` hooks in
+  `server.test.ts` fail with `fixture: 422` and take nine tests down with them — the
+  §5 bullet about Python, seen from a laptop rather than from CI. `pip install
+  pymupdf==1.28.2`, the same pin `ci.yml` uses.
 - **CI is green on this branch, for the first time.** It had been red since Read & mark
   landed, and it took four separate causes, none of them visible from a local run:
   no Python on the runner (so every upload 422'd); no `seed:demo` (so the product could
