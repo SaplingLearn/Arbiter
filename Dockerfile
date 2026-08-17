@@ -109,10 +109,35 @@ RUN npm ci
 #
 # AND THE API PROCESS BELOW SERVES IT, via ARBITER_STATIC_DIR (set further down). That
 # is what makes this one container a whole product rather than half of one: the client
-# makes SAME-ORIGIN /api calls and signs itself in on load, so a site served from a
-# different origin than the API is a page that fails on its first request. One process
-# on one port removes the reverse proxy this would otherwise need. See the README's
-# "Deploying it".
+# makes SAME-ORIGIN /api calls, so a site served from a different origin than the API is
+# a page that fails on its first request. One process on one port removes the reverse
+# proxy this would otherwise need. See the README's "Deploying it".
+#
+# WHO THE CLIENT SIGNS IN AS IS DECIDED HERE, AT BUILD TIME, AND NOWHERE ELSE.
+#
+# `apps/deliberation/src/App.tsx` reads these two through `import.meta.env`, which Vite
+# SUBSTITUTES during the build below. That makes them build inputs and not configuration:
+# a runtime environment variable of the same name on the host - a Railway variable, a
+# `docker run -e`, an entry in fly.toml's [env] - arrives long after the bundle that would
+# have read it was written, and does exactly nothing. Silently, which is the problem: the
+# variable is present, spelled correctly, visible in the dashboard, and inert.
+#
+# So they are ARGs. Left unset - the default, and the right one - the built client asks
+# every visitor who they are. Passed, it signs everyone in as that identity without asking,
+# which is what a DEMONSTRATION deployment wants and is a disclosure anywhere else: the
+# shell is served at /deliberation/, so it hands a session to anyone who reaches that path,
+# and the record then says that person decided whoever was at the keyboard.
+#
+#   docker build --build-arg VITE_AUTO_EMAIL=r.okafor@arbiter.demo \
+#                --build-arg VITE_AUTO_PASSWORD=arbiter-demo-2026 .
+#
+# NOT A SECRET-SAFE CHANNEL, and it does not need to be: whatever goes in here is compiled
+# into a JavaScript file served to every visitor, so it is public the moment the image runs.
+# `docker history` exposing build args is not an additional leak here - it is the same fact
+# arriving earlier. Never put a real password behind these; the identity they name should be
+# a demonstration account and nothing else.
+ARG VITE_AUTO_EMAIL
+ARG VITE_AUTO_PASSWORD
 RUN npm run site:build
 
 # NOT ROOT. The service writes under results/ - uploaded documents, extraction caches,
