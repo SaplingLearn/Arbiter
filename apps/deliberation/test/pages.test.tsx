@@ -43,6 +43,18 @@ describe("AskPage document picker", () => {
     expect(screen.queryByLabelText("Your question")).not.toBeInTheDocument();
   });
 
+  it("names the file the answers are read from", () => {
+    render(<AskPage token="t" library={library} />);
+    expect(screen.getByText("turalio-211810-multidiscipline.pdf")).toBeInTheDocument();
+  });
+
+  it("prints no filename for an entry that has no source PDF", () => {
+    // The server writes "-" for a case assembled from extracted findings. Rendered
+    // literally that is a stray hyphen in the scope bar with nothing to explain it.
+    render(<AskPage token="t" library={[source({ name: "tak994", document: "-", askable: false, reason: "No source document." })]} />);
+    expect(screen.queryByText("-")).not.toBeInTheDocument();
+  });
+
   it("offers a summary of the whole document, at every point in a thread", () => {
     // "Give a summary of this document" cannot be served by retrieval - eight pages
     // picked by word overlap are not the document - so the summary is its own request
@@ -59,6 +71,42 @@ describe("AskPage document picker", () => {
   it("says there is nothing to ask when the library holds no readable document", () => {
     render(<AskPage token="t" library={[]} />);
     expect(screen.getByText(/Nothing to ask yet/)).toBeInTheDocument();
+  });
+
+  it("asks the document it is showing when the library arrives after the first render", async () => {
+    /**
+     * THE PAGE WAS INERT ON ARRIVAL. App.tsx fetches the library after mount, so
+     * AskPage's first render gets `[]`. The selection used to be seeded by a
+     * `useState` initialiser, which runs exactly once - on that empty render - so it
+     * was fixed at "" forever while the `<select>` displayed Turalio, because a select
+     * whose value matches no option falls back to option zero. `send` and `summarise`
+     * both return early on `source === ""`, so every chip and button did nothing at
+     * all, with no request and no error, until the dropdown was changed by hand.
+     *
+     * Rerendering with a library the first render did not have is the exact sequence.
+     */
+    const ask = vi.spyOn(api, "askLibrary").mockResolvedValue({
+      answerable: true, answer: "a", citedPassages: [], citations: [], historyTurnsUsed: 0,
+    });
+    const { rerender } = render(<AskPage token="t" library={[]} />);
+    rerender(<AskPage token="t" library={library} />);
+
+    fireEvent.change(screen.getByLabelText("Your question"), { target: { value: "what NOAEL was set" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    await waitFor(() => expect(ask).toHaveBeenCalled());
+    expect(ask.mock.calls[0]![1], "the question must go to the document on screen").toBe("turalio");
+  });
+
+  it("falls back when the pick no longer names a document the library holds", () => {
+    // A selection is a preference, not a fact about the list. If the library reloads
+    // without that entry the page must land on something real rather than on "".
+    const { rerender } = render(<AskPage token="t" library={library} />);
+    fireEvent.change(screen.getByLabelText("Which document"), { target: { value: "tolcapone" } });
+    expect(screen.getByLabelText("Which document")).toHaveValue("tolcapone");
+
+    rerender(<AskPage token="t" library={[source()]} />);
+    expect(screen.getByLabelText("Which document")).toHaveValue("turalio");
   });
 });
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
 import { PageHead, Section } from "./Layout.js";
+import { Markdown } from "./markdown.js";
 import { href } from "./router.js";
 import { api, ApiError, uploadDocument, type AskAnswer, type CaseListing, type CaseSummary, type LibrarySource, type Person } from "./api.js";
 
@@ -551,9 +552,29 @@ export function AskPage({ token, library }: {
   //
   // The first document that can be searched, so the page opens on something usable
   // rather than on whichever entry happens to be first.
-  const [source, setSource] = useState(
-    () => (library.find((s) => s.askable) ?? library[0])?.name ?? "",
-  );
+  //
+  // DERIVED, NOT SEEDED, AND THE DIFFERENCE WAS THE WHOLE PAGE. This was
+  // `useState(() => ...library.find(...))`, whose initialiser runs on the FIRST render
+  // only - and on the first render `library` is `[]`, because App.tsx fetches it after
+  // mount. So `source` was fixed at "" for the life of the page while the `<select>`
+  // showed Turalio: a select whose React value matches no option falls back to
+  // displaying option zero, and reading `.value` off the DOM returns that option's
+  // value. Every readout agreed and the state underneath was empty.
+  //
+  // What that cost: `send` and `summarise` both open with `if (... || source === "")
+  // return`, so every suggestion chip, the summary button and the Ask button did
+  // NOTHING AT ALL until the reader happened to change the dropdown by hand. Silently -
+  // no request, no error, no pending turn. The page was inert on arrival and looked
+  // completely normal.
+  //
+  // A `useEffect` that adopts the first document once the library lands would fix it
+  // and would reintroduce the same class of bug the moment the two fall out of step
+  // again. Deriving cannot: what the reader picked is state, what is SELECTED is a
+  // function of that and the list, and a pick that no longer names a real document
+  // (the library reloaded, an entry vanished) falls back on its own.
+  const [picked, setPicked] = useState<string | null>(null);
+  const preferred = (library.find((s) => s.askable) ?? library[0])?.name ?? "";
+  const source = picked !== null && library.some((s) => s.name === picked) ? picked : preferred;
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -570,7 +591,7 @@ export function AskPage({ token, library }: {
   // Turns belong to the document they were asked of. Carrying them across a change of
   // source would put one compound's answers under another's name on screen, and would
   // feed them back as context for a question about a different document.
-  const pick = (id: string): void => { setSource(id); setTurns([]); setError(null); };
+  const pick = (id: string): void => { setPicked(id); setTurns([]); setError(null); };
 
   const send = async (q: string): Promise<void> => {
     const text = q.trim();
@@ -657,23 +678,55 @@ export function AskPage({ token, library }: {
   return (
     <>
       <PageHead crumb={<span>Ask</span>} title="Ask the documents"
-        lede="Every answer comes from one of the library's regulatory reviews and names the page it rests on."
-        actions={
-          <div className="field">
-            <label htmlFor="ask-source">Which document</label>
-            <select id="ask-source" value={source} onChange={(e) => pick(e.target.value)} disabled={busy}>
-              {/* A refused document stays SELECTABLE, exactly as it does on the case
-                  library: choosing it shows the splitter's reason. Disabling it would
-                  leave somebody who came looking for tolcapone with a greyed-out name
-                  and no explanation. */}
-              {library.map((s) => (
-                <option key={s.name} value={s.name}>
-                  {s.label}{s.askable ? "" : " - cannot be searched"}
-                </option>
-              ))}
-            </select>
-          </div>
-        } />
+        lede="Every answer comes from one of the library's regulatory reviews and names the page it rests on." />
+
+      {/* THE SCOPE OF THE PAGE, ON ITS OWN ROW. This was an action in the page head's
+          right corner, where it rendered as a 565px native select floating below the
+          lede with nothing to align to - the widest object on the screen, in the slot
+          reserved for whatever a page happens to offer. It is not an action. Every
+          question, every answer and every citation below it is about ONE document, and
+          changing it clears the thread; that is the page's subject, so it gets a row
+          above the conversation rather than a corner beside the title.
+
+          The summary sits here for the same reason. It is an action on the DOCUMENT,
+          not a message in the thread, and it spent this whole time in the composer's
+          chip row wearing primary styling next to six ghost suggestions - two button
+          languages in one wall, with the real send button greyed out beneath them. */}
+      <div className="ask-scope">
+        <div className="ask-scope-pick">
+          <label htmlFor="ask-source">Which document</label>
+          <select id="ask-source" value={source} onChange={(e) => pick(e.target.value)} disabled={busy}>
+            {/* A refused document stays SELECTABLE, exactly as it does on the case
+                library: choosing it shows the splitter's reason. Disabling it would
+                leave somebody who came looking for tolcapone with a greyed-out name
+                and no explanation. */}
+            {library.map((s) => (
+              <option key={s.name} value={s.name}>
+                {s.label}{s.askable ? "" : " - cannot be searched"}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="ask-scope-meta">
+          {/* The file, not the path. The label above already says which review this is;
+              this line says which artefact on disk it was read from, which is the thing
+              a reader checks when an answer surprises them.
+
+              AN ENTRY WITH NO SOURCE PDF CARRIES "-", not an empty string - a case
+              assembled from extracted findings has no file, and the server writes a
+              dash rather than a name. Printed literally that is a stray hyphen floating
+              in the bar with nothing to explain it; the refusal panel below already
+              says why there is no document. */}
+          {selected !== undefined && selected.document.includes("/") && (
+            <span className="tiny mono">{selected.document.split("/").pop()}</span>
+          )}
+          {refusal === null && (
+            <button className="ghost" disabled={busy} onClick={() => void summarise()}>
+              {SUMMARY_LABEL}
+            </button>
+          )}
+        </div>
+      </div>
 
       {refusal !== null && (
         <div className="empty">
@@ -682,7 +735,11 @@ export function AskPage({ token, library }: {
               hand, and a paraphrase here would soften the one measurement that made
               the original replay plan impossible. */}
           <p className="muted">{refusal}</p>
-          <p className="tiny muted">{selected?.document}</p>
+          {/* Same guard as the scope bar: "-" is the server's way of saying there is no
+              file, and the sentence above has already said so in words. */}
+          {selected !== undefined && selected.document.includes("/") && (
+            <p className="tiny muted">{selected.document}</p>
+          )}
         </div>
       )}
 
@@ -720,7 +777,15 @@ export function AskPage({ token, library }: {
                 <div className="turn said">
                   {t.answer.answerable
                     ? <>
-                        <p>{t.answer.answer}</p>
+                        {/* THE ANSWER IS STRUCTURED PROSE AND WAS BEING DRAWN AS ONE
+                            SENTENCE. A summary measured off this deployment is 5,953
+                            characters with no newline in it; a question's answer runs
+                            to a dozen labelled sections inside a single paragraph.
+                            `services/api/ask.ts` now asks for the structure and this
+                            renders it - neither half is any use alone. */}
+                        <div className="md">
+                          <Markdown>{t.answer.answer}</Markdown>
+                        </div>
                         <div className="inv">
                           {t.answer.citations.map((c) => (
                             <div className="inv-row" key={`${c.documentId}-${c.page}`}>
@@ -732,7 +797,8 @@ export function AskPage({ token, library }: {
                       </>
                     : <>
                         <p><strong>The documents do not answer this.</strong></p>
-                        <p className="muted">{t.answer.answer}</p>
+                        {/* A refusal says WHAT is missing and is often a list of it. */}
+                        <div className="md muted"><Markdown>{t.answer.answer}</Markdown></div>
                       </>}
                 </div>
               )}
@@ -741,19 +807,24 @@ export function AskPage({ token, library }: {
         <div ref={foot} />
       </div>
 
+      {/* A COLD START AID, AND NO LONGER PART OF THE COMPOSER. Six full sentences
+          wrapped to three rows of buttons were the bulk of the box a reader was meant
+          to type into, sharing it with a primary-styled summary button and a greyed-out
+          send. They are not controls of the composer; they are a way in before there is
+          a thread, so they sit above it and leave when they are spent. */}
+      {turns.length === 0 && (
+        <div className="ask-start">
+          <p className="tiny mono">Or start with one of these</p>
+          <div className="chips">
+            {SUGGESTED.map((q) => (
+              <button key={q} className="ghost" disabled={busy} onClick={() => void send(q)}>{q}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="composer">
         {error !== null && <div className="err">{error}</div>}
-        {/* The summary stays available at every point in the thread, unlike the
-            suggestions: it is an action on the DOCUMENT, and wanting it after three
-            questions is at least as likely as wanting it before any. */}
-        <div className="chips">
-          <button className="primary" disabled={busy} onClick={() => void summarise()}>{SUMMARY_LABEL}</button>
-          {/* A cold start aid. Once a thread exists the reader has better questions
-              than these, and six of them under every follow-up is furniture. */}
-          {turns.length === 0 && SUGGESTED.map((q) => (
-            <button key={q} className="ghost" disabled={busy} onClick={() => void send(q)}>{q}</button>
-          ))}
-        </div>
         <div className="composer-row">
           <label className="sr-only" htmlFor="ask-q">Your question</label>
           {/* NOT disabled while busy, and that is the whole point of this row. Typing
@@ -783,16 +854,23 @@ export function AskPage({ token, library }: {
             {busy ? "Reading..." : "Ask"}
           </button>
         </div>
+        {/* TWO SENTENCES, NOT ONE PARAGRAPH. This was a single wrapped block that mixed
+            a search tip with a keyboard map, so neither was read. The tip is about how
+            to write a question and stays on the left with the box; the keys are a
+            property of the control and sit with the button that shares their job. */}
         <div className="composer-foot">
           <span className="hint">
-            The search is over the words on the page, so naming the study, finding or
-            number you want helps. Enter sends, Shift+Enter for a new line.
+            The search is over the words on the page - naming the study, finding or
+            number you want helps.
           </span>
-          {turns.length > 0 && (
-            <button className="link" disabled={busy} onClick={() => { setTurns([]); setError(null); }}>
-              Clear thread
-            </button>
-          )}
+          <span className="keys">
+            {turns.length > 0 && (
+              <button className="link" disabled={busy} onClick={() => { setTurns([]); setError(null); }}>
+                Clear thread
+              </button>
+            )}
+            <span className="tiny mono"><kbd>Enter</kbd> sends · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line</span>
+          </span>
         </div>
       </div>
       </>}
