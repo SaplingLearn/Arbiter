@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hash32, resolveBody } from "../src/core/subjects.js";
+import { hash32, mergeSubjects, resolveBody } from "../src/core/subjects.js";
 
 /**
  * The library as it actually ships: six bodies, two of them refused documents.
@@ -65,5 +65,66 @@ describe("which body a case is", () => {
     const allDead = KEYS.map(() => false);
     expect(resolveBody(KEYS, allDead, "case_1")).toBeGreaterThanOrEqual(0);
     expect(resolveBody([], [], "case_1")).toBe(-1);
+  });
+});
+
+describe("populating the field with every case a reader can see", () => {
+  const CATALOGUE = KEYS.map((key, i) => ({ key, usable: USABLE[i]! }));
+
+  it("gives every own-case a body of its own", () => {
+    const subjects = mergeSubjects(CATALOGUE, ["case_1", "case_2", "case_3"]);
+    expect(subjects).toHaveLength(9);
+    expect(subjects.slice(6).map((s) => s.key)).toEqual(["case_1", "case_2", "case_3"]);
+  });
+
+  /**
+   * THE POINT OF THE WHOLE CHANGE. Before this, own-cases had no body and borrowed one,
+   * so several of them shared a cube and flying to any of them landed on somebody
+   * else's case. With a body each, `resolveBody` exact-matches and the borrow never
+   * runs at all.
+   */
+  it("stops two cases ever sharing one cube", () => {
+    const own = Array.from({ length: 40 }, (_, i) => `case_${i}`);
+    const subjects = mergeSubjects(CATALOGUE, own);
+    const keys = subjects.map((s) => s.key);
+    const usable = subjects.map((s) => s.usable);
+
+    const landedOn = own.map((id) => resolveBody(keys, usable, id));
+    expect(new Set(landedOn).size).toBe(own.length);
+    // And each one landed on ITS OWN body, not merely on a distinct one.
+    own.forEach((id, i) => { expect(keys[landedOn[i]!]).toBe(id); });
+  });
+
+  /**
+   * The opposite error, and just as wrong. Opening `nipocalimab` from the library mints
+   * `nipocalimab-imaavy--<userId>` - the same case wearing an account's name, which
+   * already resolves to the catalogue body. A second entry would draw one case twice.
+   */
+  it("does not draw an opened library case a second time", () => {
+    const subjects = mergeSubjects(CATALOGUE, [
+      "nipocalimab-imaavy--u_aaa",
+      "turalio-pexidartinib--u_aaa",
+      "tolcapone--u_aaa",
+      "case_new",
+    ]);
+    expect(subjects).toHaveLength(7);
+    expect(subjects.map((s) => s.key)).toContain("case_new");
+    expect(subjects.filter((s) => s.key.startsWith("nipocalimab"))).toHaveLength(1);
+    // Two people opening the same library case still add nothing.
+    expect(mergeSubjects(CATALOGUE, ["nipocalimab-imaavy--u_a", "nipocalimab-imaavy--u_b"]))
+      .toHaveLength(6);
+  });
+
+  it("never marks a case somebody opened as refused", () => {
+    const subjects = mergeSubjects(CATALOGUE, ["case_1", "case_2"]);
+    for (const s of subjects.slice(6)) expect(s.usable).toBe(true);
+    // And the library's own two refusals are untouched.
+    expect(subjects.filter((s) => !s.usable).map((s) => s.key)).toEqual(["tolcapone", "troglitazone"]);
+  });
+
+  it("is stable, and idempotent on the same input", () => {
+    const once = mergeSubjects(CATALOGUE, ["case_1", "case_1", "case_2"]);
+    expect(once.map((s) => s.key)).toEqual([...KEYS, "case_1", "case_2"]);
+    expect(mergeSubjects(CATALOGUE, [])).toEqual(CATALOGUE);
   });
 });

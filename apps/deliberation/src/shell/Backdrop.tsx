@@ -1,5 +1,9 @@
 import { useEffect, useRef, type ReactElement } from "react";
 import type { Atmosphere, SceneSubject } from "@arbiter/atmosphere";
+/* The population rule, from the entry point that reaches no graphics. A value import
+   from "@arbiter/atmosphere" would pull `three` into first paint - see the note on the
+   dynamic import below, which exists to stop precisely that. */
+import { mergeSubjects } from "@arbiter/atmosphere/subjects";
 import type { CaseSummary } from "../api.js";
 import { type Route } from "../router.js";
 import { sceneFor, transitionFor } from "./nav.js";
@@ -23,9 +27,12 @@ import { sceneFor, transitionFor } from "./nav.js";
  * Imported dynamically so it never blocks first paint - the case list is on screen
  * and usable before the environment arrives behind it.
  */
-export function Backdrop({ route, catalogue, focusKey }: {
+export function Backdrop({ route, catalogue, mine = [], focusKey }: {
   route: Route;
   catalogue: CaseSummary[];
+  /** The viewer's own cases. See the population effect below for why the field is not
+   *  the catalogue alone. */
+  mine?: { caseId: string }[];
   /**
    * Which case the environment should single out, or null for the wide shot.
    *
@@ -182,25 +189,39 @@ export function Backdrop({ route, catalogue, focusKey }: {
   }, [focusKey]);
 
   /**
-   * ONE BODY IN THE ARCHIVE PER CASE IN THE LIBRARY.
+   * ONE BODY PER CASE THE READER CAN SEE - the library's, and their own.
    *
    * The scene used to draw a fixed field of forty-two over a catalogue of six, which is
-   * a claim about the size of the archive that the table underneath it disproves. The
-   * engine holds this across scene swaps, so it is announced whenever the list changes
-   * rather than when the library route opens - the Archive may not be the scene showing
-   * when the fetch lands, and it will be built with the right population when it is.
+   * a claim about the size of the archive that the table underneath it disproves. That
+   * became one body per LIBRARY case, which was right for the library page and wrong
+   * everywhere else: a case somebody opened themselves had no body at all, so it
+   * borrowed one, and several own-cases ended up sharing a cube while the flight to any
+   * of them landed on a body belonging to a different case.
    *
-   * Keyed on the joined names, not on array identity: App re-fetches into a new array
-   * on every sign-in and the contents are almost always the same six.
+   * `mergeSubjects` gives every case its own, and drops an opened library case rather
+   * than drawing it twice - `nipocalimab-imaavy--<userId>` is `nipocalimab` wearing an
+   * account's name, not a second case. The dark bodies are still exactly the library's
+   * two refusals, so counting them against the REFUSED rows in the table still works.
+   *
+   * The engine holds this across scene swaps, so it is announced whenever the list
+   * changes rather than when the library route opens - the Archive may not be the scene
+   * showing when the fetch lands, and it will be built with the right population when
+   * it is.
+   *
+   * Keyed on the joined keys, not on array identity: App re-fetches into a new array on
+   * every poll and the contents are almost always the same.
    */
-  const names = catalogue.map((c) => c.name).join(",");
+  const names = [...catalogue.map((c) => c.name), ...mine.map((c) => c.caseId)].join(",");
   useEffect(() => {
-    const subjects = catalogue.map((c) => ({ key: c.name, usable: c.usable }));
+    const subjects = mergeSubjects(
+      catalogue.map((c) => ({ key: c.name, usable: c.usable })),
+      mine.map((c) => c.caseId),
+    );
     wantedSubjects.current = subjects;
     atmoRef.current?.populate(subjects);
-    // `catalogue` is the value read and `names` is the identity that decides when to
-    // read it. Listing the array here instead would rebuild the field on every fetch
-    // that returned the same six cases.
+    // `catalogue` and `mine` are the values read and `names` is the identity that
+    // decides when to read them. Listing the arrays here instead would rebuild the
+    // field on every poll that returned the same cases.
   }, [names]);
 
   return <canvas ref={canvasRef} className="backdrop" aria-hidden="true" />;

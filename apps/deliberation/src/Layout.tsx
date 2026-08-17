@@ -19,11 +19,16 @@ import type { CaseSummary, Person } from "./api.js";
 
 export { initials } from "./shell/Chrome.js";
 
-export function Layout({ route, me, catalogue, focusKey, onSignOut, children }: {
+export function Layout({ route, me, catalogue, mine = [], focusKey, onSignOut, children }: {
   route: Route;
   me: Person | null;
   /** Passed straight through to the backdrop: the Archive draws one body per case. */
   catalogue: CaseSummary[];
+  /** The viewer's OWN cases, which the library catalogue knows nothing about. Also
+   *  straight through - the Archive needs a body for each of these or several of them
+   *  end up sharing one. Defaults to empty so a caller that has not loaded them yet
+   *  draws the library's bodies rather than none. */
+  mine?: { caseId: string }[];
   /** Also straight through — which case the environment singles out. See `Backdrop`. */
   focusKey: string | null;
   onSignOut: () => void;
@@ -39,7 +44,7 @@ export function Layout({ route, me, catalogue, focusKey, onSignOut, children }: 
           line of type vanished, because a panel carries backdrop-filter, which makes
           a stacking context, and a page title carries nothing. Out here the order is
           the whole argument: canvas at 0, shell at 1. */}
-      <Backdrop route={route} catalogue={catalogue} focusKey={focusKey} />
+      <Backdrop route={route} catalogue={catalogue} mine={mine} focusKey={focusKey} />
 
       <div className="shell">
       <Frame />

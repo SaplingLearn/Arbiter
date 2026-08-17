@@ -20,6 +20,11 @@ export type {
   SceneSubject,
 } from "./core/types.js";
 
+/* The field's population rule. Exported because the PRODUCT decides what a case is -
+   the package only draws what it is handed - and the one thing it must not do is
+   invent a second body for a case that already has one. */
+export { mergeSubjects, type Subject } from "./core/subjects.js";
+
 export { STATES, STATE_IDS, type StateDef } from "./scenes/registry.js";
 
 export { createArchive } from "./scenes/archive.js";

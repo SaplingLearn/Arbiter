@@ -329,7 +329,7 @@ export function App(): ReactElement {
   const focusKey = refusal?.name ?? caseId;
 
   const shell = (children: ReactElement): ReactElement => (
-    <Layout route={route} me={me} catalogue={catalogue} focusKey={focusKey} onSignOut={signOut}>
+    <Layout route={route} me={me} catalogue={catalogue} mine={mine} focusKey={focusKey} onSignOut={signOut}>
       {children}
     </Layout>
   );

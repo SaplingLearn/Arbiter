@@ -1,6 +1,14 @@
 /**
  * Which body in the Archive a case is, decided without any of the graphics.
  *
+ * PUBLISHED AS `@arbiter/atmosphere/subjects`, ITS OWN ENTRY POINT, and that is not
+ * tidiness. The package's main entry reaches `three`, which is ~500KB and larger than
+ * the rest of the product's bundle put together - `Backdrop` imports it dynamically for
+ * exactly that reason, so first paint never waits on scenery. The app has to decide the
+ * field's population during render, long before the engine has arrived, so it needs
+ * this rule at module scope. A second entry point that pulls in no graphics is what
+ * lets it have one without dragging the renderer in front of the type.
+ *
  * PULLED OUT OF `archive.ts` SO IT CAN BE TESTED. The rule below is the one place in
  * the scene where the environment makes a claim about a case rather than drawing one,
  * and it had a bug that no amount of looking at the shader would have found. Everything
@@ -58,12 +66,59 @@ export function resolveBody(keys: readonly string[], usable: readonly boolean[],
   const exact = keys.indexOf(key);
   if (exact !== -1) return exact;
 
-  const stem = key.split("--")[0] ?? key;
-  const byPrefix = keys.findIndex((k) => stem === k || stem.startsWith(`${k}-`));
+  const byPrefix = keys.findIndex((k) => prefixMatches(k, key));
   if (byPrefix !== -1) return byPrefix;
 
   const live: number[] = [];
   for (let i = 0; i < keys.length; i++) if (usable[i] === true) live.push(i);
   if (live.length === 0) return hash32(key) % keys.length;
   return live[hash32(key) % live.length]!;
+}
+
+/** Whether `key` is a caseId minted from the catalogue entry `bodyKey`. One copy,
+ *  because `resolveBody` and `mergeSubjects` have to agree about it exactly: the first
+ *  sends a case to a body and the second decides no new body is needed. */
+function prefixMatches(bodyKey: string, key: string): boolean {
+  const stem = key.split("--")[0] ?? key;
+  return stem === bodyKey || stem.startsWith(`${bodyKey}-`);
+}
+
+export interface Subject { key: string; usable: boolean }
+
+/**
+ * Every case that can be seen, as one body each.
+ *
+ * ONE CUBE PER CASE, AND NEVER TWO CASES SHARING ONE. The field used to be the library
+ * catalogue and nothing else, so a case somebody opened themselves had no body and
+ * borrowed one - which meant several of your own cases shared a cube, and flying to one
+ * of them landed on a body belonging to a different case entirely. Passing your own
+ * cases in gives `resolveBody` an exact match for every one of them, and the borrow
+ * stops happening at all rather than being made safer.
+ *
+ * AN OPENED LIBRARY CASE IS NOT A SECOND CASE. Opening `nipocalimab` from the library
+ * mints `nipocalimab-imaavy--<userId>`, which is the same case wearing an account's
+ * name. It already resolves to the catalogue body by prefix, so adding it again would
+ * put TWO cubes on screen for one case - the opposite error, and just as wrong. Those
+ * are dropped here, by the same predicate that does the resolving.
+ *
+ * OWN CASES ARE USABLE. `usable: false` means a document the splitter refused, which is
+ * a property of the library's corpus. A case a person opened is not a refused document
+ * and must never be drawn as one.
+ *
+ * The catalogue keeps the front of the list so the library's own bodies stay in a
+ * stable order as cases come and go behind them.
+ */
+export function mergeSubjects(
+  catalogue: readonly Subject[],
+  ownCaseIds: readonly string[],
+): Subject[] {
+  const out: Subject[] = [...catalogue];
+  const seen = new Set(catalogue.map((s) => s.key));
+  for (const id of ownCaseIds) {
+    if (seen.has(id)) continue;
+    if (catalogue.some((s) => prefixMatches(s.key, id))) continue;
+    seen.add(id);
+    out.push({ key: id, usable: true });
+  }
+  return out;
 }

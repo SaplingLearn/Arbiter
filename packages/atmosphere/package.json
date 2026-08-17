@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./subjects": "./src/core/subjects.ts"
   },
   "dependencies": {
     "gsap": "^3.15.0",
