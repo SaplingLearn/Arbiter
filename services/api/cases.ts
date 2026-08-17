@@ -79,8 +79,14 @@ export const CATALOGUE: CaseSummary[] = [
   { name: "nipocalimab", label: "Nipocalimab / Imaavy (myasthenia gravis)", shape: "Rich package, room splits three ways. Biologic, so 4 questions do not apply.", usable: true },
   { name: "slynd", label: "Slynd / drospirenone (contraception)", shape: "A 505(b)(2) with no new nonclinical studies at all. Almost nothing to cite.", usable: true },
   { name: "turalio", label: "Turalio / pexidartinib (giant cell tumour)", shape: "The most complete package here. Boxed warning for liver injury; the animal damage starts BELOW human exposure.", usable: true },
-  { name: "tolcapone", label: "Tolcapone / Tasmar (1998 review)", shape: "REFUSED - scanned images, zero extractable text.", usable: false },
-  { name: "troglitazone", label: "Troglitazone / Rezulin (1997 package)", shape: "REFUSED - readable, but it is a labelling supplement with no tox review.", usable: false },
+  /* THE REFUSALS DO NOT SAY "REFUSED", and `usable` above is why. The card that draws
+     this line already carries a red REFUSED badge two rows up, off that same flag, so a
+     shape opening on the word in capitals was the badge said twice - the only shouted
+     lead-in on a page where the other four entries open on a sentence. What is left is
+     the line doing the job every other shape does: what the document is, then what that
+     costs the reader. The status is the badge's to state; this says what it means. */
+  { name: "tolcapone", label: "Tolcapone / Tasmar (1998 review)", shape: "Scanned images end to end. No extractable text, so there is nothing to cite.", usable: false },
+  { name: "troglitazone", label: "Troglitazone / Rezulin (1997 package)", shape: "Readable, but it is a labelling supplement. No toxicology review in it at all.", usable: false },
 ];
 
 export function refusalFor(name: CaseName): RefusedCase | null {
