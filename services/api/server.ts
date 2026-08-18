@@ -109,33 +109,40 @@ function staticRoot(env: NodeJS.ProcessEnv = process.env): string | null {
 }
 
 /**
- * `/r/:caseId/:token` - THE PUBLIC REPORT PAGE - IS NOT SERVED IN PRODUCTION, AND THAT
- * IS A DEFERRED DECISION RATHER THAN A BUG IN THIS FILE.
+ * THE ONE FILENAME THIS SERVER ANSWERS WITH THAT IS NOT IN THE URL.
  *
- * The public API route below (`/api/public/report/:caseId/:token`) is always served and
- * is where the record itself comes from. What is missing is the HTML that draws it:
- * `apps/deliberation/vite.config.ts`'s dev-server middleware answers `/r/*` with
- * `public.html` under `npm run deliberate:dev`, and nothing answers it once the site is
- * a built directory - `serveStatic` resolves `/r/<caseId>/<token>` to a file that does
- * not exist and returns 404. So a QR code scanned against a deployed host reaches a 404
- * page today, and a convener should not be handed one.
+ * `/r/:caseId/:token` is the share link - what a QR code printed onto a record carries,
+ * and what somebody pastes into a chat. It is a real path rather than a fragment for
+ * exactly that reason, which makes it the only route in either app that a static file
+ * server cannot satisfy by looking up the path it was given.
  *
- * TWO THINGS HAVE TO BE DECIDED BEFORE THIS IS WIRED UP, and neither belongs to the
- * change that added the route:
- *
- *   1. `serveStatic` deliberately has NO REWRITE TABLE (see the comment inside it), so
- *      pointing `/r/*` at `public.html` means introducing the first one - and the value
- *      of not having one is that a missing asset 404s instead of coming back as an HTML
- *      page with status 200.
- *   2. `public.html` references its assets ROOT-ABSOLUTELY (vite.config.ts's
- *      `renderBuiltUrl`, because `/r/:caseId/:token` is two real path segments deep), so
- *      it only works from a root mount. `tools/stage-site.mjs` stages the whole client
- *      under `/deliberation/`, where those references resolve to nothing.
- *
- * WHAT MUST NOT BE THE FIX: rewriting unmatched paths to `index.html`. That document
- * loads `App.tsx`, which signs its visitor in as AUTO_EMAIL on load - so an SPA
- * fallback would hand an authenticated session to anyone who mistyped a share URL.
+ * `tools/stage-site.mjs` writes this file to the SITE ROOT, and writes it there rather
+ * than leaving it at `/deliberation/public.html` so that the two facts about it - where
+ * it is mounted, and what its asset references claim - are set by one script instead of
+ * two files that do not know about each other. See the note in that file.
  */
+const PUBLIC_PAGE = "public.html";
+
+/**
+ * Is this decoded path a whole share link?
+ *
+ * EXACTLY THREE SEGMENTS, which is the same shape `/api/public/report/:caseId/:token`
+ * reads off `parts[3]` and `parts[4]` further down this file. The page and the API
+ * therefore agree on what a share URL is: a page that rendered for shapes the API
+ * refuses would draw itself and then fail its own fetch, which is a worse way to say
+ * "this link is not valid" than not being there.
+ *
+ * WHAT THE TWO SEGMENTS ARE IS NOT THIS FUNCTION'S BUSINESS, and that is the security
+ * property rather than laziness. The caller serves ONE FIXED FILENAME on a match, so
+ * neither segment is ever used to construct a path - there is nothing for a traversal
+ * payload in either of them to steer, and no `/r/`-prefixed variant of every case in the
+ * traversal suite is needed to prove it. `verifyToken` is what judges the token, on the
+ * API route, with the secret this process holds; the page's job is only to load.
+ */
+function isShareLink(decoded: string): boolean {
+  const parts = decoded.split("/").filter((p) => p !== "");
+  return parts.length === 3 && parts[0] === "r";
+}
 
 /**
  * Content types by extension, and this table is load-bearing rather than tidy.
@@ -235,7 +242,25 @@ async function serveStatic(
   // path. Refused before anything constructs a filename from it.
   if (decoded.includes("\0")) return json(res, 400, { error: "bad_request" });
 
-  const target = resolve(root, `.${decoded}`);
+  /**
+   * THE ONE REWRITE, AND IT REWRITES TO A CONSTANT.
+   *
+   * A share link names no file, so it is the single path here that has to be answered
+   * with a document chosen rather than looked up. Note what this is NOT: it is not a
+   * table, it is not a pattern with the request interpolated into a filename, and there
+   * is no arm that catches anything else. `PUBLIC_PAGE` is a literal, so a request that
+   * matches contributes nothing to the path that gets opened - the traversal reasoning
+   * below applies unchanged, and applies to a string this function chose.
+   *
+   * Everything downstream is deliberately left to run over it: the containment check
+   * (which passes, and is cheap, and would catch a future edit that made this dynamic),
+   * `statOrNull` - so a root with no `public.html` answers 404 rather than falling back -
+   * and the cache policy, which reads the SERVED path and therefore gives this document
+   * the same `no-cache` it gives index.html, for the same reason: a fixed name that names
+   * hashed assets is the one file a redeploy changes in place.
+   */
+  const shareLink = isShareLink(decoded);
+  const target = shareLink ? join(root, PUBLIC_PAGE) : resolve(root, `.${decoded}`);
 
   /**
    * CONTAINMENT BY `relative()`, NOT BY `startsWith()` ON THE JOINED STRING.
@@ -291,11 +316,21 @@ async function serveStatic(
   }
 
   /**
-   * NO SPA REWRITE TABLE, deliberately. Both apps route on the fragment - `#/case/123`
-   * - so every route in either of them is a request for that app's index.html and
-   * nothing else. The usual "rewrite any unmatched path to index.html" rule would buy
-   * nothing here and would cost the ability to answer 404: a missing asset would come
-   * back as an HTML page with status 200, which is how a broken deploy hides.
+   * STILL NO SPA REWRITE TABLE, and the share-link rule above is not the start of one.
+   *
+   * Both apps route on the fragment - `#/case/123` - so every route in either of them is
+   * a request for that app's index.html and nothing else. The usual "rewrite any
+   * unmatched path to index.html" rule would buy nothing here and would cost the ability
+   * to answer 404: a missing asset would come back as an HTML page with status 200, which
+   * is how a broken deploy hides.
+   *
+   * AND IT WOULD COST MORE THAN THAT NOW. `index.html` is the app shell, and a build made
+   * with `VITE_AUTO_EMAIL` and `VITE_AUTO_PASSWORD` set signs its visitor in on load
+   * (see the note at the top of apps/deliberation/src/App.tsx). An unmatched-path
+   * fallback would hand that document - and on such a build, a session - to anyone who
+   * mistyped a share URL by one character. The rule above exists precisely so that the
+   * one path which genuinely needs a document it cannot name gets a document that cannot
+   * sign anybody in, and nothing else changes.
    */
   let file = target;
   if (info !== null && info.isDirectory()) {
@@ -335,6 +370,21 @@ async function serveStatic(
     "content-type": CONTENT_TYPES[extname(file).toLowerCase()] ?? "application/octet-stream",
     "cache-control": immutable ? "public, max-age=31536000, immutable" : "no-cache",
     etag,
+    /**
+     * NOINDEX ON THE SHARE DOCUMENT, matching what `/api/public/report/:caseId/:token`
+     * already sets on the data behind it.
+     *
+     * `public.html` carries `<meta name="robots" content="noindex, nofollow">`, which every
+     * crawler that parses the document honours - so this is defence in depth rather than a
+     * hole being closed. What the header adds is coverage for the fetches that never parse
+     * the HTML at all: a crawler taking the URL from a referrer log or a proxy, a preview
+     * bot reading headers to decide whether to render, an archiver. The token is the
+     * control; not being indexed is courtesy, and courtesy is cheaper to state twice.
+     *
+     * Only on the share link. Everything else in the built site - the landing page above
+     * all - is meant to be found.
+     */
+    ...(shareLink ? { "x-robots-tag": "noindex" } : {}),
   };
 
   if (req.headers["if-none-match"] === etag) {

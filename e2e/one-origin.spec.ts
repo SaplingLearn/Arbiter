@@ -84,6 +84,51 @@ test("the API answers on the same origin", async ({ request }) => {
 });
 
 /**
+ * THE SHARE LINK REACHES THE RECORD PAGE HERE TOO, and the failure it replaces was not a
+ * 404 but a 200.
+ *
+ * `/r/:caseId/:token` is the one URL in the product that is not under `/deliberation/` -
+ * it is what a QR code printed onto a record carries. This server's proxy table did not
+ * mention it, so the landing app's own dev server answered it with the MARKETING PAGE at
+ * status 200: a share URL opened during development looked like a feature that was broken
+ * rather than one that was not routed, which is the more expensive of the two to work out.
+ *
+ * No token is published here - that needs a case, and `public-record.spec.ts` does it
+ * against a built site where it belongs. What this asserts is that the path arrives at the
+ * right DOCUMENT, which is the thing the proxy table decides. The page then says the link
+ * is not valid, because the API refuses an id it has never seen - and that refusal is the
+ * proof it reached the public entry rather than the landing page.
+ */
+test("a share URL reaches the record page rather than the landing page", async ({ page }) => {
+  await page.goto("/r/no-such-case/not-a-token");
+
+  await expect(page).toHaveTitle(/Deliberation record/i);
+  await expect(page).not.toHaveTitle(/ARBITER/i);
+  await expect(page.getByText(/This link is not valid/i)).toBeVisible();
+});
+
+/**
+ * DEVELOPMENT ACCEPTS EXACTLY WHAT PRODUCTION ACCEPTS, and this is what keeps them in step.
+ *
+ * The dev middleware matched `startsWith("/r/")` while `serveStatic` requires exactly three
+ * segments, so `/r/onlyonesegment` drew the record page here and 404'd on a built site. And
+ * the landing proxy was keyed on the literal `/r/`, which does not match a bare `/r` - so
+ * that one path fell through to the landing app and came back as the MARKETING PAGE at
+ * status 200, the precise failure the proxy entry exists to remove.
+ *
+ * Deliberately the same shapes `e2e/public-record.spec.ts` checks against the built site.
+ * Two implementations of one rule cannot be held together by a comment; they can be held
+ * together by two tests that fail in opposite places when they disagree.
+ */
+test("a truncated share URL is refused here exactly as it is on a built site", async ({ page }) => {
+  for (const path of ["/r", "/r/", "/r/only-one-segment", "/r/a/b/c"]) {
+    const res = await page.goto(path);
+    await expect(page, path).not.toHaveTitle(/Deliberation record/i);
+    expect(res?.status(), `${path} should not be answered with a page`).not.toBe(200);
+  }
+});
+
+/**
  * The landing page's one link into the product has to resolve on this origin.
  * It used to point at a separate port via `.env.development`, which meant it 404'd
  * for anyone running the unified server.

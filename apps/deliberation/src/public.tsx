@@ -8,11 +8,17 @@ import "./app.css";
  * The record, to somebody who is not signed in.
  *
  * ITS OWN ENTRY POINT, and that is the security design rather than a build convenience.
- * `App.tsx` authenticates on load from AUTO_EMAIL, so a public route inside that shell
- * would sign its visitor in, and the only thing preventing it would be a condition
- * somebody has to keep remembering. This bundle cannot sign anybody in because the code
- * that does it is not in it - the same argument `access.ts` makes for writing rules that
- * fail closed instead of open.
+ * `App.tsx` authenticates on load wherever a build gave it an identity to authenticate as,
+ * so a public route inside that shell would sign its visitor in, and the only thing
+ * preventing it would be a condition somebody has to keep remembering. This bundle cannot
+ * sign anybody in because the code that does it is not in it - the same argument
+ * `access.ts` makes for writing rules that fail closed instead of open.
+ *
+ * NOTE THAT THIS ARGUMENT DOES NOT DEPEND ON THAT BUILD FLAG, and must not be rewritten to.
+ * `App.tsx` only carries credentials in development or where a deployment asked for them,
+ * which narrows how often the shell hands out a session - it does not make the shell a
+ * thing this page may be folded into. A separate entry is structural; a build variable is
+ * a condition, and the whole point of the separation is not having one.
  *
  * NOTHING AUTHENTICATED IS IMPORTED HERE. Not App, not the bearer-token api client, not
  * the case screens. If a future change needs one of them on this page, that is the

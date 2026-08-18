@@ -6,9 +6,12 @@ that has since become `main`. Those two own the numbers and the reading surface;
 owns the open PRs and the branch topology underneath them.
 
 A previous session reconciled that topology and merged what was ready. As of the overnight
-review on 2026-08-17, **no pull request is open**: #24, #25, #33 and #34 merged; #27, #28
-and #30 closed, each for a reason recorded in §4. What remains is one gap in a shipped
-feature (§7 item 9), not a queue. Read all of this before touching anything.
+review on 2026-08-17, **no pull request was open**: #24, #25, #33 and #34 merged; #27, #28
+and #30 closed, each for a reason recorded in §4. The one gap that remained — `/r/:caseId/:token`
+unserved in production — is **§7 item 9, and it is closed**, on the branch behind PR #35;
+what is still open there is the product decision item 9 names, not the routing. Count the
+open PRs against `gh pr list` rather than against this paragraph, which has been wrong
+before. Read all of this before touching anything.
 
 **This document is now mostly a record rather than a plan**, and the parts of it that were
 wrong are marked where they were wrong rather than deleted — twice this session a stale
@@ -517,11 +520,35 @@ reads that file alone, which is what pins a configuration), but the count above 
 8. ~~Delete `feat/product-in-the-atmosphere`~~ — **DONE**, remote and local. It was 0 ahead
    of `main` and fully contained in it (the local copy was a different commit, `51bc0df`,
    and also fully contained), and no open PR targeted it.
-9. **Serve `/r/:caseId/:token` in production.** #34 shipped the public API route and the
-   page, and the page is served only by `npm run deliberate:dev` - so a scanned QR code
-   404s on a deployed host. Deliberately deferred, with the two decisions it needs written
-   up beside `staticRoot()` in `services/api/server.ts` and in the README. This is the one
-   gap that makes a shipped feature look broken rather than absent.
+9. ~~**Serve `/r/:caseId/:token` in production.**~~ — done, on `feat/serve-public-record-page`
+   off `50d6cb9`. `serveStatic` answers a three-segment share link with `public.html` from
+   the site root — one rule that resolves to one constant, so neither the case id nor the
+   token is ever used to build a filename and a root without that document 404s rather than
+   falling back. `tools/stage-site.mjs` puts the document at the root with its asset
+   references pointed at the directory it staged the client into, and fails the build if one
+   of them does not resolve. `npm run dev` proxies `/r/` instead of answering it with the
+   marketing page at status 200.
+
+   **The failure it closes was a 200, not a 404**, which is why it survived a green suite:
+   staged under `/deliberation/`, `public.html` still asked for `/assets/public-<hash>.js`,
+   where the landing page's own bundle lives under different names — a document that parses,
+   a correct content type, and a blank page. `e2e/public-record.spec.ts` is a second
+   Playwright project that builds the site, publishes a record over the API and opens the
+   link in a browser; it asserts on failed subresource requests *before* asserting on
+   content, because with the content check first the same defect fails by five-second
+   timeout naming a compound instead of immediately naming the asset. Nothing in the repo
+   opened a built site before it.
+
+   The auto-sign-in question this waited on was answered in the same change, because
+   serving the share link is what made it urgent. `VITE_AUTO_EMAIL` and `VITE_AUTO_PASSWORD`
+   lost their hardcoded defaults and are scoped to `import.meta.env.DEV`, which the minifier
+   drops from a production bundle entirely; the `AuthPage` that had been sitting exported and
+   unreferenced since sign-in was removed is what a built shell shows instead. Development,
+   `npm run dev` and the suite are unchanged. **What was NOT done** is restoring real sign-in
+   as the product's own behaviour — `App.tsx` still argues for opening straight into the
+   product, and a demo deployment still opts into one shared identity with the attribution
+   cost that file describes. That remains a product decision, and it is now the only part of
+   this item still open.
 
 **NO PULL REQUESTS REMAIN OPEN as of 2026-08-17.** #25 merged; #27, #28 and #30 closed;
 #33 and #34 merged earlier. The retargeting that made this possible — #25, #27 and #30

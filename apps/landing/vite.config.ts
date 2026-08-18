@@ -34,17 +34,36 @@ export default defineConfig({
      * origin and the browser never makes a cross-origin request:
      *
      *   /deliberation/ -> apps/deliberation  (vite, internal port 5274)
+     *   /r/            -> apps/deliberation  (the same server, for the share link)
      *   /api           -> services/api       (8787)
      *
      * `ws: true` carries the proxied app's HMR websocket - without it the
      * deliberation client loads through the proxy but never hot-reloads, which
      * looks like a broken dev server rather than a missing flag.
      *
+     * `/r/:caseId/:token` IS THE PUBLIC RECORD PAGE, and it needs an entry of its own
+     * because it is a real path rather than a fragment - the one URL in this product
+     * that is not under `/deliberation/`, because it is what a QR code printed onto a
+     * record carries and a reader holding one is not "opening the app". Without this
+     * line the landing app's own catch-all answered it: a share URL opened against
+     * `npm run dev` came back 200 with the MARKETING PAGE, which reads as a feature
+     * that is broken rather than one that is not wired up, and is the more expensive
+     * of the two to diagnose. `apps/deliberation/vite.config.ts` rewrites it onto
+     * `public.html` at the far end.
+     *
      * Standalone `landing:dev` still works; the proxies just 502 until their
      * targets are running, and nothing on this page requests them unprompted.
      */
     proxy: {
       "/deliberation": { target: "http://127.0.0.1:5274", ws: true },
+      /* A REGEX, so bare `/r` is proxied too. As the literal `/r/` this matched every
+         whole share link and missed the one path most likely to be typed by hand - and a
+         miss here does not 404, it falls through to this app and answers with the MARKETING
+         PAGE at status 200, which is the exact failure the entry was added to remove,
+         surviving for one URL shape. `^` makes Vite read the key as a pattern rather than
+         as a prefix; `(/|$)` keeps `/reports` or `/roster` out of it, which a bare `/r`
+         prefix would have swallowed. */
+      "^/r(/|$)": { target: "http://127.0.0.1:5274" },
       "/api": { target: `http://127.0.0.1:${process.env["API_PORT"] ?? 8787}`, changeOrigin: false },
     },
   },

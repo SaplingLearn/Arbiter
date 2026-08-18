@@ -1332,6 +1332,11 @@ describe("the built site, behind ARBITER_STATIC_DIR", () => {
 
   const LANDING_HTML = "<!doctype html><title>landing</title><script src=\"/assets/landing-aaa.js\"></script>";
   const CLIENT_HTML = "<!doctype html><title>deliberation client</title><script src=\"./assets/client-bbb.js\"></script>";
+  /* The public record page as `tools/stage-site.mjs` writes it to the SITE ROOT: a
+     root-absolute reference into the staged client's own assets/ directory. Root-absolute
+     because this document is served at `/r/<caseId>/<token>`, two real path segments deep,
+     where a relative `./assets/...` would resolve against `/r/<caseId>/` and 404. */
+  const PUBLIC_HTML = "<!doctype html><title>Deliberation record</title><script src=\"/deliberation/assets/public-ddd.js\"></script>";
 
   beforeAll(async () => {
     const tmp = mkdtempSync(join(tmpdir(), "arb-site-"));
@@ -1339,10 +1344,12 @@ describe("the built site, behind ARBITER_STATIC_DIR", () => {
     mkdirSync(join(root, "assets"), { recursive: true });
     mkdirSync(join(root, "deliberation", "assets"), { recursive: true });
     writeFileSync(join(root, "index.html"), LANDING_HTML);
+    writeFileSync(join(root, "public.html"), PUBLIC_HTML);
     writeFileSync(join(root, "assets", "landing-aaa.js"), "export const which = 'landing';\n");
     writeFileSync(join(root, "assets", "landing-aaa.css"), ":root{--which:landing}\n");
     writeFileSync(join(root, "deliberation", "index.html"), CLIENT_HTML);
     writeFileSync(join(root, "deliberation", "assets", "client-bbb.js"), "export const which = 'client';\n");
+    writeFileSync(join(root, "deliberation", "assets", "public-ddd.js"), "export const which = 'public';\n");
     writeFileSync(join(root, "deliberation", "assets", "worker-ccc.mjs"), "export const which = 'worker';\n");
     writeFileSync(join(root, "unknown.qqq"), "not a type this server knows\n");
 
@@ -1513,6 +1520,105 @@ describe("the built site, behind ARBITER_STATIC_DIR", () => {
     expect(await res.text()).not.toContain("<!doctype html>");
   });
 
+  /**
+   * THE SHARE LINK'S PAGE, and the one path in this server that answers with a document
+   * whose name is not in the URL.
+   *
+   * `/r/:caseId/:token` is what a QR code printed onto a record carries, so it is a real
+   * path rather than a fragment - which makes it the first and only thing here that needs
+   * a rewrite. The asset reference is the half of this that is easy to get wrong and
+   * impossible to see: `public.html` names its bundle root-absolutely, so serving the
+   * document from a mount where that reference does not resolve produces a 200 with a
+   * blank body and a 404 in the console - which reads as working from every angle except
+   * the reader's.
+   */
+  it("answers a share link with the public record page, assets and all", async () => {
+    const res = await fetch(`${siteBase}/r/c1/AbCd-_123`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(await res.text()).toBe(PUBLIC_HTML);
+
+    // The whole point: the script that document names is actually there.
+    const asset = await fetch(`${siteBase}/deliberation/assets/public-ddd.js`);
+    expect(asset.status).toBe(200);
+    expect(await asset.text()).toContain("'public'");
+  });
+
+  /**
+   * NOT index.html, which is the document that signs its visitor in as AUTO_EMAIL when a
+   * deployment has built one with credentials. A share URL that landed on the app shell
+   * would hand a session to anyone who mistyped one, so this asserts the negative rather
+   * than trusting the positive above.
+   */
+  it("never answers a share link with the app shell or the landing page", async () => {
+    const html = await (await fetch(`${siteBase}/r/c1/AbCd-_123`)).text();
+    expect(html).not.toContain("<title>landing</title>");
+    expect(html).not.toContain("<title>deliberation client</title>");
+  });
+
+  /** Same reason index.html is never cached: this document has a fixed name and NAMES the
+   *  hashed bundle, so a stored copy outlives the assets it points at. */
+  it("does not cache the public record page", async () => {
+    const res = await fetch(`${siteBase}/r/c1/AbCd-_123`);
+    expect(res.headers.get("cache-control")).toBe("no-cache");
+  });
+
+  /**
+   * NOINDEX, the same header `/api/public/report/...` sets on the data behind this page.
+   * `public.html` also carries a robots META tag, so this is the second statement of the
+   * same wish rather than the only one - it covers the fetches that never parse the HTML.
+   * The landing page must NOT carry it: that one is meant to be found.
+   */
+  it("asks robots not to index a share link, and only a share link", async () => {
+    const shared = await fetch(`${siteBase}/r/c1/AbCd-_123`);
+    expect(shared.headers.get("x-robots-tag")).toBe("noindex");
+
+    for (const path of ["/", "/index.html", "/deliberation/"]) {
+      const res = await fetch(`${siteBase}${path}`);
+      expect(res.headers.get("x-robots-tag"), path).toBeNull();
+    }
+  });
+
+  /**
+   * EXACTLY THREE SEGMENTS, matching what `/api/public/report/:caseId/:token` reads off
+   * `parts[3]` and `parts[4]`. The page and the API therefore agree on what a share URL
+   * is; a page that accepted shapes the API refuses would render itself and then fail its
+   * own fetch, which is a worse way to say "not a valid link" than not existing.
+   */
+  it("does not answer anything under /r that is not a whole share link", async () => {
+    for (const path of ["/r", "/r/", "/r/c1", "/r/c1/", "/r/c1/tok/extra", "/r//tok"]) {
+      const res = await fetch(`${siteBase}${path}`);
+      expect(res.status, path).toBe(404);
+      expect(await res.text(), path).not.toContain("<!doctype html>");
+    }
+  });
+
+  /**
+   * THE CASE ID AND TOKEN NEVER BECOME A FILENAME. The rule recognises the shape and then
+   * serves ONE fixed path, so there is nothing for a payload in either segment to steer -
+   * which is why the traversal suite above does not need a `/r/` variant of every case.
+   * A dot segment gets the record page, not a file above the root, and the page then says
+   * the link is not valid because the API refuses the id.
+   */
+  it("cannot be steered out of the root by what is in the two segments", async () => {
+    for (const path of [
+      "/r/%2e%2e/%2e%2e",
+      "/r/%2e%2e%2fsecret.env/tok",
+      "/r/c1/%2e%2e%2f%2e%2e%2fsecret.env",
+      "/r/%252e%252e%252fsecret.env/tok",
+    ]) {
+      const res = await fetch(`${siteBase}${path}`);
+      expect([200, 404], path).toContain(res.status);
+      expect(await res.text(), path).not.toContain(SECRET);
+    }
+  });
+
+  /** The method guard runs ahead of the rewrite, as it does for every other static path.
+   *  A share link is a document to read. */
+  it("refuses a write to a share link", async () => {
+    expect((await fetch(`${siteBase}/r/c1/AbCd-_123`, { method: "POST" })).status).toBe(405);
+  });
+
   it("serves HEAD with headers and no body, and refuses a write", async () => {
     const head = await fetch(`${siteBase}/`, { method: "HEAD" });
     expect(head.status).toBe(200);
@@ -1546,5 +1652,46 @@ describe("the built site, behind ARBITER_STATIC_DIR", () => {
       expect(res.status, path).toBe(404);
       expect(await res.json()).toEqual({ error: "not_found" });
     }
+  });
+});
+
+/**
+ * A ROOT WITH NO public.html, which is what `ARBITER_STATIC_DIR` pointed at for every
+ * deployment before `tools/stage-site.mjs` learned to write one - and what it points at
+ * again the moment somebody builds the landing page alone.
+ *
+ * The rewrite fails CLOSED. `/r/*` resolves to one fixed filename and answers 404 when it
+ * is not there, rather than falling back to whatever else the root holds. The fallback is
+ * the whole hazard: `index.html` is at that root, it is the document that signs its
+ * visitor in when a deployment built one with credentials, and "serve index.html for any
+ * path that has no file" is the one-line change that would connect the two.
+ */
+describe("a share link against a site that has no public record page", () => {
+  let siteBase: string;
+  let siteServer: Server;
+
+  beforeAll(async () => {
+    const root = join(mkdtempSync(join(tmpdir(), "arb-nopub-")), "dist");
+    mkdirSync(root, { recursive: true });
+    writeFileSync(join(root, "index.html"), "<!doctype html><title>landing only</title>");
+
+    const handler = makeHandler({ ...deps, staticDir: root });
+    siteServer = createServer((req, res) => { void handler(req, res); });
+    await new Promise<void>((r) => siteServer.listen(0, "127.0.0.1", r));
+    siteBase = `http://127.0.0.1:${(siteServer.address() as AddressInfo).port}`;
+  });
+
+  afterAll(async () => { await new Promise<void>((r) => siteServer.close(() => r())); });
+
+  it("404s rather than falling back to the document at the root", async () => {
+    const res = await fetch(`${siteBase}/r/c1/AbCd-_123`);
+    expect(res.status).toBe(404);
+    const body = await res.text();
+    expect(body).not.toContain("landing only");
+    expect(body).not.toContain("<!doctype html>");
+  });
+
+  it("still serves the site it does have", async () => {
+    expect((await fetch(`${siteBase}/`)).status).toBe(200);
   });
 });

@@ -7,7 +7,7 @@ import {
   type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
-import { AskPage, Dashboard, LibraryPage, NewCasePage } from "./pages.js";
+import { AskPage, AuthPage, Dashboard, LibraryPage, NewCasePage } from "./pages.js";
 import {
   Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
   Refused, Reveal, RosterPanel, Verdict, Waiting,
@@ -30,15 +30,55 @@ import "./app.css";
  * reveal is available.
  */
 
+/** The shape of `import.meta.env` this file actually reads. Named so the decision below
+ *  can be handed an environment and tested, rather than only observed after a build. */
+export interface AutoSignInEnv {
+  readonly VITE_AUTO_EMAIL?: string | undefined;
+  readonly VITE_AUTO_PASSWORD?: string | undefined;
+  readonly DEV?: boolean | undefined;
+}
+
 /**
- * The identity every visitor arrives as.
+ * The identity every visitor arrives as - IN DEVELOPMENT, OR WHERE A BUILD ASKED FOR ONE.
  *
- * Configurable so a deployment can point it somewhere other than the seeded demo lead,
- * and so this file does not hard-code a password. See the note at the sign-in branch
- * below for what carrying one identity for everyone costs the record.
+ * These used to carry the seeded demo lead's address and its published password as
+ * unconditional `??` defaults, which made auto-sign-in a property of the SOURCE rather
+ * than of a deployment. The consequence was not visible from this file: `App.tsx` is
+ * `index.html`, `index.html` is the app shell, and the shell is served at `/deliberation/`
+ * on any deployment with `ARBITER_STATIC_DIR` set - so on every such deployment with the
+ * demo team seeded, anyone who reached that path was signed in as the convener and could
+ * read every case the deployment held. Nobody had to type a credential; the build carried
+ * one. That is a door that opens because a default was never overridden, which is the
+ * failure mode this repo refuses everywhere else it appears: `ARBITER_SHARE_SECRET` unset
+ * means sharing is OFF, not sharing without a secret.
+ *
+ * So the defaults are now scoped to `DEV` - true under `vite dev`, statically replaced
+ * with `false` by `vite build`, which lets the minifier drop the literals out of the
+ * bundle entirely. A DEVELOPMENT run behaves exactly as it always has, and so do
+ * `npm run dev`, `npm run deliberate:dev` and this app's tests. A BUILT artifact signs
+ * nobody in unless someone deliberately set both variables for that build - which a demo
+ * deployment does, on purpose, and a real one does not.
+ *
+ * An empty string counts as absent, for the same reason `ARBITER_SHARE_SECRET=""` does:
+ * a blank in a configuration file is somebody clearing a value, and reading it as a
+ * credential would fail open on exactly the input that meant "no".
+ *
+ * See the branch below for what carrying one identity for everyone costs the record even
+ * where it IS wanted.
  */
-const AUTO_EMAIL = import.meta.env["VITE_AUTO_EMAIL"] ?? "r.okafor@arbiter.demo";
-const AUTO_PASSWORD = import.meta.env["VITE_AUTO_PASSWORD"] ?? "arbiter-demo-2026";
+export function autoCredentials(env: AutoSignInEnv): { email: string; password: string } | null {
+  const dev = env.DEV === true;
+  const email = env.VITE_AUTO_EMAIL ?? (dev ? "r.okafor@arbiter.demo" : undefined);
+  const password = env.VITE_AUTO_PASSWORD ?? (dev ? "arbiter-demo-2026" : undefined);
+  // BOTH, or neither. Half a credential cannot sign anybody in, and letting one through
+  // would send `api.login` an empty password - a real request, a real failure, and an
+  // error panel that reads as the service being down rather than as a build that was
+  // never given an identity.
+  if (email === undefined || email === "" || password === undefined || password === "") return null;
+  return { email, password };
+}
+
+const AUTO = autoCredentials(import.meta.env);
 
 /** What is on screen for the moment between arriving and the session existing. Not a
  *  form, and deliberately not a spinner: it states what is happening. */
@@ -256,14 +296,17 @@ export function App(): ReactElement {
     return () => { live = false; };
   }, [token, caseId, route.name, isOwner]);
 
-  /* Establish the session on arrival rather than asking for it. Runs once; a failure
-     surfaces as a message on the opening panel, never as a login form. */
+  /* Establish the session on arrival rather than asking for it - WHEN THERE IS AN IDENTITY
+     TO ESTABLISH IT FROM. Runs once; a failure surfaces as a message on the opening panel.
+     With no configured identity this effect does nothing at all and the branch below asks
+     for one, which is the whole of the fail-closed behaviour: there is no request to make,
+     so there is no session to leak to somebody who only arrived at the URL. */
   useEffect(() => {
-    if (token !== null) return;
+    if (token !== null || AUTO === null) return;
     let live = true;
     void (async () => {
       try {
-        const { token: t, user } = await api.login(AUTO_EMAIL, AUTO_PASSWORD);
+        const { token: t, user } = await api.login(AUTO.email, AUTO.password);
         if (!live) return;
         setToken(t);
         setMe(user);
@@ -285,18 +328,35 @@ export function App(): ReactElement {
   };
 
   if (token === null || me === null) {
-    /* NO SIGN-IN. The landing page opens straight into the product.
+    /* TWO DOORS, and which one you get is decided by the build rather than by this render.
      *
-     * A session is still established — the API is unchanged and every route behind it
-     * requires a token — but it is established for you, from a configured identity,
-     * instead of being asked for.
+     * WITH A CONFIGURED IDENTITY there is no sign-in. The landing page opens straight into
+     * the product: a session is still established - the API is unchanged and every route
+     * behind it requires a token - but it is established for you instead of being asked
+     * for.
      *
-     * WHAT THIS COSTS, stated plainly because it is not a styling decision. This product
+     * WHAT THAT COSTS, stated plainly because it is not a styling decision. This product
      * seals positions and attributes them to a named person; the record's whole claim is
      * that it can prove who committed to what and that nobody edited it afterwards. With
      * one identity signing everybody in, the record still says "R. Okafor decided" for
      * whoever is at the keyboard. The mechanism is intact and the attribution is not.
-     * Restoring real sign-in is deleting this branch and putting `AuthPage` back. */
+     *
+     * WITHOUT ONE - which is any built artifact whose builder did not ask for it - the
+     * product asks who you are, and `AuthPage` has been sitting here unreferenced waiting
+     * to be the answer. This is the branch that stops a deployment from being readable by
+     * whoever finds the URL, and it is reached by DOING NOTHING rather than by setting
+     * something, because the reverse is how the door was open in the first place. */
+    if (AUTO === null) {
+      return (
+        <AuthPage
+          onSignedIn={(t, user) => {
+            setToken(t);
+            setMe(user);
+            setFatal(null);
+          }}
+        />
+      );
+    }
     return <Opening error={fatal} />;
   }
 
