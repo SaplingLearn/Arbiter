@@ -9,6 +9,48 @@ import { type Route } from "../router.js";
 import { sceneFor, transitionFor } from "./nav.js";
 
 /**
+ * WHICH CASES THE FIELD DRAWS - ONE ANSWER, FOR THE WHOLE SESSION.
+ *
+ * PULLED OUT OF THE EFFECT SO IT CAN BE TESTED, for the same reason `subjects.ts` was
+ * pulled out of `archive.ts`: this is the one place the environment makes a claim about
+ * a case rather than drawing one, and it has now been wrong three times in ways no
+ * amount of looking at the shader would have found. Everything here is arrays.
+ *
+ * THE SAME EVERYWHERE, AND THAT IS THE POINT. It used to vary by surface - the shelf on
+ * the library list, your own cases on the dashboard, the union elsewhere - so that each
+ * screen's cube count matched the table printed over it. That is a reasonable thing to
+ * want and it cannot be had, because of how `archive.ts` lays a field out: every
+ * position comes from ONE seeded sequence walked in index order, over a span of
+ * `max(30, n * 8.5)`. Change the count and the span rescales; change the membership and
+ * every body takes a different draw from the sequence. Either way the whole archive
+ * rearranges. So opening a case from the library re-laid the field while the camera was
+ * flying into it, and the tower you aimed at was somewhere else by the time you arrived.
+ *
+ * A field that moves when you walk towards it is not a place. Consistency across the
+ * product beats a count matching on one page of it, so the population is now the union
+ * of everything the reader can see, announced once and never varied: the towers stand
+ * where they stand on the library list, on the dashboard, and inside every case.
+ *
+ * WHAT THIS COSTS, stated rather than buried: the library page draws its own six or
+ * seven bodies AND any case the reader opened that is not one of them, so its table and
+ * its field can disagree on a count. The alternative was a field that teleports.
+ *
+ * Every key is exact, so `resolveBody` answers by `indexOf` and never reaches its hash
+ * fallback: one body per case, no two cases sharing one, and the library's refusals keep
+ * their `usable: false` wherever you are standing.
+ */
+export function fieldFor(
+  catalogue: readonly CaseSummary[],
+  mine: readonly { caseId: string }[],
+): SceneSubject[] {
+  const shelf = catalogue.map((c) => ({ key: c.name, usable: c.usable }));
+  // OWN CASES ARE ALWAYS USABLE, and `mergeSubjects` sets that: `usable: false` marks a
+  // document the splitter refused, which is a fact about the library's corpus. A case a
+  // person opened is not a refused document and must never be drawn in red.
+  return mergeSubjects(shelf, mine.map((c) => c.caseId));
+}
+
+/**
  * THE LIVING BACKGROUND.
  *
  * One WebGL context for the whole session, a scene per surface, and a band-tear
@@ -27,53 +69,6 @@ import { sceneFor, transitionFor } from "./nav.js";
  * Imported dynamically so it never blocks first paint - the case list is on screen
  * and usable before the environment arrives behind it.
  */
-/**
- * WHICH CASES THE FIELD BEHIND A SURFACE DRAWS.
- *
- * PULLED OUT OF THE EFFECT SO IT CAN BE TESTED, for the same reason `subjects.ts` was
- * pulled out of `archive.ts`: this is the one place the environment makes a claim about
- * a case rather than drawing one, it has three branches, and it has now been wrong
- * twice in ways no amount of looking at the shader would have found. Everything here is
- * arrays and booleans.
- *
- * THE LIBRARY LIST DRAWS THE LIBRARY. That page puts a countable table over the field
- * and a reader counts one against the other - it is the whole reason the field stopped
- * being a fixed forty-two over a catalogue of six. Adding the reader's own cases to it
- * gave six rows and ten bodies with nothing on screen to explain the four extra.
- *
- * THE DASHBOARD DRAWS THE READER'S CASES, for the same reason with a different list -
- * and falls back to the shelf when they have none, because a brand-new account would
- * otherwise stand in an Archive with no bodies and no ground lights. That reads as a
- * broken background, not as an empty list; the "No cases yet" panel is what says the
- * list is empty, and the field does not have to say it twice by disappearing.
- *
- * EVERYWHERE ELSE THE UNION, AND THE REFUSALS ARE WHY. Case routes briefly drew own
- * cases alone, and own cases are all usable by construction - a refused document cannot
- * be opened at all, the server answers 422. So opening a case from the library replaced
- * a field holding the library's two REFUSED bodies with one holding none, and the two
- * red cubes turned blue on the way in. Refusal is a property of the catalogue, so the
- * catalogue has to stay in the field for the colour to survive the journey.
- *
- * Every branch keys every case exactly, so `resolveBody` answers by `indexOf` and never
- * reaches its hash fallback: one body per case, and no two cases sharing one.
- */
-export function fieldFor(
-  routeName: Route["name"],
-  catalogue: readonly CaseSummary[],
-  mine: readonly { caseId: string }[],
-): SceneSubject[] {
-  const shelf = catalogue.map((c) => ({ key: c.name, usable: c.usable }));
-  if (routeName === "cases") return shelf;
-  if (routeName === "dashboard") {
-    // OWN CASES ARE ALWAYS USABLE. `usable: false` marks a document the splitter
-    // refused, which is a fact about the library's corpus. A case a person opened is
-    // not a refused document and must never be drawn in red.
-    const own = mine.map((c) => ({ key: c.caseId, usable: true }));
-    return own.length > 0 ? own : shelf;
-  }
-  return mergeSubjects(shelf, mine.map((c) => c.caseId));
-}
-
 export function Backdrop({ route, catalogue, mine = [], focusKey }: {
   route: Route;
   catalogue: CaseSummary[];
@@ -236,42 +231,28 @@ export function Backdrop({ route, catalogue, mine = [], focusKey }: {
   }, [focusKey]);
 
   /**
-   * ONE BODY PER CASE, AND NEVER TWO CASES SHARING ONE.
+   * ANNOUNCED WHENEVER THE CASE LIST CHANGES, not when a particular route opens.
    *
-   * The scene used to draw a fixed field of forty-two over a catalogue of six, which is
-   * a claim about the size of the archive that the table underneath it disproves. That
-   * became one body per LIBRARY case, which was right for the library page and wrong
-   * everywhere else: a case somebody opened themselves had no body at all, so it
-   * borrowed one, and several own-cases ended up sharing a cube while the flight to any
-   * of them landed on a body belonging to a different case.
-   *
-   * The rule the effect below applies is that the field is whatever the screen in front
-   * of it lists - the shelf on the library page, the reader's own cases everywhere else
-   * - so every key is an exact match in `resolveBody` and the borrow does not happen at
-   * all rather than being made safer. On the library page the dark bodies are still
-   * exactly its refusals, so counting them against the REFUSED rows still works.
-   *
-   * The engine holds this across scene swaps, so it is announced whenever the list
-   * changes rather than when the library route opens - the Archive may not be the scene
-   * showing when the fetch lands, and it will be built with the right population when
-   * it is.
+   * The engine holds the population across scene swaps, and the Archive may not be the
+   * scene showing when the fetch lands - so it is told as soon as there is something to
+   * tell, and whichever scene mounts next is built with the right field. `fieldFor`
+   * above decides WHAT that field is, and why it is the same on every surface.
    *
    * Keyed on the joined keys, not on array identity: App re-fetches into a new array on
    * every poll and the contents are almost always the same.
    */
-  /* THE ROUTE NAME, NOT JUST "is this the library". `fieldFor` has three branches and a
-     boolean only distinguishes one of them, so moving from the dashboard to a case -
-     both "not the library list", same catalogue, same cases - left this identity
-     unchanged, the effect unrun, and the case route still looking at the dashboard's
-     field. */
-  const names = [route.name, ...catalogue.map((c) => c.name), ...mine.map((c) => c.caseId)].join(",");
+  /* KEYED ON THE CASES ALONE, and it briefly carried the route name too - back when the
+     field varied by surface. It does not any more, so a navigation must NOT rebuild the
+     field: `populate` re-lays every body from scratch, and the one thing this population
+     rule exists to guarantee is that walking between screens does not move the archive. */
+  const names = [...catalogue.map((c) => c.name), ...mine.map((c) => c.caseId)].join(",");
   useEffect(() => {
-    const subjects = fieldFor(route.name, catalogue, mine);
+    const subjects = fieldFor(catalogue, mine);
     wantedSubjects.current = subjects;
     atmoRef.current?.populate(subjects);
-    // `catalogue`, `mine` and the route are the values read; `names` is the identity
-    // that decides when to read them. Listing the arrays here instead would rebuild the
-    // field on every poll that returned the same cases.
+    // `catalogue` and `mine` are the values read; `names` is the identity that decides
+    // when to read them. Listing the arrays here instead would rebuild the field on
+    // every poll that returned the same cases.
   }, [names]);
 
   return <canvas ref={canvasRef} className="backdrop" aria-hidden="true" />;
