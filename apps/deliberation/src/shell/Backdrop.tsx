@@ -1,9 +1,5 @@
 import { useEffect, useRef, type ReactElement } from "react";
 import type { Atmosphere, SceneSubject } from "@arbiter/atmosphere";
-/* The population rule, from the entry point that reaches no graphics. A value import
-   from "@arbiter/atmosphere" would pull `three` into first paint - see the note on the
-   dynamic import below, which exists to stop precisely that. */
-import { mergeSubjects } from "@arbiter/atmosphere/subjects";
 import type { CaseSummary } from "../api.js";
 import { type Route } from "../router.js";
 import { sceneFor, transitionFor } from "./nav.js";
@@ -189,7 +185,7 @@ export function Backdrop({ route, catalogue, mine = [], focusKey }: {
   }, [focusKey]);
 
   /**
-   * ONE BODY PER CASE THE READER CAN SEE - the library's, and their own.
+   * ONE BODY PER CASE, AND NEVER TWO CASES SHARING ONE.
    *
    * The scene used to draw a fixed field of forty-two over a catalogue of six, which is
    * a claim about the size of the archive that the table underneath it disproves. That
@@ -198,10 +194,11 @@ export function Backdrop({ route, catalogue, mine = [], focusKey }: {
    * borrowed one, and several own-cases ended up sharing a cube while the flight to any
    * of them landed on a body belonging to a different case.
    *
-   * `mergeSubjects` gives every case its own, and drops an opened library case rather
-   * than drawing it twice - `nipocalimab-imaavy--<userId>` is `nipocalimab` wearing an
-   * account's name, not a second case. The dark bodies are still exactly the library's
-   * two refusals, so counting them against the REFUSED rows in the table still works.
+   * The rule the effect below applies is that the field is whatever the screen in front
+   * of it lists - the shelf on the library page, the reader's own cases everywhere else
+   * - so every key is an exact match in `resolveBody` and the borrow does not happen at
+   * all rather than being made safer. On the library page the dark bodies are still
+   * exactly its refusals, so counting them against the REFUSED rows still works.
    *
    * The engine holds this across scene swaps, so it is announced whenever the list
    * changes rather than when the library route opens - the Archive may not be the scene
@@ -211,24 +208,36 @@ export function Backdrop({ route, catalogue, mine = [], focusKey }: {
    * Keyed on the joined keys, not on array identity: App re-fetches into a new array on
    * every poll and the contents are almost always the same.
    */
-  /**
-   * ON THE LIBRARY LIST THE FIELD IS THE LIST, AND NOWHERE ELSE IS IT.
-   *
-   * The library page draws a table of the library's cases with the Archive behind it,
-   * and a reader counts one against the other - that is the whole reason the field
-   * stopped being a fixed forty-two over a catalogue of six. Adding the reader's own
-   * cases to it broke exactly that: six rows in the table, ten bodies behind them, and
-   * nothing on screen to explain the four extra.
-   *
-   * Everywhere else it is the union, because everywhere else the requirement is the
-   * opposite one: a case being looked at needs a body of its own to be flown into, and
-   * a case somebody opened themselves has no row in the library to be counted against.
-   */
   const onLibraryList = route.name === "cases";
   const names = [String(onLibraryList), ...catalogue.map((c) => c.name), ...mine.map((c) => c.caseId)].join(",");
   useEffect(() => {
+    /**
+     * THE FIELD IS WHATEVER THE SCREEN IN FRONT OF IT LISTS, and it was the union
+     * everywhere but the library.
+     *
+     * The union was one body per case a reader could see ANYWHERE, which is a coherent
+     * rule and the wrong one for a page that puts a countable list on top of it. On the
+     * dashboard it drew the library's shelf plus your cases - so four cases in the table
+     * and ten cubes behind them, with nothing on screen to explain the other six. The
+     * count is the whole reason this field stopped being a fixed forty-two.
+     *
+     * So: the library page draws the library's shelf, and every other surface draws the
+     * reader's own cases. Both are exact - `resolveBody` finds every key by `indexOf`,
+     * never by the hash fallback - so no two cases share a body and flying into one
+     * lands on that case's own.
+     *
+     * IT ALSO KEEPS THE FIELD STILL ACROSS THE ONE MOVE THAT MATTERS. Opening a case
+     * from the dashboard used to swap a field of your cases for a field of yours plus
+     * the shelf, so the cube you clicked was at a different index by the time the camera
+     * reached it. The dashboard and the case routes now populate identically and the
+     * flight lands on the body you pointed at.
+     */
     const shelf = catalogue.map((c) => ({ key: c.name, usable: c.usable }));
-    const subjects = onLibraryList ? shelf : mergeSubjects(shelf, mine.map((c) => c.caseId));
+    // OWN CASES ARE ALWAYS USABLE: `usable: false` marks a document the splitter
+    // refused, which is a property of the library's corpus. A case a person opened is
+    // not a refused document and must never be drawn in red.
+    const own = mine.map((c) => ({ key: c.caseId, usable: true }));
+    const subjects = onLibraryList ? shelf : own;
     wantedSubjects.current = subjects;
     atmoRef.current?.populate(subjects);
     // `catalogue`, `mine` and the route are the values read; `names` is the identity

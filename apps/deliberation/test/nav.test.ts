@@ -40,10 +40,21 @@ describe("the rail against the scene registry", () => {
     }
   });
 
-  // navByScene resolves by scene id, so two entries sharing one would make the lookup
-  // return whichever came first - silently, and correctly-looking.
-  it("gives each entry a distinct scene", () => {
-    expect(new Set(NAV.map((n) => n.scene)).size).toBe(NAV.length);
+  /**
+   * DISTINCT DESTINATIONS, AND IT USED TO BE DISTINCT SCENES.
+   *
+   * The old rule existed because `currentNav` resolved entries by scene id, so two
+   * entries sharing one made the lookup return whichever came first - silently, and
+   * correctly-looking. That is no longer how the lookup works: the Dashboard and the
+   * Library both stand in the Archive on purpose, and `navByRoute` keys on the route an
+   * entry points at instead.
+   *
+   * So the invariant moves rather than being dropped. Two entries may share a world;
+   * two entries sharing a DESTINATION would reintroduce the identical ambiguity in the
+   * lookup that actually runs.
+   */
+  it("gives each entry a distinct destination", () => {
+    expect(new Set(NAV.map((n) => n.to.name)).size).toBe(NAV.length);
   });
 
   /**
@@ -96,6 +107,23 @@ describe("currentNav", () => {
   });
 
   it("lights the Library on the library route", () => {
+    expect(currentNav({ name: "cases" })?.label).toBe("Library");
+  });
+
+  /**
+   * TWO ENTRIES SHARE THE ARCHIVE, AND THE LOOKUP HAS TO TELL THEM APART.
+   *
+   * The Dashboard moved into the Archive so the field behind a list of cases draws one
+   * body per case instead of hashing them onto colonies. That made `library` the scene
+   * of two rail entries, and the lookup was a `find` by scene id - which returns the
+   * first match, so the Library page and all four case routes would have lit DASHBOARD
+   * and printed its codename. Keying on the destination is what fixes it; this is the
+   * check that says so.
+   */
+  it("tells the two Archive entries apart by destination", () => {
+    const archive = NAV.filter((n) => n.scene === "library");
+    expect(archive.map((n) => n.label)).toEqual(["Dashboard", "Library"]);
+    expect(currentNav({ name: "dashboard" })?.label).toBe("Dashboard");
     expect(currentNav({ name: "cases" })?.label).toBe("Library");
   });
 
@@ -155,11 +183,20 @@ describe("transitionFor", () => {
     expect(transitionFor("read")).not.toEqual(transitionFor("unknown-scene"));
   });
 
-  // Every scene the rail can reach has a deliberate move; a missing one silently
-  // becomes the default, which is the "one transition played identically" the file
-  // warns turns a transition into a wipe.
+  /**
+   * Every scene the rail can reach has a deliberate move; a missing one silently
+   * becomes the default, which is the "one transition played identically" the file
+   * warns turns a transition into a wipe.
+   *
+   * COUNTED OVER DISTINCT SCENES, NOT OVER ENTRIES. Two rail entries standing in the
+   * same world share its arrival by definition - the Dashboard and the Library are both
+   * the Archive, and giving them different tears would mean the same scene arriving two
+   * ways depending on which tab you pressed. What the check is actually for is that no
+   * two DIFFERENT worlds arrive identically.
+   */
   it("has a distinct arrival for each scene the rail names", () => {
-    const moves = NAV.map((n) => JSON.stringify(transitionFor(n.scene)));
-    expect(new Set(moves).size).toBe(NAV.length);
+    const scenes = [...new Set(NAV.map((n) => n.scene))];
+    const moves = scenes.map((s) => JSON.stringify(transitionFor(s)));
+    expect(new Set(moves).size).toBe(scenes.length);
   });
 });

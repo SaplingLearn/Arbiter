@@ -20,7 +20,24 @@ export interface NavItem {
 }
 
 export const NAV: NavItem[] = [
-  { label: "Dashboard", codename: "Culture", scene: "dashboard", to: { name: "dashboard" } },
+  /**
+   * THE DASHBOARD STANDS IN THE ARCHIVE TOO, and it used to stand in the Culture.
+   *
+   * The Culture picks a colony by hashing the case id, which is the one thing a field
+   * standing behind a LIST of cases may not do: two of your cases hash to one colony,
+   * so the dashboard drew four cases as three blobs and flying to one of them landed on
+   * a cell belonging to a different case. `sceneFor` already records that as the reason
+   * the case routes left this scene. The same argument applies to the screen that lists
+   * them - a reader counts the field against the table in front of it, and the count
+   * has to survive being counted.
+   *
+   * The Archive draws one body per subject, keyed by case, so the dashboard now shows
+   * exactly the cases the dashboard lists - see `Backdrop`, which populates it from the
+   * same array `Dashboard` renders. The Culture scene stays registered and is no longer
+   * mounted by any route; it is scenery this product no longer has a screen for, not a
+   * scene that was deleted.
+   */
+  { label: "Dashboard", codename: "Archive", scene: "library", to: { name: "dashboard" } },
   /**
    * SECOND, between the dashboard and opening a case, because that is where reading
    * sits in the work. The dashboard says what is waiting on you; the next thing a
@@ -87,8 +104,19 @@ export function sceneFor(route: Route): string {
   return NAV.find((n) => n.to.name === route.name)?.scene ?? "dashboard";
 }
 
-/** Rail entry by scene id, so inserting a NAV entry cannot silently repoint another. */
-const navByScene = (scene: string): NavItem | undefined => NAV.find((n) => n.scene === scene);
+/**
+ * Rail entry by the ROUTE it points at, so inserting a NAV entry cannot silently
+ * repoint another.
+ *
+ * BY ROUTE, AND IT WAS BY SCENE. A scene id stopped identifying a rail entry the moment
+ * the Dashboard joined the Library in the Archive: `find` returns the first match, so
+ * every `navByScene("library")` above - the library page and all four case routes -
+ * started resolving to the DASHBOARD entry, lighting the wrong tab and printing the
+ * wrong codename. Two entries may legitimately share a world; no two share a
+ * destination, so that is what the lookup is keyed on.
+ */
+const navByRoute = (name: Route["name"]): NavItem | undefined =>
+  NAV.find((n) => n.to.name === name);
 
 /**
  * HOW EACH ARRIVAL LOOKS.
@@ -135,7 +163,7 @@ export function currentNav(route: Route): NavItem | undefined {
   // entry everywhere a case is open - silently, because an index that still resolves
   // does not throw. The lookup is the same decision the file's opening note makes about
   // the rail and the backdrop: name the thing, do not count to it.
-  if (route.name === "cases") return navByScene("library");
+  if (route.name === "cases") return navByRoute("cases");
   const direct = NAV.find((n) => n.to.name === route.name);
   if (direct !== undefined) return direct;
   // READING LIGHTS READ, and it lit the Library until this entry existed.
@@ -146,7 +174,7 @@ export function currentNav(route: Route): NavItem | undefined {
   // through a stained section, naming a world the reader was not in. The entry the
   // route lights and the scene behind it are one decision; now there is an entry to
   // make it with.
-  if (route.name === "read") return navByScene("read");
+  if (route.name === "read") return navByRoute("reading");
   /**
    * RECORD IS IN THIS LIST, and leaving it out was a silent drift of exactly the kind
    * this file's opening note describes.
@@ -163,7 +191,7 @@ export function currentNav(route: Route): NavItem | undefined {
    */
   if (route.name === "case" || route.name === "position"
     || route.name === "reveal" || route.name === "report" || route.name === "record") {
-    return navByScene("library");
+    return navByRoute("cases");
   }
-  return navByScene("dashboard");
+  return navByRoute("dashboard");
 }
