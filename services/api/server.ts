@@ -11,6 +11,7 @@ import { buildCaseReport } from "./verdict-report.js";
 import { handleAsk } from "./ask.js";
 import { handleSummarise } from "./summarise.js";
 import { buildIndex, search } from "./retrieval.js";
+import { proposeFindings } from "./extract.js";
 import { completeFromEnv, providerFor, resolveModel, type CallKind, type Complete } from "./interpret.js";
 import { geminiCredentialAdvice, geminiEndpointLabel } from "./gemini.js";
 import { stubComplete } from "./probe.js";
@@ -380,7 +381,8 @@ export function makeHandler(deps: ServerDeps) {
         ? (tail === "findings" || tail === "participants" ? "adjudicate" : "read")
         : method !== "POST"
           ? "read"
-          : tail === "findings" || tail === "participants" || tail === "describe" ? "adjudicate"
+          : tail === "findings" || tail === "participants" || tail === "describe"
+            || tail === "extract" ? "adjudicate"
             : tail === "positions" ? "submit"
           : tail === "reveal" ? "reveal"
             : tail === "adjudicate" ? "adjudicate"
@@ -576,31 +578,35 @@ export function makeHandler(deps: ServerDeps) {
             return r.ok ? json(res, 200, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
           }
           case "findings": {
-            const f = body as CoveringFinding;
-            if (f?.sourceDocumentId !== undefined) {
-              const doc = deps.documents.get(f.sourceDocumentId);
-              if (doc === null || doc.caseId !== caseId) {
-                return json(res, 400, { error: "bad_request", detail: "That document is not on this case." });
+            /**
+             * ONE OR MANY, and many arrives as one act in the record.
+             *
+             * Accepting an extraction is a single decision a reviewer makes about a
+             * list, and posting it finding by finding would write nine `evidence_added`
+             * entries into the hash chain for it - a record that reads like nine
+             * separate acts of judgement instead of the one that happened. It also
+             * reuses every check below rather than growing a second, laxer path for
+             * the bulk case: each finding in the array passes the same validation, and
+             * one that fails rejects the whole request rather than being skipped, so a
+             * reviewer never accepts ten and silently gets nine.
+             */
+            if (Array.isArray(body)) {
+              const many = body as CoveringFinding[];
+              if (many.length === 0) {
+                return json(res, 400, { error: "bad_request", detail: "No findings to add." });
               }
+              for (const one of many) {
+                const bad = findingProblem(one, caseId, deps);
+                if (bad !== null) return json(res, 400, { error: "bad_request", detail: bad });
+              }
+              const r = deps.service.addFindings(caseId, many);
+              return r.ok
+                ? json(res, 201, { ...r.value })
+                : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
             }
-            if (typeof f?.id !== "string" || f.id.trim() === "" || typeof f?.label !== "string" || f.label.trim() === "") {
-              return json(res, 400, { error: "bad_request", detail: "A finding needs an identifier and a label." });
-            }
-            if (!["toxic", "safe", "ambiguous"].includes(f.assertion)) {
-              return json(res, 400, { error: "bad_request", detail: "A finding must assert toxic, safe or ambiguous." });
-            }
-            // A quote is an instruction to mark a specific place, so it is refused
-            // without one. Accepting an unanchored quote would store a passage the
-            // viewer can never draw and the reader can never check - the citation
-            // equivalent of "page 26" with no document, which this route already
-            // refuses one field up.
-            if (typeof f?.sourceQuote === "string" && f.sourceQuote.trim() !== ""
-              && (f.sourceDocumentId === undefined || f.sourcePage === undefined)) {
-              return json(res, 400, {
-                error: "bad_request",
-                detail: "A quoted passage needs the document and the page it was quoted from.",
-              });
-            }
+            const f = body as CoveringFinding;
+            const problem = findingProblem(f, caseId, deps);
+            if (problem !== null) return json(res, 400, { error: "bad_request", detail: problem });
             const r = deps.service.addFinding(caseId, f);
             return r.ok ? json(res, 201, r.value) : json(res, ERROR_STATUS[r.error.kind] ?? 400, r.error);
           }
@@ -625,6 +631,54 @@ export function makeHandler(deps: ServerDeps) {
             if (overBudget(complete)) return;
             const out = await handleAsk(body, passages, complete);
             return json(res, out.status, out.body);
+          }
+          /**
+           * READ THE DOCUMENTS AND PROPOSE THE EVIDENCE.
+           *
+           * WRITES NOTHING. It returns proposals, what it could not find, and what it
+           * threw away; the reviewer accepts them through the findings route below.
+           * That separation is the point rather than an extra step: `inventory.ts` says
+           * coverage is DECLARED and never inferred, because an item marked satisfied
+           * that nobody verified never appears on the missing-evidence list again. A
+           * model that could write straight into the case would be inferring it.
+           *
+           * The rejection rate comes back with the proposals. A reviewer deciding
+           * whether to trust this needs to see that two of eleven were discarded for
+           * quoting a sentence that was not on the page they cited - `extract.ts`
+           * refuses those rather than repairing them, and hiding the count would leave
+           * the reader believing the model simply found nine.
+           */
+          case "extract": {
+            const docs = deps.documents.forCase(caseId);
+            if (docs.length === 0) {
+              return json(res, 422, {
+                error: "no_documents",
+                detail: "There is nothing to read yet. Upload the study documents first.",
+              });
+            }
+            const inputs = deps.service.extractionInputs(caseId);
+            if (inputs === null) return json(res, 404, { error: "no_case" });
+
+            const complete = completer("ask");
+            if (overBudget(complete)) return;
+            if (complete === null) {
+              return json(res, 503, {
+                error: "no_model",
+                detail: "No model is configured, so nothing can read the document. Findings can still be added by hand.",
+              });
+            }
+
+            const out = await proposeFindings(
+              docs.map((d) => ({
+                documentId: d.id,
+                filename: d.filename,
+                pages: deps.documents.textFor(d.id),
+              })),
+              inputs.checklist,
+              inputs.modality,
+              complete,
+            );
+            return json(res, 200, out);
           }
           case "reveal": {
             const b = body as { at: string; mode: "all_in" | "close_early" };
@@ -708,6 +762,35 @@ export function makeHandler(deps: ServerDeps) {
       return json(res, 500, { error: "internal", detail: e instanceof Error ? e.message : "unknown" });
     }
   };
+}
+
+/**
+ * What is wrong with a proposed finding, or null.
+ *
+ * ONE COPY, because there are now two ways in - a reviewer typing one, and a reviewer
+ * accepting a list an extraction proposed - and a bulk path with its own looser checks
+ * is how the strict path stops being the rule. The rules are unchanged; only their
+ * location is.
+ */
+function findingProblem(f: CoveringFinding, caseId: string, deps: ServerDeps): string | null {
+  if (f?.sourceDocumentId !== undefined) {
+    const doc = deps.documents.get(f.sourceDocumentId);
+    if (doc === null || doc.caseId !== caseId) return "That document is not on this case.";
+  }
+  if (typeof f?.id !== "string" || f.id.trim() === "" || typeof f?.label !== "string" || f.label.trim() === "") {
+    return "A finding needs an identifier and a label.";
+  }
+  if (!["toxic", "safe", "ambiguous"].includes(f.assertion)) {
+    return "A finding must assert toxic, safe or ambiguous.";
+  }
+  // A quote is an instruction to mark a specific place, so it is refused without one.
+  // Accepting an unanchored quote would store a passage the viewer can never draw and
+  // the reader can never check - the citation equivalent of "page 26" with no document.
+  if (typeof f?.sourceQuote === "string" && f.sourceQuote.trim() !== ""
+    && (f.sourceDocumentId === undefined || f.sourcePage === undefined)) {
+    return "A quoted passage needs the document and the page it was quoted from.";
+  }
+  return null;
 }
 
 function handleAuth(

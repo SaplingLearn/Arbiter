@@ -334,6 +334,23 @@ export class DeliberationService {
     return inventory;
   }
 
+  /**
+   * What an extraction needs to know before it reads a document: which questions are
+   * being asked, and which of them arise for this kind of compound.
+   *
+   * EXPOSED RATHER THAN HANDED THE CHECKLIST SEPARATELY. The server builds the service
+   * WITH the checklist and has no other reference to it, so an extraction route taking
+   * its own copy would be a second source for the one list that decides what counts as
+   * covered - the failure this codebase has already had three times with scene
+   * registries. The case's modality is the service's to answer for the same reason: it
+   * is read off the `case_opened` entry, and nothing outside here should be parsing the
+   * log to find it.
+   */
+  extractionInputs(caseId: string): { checklist: EvidenceChecklist; modality: Modality } | null {
+    if (this.store.getCase(caseId) === null) return null;
+    return { checklist: this.checklist, modality: this.modalityOf(caseId) };
+  }
+
   private modalityOf(caseId: string): Modality {
     const cached = this.modalities.get(caseId);
     if (cached !== undefined) return cached;
