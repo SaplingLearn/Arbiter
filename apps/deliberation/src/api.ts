@@ -48,6 +48,33 @@ export interface Refusal {
   measurement: string;
 }
 
+/** One finding the model proposed, with the receipt it was accepted on. */
+export interface FindingProposal {
+  itemId: string;
+  field: string;
+  assertion: "toxic" | "safe" | "ambiguous";
+  label: string;
+  detail: string;
+  /** Verbatim from the page. `extract.ts` discards the proposal without it. */
+  quote: string;
+  page: number;
+  documentId: string;
+}
+
+/**
+ * What an extraction found, did not find, and threw away.
+ *
+ * `discarded` is shown rather than swallowed. A reviewer deciding whether to trust this
+ * needs to know that two of eleven proposals were rejected for citing a sentence that
+ * was not on the page - a screen that quietly showed nine would leave them believing
+ * the model simply found nine.
+ */
+export interface ExtractionResult {
+  proposals: FindingProposal[];
+  notFound: { itemId: string; field: string }[];
+  discarded: { itemId: string; reason: string }[];
+}
+
 export interface Person {
   id: string;
   email: string;
@@ -327,6 +354,13 @@ const SUMMARY_TIMEOUT_MS = 300_000;
  * here.
  */
 const ADJUDICATE_TIMEOUT_MS = 300_000;
+/**
+ * EXTRACTION IS ONE MODEL CALL PER CHECKLIST ITEM, so up to twelve of them, sequential.
+ * Measured on lorlatinib NDA 210868 at 124 seconds for a 400-page review. Sized like
+ * the adjudication for the same reason: the cost scales with the checklist, and a
+ * deadline fitted to today's twelve items would fail silently on a longer one.
+ */
+const EXTRACT_TIMEOUT_MS = 300_000;
 
 async function call<T>(
   method: string, path: string, token: string | null, body?: unknown,
@@ -480,6 +514,16 @@ export const api = {
    *  gets and nobody has to request a copy from them. */
   report: (token: string, caseId: string) =>
     call<CaseReport>("GET", `/api/cases/${caseId}/report`, token),
+
+  /** Read the case's documents and propose findings. Writes nothing; see `acceptFindings`. */
+  extract: (token: string, caseId: string) =>
+    call<ExtractionResult>("POST", `/api/cases/${caseId}/extract`, token, {}, EXTRACT_TIMEOUT_MS),
+
+  /** Accept a whole extraction as ONE act, so the record shows the decision that was
+   *  actually made rather than one entry per finding. */
+  acceptFindings: (token: string, caseId: string, findings: unknown[]) =>
+    call<{ inventory: Inventory; added: string[]; duplicates: string[] }>(
+      "POST", `/api/cases/${caseId}/findings`, token, findings),
 
   adjudicate: (token: string, caseId: string, at: string) =>
     call<{ adjudication: Adjudication; source: "stub" | "live"; consensus: Consensus | null }>(

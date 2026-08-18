@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type BlindView, type Consensus, type Finding, type Inventory, type Position, type Refusal, type Roster, type Signature, type StoredDocument, type UnanimityReport } from "./api.js";
+import { api, ApiError, type Adjudication, type BlindView, type Consensus, type ExtractionResult, type Finding, type FindingProposal, type Inventory, type Position, type Refusal, type Roster, type Signature, type StoredDocument, type UnanimityReport } from "./api.js";
 import { Markdown } from "./markdown.js";
 import { Reviewer, collidingInitials } from "./Reviewer.js";
 import { initials } from "./Layout.js";
@@ -477,6 +477,114 @@ export function Refused({ r, onBack }: { r: Refusal; onBack: () => void }): Reac
         <button className="ghost" onClick={onBack}>Back to the library</button>
       </div>
     </section>
+  );
+}
+
+/**
+ * READ THE DOCUMENTS, AND DECIDE WHAT TO KEEP.
+ *
+ * The model proposes; the reviewer declares. `inventory.ts` is explicit that coverage is
+ * DECLARED and never inferred, because an item marked satisfied that nobody verified
+ * never appears on the missing-evidence list again - so nothing here writes to the case
+ * until somebody ticks it and presses accept.
+ *
+ * WHAT IT COULD NOT FIND AND WHAT IT THREW AWAY ARE BOTH SHOWN, and they are different
+ * facts. `notFound` is the document not answering a question, which is evidence about
+ * the document. `discarded` is the model answering and the check refusing to believe it
+ * - a quote that was not on the page it cited. A screen that showed only the proposals
+ * would leave a reviewer thinking the model simply found six, which is the one
+ * impression this feature must not create.
+ */
+export function ExtractionPanel({ result, busy, error, onRun, onAccept, frozen }: {
+  result: ExtractionResult | null;
+  busy: boolean;
+  error: string | null;
+  onRun: () => void;
+  onAccept: (proposals: FindingProposal[]) => void;
+  /** Non-null once somebody has answered: evidence is frozen and nothing may be added. */
+  frozen: string | null;
+}): ReactElement {
+  const [keep, setKeep] = useState<Record<string, boolean>>({});
+  const chosen = (result?.proposals ?? []).filter((p) => keep[p.itemId] !== false);
+
+  if (frozen !== null) {
+    return <p className="small muted">{frozen}</p>;
+  }
+
+  return (
+    <>
+      <p className="small muted" style={{ marginTop: 0 }}>
+        Searches the documents for each of the twelve questions in turn and proposes a
+        finding for the ones it can answer. Every proposal carries a quote checked
+        against the page it cites; one that does not match is discarded rather than
+        repaired. Nothing is added to the case until you accept it.
+      </p>
+
+      <div className="btn-row" style={{ marginTop: 0 }}>
+        <button className="primary" type="button" disabled={busy} onClick={onRun}>
+          {busy ? "Reading the documents…" : result === null ? "Read the documents" : "Read them again"}
+        </button>
+        {busy && <span className="tiny muted">One model call per question — about two minutes.</span>}
+      </div>
+      {busy && <div className="note working">Reading the documents…</div>}
+      {error !== null && <div className="err">{error}</div>}
+
+      {result !== null && !busy && (
+        <>
+          <div className="inv" style={{ marginTop: 16 }}>
+            {result.proposals.map((p) => (
+              <div className="cite" key={p.itemId}>
+                <input type="checkbox" id={`x-${p.itemId}`} checked={keep[p.itemId] !== false}
+                  onChange={() => setKeep((k) => ({ ...k, [p.itemId]: k[p.itemId] === false }))} />
+                <label htmlFor={`x-${p.itemId}`}>
+                  <strong>{p.label}</strong>
+                  <div className="tiny muted">
+                    {p.itemId} · {p.field} · <span className={`state ${p.assertion === "safe" ? "present" : p.assertion === "toxic" ? "stop" : "inconclusive"}`}>{p.assertion}</span> · page {p.page}
+                  </div>
+                  {/* The receipt, verbatim. This is the whole basis on which the
+                      proposal was allowed to exist. */}
+                  <div className="tiny mono quote">&ldquo;{p.quote}&rdquo;</div>
+                </label>
+              </div>
+            ))}
+          </div>
+
+          {result.proposals.length === 0 && (
+            <p className="small muted">
+              It found nothing it could quote. The documents may not cover these questions,
+              or may not be the right documents.
+            </p>
+          )}
+
+          {result.notFound.length > 0 && (
+            <p className="small muted">
+              Not answered by these documents: {result.notFound.map((n) => n.itemId).join(", ")}.
+              That is evidence about the document, not a failure — those questions stay on
+              the missing list.
+            </p>
+          )}
+
+          {result.discarded.length > 0 && (
+            <div className="concern">
+              Discarded {result.discarded.length}: {result.discarded.map((d) => `${d.itemId} (${d.reason})`).join("; ")}.
+              A quote that is not on the page it cites is refused rather than corrected.
+            </div>
+          )}
+
+          {result.proposals.length > 0 && (
+            <div className="btn-row">
+              <button className="primary" type="button" disabled={chosen.length === 0}
+                onClick={() => { onAccept(chosen); }}>
+                Accept {chosen.length} of {result.proposals.length}
+              </button>
+              <span className="tiny muted">
+                Accepting declares that these findings cover the questions they name.
+              </span>
+            </div>
+          )}
+        </>
+      )}
+    </>
   );
 }
 

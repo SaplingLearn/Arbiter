@@ -2,13 +2,14 @@ import { useCallback, useEffect, useState, type ReactElement } from "react";
 import {
   api, ApiError, uploadDocument,
   type AuditResult, type BlindView, type CaseListing,
-  type CaseReport, type CaseSummary, type Finding, type Inventory, type LibrarySource,
+  type CaseReport, type CaseSummary, type ExtractionResult, type Finding, type Inventory,
+  type LibrarySource,
   type Person, type Refusal, type Roster, type StoredDocument, type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
 import { AskPage, Dashboard, LibraryPage, NewCasePage } from "./pages.js";
 import {
-  Audit, Documents, FindingsEditor, InventoryPanel, PositionForm,
+  Audit, Documents, ExtractionPanel, FindingsEditor, InventoryPanel, PositionForm,
   Refused, Reveal, RosterPanel, Verdict, Waiting,
 } from "./screens.js";
 import { Read, ReadingRoom } from "./read.js";
@@ -99,6 +100,11 @@ export function App(): ReactElement {
    *  thing standing between a ninety-second adjudication and a button that reads as
    *  broken. */
   const [busy, setBusy] = useState<string | null>(null);
+  /* The extraction is held here rather than in the panel: accepting it clears it, and a
+     panel that owned its own result would keep showing proposals already in the case. */
+  const [extraction, setExtraction] = useState<ExtractionResult | null>(null);
+  const [extractBusy, setExtractBusy] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [findingError, setFindingError] = useState<string | null>(null);
@@ -466,6 +472,43 @@ export function App(): ReactElement {
         <Section>
           <InventoryPanel inv={inventory} documentScope={head.scope} />
         </Section>
+
+        {/* BEFORE THE EVIDENCE EDITOR, because it is where the evidence comes from when
+            nobody has typed any. A reviewer opening a case with an uploaded document and
+            an empty checklist has one question - "do I have to read all 400 pages myself"
+            - and this is the answer to it. */}
+        {isOwner && (
+          <Section title="Read the documents" count={extraction === null ? "" : `${extraction.proposals.length} proposed`}>
+            <ExtractionPanel
+              result={extraction} busy={extractBusy} error={extractError} frozen={frozen}
+              onRun={() => {
+                setExtractError(null);
+                setExtractBusy(true);
+                void (async () => {
+                  try { setExtraction(await api.extract(token, caseId)); }
+                  catch (e) { setExtractError(e instanceof ApiError ? e.message : String(e)); }
+                  finally { setExtractBusy(false); }
+                })();
+              }}
+              onAccept={(proposals) => {
+                setExtractError(null);
+                act(async () => {
+                  try {
+                    await api.acceptFindings(token, caseId, proposals.map((p) => ({
+                      // Keyed by the checklist item it answers: an extraction proposes at
+                      // most one finding per question, so a second run replaces rather
+                      // than duplicating.
+                      id: `ext-${p.itemId.toLowerCase()}`,
+                      label: p.label, assertion: p.assertion, detail: p.detail,
+                      covers: [p.itemId],
+                      sourceDocumentId: p.documentId, sourcePage: p.page, sourceQuote: p.quote,
+                    })));
+                    setExtraction(null);
+                  } catch (e) { setExtractError(e instanceof ApiError ? e.message : String(e)); }
+                }, "Adding the findings…");
+              }} />
+          </Section>
+        )}
 
         {isOwner && (
           <Section title="Evidence" count={`${findings.length} findings`}>

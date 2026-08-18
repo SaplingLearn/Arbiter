@@ -451,7 +451,16 @@ a { color: var(--accent); text-underline-offset: 3px; }
    verdict hues - cannot spend. The saturation lift puts the scene's own colour
    back through the plate instead of buying legibility with alpha. The blur stays
    at 3px; the point of the last pass was that you can see what is back there. */
-.card, .tile, .panel, .inv, .scroll, .empty, .pos, .concern, .note, .stub {
+.card, .tile, .panel, .inv, .scroll, .empty, .pos, .concern, .note, /* The verbatim sentence a proposed finding was accepted on. Set as a quotation rather
+   than as another muted line: it is the one part of a proposal that is not the model's
+   words, and the whole basis on which the proposal was allowed to exist. The rule is
+   the reader's cue that everything left of it can be checked against a page. */
+.quote {
+  margin-top: var(--s2); padding-left: var(--s4);
+  border-left: 2px solid var(--line);
+  color: var(--ink-2); line-height: 1.5;
+}
+.stub {
   backdrop-filter: blur(3px) saturate(1.5);
   -webkit-backdrop-filter: blur(3px) saturate(1.5);
 }
@@ -818,6 +827,15 @@ button.danger:hover { border-color: var(--stop-line); color: var(--stop); }
 .concern {
   border: 1px solid var(--open-line); border-left: 3px solid var(--open);
   background: var(--open-wash); padding: var(--s4) var(--s5); border-radius: 0 var(--r) var(--r) 0;
+}
+/* The verbatim sentence a proposed finding was accepted on. Set as a quotation rather
+   than as another muted line: it is the one part of a proposal that is not the model's
+   words, and the whole basis on which the proposal was allowed to exist. The rule is
+   the reader's cue that everything left of it can be checked against a page. */
+.quote {
+  margin-top: var(--s2); padding-left: var(--s4);
+  border-left: 2px solid var(--line);
+  color: var(--ink-2); line-height: 1.5;
 }
 .stub {
   border: 1px solid var(--stop-line); color: var(--stop); background: var(--stop-wash);
