@@ -8,6 +8,11 @@
       "path": "data/raw/approval-packages/turalio-211810-multidiscipline.pdf"
     },
     {
+      "name": "deucravacitinib",
+      "label": "Sotyktu (deucravacitinib) - EMA CHMP assessment report EMA/68815/2023",
+      "path": "data/raw/approval-packages/sotyktu-epar-assessment.pdf"
+    },
+    {
       "name": "nipocalimab",
       "label": "Imaavy (nipocalimab) - EMA CHMP assessment report",
       "path": "data/raw/approval-packages/ema-epar-sample-imaavy.pdf"

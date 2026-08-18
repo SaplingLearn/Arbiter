@@ -7,10 +7,11 @@ const CHECKLIST = JSON.parse(readFileSync("rules/evidence-checklist-v1.0.json", 
 
 describe("the case catalogue", () => {
   it("lists the refused documents rather than hiding them", () => {
-    // A picker showing only what worked would imply every document works. Two of
-    // four cannot be used, and that ratio is the finding.
+    // A picker showing only what worked would imply every document works. Two of the
+    // seven cannot be used, and that ratio is the finding. The refused pair is named
+    // exactly; the usable count is derived, so adding a case does not fail this.
     expect(CATALOGUE.filter((c) => !c.usable).map((c) => c.name)).toEqual(["tolcapone", "troglitazone"]);
-    expect(CATALOGUE.filter((c) => c.usable).length).toBe(4);
+    expect(CATALOGUE.filter((c) => c.usable).length).toBe(CATALOGUE.length - 2);
   });
 
   it("accepts every catalogue name and nothing else", () => {
@@ -32,8 +33,10 @@ describe("the case catalogue", () => {
     expect(refusalFor("tak994")).toBeNull();
   });
 
-  it("loads all three usable cases with provenance attached", () => {
-    for (const name of ["tak994", "nipocalimab", "slynd", "turalio"] as const) {
+  // DERIVED FROM THE CATALOGUE, not a hand-kept list: a case added to CATALOGUE and
+  // not to a literal here would be a case nothing in this file ever loads.
+  it("loads every usable case with provenance attached", () => {
+    for (const { name } of CATALOGUE.filter((c) => c.usable)) {
       const c = loadCase(name);
       expect(c.findings.length).toBeGreaterThan(0);
       expect(c.provenance.length).toBeGreaterThan(20);

@@ -23,7 +23,7 @@ import type { AdjudicateRequest } from "./adjudicate.js";
  * refusal would be decorative.
  */
 
-export type CaseName = "tak994" | "nipocalimab" | "slynd" | "turalio" | "tolcapone" | "troglitazone";
+export type CaseName = "tak994" | "nipocalimab" | "slynd" | "turalio" | "deucravacitinib" | "tolcapone" | "troglitazone";
 
 export interface CaseSummary {
   name: CaseName;
@@ -79,6 +79,7 @@ export const CATALOGUE: CaseSummary[] = [
   { name: "nipocalimab", label: "Nipocalimab / Imaavy (myasthenia gravis)", shape: "Rich package, room splits three ways. Biologic, so 4 questions do not apply.", usable: true },
   { name: "slynd", label: "Slynd / drospirenone (contraception)", shape: "A 505(b)(2) with no new nonclinical studies at all. Almost nothing to cite.", usable: true },
   { name: "turalio", label: "Turalio / pexidartinib (giant cell tumour)", shape: "The most complete package here. Boxed warning for liver injury; the animal damage starts BELOW human exposure.", usable: true },
+  { name: "deucravacitinib", label: "Sotyktu / deucravacitinib (plaque psoriasis)", shape: "The margin argument, at its strongest and its weakest. A rat liver signal the report calls non-reversible, sitting 247x above the human dose - in a disease nobody dies of.", usable: true },
   /* THE REFUSALS DO NOT SAY "REFUSED", and `usable` above is why. The card that draws
      this line already carries a red REFUSED badge two rows up, off that same flag, so a
      shape opening on the word in capitals was the badge said twice - the only shouted
@@ -136,6 +137,7 @@ export function loadCase(name: CaseName): LoadedCase {
   if (name === "nipocalimab") return fromFile(name, "data/cases/nipocalimab-imaavy.json");
   if (name === "slynd") return fromFile(name, "data/cases/slynd-drospirenone.json");
   if (name === "turalio") return fromFile(name, "data/cases/turalio-pexidartinib.json");
+  if (name === "deucravacitinib") return fromFile(name, "data/cases/deucravacitinib-sotyktu.json");
 
   const probe = JSON.parse(readFileSync("data/probe-case.json", "utf8")) as {
     compoundLabel: string; context: string;

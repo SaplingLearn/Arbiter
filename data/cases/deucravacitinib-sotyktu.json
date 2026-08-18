@@ -1,0 +1,108 @@
+{
+  "_note": "Built from the EMA assessment report for Sotyktu, whose non-clinical section is written before and separately from the clinical one - the same reason data/cases/turalio-pexidartinib.json gives for preferring EPARs. Every quote below is verbatim from the page named and was checked against the PDF before this file was written; test/library-cases.test.ts pins them.",
+  "_source": {
+    "document": "EMA CHMP Assessment report EMA/68815/2023 - Sotyktu (deucravacitinib)",
+    "localFile": "data/raw/approval-packages/sotyktu-epar-assessment.pdf",
+    "totalPages": 191,
+    "chapterUsed": "2.5 Non-clinical aspects, sections 2.5.4.2 Repeat dose toxicity through 2.5.4.3 Genotoxicity"
+  },
+  "_extractedBy": "Read against the source and declared by hand. Coverage is DECLARED, never inferred - see the note on CoveringFinding in services/api/inventory.ts.",
+  "_whyFiveOfTwelveAreAbsent": "M1, M2, M3, M4 and M6 are internal screening assays - human-cell hepatotoxicity, hepatobiliary transporter inhibition, reactive-metabolite work, mitochondrial assays and structural alerts. They appear in a sponsor's own reports and not in an agency's summary of them. The transporter tables on page 69 list NTCP among the transporters evaluated but state no hepatobiliary inhibition RESULT, so M2 stays absent rather than being covered by a table caption.",
+  "caseId": "deucravacitinib-sotyktu",
+  "compoundLabel": "Deucravacitinib (Sotyktu) - moderate to severe plaque psoriasis",
+  "context": "Moderate to severe plaque psoriasis in adults who are candidates for systemic therapy. Oral, 6 mg once daily, chronic dosing in a broad outpatient population with a non-life-threatening disease and alternative systemic therapies available. The decision is whether a rat liver signal the report calls non-reversible is acceptable against an exposure margin of 247x at the dose that produced it.",
+  "modality": "small_molecule",
+  "documentScope": "An EMA assessment report summarising the sponsor's non-clinical package. It reports what the assessors concluded from the repeat-dose studies; it does not contain the mechanistic screening work - human hepatocyte, hepatobiliary transporter, mitochondrial or structural-alert assays - so five of the twelve questions cannot be answered from this document at all.",
+  "findings": [
+    {
+      "id": "DEUC:liver-chemistry-nonreversible",
+      "label": "Rat liver enzyme and bilirubin changes did not reverse",
+      "assertion": "toxic",
+      "detail": "\"In toxicity studies in rats, liver side effects were observed such as non-reversible decreased cholesterol and triglycerides, increased total bilirubin and increased aspartate aminotransferase, alanine aminotransferase and alkaline phosphatase.\" Transaminases together with alkaline phosphatase and bilirubin is a mixed pattern rather than a purely hepatocellular one, and the report calls the changes non-reversible in the same sentence that names them - the reversibility question answered in the unfavourable direction.",
+      "sourceDocument": "EMA/68815/2023",
+      "sourcePage": 29,
+      "covers": ["M5", "C3", "C4"]
+    },
+    {
+      "id": "DEUC:kupffer-pigment-non-adverse",
+      "label": "Kupffer-cell pigment with no degeneration or necrosis",
+      "assertion": "safe",
+      "detail": "\"This finding was considered non adverse, because it represented a minor exacerbation of the same background finding observed in control rats, and was not associated with any other microscopic findings, such as hepatocellular degeneration, necrosis, and/or inflammation.\" The iron-containing pigment in Kupffer cells was dose-independent and present in controls, and no structural liver injury accompanied the clinical-chemistry changes.",
+      "sourceDocument": "EMA/68815/2023",
+      "sourcePage": 29,
+      "covers": ["M5"]
+    },
+    {
+      "id": "DEUC:monkey-bilirubin-not-meaningful",
+      "label": "Monkey liver findings judged not clinically meaningful",
+      "assertion": "safe",
+      "detail": "The 9-month monkey study found liver changes limited to minimal-to-mild bilirubin increases, which the assessors concluded \"are not considered to be clinically meaningful, because of the small magnitude of change, the lack of microscopic correlates in the liver, and acceptable safety margins relative to the RHD.\" This and the rat finding above cover the same question and disagree, which is what leaves that question present rather than resolved.",
+      "sourceDocument": "EMA/68815/2023",
+      "sourcePage": 30,
+      "covers": ["M5"]
+    },
+    {
+      "id": "DEUC:chmp-raised-liver-concerns",
+      "label": "Liver effects were raised at CHMP request",
+      "assertion": "ambiguous",
+      "detail": "\"Some concerns were raised on adverse effects on heart, liver and kidneys which occurred during the toxicology studies in rats and monkeys.\" Raised, discussed, and closed on imputability and exposure margin rather than on a mechanism - so the record shows the question was asked and does not show it settled.",
+      "sourceDocument": "EMA/68815/2023",
+      "sourcePage": 37,
+      "covers": ["M5"]
+    },
+    {
+      "id": "DEUC:exposure-margin-247x",
+      "label": "Exposure margin of 247x at the top rat dose",
+      "assertion": "safe",
+      "detail": "\"Moreover, the exposure margin (AUC) at 50 mg/kg/day is 247× the recommended human dose.\" The single strongest reassuring fact in the package: the dose at which the rat liver and mortality findings occur sits at 247 times the AUC a patient receives, which is headroom of a different order from the 1x margins that make a preclinical liver finding disqualifying.",
+      "sourceDocument": "EMA/68815/2023",
+      "sourcePage": 37,
+      "covers": ["C2"]
+    },
+    {
+      "id": "DEUC:recommended-human-dose",
+      "label": "Six milligrams once daily by mouth",
+      "assertion": "safe",
+      "detail": "\"The recommended dose is 6 mg taken orally once daily.\" The projected human daily dose is stated plainly, which is what every exposure-margin claim in this package is measured against.",
+      "sourceDocument": "EMA/68815/2023",
+      "sourcePage": 13,
+      "covers": ["C1"]
+    },
+    {
+      "id": "DEUC:broad-outpatient-population",
+      "label": "A broad outpatient population with alternatives",
+      "assertion": "toxic",
+      "detail": "\"Sotyktu is indicated for the treatment of moderate to severe plaque psoriasis in adults who are candidates for systemic therapy.\" Psoriasis is not life-threatening and systemic alternatives exist, so the population that would be exposed is large, ambulatory and not short of options - which sets the acceptable-signal bar far lower than it sits for an oncology indication. Note what this does NOT supply: the document states the exposed population and gives no clinical hepatic event rate, so the frequency half of this question rests on the animal incidence above.",
+      "sourceDocument": "EMA/68815/2023",
+      "sourcePage": 13,
+      "covers": ["C5"]
+    },
+    {
+      "id": "DEUC:dosing-indefinite",
+      "label": "Dosing continues past twenty-four weeks",
+      "assertion": "toxic",
+      "detail": "\"If a patient shows no evidence of therapeutic benefit after 24 weeks, treatment discontinuation should be considered.\" Discontinuation is considered only for patients who are NOT benefiting, so a responding patient carries on - the intended duration is indefinite, against repeat-dose studies that ran six months in the rat and nine in the monkey.",
+      "sourceDocument": "EMA/68815/2023",
+      "sourcePage": 13,
+      "covers": ["C6"]
+    },
+    {
+      "id": "DEUC:unscheduled-deaths-6-month-rat",
+      "label": "Eleven unscheduled deaths in the 6-month rat study",
+      "assertion": "toxic",
+      "detail": "\"No mortality in the repeat-dose toxicity studies were observed, except in the 6-month rat toxicity study where 11 unscheduled deaths occurred.\" Mortality confined to one study of the programme, with the cause undetermined in five of the eleven. It covers no checklist question - the twelve are about liver injury and this is whole-animal mortality - but it is the fact the room argues about, so it is on the record rather than left out for not fitting a box.",
+      "sourceDocument": "EMA/68815/2023",
+      "sourcePage": 37,
+      "covers": []
+    },
+    {
+      "id": "DEUC:obstructive-uropathy",
+      "label": "Obstructive uropathy killed one rat at the top dose",
+      "assertion": "toxic",
+      "detail": "\"In the 6-month toxicity study in rats, an obstructive uropathy was the cause of death of 1 male rat at 50 mg/kg/day.\" A named cause of death rather than an unexplained one, and renal rather than hepatic - so it narrows the eleven deaths above without covering a liver question.",
+      "sourceDocument": "EMA/68815/2023",
+      "sourcePage": 30,
+      "covers": []
+    }
+  ]
+}
