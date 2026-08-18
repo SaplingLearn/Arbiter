@@ -1,5 +1,31 @@
 name: CI
-on: [push, pull_request]
+
+# ONE RUN PER COMMIT, NOT TWO.
+#
+# This was `on: [push, pull_request]`, the bare form, which fires BOTH triggers for every
+# push to a branch that has a pull request open - two identical runs of the same workflow
+# over the same commit, each claiming a runner and a postgres service. In practice one
+# finished in about three minutes and the other sat `in_progress` indefinitely, so every
+# PR showed a passing check beside a pending one and `mergeStateStatus` stayed UNSTABLE
+# with nothing actually wrong. A check that is permanently pending is worse than no check:
+# it trains everybody to merge past it.
+#
+# `push` is kept, and kept SCOPED TO main, because work lands there directly here as well
+# as through pull requests. Dropping the trigger entirely - the obvious reading of "the
+# push runs are broken, remove them" - would leave a direct push to main with no CI at
+# all, which is the branch where that matters most.
+#
+# `concurrency` cancels a superseded run rather than queueing behind it, so a branch
+# pushed three times in a minute spends one runner on the commit that matters instead of
+# three on commits nobody will merge.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
