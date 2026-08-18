@@ -43,6 +43,31 @@ describe("request deadlines", () => {
     expect(settled).toBe(true);
   });
 
+  /**
+   * THE ONE CALL THAT RELIABLY OUTLASTS A MINUTE, and it was on the minute deadline.
+   *
+   * `consensus.ts` runs the adjudication three times sequentially and takes the
+   * majority, because the verdict is not deterministic at temperature 0. Measured at
+   * 102 seconds on the tucatinib case - so the client aborted at 60, told the reader
+   * the service might be restarting, and the server went on finishing the adjudication
+   * behind a closed socket. Asserted by outliving the general deadline AND the measured
+   * duration, rather than by reading the constant back.
+   */
+  it("gives the adjudication a deadline its three sequential runs can finish inside", async () => {
+    vi.useFakeTimers();
+    hangingFetch();
+    let settled = false;
+    const pending = api.adjudicate("tok", "c1", "2026-08-18T00:00:00Z").catch(() => { settled = true; });
+
+    // Past the general 60s deadline and past the 102s the three runs were measured at.
+    await vi.advanceTimersByTimeAsync(150_000);
+    expect(settled).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(151_000);
+    await pending;
+    expect(settled).toBe(true);
+  });
+
   it("leaves a real error alone rather than reporting every failure as a timeout", async () => {
     vi.stubGlobal("fetch", () => Promise.reject(new TypeError("Failed to fetch")));
     await expect(api.people("tok")).rejects.toThrow(TypeError);

@@ -310,6 +310,23 @@ export class ApiError extends Error {
 const TIMEOUT_MS = 60_000;
 const ASK_TIMEOUT_MS = 120_000;
 const SUMMARY_TIMEOUT_MS = 300_000;
+/**
+ * ADJUDICATION IS N MODEL CALLS, NOT ONE, and it was on the 60-second default.
+ *
+ * `consensus.ts` runs the adjudication `ARBITER_ADJUDICATION_RUNS` times - three by
+ * default - SEQUENTIALLY, and takes the majority, because the verdict is not
+ * deterministic at temperature 0. Measured end to end on the tucatinib case at 102
+ * seconds. So the one call in this product that reliably outlasts a minute was the one
+ * route still on the deadline written for loopback round trips: the request was aborted
+ * at 60 seconds and the reader was told the service might be restarting, while the
+ * server went on and completed the adjudication behind the closed socket.
+ *
+ * Sized like the summary rather than to the measurement plus a margin. The run count is
+ * configurable up to nine, and a deadline that fits exactly three runs would turn a
+ * supported configuration into a silent failure on the slowest and most expensive call
+ * here.
+ */
+const ADJUDICATE_TIMEOUT_MS = 300_000;
 
 async function call<T>(
   method: string, path: string, token: string | null, body?: unknown,
@@ -466,7 +483,7 @@ export const api = {
 
   adjudicate: (token: string, caseId: string, at: string) =>
     call<{ adjudication: Adjudication; source: "stub" | "live"; consensus: Consensus | null }>(
-      "POST", `/api/cases/${caseId}/adjudicate`, token, { at }),
+      "POST", `/api/cases/${caseId}/adjudicate`, token, { at }, ADJUDICATE_TIMEOUT_MS),
 
   ask: (token: string, caseId: string, question: string,
         history: { question: string; answer: string }[] = []) =>
