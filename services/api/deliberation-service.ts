@@ -273,7 +273,7 @@ export class DeliberationService {
   /** Cases this account is named on, owner or participant. Nothing else, ever -
    *  a list endpoint that leaked case labels would undo the access boundary in the
    *  one place people go looking. */
-  async casesFor(userId: string): Promise<{ caseId: string; compoundLabel: string; status: string; isOwner: boolean; submitted: number; of: number }[]> {
+  async casesFor(userId: string): Promise<{ caseId: string; compoundLabel: string; status: string; isOwner: boolean; submitted: number; of: number; youSubmitted: boolean }[]> {
     return visibleCases(await this.store.allCases(), userId).map((c) => ({
       caseId: c.caseId,
       compoundLabel: c.compoundLabel,
@@ -283,6 +283,28 @@ export class DeliberationService {
       // blind view: a tally of calls drags as hard as the positions themselves.
       submitted: c.positions.length,
       of: c.participantIds.length,
+      /**
+       * WHETHER THIS VIEWER HAS ANSWERED - one bit, about themselves, and the count
+       * above cannot substitute for it.
+       *
+       * `submitted < of` was what the dashboard had to reason from, and it is true of a
+       * case where three of four have answered whether or not the viewer is one of the
+       * three. So a participant who had already submitted went on being told the case
+       * needed their position, on the screen whose entire job is answering "what is
+       * waiting on me".
+       *
+       * DISCLOSING NOTHING THE BLIND SUBMISSION PROTECTS, and the argument is one this
+       * codebase already made for the same fact: `Layout.tsx`'s `Steps` shows a reader
+       * their own mark count on the grounds that own activity is not an aggregate over
+       * other people. Your own submission is the thing you are most certain of. What
+       * would be a disclosure - which of the OTHERS have answered - stays out, as it
+       * does from `visibleTo` until the reveal.
+       *
+       * False for the convener, who holds no position at all rather than an unanswered
+       * one. `isOwner` beside it is what tells those two apart; overloading this field
+       * with a third state would put that distinction in the wrong place.
+       */
+      youSubmitted: c.positions.some((p) => p.participantId === userId),
     }));
   }
 

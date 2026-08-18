@@ -33,6 +33,10 @@ beforeEach(() => { documents.mockReset(); documents.mockResolvedValue([]); });
 /** A case listing. `documents` is the count the server already computed. */
 const kase = (caseId: string, compoundLabel: string, docs: number): CaseListing => ({
   caseId, compoundLabel, status: "open", isOwner: false, submitted: 0, of: 3, documents: docs,
+  // Nothing in this file reads it - the reading room is about documents, not stages -
+  // but it is required on the listing, and a fixture that lies about the wire shape is
+  // how a test goes on passing after the thing it stands for has changed.
+  youSubmitted: false,
 });
 
 /** A stored document, measured and accepted unless a test says otherwise. */

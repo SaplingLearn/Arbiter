@@ -1,6 +1,11 @@
+import { readFileSync } from "node:fs";
 import { closePool } from "./db.js";
+import { loadEnv } from "./env.js";
 import type { AuthStoreApi } from "./postgres-auth.js";
 import { buildStores } from "./stores.js";
+import { DeliberationService } from "./deliberation-service.js";
+import { seedDemoCases } from "./seed-cases.js";
+import type { EvidenceChecklist } from "./inventory.js";
 
 /**
  * Creates the demonstration team.
@@ -79,9 +84,28 @@ if (process.argv[1] !== undefined && process.argv[1].includes("seed-demo")) {
      reads as the seed itself being stuck. On the file path `closePool` is a no-op, so
      this costs nothing there. In `finally` rather than after, so a failed seed exits
      too instead of hanging on the way out of an error. */
+  /**
+   * BEFORE `buildStores` READS ANYTHING, and its absence was a real defect rather than
+   * an untidiness.
+   *
+   * `buildStores` picks the backing from `DATABASE_URL`, and the documented way to set
+   * that is `.env` - which is loaded by whichever entry point runs, not by the module
+   * that reads it. `server.ts` does this in its own CLI block; this file did not. So on
+   * any machine configured the documented way, `npm run seed:demo` opened the FILE store
+   * while the server it was seeding for opened Postgres: five accounts and five cases
+   * reported as created, into a store nothing would ever read, and a product that still
+   * came up empty.
+   *
+   * That is precisely the pair of symptoms the comment below already warns about - it
+   * was written when this file opened the users file directly, and fixing THAT half left
+   * this one, because `buildStores` cannot see a variable nobody has loaded. An explicit
+   * environment still wins: `loadEnv` fills in only what is unset.
+   */
+  loadEnv();
+
   try {
-    const { auth } = await buildStores("results/deliberation-log.jsonl");
-    const report = await seedDemoTeam(auth, Date.now());
+    const stores = await buildStores("results/deliberation-log.jsonl");
+    const report = await seedDemoTeam(stores.auth, Date.now());
 
     console.log("ARBITER demonstration team");
     console.log("=".repeat(60));
@@ -93,6 +117,40 @@ if (process.argv[1] !== undefined && process.argv[1].includes("seed-demo")) {
     console.log("  Real accounts on the real authentication path. What is fake is the");
     console.log("  secrecy of the password. Delete results/deliberation-log.jsonl.users.json");
     console.log("  before this holds anything that matters.");
+
+    /**
+     * AND CASES FOR THEM TO BE ON, because five accounts and no cases is a product that
+     * opens on "No cases yet".
+     *
+     * Accounts first and cases second, in one command rather than two: a case needs a
+     * panel, so the ordering is a real dependency and not a preference, and splitting it
+     * across two commands makes the second one a thing to forget. `seedDemoCases` reports
+     * rather than throws when the team is missing, so this stays a sensible thing to run
+     * even if the account half was skipped entirely.
+     *
+     * The checklist is read here rather than inside the seeder so that module stays a
+     * pure function of the service it is handed - the same reason `seedDemoTeam` takes an
+     * `AuthStoreApi` instead of opening a store of its own.
+     */
+    const checklist = JSON.parse(
+      readFileSync("rules/evidence-checklist-v1.0.json", "utf8"),
+    ) as EvidenceChecklist;
+    const svc = new DeliberationService(stores.deliberation, checklist);
+    const cases = await seedDemoCases(svc, stores.auth, Date.now(), DEMO_TEAM.map((p) => p.email));
+
+    console.log("");
+    console.log("Demonstration cases, one per stage");
+    console.log("=".repeat(60));
+    if (cases.skipped !== null) {
+      console.log(`  skipped   ${cases.skipped}`);
+    } else {
+      for (const c of cases.created) console.log(`  created   ${c}`);
+      for (const c of cases.alreadyPresent) console.log(`  existed   ${c}`);
+      console.log("");
+      console.log("  Every verdict here is a STUB - no model was called, and each record");
+      console.log("  says so on its face. The words are a fixture, not a judgment about a");
+      console.log("  compound, and must not be quoted as one.");
+    }
   } finally {
     await closePool();
   }

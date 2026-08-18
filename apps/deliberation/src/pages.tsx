@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactElement } from "
 import { PageHead, Section } from "./Layout.js";
 import { Markdown } from "./markdown.js";
 import { href } from "./router.js";
+import { stageOf } from "./stage.js";
 import { api, ApiError, uploadDocument, type AskAnswer, type CaseListing, type CaseSummary, type LibrarySource, type Person } from "./api.js";
 
 /**
@@ -171,12 +172,31 @@ export function AuthPage({ onSignedIn }: { onSignedIn: (token: string, user: Per
  *  a dashboard to answer. */
 export type Bucket = "yours" | "waiting" | "sign" | "closed";
 
+/**
+ * DERIVED FROM `stageOf`, not from the status fields a second time.
+ *
+ * This used to read the fields itself - `c.submitted < c.of && !c.isOwner` for "yours" -
+ * and that inference was wrong in one case that mattered: three of four answered with the
+ * reader among them is `submitted < of`, so an already-answered participant kept finding
+ * their case under "Needs your position" on the screen built to say what was waiting on
+ * them. `youSubmitted` is on the listing now and `stageOf` reads it.
+ *
+ * Going through `stageOf` rather than reading the same field here is what stops the pile
+ * and the card's own tag from disagreeing. A card labelled "Your position" filed under
+ * "In progress" would be worse than either being wrong on its own, because each would
+ * look like evidence the other was the mistake.
+ */
 export function bucketOf(c: CaseListing): Bucket {
-  if (c.status === "signed") return "closed";
-  if (c.status === "open") return c.submitted < c.of && !c.isOwner ? "yours" : "waiting";
-  // Locked or adjudicated: the panel is done and the decision owner is the only
-  // person who can move it.
-  return c.isOwner ? "sign" : "waiting";
+  const { label, yours } = stageOf(c);
+  if (label === "Report") return "closed";
+  if (label === "Your position") return "yours";
+  // The panel is done and the convener is the only person who can move it. `yours` is
+  // already "is this the reader's move", so this asks nothing about ownership itself.
+  if (label === "Reveal & verdict" || label === "Record") return yours ? "sign" : "waiting";
+  // "Awaiting the panel", and any status this bundle does not recognise. Neither is the
+  // reader's to act on, and a stage the client cannot name is never worth sending
+  // somebody to look at.
+  return "waiting";
 }
 
 const BUCKETS: { key: Bucket; title: string; blurb: string }[] = [
@@ -245,14 +265,30 @@ export function Dashboard({ mine, me }: { mine: CaseListing[]; me: Person }): Re
 
 function CaseCard({ c }: { c: CaseListing }): ReactElement {
   const tone = c.status === "signed" ? "go" : c.status === "open" ? "open" : "accent";
+  const stage = stageOf(c);
   return (
     <a className="card" href={href({ name: "case", caseId: c.caseId })}>
       <div className="eyebrow">{c.isOwner ? "You convene this" : "You are on the panel"}</div>
       <h3>{c.compoundLabel}</h3>
       <div className="row">
-        <span className={`badge ${tone}`}>{c.status}</span>
-        {/* Who has answered, never what they said. */}
-        <span className="tiny muted mono">{c.submitted} of {c.of} answered</span>
+        {/**
+          * THE STAGE, NOT THE STATUS. This badge printed `c.status` - `open`, `locked`,
+          * `adjudicated`, `signed` - which are the state machine's names from
+          * services/api/deliberation.ts, chosen for its guards rather than for a reader.
+          * `locked` was the one that cost most: it does not mean the case is closed, it
+          * means the panel has finished and the verdict is waiting to be run, so the
+          * status that was a call to action wore the word that sounds like the opposite.
+          *
+          * `stageOf` names it in the vocabulary the case's own tab strip already uses, so
+          * the dashboard stops speaking a second language about the same objects.
+          */}
+        <span className={`badge ${tone}`}>{stage.label}</span>
+        {/* Who has answered, never what they said - and only while the number can still
+            change. `4/4` beside a signed case is true of every case that got that far,
+            so it carries nothing and competes with the label for the same glance. */}
+        {stage.pip === undefined
+          ? null
+          : <span className="tiny muted mono">{c.submitted} of {c.of} answered</span>}
       </div>
     </a>
   );
