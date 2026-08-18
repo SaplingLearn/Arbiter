@@ -45,9 +45,9 @@ describe("the rail against the scene registry", () => {
    *
    * The old rule existed because `currentNav` resolved entries by scene id, so two
    * entries sharing one made the lookup return whichever came first - silently, and
-   * correctly-looking. That is no longer how the lookup works: the Dashboard and the
-   * Library both stand in the Archive on purpose, and `navByRoute` keys on the route an
-   * entry points at instead.
+   * correctly-looking. That is no longer how the lookup works: `navByRoute` keys on the
+   * route an entry points at, which held up when the Dashboard briefly shared the
+   * Archive with the Library and would hold up again.
    *
    * So the invariant moves rather than being dropped. Two entries may share a world;
    * two entries sharing a DESTINATION would reintroduce the identical ambiguity in the
@@ -111,20 +111,24 @@ describe("currentNav", () => {
   });
 
   /**
-   * TWO ENTRIES SHARE THE ARCHIVE, AND THE LOOKUP HAS TO TELL THEM APART.
+   * THE LOOKUP IS BY DESTINATION, NOT BY SCENE, and this is the case that proved it
+   * had to be.
    *
-   * The Dashboard moved into the Archive so the field behind a list of cases draws one
-   * body per case instead of hashing them onto colonies. That made `library` the scene
-   * of two rail entries, and the lookup was a `find` by scene id - which returns the
-   * first match, so the Library page and all four case routes would have lit DASHBOARD
-   * and printed its codename. Keying on the destination is what fixes it; this is the
-   * check that says so.
+   * The Dashboard was moved into the Archive so its field would draw one body per case,
+   * which put TWO rail entries on the `library` scene. The lookup was a `find` by scene
+   * id - it returns the first match - so the library page and all four case routes lit
+   * DASHBOARD and printed its codename. The Dashboard has since gone back to the
+   * Culture and no two entries share a scene today, but the lookup stays keyed on the
+   * destination: entries sharing a world is a legitimate arrangement this file should
+   * survive, and it did not.
    */
-  it("tells the two Archive entries apart by destination", () => {
-    const archive = NAV.filter((n) => n.scene === "library");
-    expect(archive.map((n) => n.label)).toEqual(["Dashboard", "Library"]);
+  it("lights each surface from its own route, not from the scene behind it", () => {
     expect(currentNav({ name: "dashboard" })?.label).toBe("Dashboard");
     expect(currentNav({ name: "cases" })?.label).toBe("Library");
+    // Case routes stand in the Archive and light the Library, which is the pairing the
+    // scene-keyed lookup got wrong the moment a second entry claimed that scene.
+    expect(sceneFor({ name: "cases" })).toBe("library");
+    expect(currentNav({ name: "case", caseId: "c1" })?.label).toBe("Library");
   });
 
   /**

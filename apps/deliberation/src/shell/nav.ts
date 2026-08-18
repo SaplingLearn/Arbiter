@@ -21,23 +21,23 @@ export interface NavItem {
 
 export const NAV: NavItem[] = [
   /**
-   * THE DASHBOARD STANDS IN THE ARCHIVE TOO, and it used to stand in the Culture.
+   * THE DASHBOARD STANDS IN THE CULTURE, and it briefly stood in the Archive.
    *
-   * The Culture picks a colony by hashing the case id, which is the one thing a field
-   * standing behind a LIST of cases may not do: two of your cases hash to one colony,
-   * so the dashboard drew four cases as three blobs and flying to one of them landed on
-   * a cell belonging to a different case. `sceneFor` already records that as the reason
-   * the case routes left this scene. The same argument applies to the screen that lists
-   * them - a reader counts the field against the table in front of it, and the count
-   * has to survive being counted.
+   * The Archive draws one body per case, keyed by case, which the Culture cannot do -
+   * it picks a colony by hashing the case id, so two cases can share one blob and the
+   * flight to either lands on neither. `sceneFor` records that as the reason the CASE
+   * routes left this scene, and the same argument was applied to the screen that lists
+   * them.
    *
-   * The Archive draws one body per subject, keyed by case, so the dashboard now shows
-   * exactly the cases the dashboard lists - see `Backdrop`, which populates it from the
-   * same array `Dashboard` renders. The Culture scene stays registered and is no longer
-   * mounted by any route; it is scenery this product no longer has a screen for, not a
-   * scene that was deleted.
+   * It is reverted because the exchange was a bad one HERE. On a case route the field
+   * is the subject and a body standing for the wrong case is a false statement; on the
+   * dashboard the colonies are weather, and nothing on the page asks a reader to count
+   * them. Trading the scene the product opens on for a countable field nobody was
+   * counting cost more than the collision it fixed. The Archive is still one cube per
+   * case everywhere cubes actually mean something - the library list and every case
+   * route - which is where the complaint started.
    */
-  { label: "Dashboard", codename: "Archive", scene: "library", to: { name: "dashboard" } },
+  { label: "Dashboard", codename: "Culture", scene: "dashboard", to: { name: "dashboard" } },
   /**
    * SECOND, between the dashboard and opening a case, because that is where reading
    * sits in the work. The dashboard says what is waiting on you; the next thing a
@@ -110,10 +110,11 @@ export function sceneFor(route: Route): string {
  *
  * BY ROUTE, AND IT WAS BY SCENE. A scene id stopped identifying a rail entry the moment
  * the Dashboard joined the Library in the Archive: `find` returns the first match, so
- * every `navByScene("library")` above - the library page and all four case routes -
- * started resolving to the DASHBOARD entry, lighting the wrong tab and printing the
- * wrong codename. Two entries may legitimately share a world; no two share a
- * destination, so that is what the lookup is keyed on.
+ * every `navByScene("library")` - the library page and all four case routes - resolved
+ * to the DASHBOARD entry, lighting the wrong tab and printing the wrong codename. The
+ * Dashboard has since gone back to the Culture and no two entries share a scene today.
+ * This stays keyed on the destination anyway: two entries sharing a world is a
+ * legitimate arrangement, and it is the one this lookup could not survive.
  */
 const navByRoute = (name: Route["name"]): NavItem | undefined =>
   NAV.find((n) => n.to.name === name);
