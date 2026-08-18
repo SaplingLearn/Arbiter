@@ -659,7 +659,7 @@ export function makeHandler(deps: ServerDeps) {
             const inputs = deps.service.extractionInputs(caseId);
             if (inputs === null) return json(res, 404, { error: "no_case" });
 
-            const complete = completer("ask");
+            const complete = completer("extract");
             if (overBudget(complete)) return;
             if (complete === null) {
               return json(res, 503, {

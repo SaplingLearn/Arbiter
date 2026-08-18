@@ -105,6 +105,43 @@ describe("proposing findings from a document", () => {
     expect(out.discarded[0]?.reason).toMatch(/not found verbatim on page 41/);
   });
 
+  /**
+   * A PDF wraps `post-dose` as `post-` and `dose` on the next line. A model reading that
+   * page writes `post-dose`, and the page - whitespace collapsed - reads `post- dose`.
+   * Page 15 of the ponatinib review does this three times and it discarded two genuine
+   * findings, which is the citation check refusing evidence rather than refusing a lie.
+   */
+  it("matches a quote across a hyphen the page broke over a line", async () => {
+    const wrapped = [{
+      documentId: "d1", filename: "review.pdf",
+      pages: [{ page: 9, text: "Transaminase elevations were dose-\ndependent and resolved post-\ndose in every animal examined." }],
+    }];
+    const out = await proposeFindings(wrapped, CHECKLIST, "small_molecule", saying({
+      found: true, assertion: "toxic", label: "Dose-dependent transaminase rise",
+      detail: "d", quote: "dose-dependent and resolved post-dose in every animal", page: 9,
+    }));
+    expect(out.discarded).toEqual([]);
+    expect(out.proposals.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * AND IT IS STILL NOT A FUZZY MATCH. Removing the same characters from both sides
+   * cannot bring an invented sentence closer to the page, and this is the check that
+   * says the relaxation did not become one.
+   */
+  it("still refuses a sentence that is not on the page, hyphens or not", async () => {
+    const wrapped = [{
+      documentId: "d1", filename: "review.pdf",
+      pages: [{ page: 9, text: "Transaminase elevations were dose-\ndependent and resolved post-dose." }],
+    }];
+    const out = await proposeFindings(wrapped, CHECKLIST, "small_molecule", saying({
+      found: true, assertion: "toxic", label: "Invented",
+      detail: "d", quote: "fulminant hepatic necrosis was observed in every treated animal", page: 9,
+    }));
+    expect(out.proposals).toEqual([]);
+    expect(out.discarded[0]?.reason).toMatch(/not found verbatim/);
+  });
+
   it("discards a proposal that claims a finding and gives no quote", async () => {
     const out = await proposeFindings(DOCS, CHECKLIST, "small_molecule", saying({
       found: true, assertion: "toxic", label: "No receipt", detail: "Trust me.", quote: null, page: 41,

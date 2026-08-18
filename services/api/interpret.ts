@@ -267,7 +267,30 @@ export const SHAPE_ASK: CallShape = { maxOutputTokens: 64000, thinkingBudget: -1
  */
 export const SHAPE_SUMMARY: CallShape = { maxOutputTokens: 64000, thinkingBudget: -1 };
 
-export type CallKind = "short" | "adjudication" | "ask" | "summary";
+/**
+ * EXTRACTION IS A SMALL ANSWER AFTER A LARGE READ, and it was running under the ask
+ * shape, which is the opposite arrangement.
+ *
+ * `SHAPE_ASK` pairs a 64000-token ceiling with adaptive thinking, because a question
+ * against a review can need a long answer and a long think. An extraction call cannot:
+ * retrieval has already chosen six pages, the schema permits a label, a detail, a quote
+ * and a page, and no correct answer is more than a few hundred tokens. What the adaptive
+ * budget bought instead was room to think until the ceiling and be cut off before
+ * answering - `finishReason: MAX_TOKENS`, surfaced as `truncated: max_tokens too low`,
+ * which the sweep saw discard C4 on the ponatinib review.
+ *
+ * So thinking is OFF here, which this interface's own note makes the decisive argument
+ * for: the budget is shared with the answer, so any thinking at all can crowd the answer
+ * out, and only zero removes that by construction rather than by hoping the ceiling is
+ * high enough. The retrieval has already done the part that would benefit from thought -
+ * choosing which six pages to look at - and what remains is finding a sentence on them
+ * and copying it exactly, which is the shape the short calls already run at zero.
+ *
+ * It is also much faster, and this call is made twelve times per document.
+ */
+export const SHAPE_EXTRACT: CallShape = { maxOutputTokens: 16000, thinkingBudget: 0 };
+
+export type CallKind = "short" | "adjudication" | "ask" | "summary" | "extract";
 
 /**
  * THE ONE COPY OF THE DEFAULT MODELS, and the one copy of how a model name is
@@ -328,7 +351,9 @@ export function resolveModel(kind: CallKind, env: NodeJS.ProcessEnv = process.en
   // short model is chosen for a 2.5s abort this surface does not have.
   // A summary reads the same prose on the same terms and answers under the same
   // prompt, so it resolves exactly as "ask" does. Only the output ceiling differs.
-  if (kind === "ask" || kind === "summary") {
+  // Extraction reads the same document prose on the same terms as a question does, so
+  // it resolves to the same model. Only the SHAPE differs - see SHAPE_EXTRACT.
+  if (kind === "ask" || kind === "summary" || kind === "extract") {
     return env["ARBITER_ASK_MODEL"] ?? env["ARBITER_ADJUDICATION_MODEL"] ?? env["ARBITER_MODEL"] ?? DEFAULT_ADJUDICATION_MODEL;
   }
   return env["ARBITER_MODEL"] ?? DEFAULT_SHORT_MODEL;

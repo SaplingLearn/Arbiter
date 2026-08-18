@@ -122,9 +122,26 @@ function schema(pages: number[]): Record<string, unknown> {
   };
 }
 
-/** Is the quote really on that page? A verbatim claim is checkable, so it is checked. */
+/**
+ * Is the quote really on that page? A verbatim claim is checkable, so it is checked.
+ *
+ * HYPHENS AND THE WHITESPACE AROUND THEM ARE REMOVED FROM BOTH SIDES, which is a
+ * normalisation rather than a relaxation. A PDF wraps `post-dose` as `post-` and then
+ * `dose` on the next line; collapsing whitespace alone leaves the page reading
+ * `post- dose` while a model that read that very page writes `post-dose`, and a
+ * perfectly genuine quote is discarded. Page 15 of the ponatinib review does this three
+ * times - post-dose, dose-dependent, 6-month - and it cost two findings.
+ *
+ * Applied to the quote and to the page IDENTICALLY, so it cannot make an invented
+ * sentence match: the same characters come out of both, and a fabricated quote is no
+ * nearer the page afterwards than before. The 25-character floor still stands under it.
+ */
 function quoteIsOnPage(quote: string, text: string): boolean {
-  const norm = (s: string): string => s.toLowerCase().replace(/\s+/g, " ").replace(/[^a-z0-9 .%-]/g, "");
+  const norm = (s: string): string => s
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/\s*-\s*/g, "")
+    .replace(/[^a-z0-9 .%]/g, "");
   const q = norm(quote);
   // A short fragment matches too easily to mean anything.
   return q.length >= 25 && norm(text).includes(q);
