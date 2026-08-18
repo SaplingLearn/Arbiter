@@ -34,6 +34,10 @@
         "transporter inhibition",
         "OATP",
         "MRP2"
+      ],
+      "evidenceForms": [
+        "an inhibition percentage or IC50 against BSEP or another hepatobiliary transporter",
+        "a statement that transporter inhibition was or was not observed"
       ]
     },
     {
@@ -86,6 +90,10 @@
         "bile duct hyperplasia",
         "13-week",
         "26-week"
+      ],
+      "evidenceForms": [
+        "target organ findings in a repeat-dose study naming the liver",
+        "liver weight, hepatocellular hypertrophy, necrosis or clinical-chemistry shifts in animals"
       ]
     },
     {
@@ -121,6 +129,9 @@
         "proposed clinical dose",
         "mg/day",
         "once daily"
+      ],
+      "evidenceForms": [
+        "a stated recommended or maximum human dose, in mg or mg/kg, with its schedule"
       ]
     },
     {
@@ -147,6 +158,11 @@
         "human exposure at the recommended dose",
         "relative to the RHD",
         "exposure multiple"
+      ],
+      "evidenceForms": [
+        "a multiple of human exposure, however expressed - AUC or Cmax, 'x times', 'approximately N-fold'",
+        "a statement that an animal dose is similar to, above or below the human exposure",
+        "a NOAEL or HNSTD given alongside any human comparison"
       ]
     },
     {
@@ -172,6 +188,11 @@
         "alkaline phosphatase",
         "total bilirubin",
         "aminotransferase"
+      ],
+      "evidenceForms": [
+        "a laboratory signature that identifies the pattern: ALT or AST against alkaline phosphatase and bilirubin",
+        "Hy's Law cases, or AST/ALT above a multiple of ULN with concurrent bilirubin - these are hepatocellular by definition",
+        "a histopathological description: necrosis, cholestasis, steatosis, hypertrophy"
       ]
     },
     {
@@ -190,6 +211,10 @@
         "did not reverse",
         "recovery arm",
         "persisted"
+      ],
+      "evidenceForms": [
+        "a recovery or treatment-free period and what happened during it",
+        "a statement that findings did or did not reverse, or trended toward reversal"
       ]
     },
     {
@@ -213,6 +238,10 @@
         "treatment-emergent",
         "TEAE",
         "control arm"
+      ],
+      "evidenceForms": [
+        "an incidence in treated patients, with or without a control arm",
+        "the indicated population and how large or how sick it is"
       ]
     },
     {
@@ -231,6 +260,10 @@
         "continuous daily",
         "until disease progression",
         "treatment duration"
+      ],
+      "evidenceForms": [
+        "the intended treatment duration, including 'until disease progression' or 'chronic'",
+        "the duration of the repeat-dose studies, as what was actually tested"
       ]
     }
   ],

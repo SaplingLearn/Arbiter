@@ -36,6 +36,43 @@ const DOCS = [{
 /** A model that answers every item with whatever it is told to. */
 const saying = (answer: unknown) => async (): Promise<unknown> => answer;
 
+/**
+ * WHAT COUNTS AS AN ANSWER, when the item names one form and the review uses another.
+ *
+ * Measured, not supposed: a retrieval probe over the tucatinib review showed page 34 -
+ * which carries the exposure margin - being handed to the model for C2, and the model
+ * reporting nothing found. C2's field asks for a margin "against projected human Cmax";
+ * the review states one based on AUC. Same for C3, which asks for "hepatocellular,
+ * cholestatic or mixed" against a review that states the pattern as a lab signature.
+ * The model was right that it had not been shown what it was asked for.
+ */
+describe("the forms of answer an item accepts", () => {
+  it("puts them in the prompt, and says nothing when an item declares none", async () => {
+    const prompts: string[] = [];
+    const spy = async (_sys: string, user: string): Promise<unknown> => {
+      prompts.push(user);
+      return { found: false };
+    };
+    const withForms: EvidenceChecklist = {
+      version: "test",
+      items: [
+        /* The fields have to RETRIEVE something from DOCS, or the model is never
+           called and the prompt never built - which is the failure this test hit
+           first, and a fair reminder that an item whose words appear nowhere in a
+           document costs no model call at all. */
+        { id: "C2", half: "consequence", field: "liver target organ", whatItBlocks: "x",
+          evidenceForms: ["a multiple of human exposure, AUC or Cmax"] },
+        { id: "C9", half: "consequence", field: "recovery period reversed", whatItBlocks: "y" },
+      ],
+    };
+    await proposeFindings(DOCS, withForms, "small_molecule", spy);
+    expect(prompts[0]).toContain("ANY OF THESE FORMS COUNTS");
+    expect(prompts[0]).toContain("a multiple of human exposure, AUC or Cmax");
+    // An item with no forms gets no heading at all, rather than an empty one to interpret.
+    expect(prompts[1]).not.toContain("ANY OF THESE FORMS COUNTS");
+  });
+});
+
 describe("proposing findings from a document", () => {
   it("keeps a proposal whose quote is verbatim on the page it cites", async () => {
     const out = await proposeFindings(DOCS, CHECKLIST, "small_molecule", saying({

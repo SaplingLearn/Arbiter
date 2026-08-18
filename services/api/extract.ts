@@ -172,6 +172,15 @@ export async function proposeFindings(
     const user = [
       `EVIDENCE SOUGHT: ${item.field}`,
       `WHY IT MATTERS: ${item.whatItBlocks}`,
+      /* WHAT COUNTS AS AN ANSWER, when the item names one canonical form and the review
+         uses another. Retrieval was putting the right page in front of the model and the
+         model was reporting nothing found - asked for a Cmax margin and shown an AUC one.
+         See `evidenceForms` in inventory.ts. Omitted entirely when an item declares none,
+         rather than printing an empty heading for the model to interpret. */
+      ...(item.evidenceForms === undefined || item.evidenceForms.length === 0 ? [] : [
+        "ANY OF THESE FORMS COUNTS AS THE EVIDENCE SOUGHT:",
+        ...item.evidenceForms.map((f) => `  - ${f}`),
+      ]),
       "",
       "PASSAGES:",
       ...passages.map((p) => `--- page ${p.page} ---\n${p.text.slice(0, 4000)}`),

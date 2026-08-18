@@ -47,6 +47,31 @@ export interface ChecklistItem {
    * in a wrong passage costs a discarded proposal, not a wrong finding.
    */
   searchTerms?: string[];
+  /**
+   * Which SHAPES of answer count for this item, shown to the extraction model and to
+   * nobody else.
+   *
+   * `field` is written for a person reading a checklist, and it names one canonical form
+   * of the evidence: C2 says "NOAEL against projected human Cmax". Reviews rarely oblige.
+   * The tucatinib review gives the margin as "similar to the human exposure at the
+   * recommended dose of 300 mg twice daily based on AUC" - an exposure margin by any
+   * reading, with no NOAEL and no Cmax in it. Retrieval put that page in front of the
+   * model and the model reported nothing found, because it was asked for Cmax and shown
+   * AUC. C3 fails the same way: it asks for "hepatocellular, cholestatic or mixed" and
+   * FDA reviews state the pattern as a laboratory signature - AST/ALT against bilirubin,
+   * Hy's Law - almost never as one of those three words.
+   *
+   * SEPARATE FROM `searchTerms`, which is the same problem one stage earlier and cannot
+   * be reused here: search terms are vocabulary thrown at a lexical index and would read
+   * as noise in a prompt, while these are statements about what satisfies the question.
+   * Separate from `field` because that string is rendered in the inventory a reviewer
+   * reads, and widening it there to help a model would blur what the item asks for.
+   *
+   * This cannot manufacture a finding. A proposal still carries a verbatim quote checked
+   * against the page it cites, so a form listed here that is not in the document costs
+   * nothing.
+   */
+  evidenceForms?: string[];
   /** Omitted means "applies to everything" - see `not_applicable` below. */
   appliesTo?: Modality[];
   /**
