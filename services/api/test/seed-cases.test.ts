@@ -155,6 +155,82 @@ describe("seeding cases at each stage", () => {
   });
 
   /**
+   * A SHORT PANEL IS REFUSED, and this is the case that produced a store which looked
+   * right rather than one that failed.
+   *
+   * Each fixture submits `panel.slice(0, f.answers)`, so with fewer panellists than a
+   * fixture declares it simply submits fewer - and `lock` still succeeds, because "all_in"
+   * asks whether every PARTICIPANT has answered and on a short panel they all have. Every
+   * status matches its fixture and nothing throws.
+   *
+   * The casualty is `demo-part-answered`, whose entire purpose is a room still out. On a
+   * two-person panel its two submissions ARE the panel, so it lands fully answered and the
+   * dashboard shows "Awaiting the panel, 2 of 2" - the answered-by-you-not-by-them
+   * distinction the fixtures exist to demonstrate, gone, on a screen that still looks full.
+   */
+  it("refuses a roster too short to mean what the fixtures declare", async () => {
+    const auth = await AuthStore.open(null);
+    await seedDemoTeam(auth, Date.parse("2026-08-17T09:00:00Z"));
+    const svcShort = new DeliberationService(new MemoryStore(), CHECKLIST);
+
+    // Owner plus two panellists, where the fixtures need four.
+    const report = await seedDemoCases(svcShort, auth, Date.now(), EMAILS.slice(0, 3));
+
+    expect(report.created).toEqual([]);
+    expect(report.skipped).toMatch(/panellists/);
+    // And nothing was half-written on the way to deciding that.
+    expect(await svcShort.getCase("demo-awaiting-everyone")).toBeNull();
+  });
+
+  /**
+   * A LONGER ROSTER IS REFUSED TOO, which is not what I expected and is why this test
+   * exists rather than a comment asserting the opposite.
+   *
+   * "The extra people simply do not answer" sounds harmless and is not. `demo-panel-done`
+   * and the two fixtures after it have to REVEAL, `lock` requires every PARTICIPANT to
+   * have answered, and a fifth panellist the fixture never asks is one the reveal waits
+   * for forever. Written as `panel.length < needed` this got as far as throwing
+   * `Still waiting on u_...` from inside the loop, three cases already written to the
+   * store - a half-seeded store from a guard meant to prevent exactly that.
+   *
+   * So the largest `answers` is the panel size these fixtures are written against, not a
+   * floor, and refusing up front is the difference between a message and a mess.
+   */
+  it("refuses a roster longer than the fixtures were written against", async () => {
+    const auth = await AuthStore.open(null);
+    await seedDemoTeam(auth, Date.parse("2026-08-17T09:00:00Z"));
+    const extra = await auth.register({
+      email: "e.fifth@arbiter.demo", displayName: "E. Fifth (extra)",
+      password: "arbiter-demo-2026", now: Date.parse("2026-08-17T09:00:00Z"),
+    });
+    expect(extra.ok).toBe(true);
+
+    const svcLong = new DeliberationService(new MemoryStore(), CHECKLIST);
+    const report = await seedDemoCases(
+      svcLong, auth, Date.parse("2026-08-17T09:00:00Z"), [...EMAILS, "e.fifth@arbiter.demo"],
+    );
+
+    expect(report.created).toEqual([]);
+    expect(report.skipped).toMatch(/exactly/);
+    // Refused BEFORE anything was written, which is the half-seeded store this prevents.
+    expect(await svcLong.getCase("demo-awaiting-everyone")).toBeNull();
+  });
+
+  /** A repeated address would seat one person twice and make `of` count them twice, so the
+   *  count on every card would be wrong in a way no status check would notice. */
+  it("refuses a roster that names the same person twice", async () => {
+    const auth = await AuthStore.open(null);
+    await seedDemoTeam(auth, Date.parse("2026-08-17T09:00:00Z"));
+    const svcDup = new DeliberationService(new MemoryStore(), CHECKLIST);
+
+    const doubled = [EMAILS[0]!, EMAILS[1]!, EMAILS[1]!, EMAILS[2]!, EMAILS[3]!, EMAILS[4]!];
+    const report = await seedDemoCases(svcDup, auth, Date.now(), doubled);
+
+    expect(report.created).toEqual([]);
+    expect(report.skipped).toMatch(/distinct/);
+  });
+
+  /**
    * The hash chain has to survive being written by a seeder exactly as it does when
    * written by a person - a fixture producing cases that fail their own audit would be
    * worse than no fixture, because the audit screen is one of the things it exists to let

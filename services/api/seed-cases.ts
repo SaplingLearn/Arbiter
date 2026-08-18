@@ -220,15 +220,46 @@ export async function seedDemoCases(
   const panel = team.slice(1).flatMap((p) => (p === null || p === undefined ? [] : [p.id]));
 
   /**
-   * NOTHING TO SEED ONTO, reported rather than thrown. `openCase` refuses a case with an
-   * empty panel — correctly, since a case needs somebody to answer it — and a stack trace
-   * out of a fixture is a worse answer than the one sentence that says what to run first.
-   * Checked for the owner AND the panel: four accounts and no owner is just as unusable.
+   * ENOUGH PANEL TO MEAN WHAT THE FIXTURES SAY, reported rather than thrown.
+   *
+   * `panel.length === 0` was the whole check, and it was too weak in a way that produces
+   * a seeded store which LOOKS right. Each fixture submits `panel.slice(0, f.answers)`, so
+   * a short panel silently submits fewer positions than the fixture declares - and then
+   * `lock` succeeds anyway, because "all_in" requires every PARTICIPANT to have answered
+   * and on a short panel they all have. Nothing fails, and every status still matches its
+   * fixture.
+   *
+   * What breaks is the meaning. `demo-part-answered` exists to be a case with the room
+   * still out; on a two-person panel its two submissions are the whole panel, so it lands
+   * fully answered and the dashboard files it under "Awaiting the panel" at 2 of 2. The
+   * one distinction the fixtures were built to show - answered by you, not yet by the
+   * others - quietly disappears, on a screen that still looks populated.
+   *
+   * EXACTLY the largest `answers`, not "at least" it, and the difference was worth
+   * measuring rather than reasoning about. A longer roster looks harmless - the extra
+   * people simply do not answer - and it is not: `demo-panel-done` and the two after it
+   * have to REVEAL, "all_in" requires every participant to have answered, and a fifth
+   * panellist who was never asked is one the reveal waits for forever. The seeder throws
+   * mid-run with `Still waiting on u_...`, having already written three cases. So the
+   * largest `answers` is not a minimum, it is the panel size these fixtures are written
+   * against, and saying so up front is the difference between a refusal and a half-seeded
+   * store.
+   *
+   * A duplicate address is refused because it would seat one person twice and make `of`
+   * count them twice - every card's tally wrong, and no status check anywhere would
+   * notice. The owner appearing on their own panel is refused because a convener holds no
+   * position at all, which is the distinction `bucketOf` reads `isOwner` to make.
    */
-  if (owner === null || panel.length === 0) {
+  const needed = Math.max(...STAGE_FIXTURES.map((f) => f.answers));
+  if (
+    owner === null
+    || panel.length !== needed
+    || new Set(panel).size !== panel.length
+    || panel.includes(owner.id)
+  ) {
     return {
       created, alreadyPresent,
-      skipped: "No demonstration team, so there is nobody to put on a case. Run `npm run seed:demo` first.",
+      skipped: `Seeding cases needs one convener and exactly ${String(needed)} distinct panellists, none of them the convener. Run \`npm run seed:demo\` first.`,
     };
   }
 
