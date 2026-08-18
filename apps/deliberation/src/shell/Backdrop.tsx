@@ -1,5 +1,9 @@
 import { useEffect, useRef, type ReactElement } from "react";
 import type { Atmosphere, SceneSubject } from "@arbiter/atmosphere";
+/* The population rule, from the entry point that reaches no graphics. A value import
+   from "@arbiter/atmosphere" would pull `three` into first paint - see the note on the
+   dynamic import below, which exists to stop precisely that. */
+import { mergeSubjects } from "@arbiter/atmosphere/subjects";
 import type { CaseSummary } from "../api.js";
 import { type Route } from "../router.js";
 import { sceneFor, transitionFor } from "./nav.js";
@@ -23,6 +27,53 @@ import { sceneFor, transitionFor } from "./nav.js";
  * Imported dynamically so it never blocks first paint - the case list is on screen
  * and usable before the environment arrives behind it.
  */
+/**
+ * WHICH CASES THE FIELD BEHIND A SURFACE DRAWS.
+ *
+ * PULLED OUT OF THE EFFECT SO IT CAN BE TESTED, for the same reason `subjects.ts` was
+ * pulled out of `archive.ts`: this is the one place the environment makes a claim about
+ * a case rather than drawing one, it has three branches, and it has now been wrong
+ * twice in ways no amount of looking at the shader would have found. Everything here is
+ * arrays and booleans.
+ *
+ * THE LIBRARY LIST DRAWS THE LIBRARY. That page puts a countable table over the field
+ * and a reader counts one against the other - it is the whole reason the field stopped
+ * being a fixed forty-two over a catalogue of six. Adding the reader's own cases to it
+ * gave six rows and ten bodies with nothing on screen to explain the four extra.
+ *
+ * THE DASHBOARD DRAWS THE READER'S CASES, for the same reason with a different list -
+ * and falls back to the shelf when they have none, because a brand-new account would
+ * otherwise stand in an Archive with no bodies and no ground lights. That reads as a
+ * broken background, not as an empty list; the "No cases yet" panel is what says the
+ * list is empty, and the field does not have to say it twice by disappearing.
+ *
+ * EVERYWHERE ELSE THE UNION, AND THE REFUSALS ARE WHY. Case routes briefly drew own
+ * cases alone, and own cases are all usable by construction - a refused document cannot
+ * be opened at all, the server answers 422. So opening a case from the library replaced
+ * a field holding the library's two REFUSED bodies with one holding none, and the two
+ * red cubes turned blue on the way in. Refusal is a property of the catalogue, so the
+ * catalogue has to stay in the field for the colour to survive the journey.
+ *
+ * Every branch keys every case exactly, so `resolveBody` answers by `indexOf` and never
+ * reaches its hash fallback: one body per case, and no two cases sharing one.
+ */
+export function fieldFor(
+  routeName: Route["name"],
+  catalogue: readonly CaseSummary[],
+  mine: readonly { caseId: string }[],
+): SceneSubject[] {
+  const shelf = catalogue.map((c) => ({ key: c.name, usable: c.usable }));
+  if (routeName === "cases") return shelf;
+  if (routeName === "dashboard") {
+    // OWN CASES ARE ALWAYS USABLE. `usable: false` marks a document the splitter
+    // refused, which is a fact about the library's corpus. A case a person opened is
+    // not a refused document and must never be drawn in red.
+    const own = mine.map((c) => ({ key: c.caseId, usable: true }));
+    return own.length > 0 ? own : shelf;
+  }
+  return mergeSubjects(shelf, mine.map((c) => c.caseId));
+}
+
 export function Backdrop({ route, catalogue, mine = [], focusKey }: {
   route: Route;
   catalogue: CaseSummary[];
@@ -208,36 +259,14 @@ export function Backdrop({ route, catalogue, mine = [], focusKey }: {
    * Keyed on the joined keys, not on array identity: App re-fetches into a new array on
    * every poll and the contents are almost always the same.
    */
-  const onLibraryList = route.name === "cases";
-  const names = [String(onLibraryList), ...catalogue.map((c) => c.name), ...mine.map((c) => c.caseId)].join(",");
+  /* THE ROUTE NAME, NOT JUST "is this the library". `fieldFor` has three branches and a
+     boolean only distinguishes one of them, so moving from the dashboard to a case -
+     both "not the library list", same catalogue, same cases - left this identity
+     unchanged, the effect unrun, and the case route still looking at the dashboard's
+     field. */
+  const names = [route.name, ...catalogue.map((c) => c.name), ...mine.map((c) => c.caseId)].join(",");
   useEffect(() => {
-    /**
-     * THE FIELD IS WHATEVER THE SCREEN IN FRONT OF IT LISTS, and it was the union
-     * everywhere but the library.
-     *
-     * The union was one body per case a reader could see ANYWHERE, which is a coherent
-     * rule and the wrong one for a page that puts a countable list on top of it. On the
-     * dashboard it drew the library's shelf plus your cases - so four cases in the table
-     * and ten cubes behind them, with nothing on screen to explain the other six. The
-     * count is the whole reason this field stopped being a fixed forty-two.
-     *
-     * So: the library page draws the library's shelf, and every other surface draws the
-     * reader's own cases. Both are exact - `resolveBody` finds every key by `indexOf`,
-     * never by the hash fallback - so no two cases share a body and flying into one
-     * lands on that case's own.
-     *
-     * IT ALSO KEEPS THE FIELD STILL ACROSS THE ONE MOVE THAT MATTERS. Opening a case
-     * from the dashboard used to swap a field of your cases for a field of yours plus
-     * the shelf, so the cube you clicked was at a different index by the time the camera
-     * reached it. The dashboard and the case routes now populate identically and the
-     * flight lands on the body you pointed at.
-     */
-    const shelf = catalogue.map((c) => ({ key: c.name, usable: c.usable }));
-    // OWN CASES ARE ALWAYS USABLE: `usable: false` marks a document the splitter
-    // refused, which is a property of the library's corpus. A case a person opened is
-    // not a refused document and must never be drawn in red.
-    const own = mine.map((c) => ({ key: c.caseId, usable: true }));
-    const subjects = onLibraryList ? shelf : own;
+    const subjects = fieldFor(route.name, catalogue, mine);
     wantedSubjects.current = subjects;
     atmoRef.current?.populate(subjects);
     // `catalogue`, `mine` and the route are the values read; `names` is the identity
