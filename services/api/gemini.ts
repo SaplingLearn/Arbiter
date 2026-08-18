@@ -134,6 +134,47 @@ export function geminiCredentialsPresent(env: NodeJS.ProcessEnv = process.env): 
  * exists to prevent. The catalogues differ, so this distinction decides which models
  * can answer at all.
  */
+/**
+ * WHOSE CREDENTIAL IS PAYING, said out loud at startup.
+ *
+ * THE FAILURE THIS EXISTS FOR. A contributor handed this repository runs it, sees
+ * `Adjudication: LIVE`, and reasonably concludes they are on the team's shared project.
+ * They may not be. ADC authenticates a PERSON - whoever last ran `gcloud auth
+ * application-default login` on that laptop - so a developer with their own Google
+ * account gets a banner identical to a developer on the shared key, and bills
+ * themselves. Nobody discovers it from the product; they discover it from an invoice.
+ *
+ * "LIVE" was reporting that a model answers. It was never reporting who is charged for
+ * the answer, and those are different facts that a single word had been carrying.
+ *
+ * This states the second one. It cannot name the Google ACCOUNT behind an ADC session -
+ * that is inside the credential file and not this process's business - so it says which
+ * MECHANISM is in use and which of them is personal. Naming the mechanism is enough: a
+ * reader who is told they are on their own login knows to ask for the shared key.
+ */
+export function billingNote(env: NodeJS.ProcessEnv = process.env): string {
+  if (apiKeyFrom(env) !== "") {
+    return "billed to the project that GEMINI_API_KEY belongs to - the shared credential";
+  }
+  if (env["GOOGLE_APPLICATION_CREDENTIALS"] !== undefined || env["GOOGLE_APPLICATION_CREDENTIALS_JSON"] !== undefined) {
+    return "billed to the project of the service account in GOOGLE_APPLICATION_CREDENTIALS";
+  }
+  return "billed to YOUR OWN Google account via `gcloud auth application-default login` (ADC).";
+}
+
+/**
+ * What to do about it, printed under `billingNote` when the credential is personal.
+ * Separate from the note because one is a statement of fact about this process and the
+ * other is an instruction to a human, and only the second changes when the team's
+ * sharing arrangement does.
+ */
+export function billingAdvice(env: NodeJS.ProcessEnv = process.env): string | null {
+  if (apiKeyFrom(env) !== "") return null;
+  if (env["GOOGLE_APPLICATION_CREDENTIALS"] !== undefined || env["GOOGLE_APPLICATION_CREDENTIALS_JSON"] !== undefined) return null;
+  return "ADC authenticates a person and cannot be shared. If this machine is meant to be on"
+    + " the team's project, ask for GEMINI_API_KEY and put it in .env.share.";
+}
+
 export function geminiEndpointLabel(env: NodeJS.ProcessEnv = process.env): string {
   if (apiKeyFrom(env) === "") return "Vertex AI, ADC";
   return apiHost(env) === "developer"

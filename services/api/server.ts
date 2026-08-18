@@ -13,7 +13,7 @@ import { handleSummarise } from "./summarise.js";
 import { buildIndex, search } from "./retrieval.js";
 import { proposeFindings } from "./extract.js";
 import { completeFromEnv, providerFor, resolveModel, type CallKind, type Complete } from "./interpret.js";
-import { geminiCredentialAdvice, geminiEndpointLabel } from "./gemini.js";
+import { billingAdvice, billingNote, geminiCredentialAdvice, geminiEndpointLabel } from "./gemini.js";
 import { stubComplete } from "./probe.js";
 import { adjudicateConsensus, runsFrom } from "./consensus.js";
 import { CATALOGUE, isCaseName, loadCase, refusalFor } from "./cases.js";
@@ -26,7 +26,7 @@ import { can, denial, type CaseAction } from "./access.js";
 import { InviteStore } from "./invites.js";
 import { LoginThrottle } from "./throttle.js";
 import { ModelBudget, budgetFrom } from "./spend.js";
-import { envFileInUse, loadEnv } from "./env.js";
+import { envFileInUse, envFilesShadowed, loadEnv } from "./env.js";
 
 /**
  * The deliberation API.
@@ -1116,6 +1116,20 @@ if (invokedDirectly) {
     // checkout's `.env` - or none - while the person reading the banner is looking at
     // the first. Both halves are needed to tell those apart.
     console.log(`Config: ${envFile ?? "no .env or .env.share found - defaults only"}  (in ${process.cwd()})`);
+    // WHO PAYS, beside WHAT ANSWERS. "LIVE" reports that a model replies; it has never
+    // reported whose project is charged, and a contributor on their own ADC login gets a
+    // banner identical to one on the team's key. See `billingNote`.
+    if (completeFromEnv(process.env, "adjudication") !== null && providerFor(adjudicationModel) === "vertex") {
+      console.log(`Billing:  ${billingNote(process.env)}`);
+      const personal = billingAdvice(process.env);
+      if (personal !== null) console.log(`          ${personal}`);
+    }
+    // A shared file sitting unread beside a personal one looks exactly like no shared
+    // file at all, which is how somebody runs for weeks on their own credential.
+    for (const ignored of envFilesShadowed()) {
+      console.log(`WARNING: ${ignored} is present and was NOT read - ${envFile ?? "an earlier file"} took precedence.`);
+      console.log(`         If ${ignored} holds the team's credential, this process is not using it.`);
+    }
     console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token.`);
     console.log(HOST === "127.0.0.1"
       ? "Bound to loopback. This process terminates no TLS; set ARBITER_HOST only behind a proxy that does."

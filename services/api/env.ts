@@ -49,6 +49,24 @@ export function envFileInUse(): string | null {
   return ENV_FILES.find((f) => existsSync(f)) ?? null;
 }
 
+/**
+ * Configuration files that are PRESENT and were not read, because an earlier name won.
+ *
+ * `.env` beating `.env.share` is deliberate and documented - a shared file must never
+ * silently replace a developer's own. But the reverse is just as silent and is the one
+ * that actually bit: a contributor is handed `.env.share`, drops it in beside a `.env`
+ * they set up weeks ago, sees the service come up LIVE, and never learns the shared
+ * credential was ignored. The precedence is right; going quiet about it was not.
+ *
+ * Reported rather than resolved. Guessing which file the reader meant is how a shared
+ * key silently takes over a machine whose owner had configured it differently.
+ */
+export function envFilesShadowed(): string[] {
+  const used = envFileInUse();
+  if (used === null) return [];
+  return ENV_FILES.filter((f) => f !== used && existsSync(f));
+}
+
 /** @returns how many variables were newly set. */
 export function loadEnv(path?: string): number {
   const resolved = path ?? envFileInUse();

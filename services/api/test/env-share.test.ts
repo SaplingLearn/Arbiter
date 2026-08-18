@@ -2,7 +2,8 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { ENV_FILES, envFileInUse, loadEnv } from "../env.js";
+import { ENV_FILES, envFileInUse, envFilesShadowed, loadEnv } from "../env.js";
+import { billingNote, billingAdvice } from "../gemini.js";
 
 /**
  * `.env.share` as a first-class configuration file.
@@ -75,5 +76,78 @@ describe("configuration handed to someone else", () => {
     writeFileSync(".env.share", "ARBITER_TEST_MARKER=from-share\n", "utf8");
     expect(loadEnv()).toBe(0);
     expect(process.env["ARBITER_TEST_MARKER"]).toBe("from-shell");
+  });
+});
+
+/**
+ * THE OTHER HALF OF THE PRECEDENCE, and the half that actually cost somebody money.
+ *
+ * `.env` beating `.env.share` is deliberate: a file handed to you must never silently
+ * replace configuration you set up yourself. But the reverse is equally silent - a
+ * contributor drops the team's share file in beside a `.env` from weeks ago, sees the
+ * service come up LIVE, and never learns the shared credential was ignored.
+ */
+describe("a shared file that was handed over and never read", () => {
+  let dir: string;
+  let cwd: string;
+
+  beforeEach(() => {
+    cwd = process.cwd();
+    dir = mkdtempSync(join(tmpdir(), "arbiter-shadow-"));
+    process.chdir(dir);
+  });
+  afterEach(() => {
+    process.chdir(cwd);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("names a share file that lost to a personal .env", () => {
+    writeFileSync(".env", "A=1", "utf8");
+    writeFileSync(".env.share", "A=2", "utf8");
+    expect(envFileInUse()).toBe(".env");
+    expect(envFilesShadowed()).toEqual([".env.share"]);
+  });
+
+  it("says nothing when there is nothing being shadowed", () => {
+    writeFileSync(".env.share", "A=2", "utf8");
+    expect(envFileInUse()).toBe(".env.share");
+    expect(envFilesShadowed()).toEqual([]);
+  });
+
+  it("says nothing when there is no configuration at all", () => {
+    expect(envFileInUse()).toBeNull();
+    expect(envFilesShadowed()).toEqual([]);
+  });
+
+  /* The list is derived from ENV_FILES rather than written out again, so a third name
+     added there cannot be silently left out of the warning. */
+  it("considers every configuration name the loader does", () => {
+    for (const f of ENV_FILES) writeFileSync(f, "A=1", "utf8");
+    expect(envFilesShadowed().length).toBe(ENV_FILES.length - 1);
+  });
+});
+
+/**
+ * "LIVE" reports that a model answers. It never reported WHOSE project is charged, and
+ * a contributor on their own ADC login saw a banner identical to one on the team's key.
+ */
+describe("saying whose credential is paying", () => {
+  it("calls a key the shared credential", () => {
+    const env = { GEMINI_API_KEY: "AQ.test" } as unknown as NodeJS.ProcessEnv;
+    expect(billingNote(env)).toMatch(/shared credential/);
+    expect(billingAdvice(env)).toBeNull();
+  });
+
+  it("says plainly that ADC bills the developer, and how to stop it", () => {
+    const env = {} as unknown as NodeJS.ProcessEnv;
+    expect(billingNote(env)).toMatch(/YOUR OWN Google account/);
+    expect(billingAdvice(env)).toMatch(/cannot be shared/);
+    expect(billingAdvice(env)).toContain(".env.share");
+  });
+
+  it("attributes a service account to its own project rather than to a person", () => {
+    const env = { GOOGLE_APPLICATION_CREDENTIALS: "/tmp/sa.json" } as unknown as NodeJS.ProcessEnv;
+    expect(billingNote(env)).toMatch(/service account/);
+    expect(billingAdvice(env)).toBeNull();
   });
 });
