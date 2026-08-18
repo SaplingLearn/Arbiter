@@ -84,6 +84,42 @@ describe("seeding cases at each stage", () => {
   });
 
   /**
+   * THE SHAPE THE REPORT ACTUALLY READS, not merely a non-null object.
+   *
+   * `DeliberationService.adjudicate` takes the adjudication as `unknown` and stores it
+   * whole, so nothing between this fixture and the screen checks what is in it. The test
+   * above passed with `missing` written as `string[]` while `report.tsx` renders each
+   * entry's `.field` and `.whyItMatters` - which is a row of empty cells on the Record and
+   * the Report, in a fixture whose entire purpose is giving those two screens something to
+   * draw. Green suite, broken page, and nothing in between to say so.
+   *
+   * Asserted against the client's `Adjudication` type rather than by eye: these are the
+   * properties `report.tsx` indexes, so a future change to either side has to move both.
+   */
+  it("writes an adjudication the report can actually render", async () => {
+    const adj = await svc.adjudication("demo-adjudicated");
+    const body = adj!.adjudication as {
+      consequence: { verdict: string; reasoning: string };
+      missing: { field: string; whyItMatters: string }[];
+      ruleDisclosure: { ruleId: string; position: string }[];
+    };
+
+    expect(body.consequence.verdict).toBe("cannot_conclude");
+    expect(body.ruleDisclosure.length).toBeGreaterThan(0);
+
+    // The one that was wrong. Each entry is an OBJECT with the two properties the table
+    // prints - a string here renders as a blank row rather than failing.
+    expect(body.missing.length).toBeGreaterThan(0);
+    for (const m of body.missing) {
+      expect(typeof m, "each `missing` entry is an object, not a bare string").toBe("object");
+      expect(typeof m.field).toBe("string");
+      expect(m.field.length).toBeGreaterThan(0);
+      expect(typeof m.whyItMatters).toBe("string");
+      expect(m.whyItMatters.length).toBeGreaterThan(0);
+    }
+  });
+
+  /**
    * IDEMPOTENT, like the account seeding beside it. `seed:demo` is documented as safe to
    * re-run, and a cases half of it that threw on the second run - or worse, silently
    * appended a second copy of every case - would make that claim false for the command as

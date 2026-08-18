@@ -71,7 +71,19 @@ const STUB_ADJUDICATION = {
       citedFindingIds: ["f-hep"],
     },
   ],
-  missing: ["An exposure margin relating the 10uM signal to projected clinical exposure."],
+  /* `{ field, whyItMatters }`, NOT a bare string, because that is what the report renders:
+     `report.tsx` builds the "what is missing" table out of `m.field` and `m.whyItMatters`.
+     This was written as `string[]` and nothing caught it - `adjudicate()` takes the
+     adjudication as `unknown`, so the compiler had no shape to check it against, and this
+     fixture's own test asserted only that the source was `stub`. The cost was invisible in
+     every test and visible on the one screen the fixture exists to populate: a row of empty
+     cells in the Record and the Report. */
+  missing: [{
+    field: "Exposure margin",
+    whyItMatters:
+      "Nothing relates the 10uM human signal to projected clinical exposure, so the two "
+      + "readings cannot be placed on the same scale.",
+  }],
   nextExperiment: null,
 } as const;
 
