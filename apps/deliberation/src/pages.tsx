@@ -259,15 +259,20 @@ function CaseCard({ c }: { c: CaseListing }): ReactElement {
 }
 
 /** ------------------------------------------------------------- new case */
-export function NewCasePage({ token, people, onCreated }: {
+export function NewCasePage({ token, people, me, onCreated }: {
   token: string;
+  /** Every account, INCLUDING the viewer - see the roster panel below. */
   people: Person[];
+  me: Person;
   onCreated: (caseId: string) => void;
 }): ReactElement {
   const [compoundLabel, setLabel] = useState("");
   const [context, setContext] = useState("");
   const [modality, setModality] = useState<"small_molecule" | "biologic">("small_molecule");
-  const [selected, setSelected] = useState<string[]>([]);
+  /* YOU ARE ON YOUR OWN PANEL UNLESS YOU SAY OTHERWISE. Opening a case and holding no
+     opinion on it is a real arrangement - a convener who only signs - but it is the
+     rarer one, and it was previously the ONLY one the form could express. */
+  const [selected, setSelected] = useState<string[]>([me.email]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -378,22 +383,33 @@ export function NewCasePage({ token, people, onCreated }: {
               <h3>Who answers</h3>
               <p className="hint">
                 They need an account already. Nobody can see anyone else's answer until
-                all of them are in - including you.
+                all of them are in - including you. Untick yourself to convene a case you
+                do not hold an opinion on; you would still reveal, adjudicate and sign it.
               </p>
             </div>
 
-            {people.length === 0
-              ? <p className="small muted">No other accounts yet. Ask a colleague to register first.</p>
-              : people.map((p) => (
+            {/* YOU FIRST, then everybody else in the order the server sent them. The
+                seat you hold is the one you will be filling in yourself, so it belongs
+                at the top of the panel rather than wherever your account happens to
+                sort. */}
+            {[...people.filter((p) => p.id === me.id), ...people.filter((p) => p.id !== me.id)]
+              .map((p) => (
                 <div className="cite" key={p.id}>
                   <input type="checkbox" id={`p-${p.id}`} checked={selected.includes(p.email)}
                     onChange={() => toggle(p.email)} />
                   <label htmlFor={`p-${p.id}`}>
                     <strong>{p.displayName}</strong>
+                    {p.id === me.id && <span className="tiny muted"> — you</span>}
                     <div className="tiny muted mono">{p.email}</div>
                   </label>
                 </div>
               ))}
+            {people.length <= 1 && (
+              <p className="small muted">
+                No other accounts yet. A case needs somebody to answer it - ask a
+                colleague to register, or answer it yourself.
+              </p>
+            )}
           </div>
 
           {/* Documents, uploaded once the case exists - see `submit`. Optional here

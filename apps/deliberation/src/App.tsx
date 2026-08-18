@@ -376,7 +376,14 @@ export function App(): ReactElement {
 
     case "new":
       return shell(
-        <NewCasePage token={token} people={people.filter((p) => p.id !== me.id)}
+        /* THE WHOLE LIST, YOURSELF INCLUDED, and it used to be everyone but you.
+           `access.ts` lets an owner be a participant - `isOwner` and `isParticipant` are
+           independent predicates - so the filter was not enforcing a rule, it was hiding
+           a legal and often correct choice: the person opening a case usually holds an
+           opinion on it. Filtered out, they convened a case they could not answer, and
+           the 403 said "not named on this case" about their own. `NewCasePage` marks
+           which row is you. */
+        <NewCasePage token={token} people={people} me={me}
           onCreated={(id) => { void loadMine(token); navigate({ name: "case", caseId: id }); }} />,
       );
 
