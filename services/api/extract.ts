@@ -57,12 +57,43 @@ export interface ProposalResult {
   discarded: { itemId: string; reason: string }[];
 }
 
+/**
+ * WHAT THE THREE ASSERTIONS MEAN, and the prompt did not say.
+ *
+ * `ambiguous` is not a lower confidence than the other two - it is a claim about the
+ * EVIDENCE, that it points both ways. Unsaid, a careful model reads it as the modest
+ * option and reaches for it whenever it is less than certain, which is most of the time.
+ * Measured on tucatinib: the projected human dose, the exposed population and the dosing
+ * duration all came back ambiguous, and all three are stated plainly in the review.
+ *
+ * That is not a cosmetic mislabel. `presentForAdjudication` excludes inconclusive items,
+ * and an `ambiguous` finding leaves its item inconclusive - so hedging on a fact the
+ * document states removes it from the evidence a verdict may rest on. Hedge on enough of
+ * them and the consequence half is empty, which the adjudicator is REQUIRED to answer
+ * with cannot_conclude. The model was abstaining on the reviewer's behalf, one item at a
+ * time, by being polite.
+ *
+ * So the distinction is drawn explicitly, and around RESOLUTION rather than direction: a
+ * plain fact is an answer whichever way it cuts.
+ */
 const SYSTEM = [
   "You read one section of a regulatory toxicology review and report whether it contains a specific piece of evidence.",
   "You are proposing a finding for a human reviewer to accept or reject. You are not deciding anything.",
   "Quote VERBATIM from the passages you are given. Never paraphrase inside the quote field.",
   "If the passages do not contain the evidence asked for, say so. Saying nothing is found is a correct and useful answer.",
   "Do not infer, extrapolate, or draw on knowledge of the drug from outside these passages.",
+  "",
+  "THE ASSERTION FIELD describes what the evidence SAYS, not how confident you are:",
+  "  toxic     - the passage answers the question in a way that counts against the compound.",
+  "  safe      - the passage answers the question in a way that counts in the compound's favour.",
+  "  ambiguous - the passage speaks to the question and genuinely does not settle it, or the",
+  "              document contains two statements that point opposite ways.",
+  "",
+  "A plainly stated fact is an ANSWER, not an ambiguity. A dose, a treatment duration, an",
+  "exposure margin, an indicated population and an incidence are answers: choose toxic or",
+  "safe according to what the fact implies for liver risk. Reserve ambiguous for evidence",
+  "that actually cuts both ways. Do not use it to express caution - if you are unsure the",
+  "passage answers the question at all, report that you found nothing instead.",
 ].join("\n");
 
 function schema(pages: number[]): Record<string, unknown> {
@@ -119,7 +150,22 @@ export async function proposeFindings(
     // for it would invite the model to invent some.
     if (item.appliesTo !== undefined && !item.appliesTo.includes(modality)) continue;
 
-    const passages = search(index, item.field, perItem);
+    // THE QUERY IS WIDER THAN THE FIELD, and the field alone was the bug. A checklist
+    // field is written for a person reading a checklist: "Projected human daily dose".
+    // The document says "the maximum recommended human dose (MRHD) for ADPKD is 120
+    // mg/day". The fact is present, the words do not overlap, and a lexical retriever
+    // returns nothing - so the item was reported as a gap the document does not have.
+    //
+    // Measured before this change: four of the six CONSEQUENCE items came back empty on
+    // every drug, which empties `consequenceBasis`, which the adjudicator prompt says
+    // must produce `cannot_conclude`. Every end-to-end verdict was an abstention caused
+    // by vocabulary rather than by evidence.
+    //
+    // What a proposal must still carry is unchanged - a verbatim quote and a page, judged
+    // against the FIELD - so a search term that drags in an irrelevant passage costs a
+    // discarded proposal, never a wrong finding.
+    const query = [item.field, ...(item.searchTerms ?? [])].join(" ");
+    const passages = search(index, query, perItem);
     if (passages.length === 0) { notFound.push({ itemId: item.id, field: item.field }); continue; }
 
     const pages = passages.map((p) => p.page);

@@ -29,6 +29,24 @@ export interface ChecklistItem {
   half: "mechanism" | "consequence";
   field: string;
   whatItBlocks: string;
+  /**
+   * Extra vocabulary for the RETRIEVAL step only, never shown to a reader.
+   *
+   * `extract.ts` searches the document using this item's `field` text, which is written
+   * for a person reading a checklist and not for matching a regulatory review. "Projected
+   * human daily dose" finds nothing in a document that says "the maximum recommended
+   * human dose (MRHD) for ADPKD is 120 mg/day" - the fact is right there and the words
+   * do not overlap. Measured on this corpus: four of the six consequence items returned
+   * nothing for exactly this reason, the consequence half came back empty, and the
+   * adjudicator then had no choice but `cannot_conclude`, which the prompt requires when
+   * `consequenceBasis` is empty. Every end-to-end verdict was an abstention caused by a
+   * vocabulary mismatch rather than by anything about the evidence.
+   *
+   * These terms are appended to the query. They do not change what a proposal must carry
+   * - a verbatim quote and a page, judged against the field itself - so a term that pulls
+   * in a wrong passage costs a discarded proposal, not a wrong finding.
+   */
+  searchTerms?: string[];
   /** Omitted means "applies to everything" - see `not_applicable` below. */
   appliesTo?: Modality[];
   /**
