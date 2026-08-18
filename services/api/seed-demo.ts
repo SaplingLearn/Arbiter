@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { closePool } from "./db.js";
+import { loadEnv } from "./env.js";
 import type { AuthStoreApi } from "./postgres-auth.js";
 import { buildStores } from "./stores.js";
 import { DeliberationService } from "./deliberation-service.js";
@@ -83,6 +84,25 @@ if (process.argv[1] !== undefined && process.argv[1].includes("seed-demo")) {
      reads as the seed itself being stuck. On the file path `closePool` is a no-op, so
      this costs nothing there. In `finally` rather than after, so a failed seed exits
      too instead of hanging on the way out of an error. */
+  /**
+   * BEFORE `buildStores` READS ANYTHING, and its absence was a real defect rather than
+   * an untidiness.
+   *
+   * `buildStores` picks the backing from `DATABASE_URL`, and the documented way to set
+   * that is `.env` - which is loaded by whichever entry point runs, not by the module
+   * that reads it. `server.ts` does this in its own CLI block; this file did not. So on
+   * any machine configured the documented way, `npm run seed:demo` opened the FILE store
+   * while the server it was seeding for opened Postgres: five accounts and five cases
+   * reported as created, into a store nothing would ever read, and a product that still
+   * came up empty.
+   *
+   * That is precisely the pair of symptoms the comment below already warns about - it
+   * was written when this file opened the users file directly, and fixing THAT half left
+   * this one, because `buildStores` cannot see a variable nobody has loaded. An explicit
+   * environment still wins: `loadEnv` fills in only what is unset.
+   */
+  loadEnv();
+
   try {
     const stores = await buildStores("results/deliberation-log.jsonl");
     const report = await seedDemoTeam(stores.auth, Date.now());
