@@ -56,7 +56,14 @@ export default defineConfig({
      */
     proxy: {
       "/deliberation": { target: "http://127.0.0.1:5274", ws: true },
-      "/r/": { target: "http://127.0.0.1:5274" },
+      /* A REGEX, so bare `/r` is proxied too. As the literal `/r/` this matched every
+         whole share link and missed the one path most likely to be typed by hand - and a
+         miss here does not 404, it falls through to this app and answers with the MARKETING
+         PAGE at status 200, which is the exact failure the entry was added to remove,
+         surviving for one URL shape. `^` makes Vite read the key as a pattern rather than
+         as a prefix; `(/|$)` keeps `/reports` or `/roster` out of it, which a bare `/r`
+         prefix would have swallowed. */
+      "^/r(/|$)": { target: "http://127.0.0.1:5274" },
       "/api": { target: `http://127.0.0.1:${process.env["API_PORT"] ?? 8787}`, changeOrigin: false },
     },
   },

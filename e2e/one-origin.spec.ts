@@ -108,6 +108,27 @@ test("a share URL reaches the record page rather than the landing page", async (
 });
 
 /**
+ * DEVELOPMENT ACCEPTS EXACTLY WHAT PRODUCTION ACCEPTS, and this is what keeps them in step.
+ *
+ * The dev middleware matched `startsWith("/r/")` while `serveStatic` requires exactly three
+ * segments, so `/r/onlyonesegment` drew the record page here and 404'd on a built site. And
+ * the landing proxy was keyed on the literal `/r/`, which does not match a bare `/r` - so
+ * that one path fell through to the landing app and came back as the MARKETING PAGE at
+ * status 200, the precise failure the proxy entry exists to remove.
+ *
+ * Deliberately the same shapes `e2e/public-record.spec.ts` checks against the built site.
+ * Two implementations of one rule cannot be held together by a comment; they can be held
+ * together by two tests that fail in opposite places when they disagree.
+ */
+test("a truncated share URL is refused here exactly as it is on a built site", async ({ page }) => {
+  for (const path of ["/r", "/r/", "/r/only-one-segment", "/r/a/b/c"]) {
+    const res = await page.goto(path);
+    await expect(page, path).not.toHaveTitle(/Deliberation record/i);
+    expect(res?.status(), `${path} should not be answered with a page`).not.toBe(200);
+  }
+});
+
+/**
  * The landing page's one link into the product has to resolve on this origin.
  * It used to point at a separate port via `.env.development`, which meant it 404'd
  * for anyone running the unified server.

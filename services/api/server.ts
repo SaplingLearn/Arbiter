@@ -259,7 +259,8 @@ async function serveStatic(
    * the same `no-cache` it gives index.html, for the same reason: a fixed name that names
    * hashed assets is the one file a redeploy changes in place.
    */
-  const target = isShareLink(decoded) ? join(root, PUBLIC_PAGE) : resolve(root, `.${decoded}`);
+  const shareLink = isShareLink(decoded);
+  const target = shareLink ? join(root, PUBLIC_PAGE) : resolve(root, `.${decoded}`);
 
   /**
    * CONTAINMENT BY `relative()`, NOT BY `startsWith()` ON THE JOINED STRING.
@@ -369,6 +370,21 @@ async function serveStatic(
     "content-type": CONTENT_TYPES[extname(file).toLowerCase()] ?? "application/octet-stream",
     "cache-control": immutable ? "public, max-age=31536000, immutable" : "no-cache",
     etag,
+    /**
+     * NOINDEX ON THE SHARE DOCUMENT, matching what `/api/public/report/:caseId/:token`
+     * already sets on the data behind it.
+     *
+     * `public.html` carries `<meta name="robots" content="noindex, nofollow">`, which every
+     * crawler that parses the document honours - so this is defence in depth rather than a
+     * hole being closed. What the header adds is coverage for the fetches that never parse
+     * the HTML at all: a crawler taking the URL from a referrer log or a proxy, a preview
+     * bot reading headers to decide whether to render, an archiver. The token is the
+     * control; not being indexed is courtesy, and courtesy is cheaper to state twice.
+     *
+     * Only on the share link. Everything else in the built site - the landing page above
+     * all - is meant to be found.
+     */
+    ...(shareLink ? { "x-robots-tag": "noindex" } : {}),
   };
 
   if (req.headers["if-none-match"] === etag) {

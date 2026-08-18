@@ -6,9 +6,12 @@ that has since become `main`. Those two own the numbers and the reading surface;
 owns the open PRs and the branch topology underneath them.
 
 A previous session reconciled that topology and merged what was ready. As of the overnight
-review on 2026-08-17, **no pull request is open**: #24, #25, #33 and #34 merged; #27, #28
-and #30 closed, each for a reason recorded in §4. What remains is one gap in a shipped
-feature (§7 item 9), not a queue. Read all of this before touching anything.
+review on 2026-08-17, **no pull request was open**: #24, #25, #33 and #34 merged; #27, #28
+and #30 closed, each for a reason recorded in §4. The one gap that remained — `/r/:caseId/:token`
+unserved in production — is **§7 item 9, and it is closed**, on the branch behind PR #35;
+what is still open there is the product decision item 9 names, not the routing. Count the
+open PRs against `gh pr list` rather than against this paragraph, which has been wrong
+before. Read all of this before touching anything.
 
 **This document is now mostly a record rather than a plan**, and the parts of it that were
 wrong are marked where they were wrong rather than deleted — twice this session a stale

@@ -9,6 +9,32 @@ import tailwindcss from "@tailwindcss/vite";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 /**
+ * Is this request a whole share link?
+ *
+ * EXACTLY THREE SEGMENTS beginning `r`, which is what `serveStatic` accepts in production
+ * and what `parsePublicPath` in `src/public.tsx` requires before it will fetch anything.
+ * A second copy of a rule is a thing that drifts, and this one is a copy on purpose: a
+ * Vite config cannot import from `services/api` (different package, different tsconfig,
+ * and the server must not depend on the app), and importing `public.tsx` here would drag
+ * React into a Node config file. The pair of e2e assertions is what holds them together.
+ *
+ * The query string is stripped before parsing - `/r/a/b?utm=x` is the same link - and the
+ * path is decoded, because `%2F` in a segment must not silently become a separator and
+ * turn a two-segment URL into a three-segment one. A malformed escape is not a share link.
+ */
+function isShareLink(url: string | undefined): boolean {
+  if (url === undefined) return false;
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(url.split("?")[0] ?? "");
+  } catch {
+    return false;
+  }
+  const parts = decoded.split("/").filter((p) => p !== "");
+  return parts.length === 3 && parts[0] === "r";
+}
+
+/**
  * Deliberately NOT apps/web's config.
  *
  * That app inlines everything into one `index.html` because it is submitted as a
@@ -40,12 +66,23 @@ export default defineConfig({
        `/public.html` there names nothing, so the unified dev server answered a share link
        with a 404 while `npm run deliberate:dev`, whose base is `/`, worked perfectly. One
        arrangement working and the other not is the shape of a hardcoded prefix; `base`
-       already holds the right answer for both. */
+       already holds the right answer for both.
+
+       THE SAME SHAPE PRODUCTION ACCEPTS, which this did not start out doing. It matched
+       `startsWith("/r/")`, so in development `/r/onlyonesegment` rendered the record page
+       while `serveStatic` - which requires exactly three segments, the shape
+       `/api/public/report/:caseId/:token` also reads - answered the same URL with a 404.
+       A dev server that accepts more than production is the kind of difference nobody
+       notices until a share link is being debugged against the wrong one, and this repo's
+       whole argument for the route is that the page and the API agree on what a share URL
+       is. `e2e/one-origin.spec.ts` asserts the dev half and `e2e/public-record.spec.ts` the
+       built half, deliberately in the same words, because a comment cannot keep two
+       implementations in step and a pair of tests can. */
     {
       name: "arbiter-public-report",
       configureServer(server) {
         server.middlewares.use((req, _res, next) => {
-          if (req.url?.startsWith("/r/") === true) req.url = `${server.config.base}public.html`;
+          if (isShareLink(req.url)) req.url = `${server.config.base}public.html`;
           next();
         });
       },

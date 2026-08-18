@@ -1564,6 +1564,22 @@ describe("the built site, behind ARBITER_STATIC_DIR", () => {
   });
 
   /**
+   * NOINDEX, the same header `/api/public/report/...` sets on the data behind this page.
+   * `public.html` also carries a robots META tag, so this is the second statement of the
+   * same wish rather than the only one - it covers the fetches that never parse the HTML.
+   * The landing page must NOT carry it: that one is meant to be found.
+   */
+  it("asks robots not to index a share link, and only a share link", async () => {
+    const shared = await fetch(`${siteBase}/r/c1/AbCd-_123`);
+    expect(shared.headers.get("x-robots-tag")).toBe("noindex");
+
+    for (const path of ["/", "/index.html", "/deliberation/"]) {
+      const res = await fetch(`${siteBase}${path}`);
+      expect(res.headers.get("x-robots-tag"), path).toBeNull();
+    }
+  });
+
+  /**
    * EXACTLY THREE SEGMENTS, matching what `/api/public/report/:caseId/:token` reads off
    * `parts[3]` and `parts[4]`. The page and the API therefore agree on what a share URL
    * is; a page that accepted shapes the API refuses would render itself and then fail its
