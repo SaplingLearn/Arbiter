@@ -69,6 +69,32 @@ const PLAN = [
 const ORDER = { open: 0, locked: 1, adjudicated: 2, signed: 3 };
 
 const j = async (r) => { const t = await r.text(); try { return JSON.parse(t); } catch { return t; } };
+
+/**
+ * The findings a position actually rests on, chosen by what they SAY.
+ *
+ * This used to take a slice of the list by index, which produced positions citing
+ * evidence that had nothing to do with their call - a reviewer arguing do_not_advance
+ * while pointing at the two findings that say the compound is safe. The citation check
+ * passed, because it only asks whether a cited id exists; what it cannot ask is whether
+ * the citation means anything, and that is exactly the thing a demonstration is showing
+ * off. A reader who opens a position and finds its evidence unrelated learns the wrong
+ * lesson about the product.
+ *
+ * So: a case AGAINST cites the toxic findings, a case FOR cites the safe ones, and an
+ * abstention cites one of each - because "the evidence points both ways" is precisely
+ * what cannot_conclude claims, and citing the conflict is how it is shown rather than
+ * asserted. Falls back to whatever exists when a document has none of a given kind,
+ * since a position must cite something.
+ */
+function cite(findings, call) {
+  const of = (a) => findings.filter((f) => f.assertion === a).map((f) => f.id);
+  const toxic = of("toxic"), safe = of("safe");
+  const picked = call === "do_not_advance" ? toxic.slice(0, 3)
+    : call === "advance" ? safe.slice(0, 3)
+      : [...toxic.slice(0, 2), ...safe.slice(0, 2)];
+  return picked.length > 0 ? picked : findings.slice(0, 2).map((f) => f.id);
+}
 const call = async (path, token, method = "GET", body) => {
   const r = await fetch(`${BASE}${path}`, {
     method,
@@ -125,12 +151,12 @@ for (const p of PLAN) {
   // Positions, by the first `answers` panellists, each citing findings that exist.
   if (p.answers > kase.submitted) {
     const ar = (await call(`/api/cases/${kase.caseId}/adjudication-request`, owner)).body;
-    const ids = (ar.findings ?? []).map((f) => f.id);
+    const findings = ar.findings ?? [];
     for (let i = kase.submitted; i < p.answers; i++) {
       const t = await login(PANEL[i]);
       const r = await call(`/api/cases/${kase.caseId}/positions`, t, "POST", {
         call: CALLS[i], reasoning: WHY[i],
-        citedFindingIds: ids.slice(i, i + 2), external: [], at: now(),
+        citedFindingIds: cite(findings, CALLS[i]), external: [], at: now(),
       });
       if (r.status !== 201) process.stdout.write(`pos${i}=${r.status} `);
     }

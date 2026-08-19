@@ -25,12 +25,32 @@ __pycache__/
 **/__pycache__/
 *.pyc
 
-# 21MB of regulatory review PDFs, each retrievable from accessdata.fda.gov or
-# ema.europa.eu by the URL the spec records. The library reports an absent file as
-# `askable: false` with a reason, so a deployment without them is a smaller surface
-# rather than a broken one - and shipping them into every image layer is the wrong
-# place to hold them.
+# 363MB of regulatory review PDFs, each retrievable from accessdata.fda.gov or
+# ema.europa.eu by the URL the spec records. Shipping the whole corpus into every image
+# layer is the wrong place to hold it.
+#
+# EXCEPT THE SIX THE LIBRARY ACTUALLY NAMES, and leaving them out was not "a smaller
+# surface" - it was a broken one. `library.ts` reports an absent file as `askable:
+# false`, and `handleDemo` attaches a document only when the source IS askable. So every
+# prepared case on a deployment opened with findings and no document: Read & mark said
+# "No documents on this case yet", the reader had nothing to join a finding's page to,
+# and Ask answered 422 on every question. The findings cite pages in a file the
+# deployment did not have.
+#
+# Six files, 37MB, against 363MB for the corpus - the difference between a demonstration
+# that works and one that opens on an empty reader. The other twenty-nine are inputs to
+# the offline evaluation and are never read by the server.
+#
+# Kept in step with `data/library-sources.json` by hand: a catalogue entry whose file is
+# not listed here loses its document, and says so on the library page rather than
+# failing quietly.
 data/raw/
+!data/raw/approval-packages/turalio-211810-multidiscipline.pdf
+!data/raw/approval-packages/ema-epar-sample-imaavy.pdf
+!data/raw/approval-packages/modern-fda-multidiscipline-211367.pdf
+!data/raw/approval-packages/sotyktu-epar-assessment.pdf
+!data/raw/approval-packages/tolcapone-20697-medical-review-p1.pdf
+!data/raw/approval-packages/troglitazone-020720-approval.pdf
 
 # Runtime state, not inputs. results/ holds the log, the uploaded documents, the
 # account store with its password hashes, and the extraction caches. Baking any of it
