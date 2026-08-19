@@ -1295,50 +1295,50 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
    WYSIWYG, TOO. What is on screen here is exactly what the print dialog produces,
    because the print rules below only remove the chrome around it. A preview that
    needed reinterpreting to become a document would be a preview nobody could trust. */
+/**
+ * THE RECORD IS PAPER, ON SCREEN AS WELL AS OFF IT.
+ *
+ * These tokens pointed at the product's palette, and `--paper` is
+ * `rgba(6, 12, 28, 0.50)` - fifty per cent alpha, chosen so the product's own panels sit
+ * over the living backdrop. On a PANEL that is the effect; on the RECORD it meant the
+ * WebGL scene showed straight through a safety document, and the sheet read as
+ * transparent rather than as a page.
+ *
+ * So the document keeps its own palette everywhere, and these are the literal values the
+ * printed sheet has always used. There is now ONE definition rather than a screen set
+ * and a print set that had to be kept in agreement - the reason five greys were split
+ * apart in the first place was that folding them together changed what printed, and that
+ * risk goes away when screen and paper are the same declaration.
+ *
+ * The chrome around it is untouched: `.rep-bar` and `.rep-share` are siblings of this
+ * element, not children, and keep the product's palette because they never go on paper.
+ */
 .report-doc {
-  --rep-paper: var(--paper);
-  --rep-ink: var(--ink);
-  --rep-ink-soft: var(--ink-2);
-  --rep-rule: var(--line);
-  --rep-panel: var(--sunken);
+  --rep-paper: #fff;
+  --rep-ink: #16181d;
+  --rep-ink-soft: #5a6069;
+  --rep-rule: #d7dae0;
+  --rep-panel: #fafbfc;
 
-  /* THREE MORE GREYS, KEPT APART FROM THE TWO ABOVE, so their print values can be
-     restored exactly instead of normalised onto --rep-ink/--rep-ink-soft/--rep-rule.
-     The paper version drew these distinctions for its own reasons - an accent hairline
-     lighter than a table rule, a footer lighter than "muted" body text, a note darker
-     than it - and folding them together on the way to a token changed what printed.
-     On screen none of that reasoning holds (there is no accent-vs-rule or
-     footer-vs-body distinction to preserve against a single dark ground), so all five
-     just borrow the nearest general tier; only print pulls them apart again. */
-  --rep-rule-2: var(--line);      /* print: #c8ccd3 - position border, seat border */
-  --rep-rule-3: var(--line);      /* print: #e3e6ea - table row divider */
-  --rep-ink-mid: var(--ink-2);    /* print: #41464e - meta block text, citations */
-  --rep-ink-faint: var(--ink-3);  /* print: #7b818a - the running footer */
-  --rep-ink-note: var(--ink);     /* print: #33383f - .rep-note body text */
+  /* FIVE GREYS KEPT APART, because the paper version draws distinctions a single dark
+     ground did not need: an accent hairline lighter than a table rule, a footer lighter
+     than muted body text, a note darker than it. */
+  --rep-rule-2: #c8ccd3;    /* position border, seat border */
+  --rep-rule-3: #e3e6ea;    /* table row divider */
+  --rep-ink-mid: #41464e;   /* meta block text, citations */
+  --rep-ink-faint: #7b818a; /* the running footer */
+  --rep-ink-note: #33383f;  /* .rep-note body text */
 
-  /* VERDICT COLOUR, LIFTED THE SAME WAY THE REST OF THE PRODUCT LIFTS IT. Red and
-     green are the one exception to this file's blue-only palette (see this file's own
-     header, "RED AND GREEN STILL MEAN SOMETHING... Lifted for a dark ground, not
-     re-hued") and --stop/--go already ARE that lift - reused here rather than
-     re-derived, so the report and the product agree about what "stop" looks like
-     rather than deciding it twice. */
-  --rep-stop: var(--stop);  /* print: #9a2418 */
-  --rep-go: var(--go);      /* print: #12673a */
+  /* Red and green are the one exception to this file's blue-only palette. These are the
+     ink values, not the product's dark-ground lift: on white they are read as ink. */
+  --rep-stop: #9a2418;
+  --rep-go: #12673a;
 
-  /* Amber has no such lift to borrow: it is not a reserved hue in this palette (see
-     "INSIDE THE BLUE WEDGE" below the seat colours - amber was one of the six hues
-     that did NOT survive that narrowing), so there is nothing here to agree with. Its
-     only job is to read on the sheet's dark ground, so it is picked for contrast, not
-     brand: #fbbf24 measures ~11.8:1 against the sheet's composited background
-     (--paper over --app, approx #040b1a) - comfortably past the 4.5:1 AA minimum for
-     body text, the way the printed amber (~1.8-3.3:1 against this same background,
-     computed the same way) was not. One value stands in for print's three ambers
-     because the reason print kept them apart - an accent bright enough to read as a
-     border versus body text dark enough to read as ink on white - is a paper problem;
-     against one dark ground a single bright amber reads as all three roles. */
-  --rep-hold: #fbbf24;                  /* print: #8a5a00 - accent/border uses */
-  --rep-hold-text: var(--rep-hold);     /* print: #6b5410 - .rep-unsigned body text */
-  --rep-concern-text: var(--rep-hold);  /* print: #4a3c0c - .rep-concern body text */
+  /* Three ambers rather than one, for the same reason the greys are five: on paper an
+     accent bright enough to read as a border is not dark enough to read as body text. */
+  --rep-hold: #8a5a00;          /* accent/border uses */
+  --rep-hold-text: #6b5410;     /* .rep-unsigned body text */
+  --rep-concern-text: #4a3c0c;  /* .rep-concern body text */
 }
 
 .rep-wrap { display: grid; gap: var(--s5); }
@@ -1580,28 +1580,12 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
 @media print {
   @page { size: A4; margin: 16mm 14mm; }
 
-  /* The document goes back to being paper. Tokens only - see the note above. Every
-     value below is the literal hex this selector carried before any of this file's
-     colours became tokens - the printed sheet is unchanged down to the byte. */
-  .report-doc {
-    --rep-paper: #fff;
-    --rep-ink: #16181d;
-    --rep-ink-soft: #5a6069;
-    --rep-rule: #d7dae0;
-    --rep-panel: #fafbfc;
-
-    --rep-rule-2: #c8ccd3;
-    --rep-rule-3: #e3e6ea;
-    --rep-ink-mid: #41464e;
-    --rep-ink-faint: #7b818a;
-    --rep-ink-note: #33383f;
-
-    --rep-stop: #9a2418;
-    --rep-go: #12673a;
-    --rep-hold: #8a5a00;
-    --rep-hold-text: #6b5410;
-    --rep-concern-text: #4a3c0c;
-  }
+  /* NO PALETTE BLOCK HERE ANY MORE. The document carries the paper values at all times
+     now - see `.report-doc` above - because pointing them at the product's translucent
+     `--paper` let the WebGL backdrop show through a safety record on screen. Redefining
+     them here as well would be a second source for the same fifteen colours, and the
+     whole reason five greys are kept apart is that the two sets drifting changed what
+     printed. One declaration; print inherits it. */
 
   /* Backgrounds are dropped by default in print; the sheet's panels and rules carry
      meaning, so they are asked for explicitly. */
