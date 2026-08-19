@@ -1030,7 +1030,7 @@ export function makeHandler(deps: ServerDeps) {
             const fixture = fixtureForSha(r.document.sha256);
             let seeded: unknown = null;
             if (fixture !== null) {
-              const s = await deps.service.seedFromFixture(caseId, user.id, new Date(now()).toISOString(), fixture);
+              const s = await deps.service.seedFromFixture(caseId, user.id, new Date(now()).toISOString(), fixture, r.document.id);
               seeded = s.ok ? { fixture: fixture.label, ...s.value } : { fixture: fixture.label, error: s.error.kind };
             }
             return json(res, 201, { document: r.document, duplicateOf: r.duplicateOf ?? null, seeded });

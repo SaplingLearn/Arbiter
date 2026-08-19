@@ -438,6 +438,18 @@ export class DeliberationService {
    */
   async seedFromFixture(
     caseId: string, actorId: string, at: string, fixture: DemoFixture,
+    /**
+     * The document these findings were transcribed from, which only exists once it has
+     * been uploaded - which is why the fixture cannot carry it and this argument does.
+     *
+     * WITHOUT IT THE READER HAS NOTHING TO JOIN TO. `read.tsx` attaches a finding to a
+     * page THROUGH a document id: that is what draws the highlight and what puts a
+     * panellist's citation beside the passage they cited. A finding with a page, a
+     * verbatim quote and no document id looks complete in the evidence list and marks
+     * nothing in the reader - which is exactly how a case seeded from a recognised
+     * upload came to show no highlights at all.
+     */
+    sourceDocumentId?: string,
   ): Promise<Result<{ findingsAdded: number; positionsSealed: number; leftOpenFor: string | null; skipped: string[] }>> {
     const c = await this.store.getCase(caseId);
     if (c === null) return { ok: false, error: { kind: "not_open", detail: `No case ${caseId}.` } };
@@ -454,7 +466,12 @@ export class DeliberationService {
     let findingsAdded = 0;
     // One publish, not one per finding: the evidence arrived as a single document and
     // the record should say so. See `addFindings`.
-    const ev = await this.addFindings(caseId, fixture.findings);
+    /* Stamped here rather than in the fixture, because the id is minted by the upload
+       that triggered this. An explicit `sourceDocumentId` on a fixture finding is
+       honoured if it ever carries one. */
+    const ev = await this.addFindings(caseId, sourceDocumentId === undefined
+      ? fixture.findings
+      : fixture.findings.map((f) => ({ sourceDocumentId, ...f })));
     if (ev.ok) {
       findingsAdded = ev.value.added.length;
       for (const id of ev.value.duplicates) skipped.push(`finding ${id}: duplicate_finding`);
