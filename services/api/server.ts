@@ -22,6 +22,7 @@ import { buildStores, describeStorage } from "./stores.js";
 import type { AuthStoreApi } from "./postgres-auth.js";
 import type { InviteStoreApi } from "./postgres-invites.js";
 import { DEMO_PASSWORD, DEMO_TEAM, seedDemoTeam } from "./seed-demo.js";
+import { seedDemoCases } from "./seed-cases.js";
 import { MAX_BYTES, type DocumentStoreApi } from "./documents.js";
 import { LibraryStore } from "./library.js";
 import { can, denial, type CaseAction } from "./access.js";
@@ -1745,6 +1746,34 @@ if (invokedDirectly) {
     console.log(deps.storage.startsWith("Postgres")
       ? "Real accounts on the real authentication path. Delete them from auth_users before this holds anything that matters."
       : "Real accounts on the real authentication path. Delete results/deliberation-log.jsonl.users.json before this holds anything that matters.");
+  }
+
+  /**
+   * AND CASES FOR THEM TO BE ON. `seed-cases.ts` opens by saying why: five accounts and
+   * nothing else leaves "No cases yet" - a correct dashboard with nothing to demonstrate,
+   * and every stage the product has to be built by hand before anyone can look at it.
+   * `npm run seed:demo` has always done both halves in one command; boot did only the
+   * first, so a deployment that opted in with the variable got the accounts and the empty
+   * dashboard.
+   *
+   * GUARDED SEPARATELY FROM THE ACCOUNTS, and that is the point rather than an oversight.
+   * The account guard is "no accounts at all", which is right for creating people with a
+   * published password. A store can perfectly well hold people and no cases - it is
+   * exactly what registering by hand leaves behind - and gating cases on the account
+   * check would skip them forever in precisely that state.
+   *
+   * `seedDemoCases` is idempotent by existence check, one case at a time, and reports
+   * rather than throws when the team is missing. So this is safe on every boot: a case
+   * already there is left exactly as it is, including any stage a person has since moved
+   * it to.
+   */
+  if ((process.env["ARBITER_DEMO_SEED"] ?? "") === "1") {
+    const cases = await seedDemoCases(deps.service, deps.auth, Date.now(), DEMO_TEAM.map((p) => p.email));
+    if (cases.skipped !== null) {
+      console.log(`Demonstration cases skipped: ${cases.skipped}`);
+    } else if (cases.created.length > 0) {
+      console.log(`Seeded ${String(cases.created.length)} demonstration cases, one per stage. Every verdict is a STUB - no model was called.`);
+    }
   }
   // Counted here rather than inside the banner below, because `listen`'s callback
   // cannot await and an async callback would be a floating promise: the banner would
