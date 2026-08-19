@@ -26,7 +26,7 @@ import { can, denial, type CaseAction } from "./access.js";
 import { InviteStore } from "./invites.js";
 import { LoginThrottle } from "./throttle.js";
 import { ModelBudget, budgetFrom } from "./spend.js";
-import { envFileInUse, envFilesShadowed, loadEnv } from "./env.js";
+import { envFilesInUse, loadEnv } from "./env.js";
 
 /**
  * The deliberation API.
@@ -1061,7 +1061,11 @@ if (invokedDirectly) {
   // Before anything reads configuration. A missing .env is not an error - every value
   // has a working default and the product runs with none of them set.
   loadEnv();
-  const envFile = envFileInUse();
+  // ALL of them, not the first. `loadEnv` layers per NAME now, so naming only the
+  // highest-precedence file would report one source for a configuration assembled from
+  // several - and "where did this value come from" is the entire question this line
+  // exists to answer.
+  const envFile = envFilesInUse().join(" + ") || null;
   const HOST = bindHost();
   const port = Number(process.env["PORT"] ?? 8787);
   const deps = buildDeps("results/deliberation-log.jsonl");
@@ -1124,12 +1128,13 @@ if (invokedDirectly) {
       const personal = billingAdvice(process.env);
       if (personal !== null) console.log(`          ${personal}`);
     }
-    // A shared file sitting unread beside a personal one looks exactly like no shared
-    // file at all, which is how somebody runs for weeks on their own credential.
-    for (const ignored of envFilesShadowed()) {
-      console.log(`WARNING: ${ignored} is present and was NOT read - ${envFile ?? "an earlier file"} took precedence.`);
-      console.log(`         If ${ignored} holds the team's credential, this process is not using it.`);
-    }
+    /* NO SHADOW WARNING ANY MORE, and the reason is that there is nothing left to warn
+       about. `loadEnv` layers every present file per NAME rather than reading the first
+       and stopping, so a `.env` holding a project and a budget no longer swallows the
+       shared key sitting in `.env.share` - it contributes what it sets and the shared
+       file fills the rest. The `Config:` line above names every file that was read, and
+       `Billing:` says which credential won, which together answer the question the
+       warning existed to raise. */
     console.log(`Accounts: ${deps.auth.list().length} registered. Sign in for a bearer token.`);
     console.log(HOST === "127.0.0.1"
       ? "Bound to loopback. This process terminates no TLS; set ARBITER_HOST only behind a proxy that does."
