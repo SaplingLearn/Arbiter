@@ -1468,7 +1468,26 @@ async function handleReport(
  * to that reader has to match. Reading the raw value without splitting on it used to
  * produce the malformed `https, http://host/...`.
  */
+/**
+ * The absolute URL a QR code encodes.
+ *
+ * DERIVED FROM THE REQUEST BY DEFAULT, which is already right almost everywhere: behind
+ * Railway or any other proxy the Host header is the public hostname and
+ * `x-forwarded-proto` is https, so a code published there carries the deployment's real
+ * address. It reads `localhost` on a laptop because on a laptop that is the truth.
+ *
+ * ARBITER_PUBLIC_ORIGIN OVERRIDES IT, for the cases where the request is not a good
+ * witness: a custom domain in front of the platform hostname, or a code published from
+ * a healthcheck or a background job that never carried a public Host at all. A QR is
+ * printed once and scanned later, so a URL that was merely plausible when it was
+ * generated is not good enough - this is how a deployment states its canonical address
+ * rather than inferring it per request.
+ *
+ * A trailing slash is trimmed so the value works whether or not somebody typed one.
+ */
 function shareUrl(req: IncomingMessage, caseId: string, token: string): string {
+  const pinned = (process.env["ARBITER_PUBLIC_ORIGIN"] ?? "").trim().replace(/\/+$/, "");
+  if (pinned !== "") return `${pinned}/r/${encodeURIComponent(caseId)}/${token}`;
   const host = req.headers.host ?? "localhost";
   const forwarded = req.headers["x-forwarded-proto"];
   const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim();

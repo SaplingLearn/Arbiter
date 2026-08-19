@@ -90,7 +90,11 @@ export function PublicReport({ caseId, token }: { caseId: string; token: string 
   if (dead) return <LinkNotValid />;
   if (report === null) return <p className="muted">Opening the record…</p>;
 
-  return <ReportPage report={report} publishedUrl={window.location.href} page={page} onNavigate={setPage} />;
+  /* NO `publishedUrl`. It existed only to draw the QR the sheet used to print, and the
+     code has moved to the convener's share widget - which this page, having no controls,
+     deliberately does not render. A reader who is already AT the URL does not need a code
+     encoding it. */
+  return <ReportPage report={report} page={page} onNavigate={setPage} />;
 }
 
 function Boot(): ReactElement {

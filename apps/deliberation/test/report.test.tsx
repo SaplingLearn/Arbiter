@@ -213,7 +213,7 @@ describe("the printable record", () => {
 });
 
 describe("publishing from the report", () => {
-  it("prints no QR and no URL when the record was never published", () => {
+  it("shows no QR and no URL when the record was never published", () => {
     const { container } = render(
       <ReportPage report={report()} share={{ url: null, onPublish: () => {}, onRevoke: () => {} }} />,
     );
@@ -222,7 +222,7 @@ describe("publishing from the report", () => {
     expect(container.textContent).not.toContain("/r/");
   });
 
-  it("prints the QR and the URL beside it once published", () => {
+  it("shows the QR beside the link once published", () => {
     const { container } = render(
       <ReportPage report={report()}
         share={{ url: "https://arbiter.test/r/c1/tok", onPublish: () => {}, onRevoke: () => {} }} />,
@@ -232,13 +232,21 @@ describe("publishing from the report", () => {
     expect(container.textContent).toContain("https://arbiter.test/r/c1/tok");
   });
 
-  it("keeps the QR whole, so the paginator can never split it across a sheet", () => {
+  /**
+   * THE CODE IS A CONTROL, NOT A MARK ON THE PAPER. It used to be a block on the first
+   * sheet so a page on a desk led back to the live record; it now sits in the convener's
+   * share widget, which carries `no-print`. So the assertion inverts: the QR must be
+   * INSIDE that widget and therefore off the printed page. A snapshot no longer carries a
+   * URL whose target can be revoked after the ink dries.
+   */
+  it("keeps the QR inside the control, and so off the paper", () => {
     const { container } = render(
       <ReportPage report={report()}
         share={{ url: "https://arbiter.test/r/c1/tok", onPublish: () => {}, onRevoke: () => {} }} />,
     );
     const qr = container.querySelector(".rep-qr")!;
-    expect(qr.closest(".rep-block")).not.toBeNull();
+    expect(qr.closest(".rep-share")).not.toBeNull();
+    expect(qr.closest(".rep-block")).toBeNull();
   });
 
   it("keeps the controls off the paper", () => {
@@ -253,11 +261,12 @@ describe("publishing from the report", () => {
     expect(container.querySelector(".rep-share")).toBeNull();
   });
 
-  it("still prints the QR on the public page, where there is a URL but no controls", () => {
-    const { container } = render(
-      <ReportPage report={report()} publishedUrl="https://arbiter.test/r/c1/tok" />,
-    );
-    expect(container.querySelector(".rep-qr")).not.toBeNull();
+  /* A READER WHO IS AT THE URL DOES NOT NEED A CODE FOR IT. The public page renders no
+     controls, and the QR now lives in one - so it draws neither, and `publishedUrl` went
+     with them rather than staying as a prop nothing reads. */
+  it("draws neither the control nor the QR on the public page", () => {
+    const { container } = render(<ReportPage report={report()} />);
+    expect(container.querySelector(".rep-qr")).toBeNull();
     expect(container.querySelector(".rep-share")).toBeNull();
   });
 
@@ -267,9 +276,7 @@ describe("publishing from the report", () => {
     // "Back to the verdict" link into the app that owns AUTO_EMAIL. Gated on the same
     // `share !== undefined` signal that already decides whether the publish/revoke
     // section shows, so there is one rule, not two, for "is this the convener's page".
-    const { container } = render(
-      <ReportPage report={report()} publishedUrl="https://arbiter.test/r/c1/tok" />,
-    );
+    const { container } = render(<ReportPage report={report()} />);
     expect(screen.queryByText("The record, ready to print")).toBeNull();
     expect(screen.queryByText("Back to the verdict")).toBeNull();
     expect(container.querySelector('a[href="#/case/case_1/reveal"]')).toBeNull();

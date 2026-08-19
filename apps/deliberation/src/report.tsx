@@ -615,7 +615,7 @@ function recordBlocks(report: CaseReport): Block[] {
   ];
 }
 
-function documentBlocks(report: CaseReport, nameOf: (id: string) => string, url: string | null): Block[] {
+function documentBlocks(report: CaseReport, nameOf: (id: string) => string): Block[] {
   const answered = report.positions.length;
   const out: Block[] = [
     block("masthead", (
@@ -642,28 +642,13 @@ function documentBlocks(report: CaseReport, nameOf: (id: string) => string, url:
     block("decision", <Decision report={report} nameOf={nameOf} />),
   ];
 
-  /* IMMEDIATELY AFTER THE DECISION, ON THE FIRST SHEET, so a sheet of paper on a desk
-     leads back to the live record without anybody having to turn a page to find it.
-     It is a Block like any other, so the paginator keeps the code and its caption
-     together for free - no extra rule needed to stop it splitting across a break.
-     Absent whenever there is no URL, which is what keeps a never-published record
-     from printing a QR that leads nowhere. */
-  if (url !== null) {
-    out.push(block("qr", (
-      <div className="rep-qr-block">
-        <QrCode value={url} size={132} />
-        <div>
-          <div className="rep-label">The live record</div>
-          <p className="rep-tiny">
-            This document is a snapshot. Scan for the record as it stands now, including
-            anything signed after this was printed.
-          </p>
-          <p className="rep-mono rep-tiny">{url}</p>
-        </div>
-      </div>
-    )));
-  }
-
+  /* NO QR ON THE PRINTED SHEET. It used to print immediately after the decision, so a
+     page on a desk led back to the live record - a good argument, and not the one that
+     decides it. The code is a CONVENER'S control: they are the only person who can
+     publish or revoke that link, and it belongs beside the control that does. Printing
+     it also put a URL on a snapshot whose target can be revoked after the ink dries,
+     with nothing on the paper to say so. It now sits on the share widget in
+     `ReportPage`, next to the link it encodes. */
   out.push(
     block("meta", (
       <div className="rep-meta">
@@ -866,15 +851,13 @@ function Paginate({ blocks, foot, at, toSheet, onNavigate }: {
  * nothing else - no app chrome, and no button reading "print" printed onto the page it
  * printed.
  */
-export function ReportPage({ report, page, share, publishedUrl, onNavigate }: {
+export function ReportPage({ report, page, share, onNavigate }: {
   report: CaseReport;
   page?: number;
   /** The convener's controls. Absent on the public page - which is what removes them
    *  there, rather than a flag the public entry has to remember to pass. */
   share?: { url: string | null; onPublish: () => void; onRevoke: () => void };
-  /** The published URL when there are no controls to go with it: the public page draws
-   *  the same QR the convener printed, so a scanned page and a shared link agree. */
-  publishedUrl?: string;
+
   /** Passed straight to `Paginate`. See its own doc comment - this is how the public
    *  page turns sheets with no router to carry the page number in the URL. */
   onNavigate?: (n: number) => void;
@@ -882,13 +865,10 @@ export function ReportPage({ report, page, share, publishedUrl, onNavigate }: {
   const nameOf = (id: string): string =>
     report.panel.concat(report.owner).find((p) => p.id === id)?.displayName ?? id;
 
-  // `share`, when present, is the more current answer - it comes from state this page
-  // itself keeps in sync with a publish or revoke; `publishedUrl` is what the public
-  // page passes instead, since it never has controls to hold a `share` object at all.
-  const url = share?.url ?? publishedUrl ?? null;
-
   // Stable across renders, because it is what the paginator re-measures on.
-  const blocks = useMemo(() => documentBlocks(report, nameOf, url), [report, url]);
+  // The sheet no longer varies with the share link - the QR moved to the widget - so
+  // the URL is not an input to the pagination and must not invalidate it.
+  const blocks = useMemo(() => documentBlocks(report, nameOf), [report]);
 
   /* THE TAB TITLE IS THE FILENAME. Chrome proposes `document.title` as the name in its
      save dialog, which is the only influence a page has over it - so the tab carries
@@ -951,16 +931,26 @@ export function ReportPage({ report, page, share, publishedUrl, onNavigate }: {
         <section className="rep-share no-print">
           {share.url === null
             ? <>
-                <p>Publish this record to a link anyone can open, and print a QR code for it onto the document.</p>
+                <p>Publish this record to a link anyone can open. A QR code for it appears here.</p>
                 <button className="primary" onClick={share.onPublish}>Publish this record</button>
               </>
             : <>
-                <p className="rep-mono">{share.url}</p>
-                <p className="small muted">
-                  Anyone holding this link can read the record, without an account. Revoking it
-                  stops the link - it cannot reach a copy already printed or saved.
-                </p>
-                <button className="ghost" onClick={share.onRevoke}>Revoke this link</button>
+                {/* THE CODE BESIDE THE LINK IT ENCODES. A URL this long is not something
+                    anybody retypes off a screen, and the person who just published it is
+                    the one who needs it on a phone. It is drawn from `share.url` rather
+                    than from anything the sheet holds, so what is scanned and what is
+                    copied cannot disagree. */}
+                <div className="rep-share-link">
+                  <QrCode value={share.url} size={132} />
+                  <div>
+                    <p className="rep-mono">{share.url}</p>
+                    <p className="small muted">
+                      Anyone holding this link can read the record, without an account. Revoking it
+                      stops the link - it cannot reach a copy already printed or saved.
+                    </p>
+                    <button className="ghost" onClick={share.onRevoke}>Revoke this link</button>
+                  </div>
+                </div>
               </>}
         </section>
       )}

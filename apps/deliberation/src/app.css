@@ -1561,6 +1561,14 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
    product's palette rather than the document's. */
 .rep-share { margin-top: 24px; padding: 16px; border: 1px solid var(--line); }
 
+/* The published link and the code that encodes it, side by side. The QR keeps its own
+   white ground from `.rep-qr` - scanners expect dark-on-light and this widget sits on the
+   product's dark chrome, so it is the one element here that does not follow the theme. */
+.rep-share-link { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.rep-share-link > div { flex: 1 1 28ch; min-width: 0; }
+/* A share URL is one long unbroken token; without this it runs past the panel. */
+.rep-share-link .rep-mono { overflow-wrap: anywhere; }
+
 /* ---- print --------------------------------------------------------------- */
 
 /* WHAT LEAVES THE PRINTER IS THE SHEET AND NOTHING ELSE.
@@ -1610,6 +1618,15 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
      silent, because the preview on screen still scrolls perfectly. `.shell` already
      carries `min-height: 100vh` for the screen, so the reset is not hypothetical; the
      rest is a guard against the next wrapper that grows one. */
+  /* WHITE PAPER, AND ASKED FOR EXPLICITLY. A PDF written with "Background graphics"
+     off drops every painted background, and what comes out is a transparent page that
+     shows through black in some viewers and mottled in others. `print-color-adjust` is
+     the standard way to say a background carries meaning rather than decoration, and it
+     has to be on the elements that actually paint the sheet - html, body and the page
+     itself - not only on the document wrapper inside them. */
+  html, body, .rep-page {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
   html, body {
     background: #fff !important;
     height: auto !important; min-height: 0 !important; overflow: visible !important;
@@ -1627,6 +1644,7 @@ a.inv-row:hover, a.inv-row:focus-visible { background-color: var(--sunken); }
      different one. Without this the browser would repaginate a stack of 297mm boxes
      against its own page height and land a break in the middle of every sheet. */
   .rep-page {
+    background: #fff !important;
     width: auto !important; min-height: 0 !important;
     margin: 0 !important; padding: 0 !important;
     box-shadow: none !important; border: 0 !important;
