@@ -22,7 +22,8 @@ export type CaseAction =
   | "submit"
   | "reveal"
   | "adjudicate"
-  | "sign";
+  | "sign"
+  | "share";
 
 export function isOwner(c: DeliberationCase, userId: string): boolean {
   return c.ownerId === userId;
@@ -43,6 +44,19 @@ export function isParticipant(c: DeliberationCase, userId: string): boolean {
  */
 export function canRead(c: DeliberationCase, userId: string): boolean {
   return isOwner(c, userId) || isParticipant(c, userId);
+}
+
+/**
+ * Publishing the record to a URL anybody holding it can open.
+ *
+ * THE CONVENER'S, not every reader's. Reading a case and publishing it are different
+ * acts: §6.7 puts one named individual behind the decision, and letting any participant
+ * disclose a record that person never agreed to publish would move that accountability
+ * without anybody deciding to. Deny-by-default is kept - this returns false unless it
+ * finds the one reason to return true.
+ */
+export function canShare(c: DeliberationCase, userId: string): boolean {
+  return isOwner(c, userId);
 }
 
 /**
@@ -67,6 +81,8 @@ export function can(c: DeliberationCase, userId: string, action: CaseAction): bo
     case "adjudicate":
     case "sign":
       return isOwner(c, userId);
+    case "share":
+      return canShare(c, userId);
     default:
       return false;
   }

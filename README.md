@@ -234,21 +234,202 @@ One key shared across a team is one budget shared across a team. See
 
 ### Deploying it
 
-The code is deployable; the hosting decision is not made here.
+**Two services: Supabase holds the data, one container holds everything else.** There is
+no separate frontend deployment - the site is built into the image and served by the same
+process that answers `/api`, on the same port. `railway.toml` is the default target and
+`fly.toml` is the same deployment expressed for another host; any host that can run the
+container and reach Postgres will do.
 
+```
+browser ──► container (Railway)                     ──► Supabase Postgres  (the record,
+              /                  landing page                               accounts, invites,
+              /deliberation/     the app                                    document metadata)
+              /api/*             the API             ──► Supabase Storage   (the PDF bytes)
+              Python + PyMuPDF   every upload        ──► Gemini / Anthropic (model calls)
+```
+
+Deploying is three steps: apply every file in `supabase/migrations/` in order to a
+Supabase project and create a private `documents` bucket; point Railway at this repo,
+which finds the `Dockerfile` and `railway.toml` on its own; set the variables listed in
+`railway.toml` and generate a domain. There is no deploy command - it builds on push.
+
+- **State goes to Supabase, not to a disk.** What used to be five files -
+  `results/deliberation-log.jsonl` (the record itself), the account store with its
+  password hashes, the invites sidecar, the share-links sidecar, and `results/documents/`
+  - becomes Postgres rows and Storage objects. Apply the migrations first, then set
+  `DATABASE_URL`. **Absent, it silently falls back to those files**, which is the right
+  default for CI and a laptop and is exactly the arrangement that loses everything on the
+  next redeploy. A deployment missing `DATABASE_URL` looks healthy until it isn't.
+  Setting it *without* the two Supabase Storage variables is refused at boot rather than
+  half-honoured: Postgres for the record and local disk for the documents is a container
+  that keeps the log and loses the evidence it cites.
+- **Use Supabase's pooler, port 6543, not 5432.** A container that redeploys or scales
+  opens a fresh pool each time, and direct connections exhaust a project's connection
+  limit fast. Transaction-mode pooling is safe here *specifically* because the chain
+  append takes `pg_advisory_xact_lock`, which is released at COMMIT - the unit the pooler
+  multiplexes on. A session-scoped `pg_advisory_lock` would break silently behind a
+  pooler, so that choice is load-bearing rather than incidental.
+- **The container is not a plain Node image, in two ways that both bite.** It needs
+  Python 3.12 with PyMuPDF beside Node 22, because `services/api` shells out to
+  `data/prep/measure_pdf.py` for every upload; without it every upload comes back 422
+  *unreadable*, which reads as a bad document rather than a missing dependency. And it
+  runs from TypeScript source through `tsx`, which is a **devDependency** - so
+  `npm ci --omit=dev` builds an image that cannot start, and `NODE_ENV=production` does
+  the same thing without leaving a flag in the Dockerfile to find. The result is ~1.2 GB,
+  most of it `node_modules` and the Python runtime.
+- **It still needs a host that can run a subprocess, and that rules out a whole class.**
+  Every upload and every Ask forks a Python interpreter. A platform that runs JavaScript
+  and only JavaScript - Workers, or a functions runtime - cannot serve this at all, and
+  the failure is not a slow path but a dead one. A container is the cheap honest answer.
 - **`ARBITER_HOST=0.0.0.0`** to accept outside traffic. It is loopback otherwise, because
   this process terminates no TLS - set it only behind a proxy that does. The banner warns
-  when it is not loopback.
+  when it is not loopback. Inside a container the default means nothing can reach it, so
+  this is not optional there.
 - **`ARBITER_MODEL_BUDGET`** (default 30 per account per 10 minutes, 6x that per source)
   caps the four endpoints that cost money. This is what makes them safe to expose: without
-  it, a public deployment is an open proxy to whoever's model quota it holds.
+  it, a public deployment is an open proxy to whoever's model quota it holds. It is
+  **per process**, so two machines are two budgets for one account - the record has no
+  such problem, since the chain append serialises on a database lock, but the cap does.
 - **On Google Cloud, attach a service account** rather than shipping a key. The auth
   library finds it as ADC, so no key material exists on disk, in git, or in an env var.
   Off Google Cloud, `GOOGLE_APPLICATION_CREDENTIALS_JSON` takes the JSON as a secret.
-- **State is local files** - `results/deliberation-log.jsonl` (the record itself),
-  `results/documents/`, and the account store. On an ephemeral container all three are
-  wiped on redeploy. Fine for a demo; if the record must persist, it needs a volume, and
-  that is the largest single piece of work in deploying this.
+- **`ARBITER_STATIC_DIR=apps/landing/dist` is what makes the deployment a website.**
+  Without it the container serves an API and no site: `services/api` answers 404 to any
+  path whose first segment is not `api`, and the client makes same-origin `/api` calls,
+  so hosting the two separately gives a page that fails on its first request. Set, the
+  API process serves that directory for everything outside `/api` - the landing page at
+  `/`, the staged client at `/deliberation/`, and the public record page for a
+  `/r/<caseId>/<token>` share link - and one origin needs no proxy and no CORS.
+  **Unset is still the right default**, because under `npm run dev` apps/landing's Vite
+  server owns those paths and two servers claiming one URL is worse than the 404. The
+  startup banner says which of the two you are in, and warns by name if the directory
+  does not exist.
+- **A built client asks who you are unless the build said otherwise.** Setting
+  `VITE_AUTO_EMAIL` and `VITE_AUTO_PASSWORD` at build time makes `/deliberation/` sign
+  every visitor in as that identity, which is right for a demonstration and wrong
+  everywhere else - it is anonymous read access to every case the deployment holds, and
+  it makes the record say that person decided whoever was at the keyboard. Leaving them
+  unset is what you want; see the sharing section for the whole argument.
+- **`GET /api/health` is the one unauthenticated route**, returning
+  `{"ok":true,"service":"arbiter-api","uptimeSeconds":N}`. It exists so a health check
+  can confirm the process *serves* rather than that something bound the port - a process
+  wedged before its first response passes a TCP connect. Both `railway.toml` and
+  `fly.toml` use it; Fly's was a TCP check only because no such route existed. It
+  discloses nothing about the configuration, because anyone who can reach the machine can
+  call it.
+
+### Publishing a record
+
+Once a case has been adjudicated, its owner can publish the record from the report page
+(`#/case/:id/report`) - a link anyone can open, with a QR code printed onto sheet 1 of
+the document so a printed page carries its own way back online.
+
+**Anyone holding the link reads the whole record, without an account.** The decision,
+every position in full - including ones that disagreed with the adjudication - the
+evidence it was decided on, and the audit chain. It is served by an unauthenticated
+route, `GET /api/public/report/:caseId/:token`, that exists because a share link with a
+session requirement behind it is not a share link.
+
+**The email address is the only thing cut. Names, seats and every position are not.**
+Attribution is the record - a position with no author is a rumour, not a deliberation -
+so a stranger holding the link sees exactly who said what and where they sat. What they
+cannot see is how to reach that person outside the product, which they have no standing
+to be handed. The cut happens where the report object is built
+(`services/api/verdict-report.ts`), not in what the page chooses to draw, because a
+field present in the response and merely hidden by the UI is one devtools tab from
+being disclosed - and the public route has no session to gate that with.
+
+**Revoking stops the link. It cannot reach a copy already printed or saved.** The token
+is derived, not stored: an HMAC over the case id and a version number, recomputed on
+every request rather than looked up. Revoking bumps that version, so the token already
+handed out stops verifying - but the PDF already saved to someone's drive, or the sheet
+already sitting on a desk, still shows the same QR code and the same text. It just no
+longer resolves. A later republish mints a different token, so it cannot reactivate a
+code that already went out.
+
+**Rotating `ARBITER_SHARE_SECRET` invalidates every published link on the deployment at
+once**, not just the one somebody asked to revoke - the secret is the only thing that
+makes the HMAC unforgeable, so a new one makes every token derived under the old one
+wrong. There is no per-link rotation, only per-deployment.
+
+**Rotate it if you ever move backings — files to Postgres, or back.** `share_links` starts
+empty and nothing carries the old store's version numbers into it, so a case that was
+published and then revoked on one backing is *unknown* on the other: the convener is
+offered "Publish this record" again and the new link is minted at version 1, which under
+an unchanged secret is byte-identical to the token that was killed. Every QR printed
+before the revoke starts resolving again. Rotating the secret makes that impossible,
+because nothing minted under the old one verifies afterwards. The alternative, if live
+links cannot be invalidated, is to copy the rows across before the first publish on the
+new backing — see `supabase/migrations/0002_share_links.sql`.
+
+**Sharing is off unless `ARBITER_SHARE_SECRET` is set**, and the boot banner says which:
+`Share:  on - records can be published to a tokenised URL` or `Share:  off -
+ARBITER_SHARE_SECRET is unset, so records cannot be published`. Publishing without it
+answers `501`, naming the variable, rather than a silent no-op. The value must be at
+least 32 bytes - shorter, and the process refuses to start at all, naming the variable
+and why: a short secret produces links that look unguessable and are not.
+
+**`/r/:caseId/:token` - the public PAGE - is served everywhere the API route is.** Three
+arrangements, one answer:
+
+- `npm run deliberate:dev` - the deliberation workspace's own Vite server, whose middleware
+  rewrites `/r/*` onto `public.html`.
+- `npm run dev` - the unified server proxies `/r/` to that same middleware. It used to
+  answer with the landing page at status 200, which reads as a broken feature rather than
+  as an unrouted path.
+- **A built site behind `ARBITER_STATIC_DIR`** - `serveStatic` answers a three-segment
+  `/r/<caseId>/<token>` with `public.html` from the site root, and `tools/stage-site.mjs`
+  puts one there with its asset references pointed at wherever the client was staged. This
+  is the arrangement a scanned QR code actually meets, and until `e2e/public-record.spec.ts`
+  nothing in the repo opened it.
+
+Two properties of that are worth knowing, because each was the subject of a decision.
+
+**The rewrite is one rule that resolves to one constant, not a rewrite table.** `serveStatic`
+still has no SPA fallback: a missing asset 404s rather than coming back as an HTML page with
+status 200. The share-link rule matches a *shape* and then serves a *fixed filename*, so
+neither the case id nor the token is ever used to build a path, and a root with no
+`public.html` answers 404 rather than falling back to whatever else is there. That fallback
+is the hazard the rule is shaped around: `index.html` is the app shell, and "serve
+index.html for any unmatched path" is the one-line change that would hand it to anyone who
+mistyped a share URL by a character.
+
+**`public.html`'s asset references are reconciled at staging time.** They are root-absolute
+- `apps/deliberation/vite.config.ts`'s `renderBuiltUrl`, because a share URL is two real
+path segments deep and a relative `./assets/…` would resolve against `/r/<caseId>/`.
+Root-absolute was right and *root* was wrong: staged under `/deliberation/`, the document
+still asked for `/assets/public-<hash>.js`, where the landing page's own bundle lives under
+different names. Served that way it was **200 OK with a blank page** - a document that
+parses, a correct content type, and nothing in any status line saying otherwise.
+`tools/stage-site.mjs` now points those references at the directory it staged into, and
+**fails the build** if one of them does not resolve.
+
+**Auto-sign-in is a development affordance, not a build default.**
+`apps/deliberation/src/App.tsx` used to carry the seeded demo lead's address and its
+published password as unconditional `??` defaults. Because that file *is* `index.html` and
+`index.html` is served at `/deliberation/` on any deployment with `ARBITER_STATIC_DIR` set,
+every such deployment with the demo team seeded signed in whoever reached that path - as the
+convener, with read access to every case it held. Nobody had to type a credential; the build
+carried one. Those defaults are now scoped to `import.meta.env.DEV`, so:
+
+- development is unchanged: `npm run dev`, `npm run deliberate:dev` and the test suite all
+  still open straight into the product;
+- a **built** artifact signs nobody in and asks who you are, unless that build explicitly
+  set both `VITE_AUTO_EMAIL` and `VITE_AUTO_PASSWORD` - which is how a demo deployment opts
+  in, deliberately;
+- an empty value counts as absent, the same reading `ARBITER_SHARE_SECRET=""` gets.
+
+The share link itself carries no session either way, which is exactly why it must not be
+trimmed and followed. Two greps hold the claims this rests on, and neither is provable from
+inside a test - `DEV` is substituted at build time, so only the built chunks can answer:
+
+```bash
+npm run deliberate:build
+# no credential in any chunk of a production build - every count 0
+grep -c "arbiter-demo-2026" apps/deliberation/dist/assets/*.js
+# and the public bundle still carries no auth code - only the main entry may match
+grep -l "AUTO_PASSWORD\|/api/auth/login" apps/deliberation/dist/assets/*.js
+```
 
 ### Verify everything
 
@@ -319,7 +500,10 @@ apps/deliberation/        THE PRODUCT. Four stages, real backend, AI decider.
   src/pages.tsx           Auth, dashboard, case creation, method
 
 services/api/             The backend. Accounts, cases, adjudication. Node only.
-  server.ts               Routes. /api/auth/* is the only unauthenticated surface.
+  server.ts               Routes, plus the built site behind ARBITER_STATIC_DIR.
+                          /api/auth/*, /api/health and /api/public/report/* are the
+                          unauthenticated surface. Only the last one serves case data.
+  share.ts                Published records. The token is DERIVED, never stored.
   adjudicate.ts           ADJUDICATOR_PROMPT_PATH - the in-force prompt version
   deliberation.ts         Blind submission + unanimity. Read the contracts.
   gemini.ts               Vertex AI. Falls back to a labelled stub without creds.
@@ -337,7 +521,13 @@ apps/atmosphere/          Scene R&D. Standalone, not wired into the product.
   src/core/Atmosphere.ts  Renderer, render targets, the tear between scenes.
 
 tools/dev-all.mjs         `npm run dev`: every surface behind one port
+tools/stage-site.mjs      `npm run site:build`: the client, where links.ts points
 e2e/                      Playwright. Drives the unified server, not one app.
+
+Dockerfile                Node 22 AND Python 3.12 - the upload path forks an interpreter
+fly.toml                  One worked deployment. No volume; state is in Supabase.
+supabase/migrations/      0001_init.sql, then 0002 onward. Append a file, never edit one.
+                          The log is append-only at the database, not just by convention.
 
 data/prep/*.py            DILIrank ingestion, splits, QSAR/Tox21 streams
 rules/ruleset-v1.0.json   PRE-REGISTERED AND HASHED. Do not edit.

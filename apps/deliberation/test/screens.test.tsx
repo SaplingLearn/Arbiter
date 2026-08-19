@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { Documents, InventoryPanel, PositionForm, Refused, Reveal, RosterPanel, Verdict, Waiting, basisOf } from "../src/screens.js";
+import { Documents, InventoryPanel, PositionForm, Refused, Reveal, RosterPanel, Verdict, Waiting } from "../src/screens.js";
 import type { Adjudication, BlindView, Inventory, Position, Roster } from "../src/api.js";
 
 const inv: Inventory = {
@@ -194,6 +194,62 @@ describe("the position tab's ground", () => {
   });
 });
 
+/**
+ * THE MOST CONSEQUENTIAL CONTROL IN THE PRODUCT HAS TO LOOK AND READ LIKE A CONTROL.
+ *
+ * "Your call" was once written against `.rail` and `.persona`, two class names the
+ * stylesheet stopped answering to when the product went dark. Unstyled, the three
+ * options rendered with no border, no ground and no gap, and ran together as one line
+ * of prose: "AdvanceDo not advanceCannot conclude". That half is already repaired.
+ *
+ * ASSERTED AGAINST THE PATTERN, NOT AGAINST A CLASS SPELLING. `.choice` wrapping
+ * `button.ghost[aria-pressed]` is what this app already uses for a mutually exclusive
+ * set, in the finding editor and the new case form. A fourth spelling of one control is
+ * how the first three drifted apart, so what is pinned here is that this uses the same
+ * one - and that neither dead name has come back.
+ */
+describe("the call the reviewer makes", () => {
+  const callGroup = (c: HTMLElement): HTMLElement | null =>
+    c.querySelector("[role='group'].choice");
+
+  it("draws the three options as the app's own choice group", () => {
+    const { container } = render(
+      <PositionForm token="t" caseId="c1" findings={[]} onDone={() => {}} />,
+    );
+    const group = callGroup(container);
+    expect(group).not.toBeNull();
+    const options = group!.querySelectorAll("button.ghost");
+    expect(options).toHaveLength(3);
+    for (const o of options) expect(o).toHaveAttribute("aria-pressed");
+  });
+
+  it("uses no class the stylesheet has stopped answering to", () => {
+    const { container } = render(
+      <PositionForm token="t" caseId="c1" findings={[]} onDone={() => {}} />,
+    );
+    expect(container.querySelector(".persona")).toBeNull();
+    expect(container.querySelector(".rail")).toBeNull();
+  });
+
+  it("carries an accessible name, which a label pointing at a div did not", () => {
+    // `htmlFor` names a labelable form control and a div is not one, so the old
+    // attribute resolved to nothing and the group had no name at all. Nothing threw -
+    // an unmatched `for` is silent, which is why it survived this long.
+    render(<PositionForm token="t" caseId="c1" findings={[]} onDone={() => {}} />);
+    expect(screen.getByRole("group", { name: "Your call" })).toBeInTheDocument();
+  });
+
+  it("still records which option is pressed", () => {
+    const { container } = render(
+      <PositionForm token="t" caseId="c1" findings={[]} onDone={() => {}} />,
+    );
+    const options = [...callGroup(container)!.querySelectorAll("button.ghost")];
+    const advance = options.find((o) => o.textContent?.includes("Advance"))!;
+    fireEvent.click(advance);
+    expect(advance).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
 describe("Waiting", () => {
   const view: BlindView = blind({
     own: pos("ann", { reasoning: "MY-OWN-REASONING" }),
@@ -257,15 +313,6 @@ describe("Waiting", () => {
     render(<Waiting nameOf={(id) => id} view={asConvener} isOwner onReveal={() => {}} />);
     expect(screen.queryByText(/Sealed\. Waiting for the others/)).toBeNull();
     expect(screen.getByText(/Waiting for the panel/)).toBeInTheDocument();
-  });
-});
-
-describe("basisOf", () => {
-  it("matches the server's derivation", () => {
-    expect(basisOf(pos("a", { citedFindingIds: ["f1"] }))).toBe("cited");
-    expect(basisOf(pos("a", { external: [{ claim: "x" }] }))).toBe("external");
-    expect(basisOf(pos("a"))).toBe("unsupported");
-    expect(basisOf(pos("a", { citedFindingIds: ["f1"], external: [{ claim: "x" }] }))).toBe("cited");
   });
 });
 
@@ -380,7 +427,7 @@ describe("Verdict", () => {
    *  the session. Overridden per test where the case is about who is reading. */
   const verdict = (over: Partial<Parameters<typeof Verdict>[0]> = {}): ReturnType<typeof render> =>
     render(<Verdict adjudication={adj} source="live" caseId="case_1"
-      canSign={true} signature={null} onSign={() => {}} {...over} />);
+      canSign={true} signed={null} onSign={() => {}} {...over} />);
 
   it("marks a stub result as a stub, in the place a reader cannot miss", () => {
     verdict({ source: "stub" });
@@ -434,8 +481,9 @@ describe("Verdict", () => {
   it("shows who signed, and that they overrode, once it is signed", () => {
     verdict({
       canSign: false,
-      signerName: "R. Okafor",
-      signature: { by: "u_okafor", at: "2026-08-16T10:00:00.000Z", agreesWithAdjudication: false, reason: "Margin is 40x." },
+      // Main resolves the signer to a NAME before the component sees it, so the
+      // screen never has to look an id up - see `signed` in screens.tsx.
+      signed: { name: "R. Okafor", at: "2026-08-16T10:00:00.000Z", agreesWithAdjudication: false, reason: "Margin is 40x." },
     });
     expect(screen.getByText(/R. Okafor signed, overriding the adjudication/)).toBeInTheDocument();
     expect(screen.getByText("Margin is 40x.")).toBeInTheDocument();
@@ -472,7 +520,7 @@ describe("Verdict", () => {
         reasoning: "The **margin** is unestablished.\n\n- No Cmax was projected\n- No NOAEL was set",
       },
     };
-    const { container } = render(<Verdict adjudication={md} source="live" caseId="case_1" onSign={() => {}} />);
+    const { container } = verdict({ adjudication: md });
     expect(container.querySelectorAll("li")).toHaveLength(2);
     // Not `querySelector("strong")`: the verdict label is itself a <strong> and comes
     // first, so the bare query asserts on the wrong element and passes either way.
@@ -484,13 +532,17 @@ describe("Verdict", () => {
      a signature invites a second one the state machine will refuse, and shows the
      reader a live control where the record wants a fact. */
   it("shows the signature on a signed case instead of asking for another", () => {
-    render(
-      <Verdict adjudication={adj} source="live" caseId="case_1" onSign={() => {}}
-        signature={{ by: "Ruth Okafor", at: "2026-08-14T10:00:00Z", agreesWithAdjudication: false, reason: "Margin is 40x." }} />,
-    );
+    // `signed`, already resolved to a name: the signature on `view` carries an id, and
+    // App.tsx holds the roster that turns it into a person.
+    verdict({
+      signed: {
+        name: "Ruth Okafor", at: "2026-08-14T10:00:00Z",
+        agreesWithAdjudication: false, reason: "Margin is 40x.",
+      },
+    });
     expect(screen.queryByRole("button", { name: /Sign the record/ })).not.toBeInTheDocument();
     expect(screen.getByText(/Margin is 40x./)).toBeInTheDocument();
-    expect(screen.getByText(/Overrode/)).toBeInTheDocument();
+    expect(screen.getByText(/overriding the adjudication/)).toBeInTheDocument();
   });
 
   /* OUR OWN DELIMITER, COMING BACK. adjudicate.ts renders each recorded absence into
@@ -503,7 +555,7 @@ describe("Verdict", () => {
       ...adj,
       missing: [{ field: "Exposure margin", whyItMatters: "blocks: Rule R3 cannot be applied." }],
     };
-    render(<Verdict adjudication={withPrefix} source="live" caseId="case_1" onSign={() => {}} />);
+    verdict({ adjudication: withPrefix });
     expect(screen.getByText("Rule R3 cannot be applied.")).toBeInTheDocument();
     expect(screen.queryByText(/blocks:/)).not.toBeInTheDocument();
   });
@@ -511,10 +563,9 @@ describe("Verdict", () => {
   /* consensus.ts: a 2-of-3 verdict and a 3-of-3 verdict are different objects, and
      the reader of a safety record is exactly who should be told which one they have. */
   it("reports a split across the runs rather than presenting one draw as settled", () => {
-    render(
-      <Verdict adjudication={adj} source="live" caseId="case_1" onSign={() => {}}
-        consensus={{ runs: 3, votes: 2, agreement: 2 / 3, distribution: { cannot_conclude: 2, do_not_advance: 1 }, split: true }} />,
-    );
+    verdict({
+      consensus: { runs: 3, votes: 2, agreement: 2 / 3, distribution: { cannot_conclude: 2, do_not_advance: 1 }, split: true },
+    });
     expect(screen.getByText(/2 of 3/)).toBeInTheDocument();
   });
 });

@@ -22,8 +22,9 @@ import type { EvidenceChecklist, Modality } from "./inventory.js";
  *
  * ONE CHECKLIST ITEM AT A TIME, not one pass over the whole document. The checklist is
  * the question set the case is judged against, so a proposal that does not answer one of
- * its items has nowhere to go - and asking per item means the retrieval query is the
- * item's own field text, which is exactly what the lexical retriever is good at. It also
+ * its items has nowhere to go - and asking per item means the retrieval query is built
+ * from that item alone: its field text plus its `searchTerms`, which is exactly what the
+ * lexical retriever is good at. It also
  * makes an ABSENT item a first-class answer: a model that finds nothing for
  * "Reversibility on withdrawal" says so, and absent evidence is a finding in this product
  * rather than a silence.
@@ -181,6 +182,14 @@ export async function proposeFindings(
     // What a proposal must still carry is unchanged - a verbatim quote and a page, judged
     // against the FIELD - so a search term that drags in an irrelevant passage costs a
     // discarded proposal, never a wrong finding.
+    //
+    // It can still cost a MISSED one, and that direction is not defended. `perItem` is 6,
+    // so the added terms compete for six slots: a term that matches strongly somewhere
+    // irrelevant can push the correct passage out of the top six, and a passage that never
+    // arrives is reported as a gap the document does not have - the same failure this
+    // change exists to remove, arriving from the other side. Nothing here measures that.
+    // `retrieval-eval.ts` searches with the fixture QUESTION, not with `field +
+    // searchTerms`, so the committed hit@16 says nothing about this path either way.
     const query = [item.field, ...(item.searchTerms ?? [])].join(" ");
     const passages = search(index, query, perItem);
     if (passages.length === 0) { notFound.push({ itemId: item.id, field: item.field }); continue; }

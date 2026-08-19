@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { createServer, type Server } from "node:http";
-import { mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AddressInfo } from "node:net";
@@ -11,6 +11,7 @@ import { AuthStore } from "../auth.js";
 import { DocumentStore } from "../documents.js";
 import { LibraryStore } from "../library.js";
 import { InviteStore } from "../invites.js";
+import { ShareStore } from "../share.js";
 import { LoginThrottle } from "../throttle.js";
 import { ModelBudget } from "../spend.js";
 import { seedDemoTeam, DEMO_PASSWORD } from "../seed-demo.js";
@@ -27,6 +28,11 @@ const FINDINGS: CoveringFinding[] = [
   { id: "f-hep", label: "Human hepatocyte", assertion: "toxic", detail: "Signal at 10uM.", covers: ["M1"] },
   { id: "f-rat", label: "Rat 28-day", assertion: "safe", detail: "Clean at 3x.", covers: ["M5"] },
 ];
+
+/** Comfortably over ShareStore's 32-byte floor. Not read from the environment - this
+ *  suite never calls `shareSecret()`, it hands the value straight to `ServerDeps` so
+ *  publishing is on for every test in this file regardless of what is exported. */
+const SHARE_SECRET = "arbiter-test-share-secret-do-not-use-in-production";
 
 let server: Server;
 let base: string;
@@ -45,14 +51,14 @@ const EMAIL: Record<string, string> = {
 };
 
 beforeAll(async () => {
-  const auth = new AuthStore(null);
-  seedDemoTeam(auth, Date.now());
-  const outsider = auth.register({ email: "outsider@elsewhere.test", displayName: "Outsider", password: "outsider-password", now: Date.now() });
+  const auth = await AuthStore.open(null);
+  await seedDemoTeam(auth, Date.now());
+  const outsider = await auth.register({ email: "outsider@elsewhere.test", displayName: "Outsider", password: "outsider-password", now: Date.now() });
   if (!outsider.ok) throw new Error("fixture");
 
   for (const [handle, email] of Object.entries({ ...EMAIL, outsider: "outsider@elsewhere.test" })) {
     const password = handle === "outsider" ? "outsider-password" : DEMO_PASSWORD;
-    const r = auth.login({ email, password, now: Date.now() });
+    const r = await auth.login({ email, password, now: Date.now() });
     if (!r.ok) throw new Error(`fixture login failed for ${handle}`);
     tok[handle] = r.value.token;
     uid[handle] = r.value.user.id;
@@ -61,9 +67,12 @@ beforeAll(async () => {
   deps = {
     service: new DeliberationService(new MemoryStore(), CHECKLIST),
     auth,
-    documents: new DocumentStore(mkdtempSync(join(tmpdir(), "arb-docs-"))),
+    storage: "in-memory (test fixture)",
+    documents: await DocumentStore.open(mkdtempSync(join(tmpdir(), "arb-docs-"))),
     library: new LibraryStore({ cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib-")) }),
-    invites: new InviteStore(null),
+    invites: await InviteStore.open(null),
+    shares: await ShareStore.open(null),
+    shareSecret: SHARE_SECRET,
     throttle: new LoginThrottle(),
     // Deliberately generous: this suite drives many model-calling routes in one run and
     // the cap is not what any of these cases are measuring. `spend.test.ts` measures it.
@@ -98,6 +107,14 @@ const call = async (
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   return { status: res.status, body: res.status === 204 ? null : await res.json() };
+};
+
+/** No `authorization` header, ever - the whole point of the public route is that it
+ *  works without one. */
+const fetchPublic = async (path: string): Promise<{ status: number; body: any }> => {
+  const res = await fetch(`${base}${path}`);
+  const text = await res.text();
+  return { status: res.status, body: text === "" ? null : JSON.parse(text) };
 };
 
 const position = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -196,6 +213,21 @@ describe("cases, with access control", () => {
     expect((await call("GET", "/api/cases", "outsider")).body).toEqual([]);
   });
 
+  /**
+   * WHETHER THE VIEWER HAS ANSWERED, which the listing could not say and the dashboard
+   * was guessing at.
+   *
+   * `submitted` is a COUNT, so the only way to infer "this one needs me" from the old
+   * shape was `submitted < of` - which is true of a case where three of four have
+   * answered whether or not the viewer is one of the three. A participant who had
+   * already answered kept seeing their case filed under "needs your position".
+   *
+   * SAFE TO SEND, and by the rule this codebase already applies to the same fact
+   * elsewhere: `Steps` shows the viewer their own mark count, on the argument that own
+   * activity is not an aggregate over other people and so leaks nothing blind
+   * submission protects. This is that argument again. What must NOT appear here is
+   * WHICH of the others have answered, or anything about what any of them said.
+   */
   it("reports how many documents each case holds", async () => {
     // The Ask page picks a case from this list and can ask nothing of a case with an
     // empty folder. Without the count it cannot tell the two apart, so it opens on
@@ -230,6 +262,69 @@ describe("cases, with access control", () => {
     expect(list).toHaveProperty("submitted");
     expect(list).toHaveProperty("of");
     expect(JSON.stringify(list)).not.toContain("advance");
+  });
+
+  /**
+   * WHETHER THE VIEWER HAS ANSWERED, which the listing could not say and the dashboard
+   * was therefore guessing at.
+   *
+   * `submitted` is a COUNT, so the only way to infer "this one needs me" from the old
+   * shape was `submitted < of` - true of a case where one of two has answered whether or
+   * not the viewer is the one. A participant who had already answered kept seeing their
+   * own case filed under "needs your position".
+   *
+   * SAFE TO SEND, by the rule this codebase already applies to the same fact elsewhere:
+   * `Layout.tsx`'s `Steps` shows the viewer their own mark count, on the argument that
+   * own activity is not an aggregate over other people and so leaks nothing blind
+   * submission protects. This is that argument again, for one bit. What must NOT appear
+   * is WHICH of the others have answered, or anything about what any of them said - the
+   * last test in this group is the guard on that.
+   *
+   * ON ITS OWN CASE, and placed after the two tests above that assert ann's list
+   * EXACTLY. The difference between two participants at one moment is the whole
+   * assertion, so it has to control that moment - and an extra case in the fixture is
+   * precisely what `[["c1", 2]]` above refuses.
+   */
+  it("says whether the viewer themselves has answered, not just how many have", async () => {
+    expect((await call("POST", "/api/cases", "owner", {
+      caseId: "c-own-answer", compoundLabel: "Own answer", context: "One of two has answered.",
+      participantIds: [uid["ann"], uid["bea"]], findings: FINDINGS, at: "t",
+    })).status).toBe(201);
+    expect((await call("POST", "/api/cases/c-own-answer/positions", "ann", position())).status).toBe(201);
+
+    const forAnn = (await call("GET", "/api/cases", "ann")).body
+      .find((c: any) => c.caseId === "c-own-answer");
+    const forBea = (await call("GET", "/api/cases", "bea")).body
+      .find((c: any) => c.caseId === "c-own-answer");
+
+    // THE COUNT IS IDENTICAL FOR BOTH, which is the whole problem with inferring from it:
+    // `submitted < of` holds for ann, who has answered, and for bea, who has not.
+    expect(forAnn.submitted).toBe(1);
+    expect(forBea.submitted).toBe(1);
+    expect(forAnn.of).toBe(2);
+
+    expect(forAnn.youSubmitted).toBe(true);
+    expect(forBea.youSubmitted).toBe(false);
+  });
+
+  /** The convener holds no position - they convene and sign - so the answer is false
+   *  rather than a third state. `isOwner` already carries that distinction, and making
+   *  this field mean two things would put the difference in the wrong place. */
+  it("reports the convener as not having answered, because an owner holds no position", async () => {
+    const mine = (await call("GET", "/api/cases", "owner")).body
+      .find((c: any) => c.caseId === "c-own-answer");
+    expect(mine.isOwner).toBe(true);
+    expect(mine.youSubmitted).toBe(false);
+  });
+
+  /** The negative half of the disclosure rule: one bit about yourself, and nothing at
+   *  all about who else has answered or what any of them said. bea has NOT answered
+   *  c-own-answer and ann has, so if the listing were carrying other people's
+   *  submissions this is where ann's id would surface. */
+  it("still names no other participant in the listing", async () => {
+    const body = JSON.stringify((await call("GET", "/api/cases", "bea")).body);
+    expect(body).not.toContain(uid["ann"]);
+    expect(body).not.toContain("Because.");
   });
 
   it("attributes a submission to the token, not to the body", async () => {
@@ -337,11 +432,12 @@ describe("cases, with access control", () => {
    */
   it("serves the adjudication to a participant, not only to whoever ran it", async () => {
     // It used to live in one browser's React state. A participant reaching the verdict
-    // stage saw an empty screen, and the owner lost it on reload.
-    const r = await call("GET", "/api/cases/c1/adjudication", "bea");
+    // stage saw an empty screen, and the owner lost it on reload. `view` carries it, so
+    // this is the request the stage already makes rather than a route of its own.
+    const r = await call("GET", "/api/cases/c1/view", "bea");
     expect(r.status).toBe(200);
     expect(r.body.adjudication).not.toBeNull();
-    expect(["stub", "live"]).toContain(r.body.source);
+    expect(["stub", "live"]).toContain(r.body.adjudicationSource);
     expect(r.body.signature.agreesWithAdjudication).toBe(false);
     expect(r.body.signature.reason).toBe("Holding for a margin.");
   });
@@ -380,9 +476,180 @@ describe("cases, with access control", () => {
     expect(r.body.error).toBe("no_adjudication");
     expect(r.body.detail).toContain("still open");
 
-    const none = await call("GET", "/api/cases/c-report-open/adjudication", "ann");
+    // And the stage that would draw it says the same thing without raising: "not
+    // adjudicated yet" is the ordinary state of an open case, not an error.
+    const none = await call("GET", "/api/cases/c-report-open/view", "ann");
     expect(none.status).toBe(200);
     expect(none.body.adjudication).toBeNull();
+  });
+
+  describe("publishing a record", () => {
+    // FIRST IN THE BLOCK, DELIBERATELY: this is the one assertion in this describe
+    // that needs c1 UNpublished to mean anything, and every test after it leaves a
+    // live link behind. Everything below runs against c1, which "runs the rest of the
+    // flow for the owner" above leaves adjudicated and signed.
+    it("tells the convener whether a link exists, so the page knows to draw the QR", async () => {
+      const before = await call("GET", "/api/cases/c1/share", "owner");
+      expect(before.body.published).toBe(false);
+      await call("POST", "/api/cases/c1/share", "owner", {});
+      const after = await call("GET", "/api/cases/c1/share", "owner");
+      expect(after.body.published).toBe(true);
+      expect(after.body.url).toContain("/r/c1/");
+    });
+
+    it("says sharing is enabled when the deployment has a secret configured", async () => {
+      const r = await call("GET", "/api/cases/c1/share", "owner");
+      expect(r.body.enabled).toBe(true);
+    });
+
+    it("says sharing is disabled when the deployment has no secret, so the page can withhold the control rather than let a press of it 501", async () => {
+      // A second handler over the same auth and service, with only `shareSecret`
+      // swapped to null - the "sharing is off" deployment shape, same pattern as the
+      // document-store swap above.
+      const handler = makeHandler({ ...deps, shareSecret: null });
+      const alt = createServer((req, res) => { void handler(req, res); });
+      await new Promise<void>((r) => alt.listen(0, "127.0.0.1", r));
+      try {
+        const res = await fetch(`http://127.0.0.1:${(alt.address() as AddressInfo).port}/api/cases/c1/share`, {
+          headers: { authorization: `Bearer ${tok["owner"]}` },
+        });
+        const body = await res.json() as { enabled: boolean; published: boolean; url: string | null };
+        expect(body.enabled).toBe(false);
+        expect(body.published).toBe(false);
+        expect(body.url).toBeNull();
+      } finally {
+        await new Promise<void>((r) => alt.close(() => r()));
+      }
+    });
+
+    it("refuses a participant reading the publish state - the only guard between them and the capability URL, since a GET has no ternary arm above it", async () => {
+      const r = await call("GET", "/api/cases/c1/share", "bea");
+      expect(r.status).toBe(403);
+    });
+
+    /**
+     * A STORE THAT THROWS MUST ANSWER 500, NOT TAKE THE PROCESS DOWN - and this is the
+     * one assertion that can tell those apart from outside.
+     *
+     * `handleShare` and `handleReport` were synchronous until the Postgres stores made
+     * them async, and the four call sites kept their bare `return`. A returned promise
+     * does not hand its rejection to the handler's own catch: it goes to
+     * `void makeHandler(deps)(req, res)`, which is an unhandled rejection, and with no
+     * `process.on("unhandledRejection")` anywhere here that is Node terminating the
+     * process - every in-flight request dies and this one never gets a reply at all.
+     * `return await` at each site is what routes it to the 500 below.
+     *
+     * Nothing else in this file makes a store throw, which is exactly why the omission
+     * survived a typecheck, a lint and 89 passing tests. Reachable in production on
+     * either backing: a Postgres pool timeout, or `ShareStore.persist`'s
+     * `writeFileSync` hitting ENOSPC.
+     */
+    it("answers 500 when the share store throws, rather than dropping the request and the process", async () => {
+      const exploding = {
+        get: () => { throw new Error("connection terminated unexpectedly"); },
+        publish: () => { throw new Error("connection terminated unexpectedly"); },
+        revoke: () => { throw new Error("connection terminated unexpectedly"); },
+      };
+      const handler = makeHandler({ ...deps, shares: exploding });
+      const alt = createServer((req, res) => { void handler(req, res); });
+      await new Promise<void>((r) => alt.listen(0, "127.0.0.1", r));
+      const at = `http://127.0.0.1:${(alt.address() as AddressInfo).port}`;
+      try {
+        // All three methods, because all three reach the store through their own call
+        // site and each one had to be fixed separately.
+        for (const method of ["GET", "POST", "DELETE"]) {
+          const res = await fetch(`${at}/api/cases/c1/share`, {
+            method,
+            headers: { authorization: `Bearer ${tok["owner"]}`, "content-type": "application/json" },
+            ...(method === "POST" ? { body: "{}" } : {}),
+          });
+          expect(res.status, `${method} /share`).toBe(500);
+          expect((await res.json() as { error: string }).error).toBe("internal");
+        }
+      } finally {
+        await new Promise<void>((r) => alt.close(() => r()));
+      }
+    });
+
+    it("refuses a participant, who may read it but not publish it", async () => {
+      // The body is checked, not just the status. handleShare's own denial() check
+      // would produce the same 403 on its own - the "error": "forbidden" key can only
+      // come from the router's action-ternary gate (server.ts), which is the outer of
+      // the two independent checks this route requires. Losing that key here would not
+      // catch the router arm being deleted; the status alone would still pass.
+      const r = await call("POST", "/api/cases/c1/share", "bea", {});
+      expect(r.status).toBe(403);
+      expect(r.body.error).toBe("forbidden");
+    });
+
+    it("refuses a participant trying to revoke, the same way it refuses publishing", async () => {
+      const r = await call("DELETE", "/api/cases/c1/share", "bea");
+      expect(r.status).toBe(403);
+      expect(r.body.error).toBe("forbidden");
+    });
+
+    it("publishes for the convener and hands back a URL carrying the token", async () => {
+      const r = await call("POST", "/api/cases/c1/share", "owner", {});
+      expect(r.status).toBe(201);
+      expect(r.body.url).toContain("/r/c1/");
+      expect(r.body.token).toMatch(/^[A-Za-z0-9_-]+$/);
+    });
+
+    it("returns the same URL on a second press, so a printed QR keeps working", async () => {
+      const first = await call("POST", "/api/cases/c1/share", "owner", {});
+      const again = await call("POST", "/api/cases/c1/share", "owner", {});
+      expect(again.body.url).toBe(first.body.url);
+    });
+
+    it("serves the record to a stranger holding the token", async () => {
+      const pub = await call("POST", "/api/cases/c1/share", "owner", {});
+      const r = await fetchPublic(`/api/public/report/c1/${pub.body.token as string}`);
+      expect(r.status).toBe(200);
+      expect(r.body.compoundLabel).toBe("TAK-994");
+      expect(r.body.positions.length).toBeGreaterThan(0);
+    });
+
+    it("puts no email address anywhere in the public body", async () => {
+      const pub = await call("POST", "/api/cases/c1/share", "owner", {});
+      const r = await fetchPublic(`/api/public/report/c1/${pub.body.token as string}`);
+      expect(JSON.stringify(r.body)).not.toContain("@");
+    });
+
+    it("refuses a token that does not match", async () => {
+      await call("POST", "/api/cases/c1/share", "owner", {});
+      const r = await fetchPublic("/api/public/report/c1/not-the-token");
+      expect(r.status).toBe(404);
+    });
+
+    it("refuses every token once the link is revoked, which is what reaches printed paper", async () => {
+      const pub = await call("POST", "/api/cases/c1/share", "owner", {});
+      const token = pub.body.token as string;
+      expect((await fetchPublic(`/api/public/report/c1/${token}`)).status).toBe(200);
+
+      const gone = await call("DELETE", "/api/cases/c1/share", "owner");
+      expect(gone.status).toBe(200);
+      expect((await fetchPublic(`/api/public/report/c1/${token}`)).status).toBe(404);
+    });
+
+    it("mints a different token when republished, leaving the revoked one dead", async () => {
+      const first = await call("POST", "/api/cases/c1/share", "owner", {});
+      await call("DELETE", "/api/cases/c1/share", "owner");
+      const second = await call("POST", "/api/cases/c1/share", "owner", {});
+
+      expect(second.body.token).not.toBe(first.body.token);
+      expect((await fetchPublic(`/api/public/report/c1/${first.body.token as string}`)).status).toBe(404);
+      expect((await fetchPublic(`/api/public/report/c1/${second.body.token as string}`)).status).toBe(200);
+    });
+
+    it("refuses a case nobody published", async () => {
+      // c-report-open, not c1: c1 already has a live link by this point in the block,
+      // so a wrong token against it only re-exercises "refuses a token that does not
+      // match" above. c-report-open was opened earlier in this describe and never
+      // published, so this is the one test in the suite that reaches verifyToken's
+      // `link === null` branch rather than its "token does not match a live link" one.
+      const r = await fetchPublic("/api/public/report/c-report-open/anything");
+      expect(r.status).toBe(404);
+    });
   });
 });
 
@@ -450,7 +717,7 @@ describe("the case catalogue and demo seeding", () => {
 
     const withSource = makeHandler({
       ...deps,
-      documents: new DocumentStore(mkdtempSync(join(tmpdir(), "arb-docs2-"))),
+      documents: await DocumentStore.open(mkdtempSync(join(tmpdir(), "arb-docs2-"))),
       library: new LibraryStore({
         cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib2-")),
         sources: [{ name: "nipocalimab", label: "Imaavy - assessment report", path }],
@@ -504,7 +771,7 @@ describe("the case catalogue and demo seeding", () => {
 
     const withBadSource = makeHandler({
       ...deps,
-      documents: new DocumentStore(mkdtempSync(join(tmpdir(), "arb-docs3-"))),
+      documents: await DocumentStore.open(mkdtempSync(join(tmpdir(), "arb-docs3-"))),
       library: new LibraryStore({
         cacheRoot: mkdtempSync(join(tmpdir(), "arb-lib3-")),
         sources: [{ name: "slynd", label: "Slynd - review", path }],
@@ -933,7 +1200,11 @@ describe("raw document bytes", () => {
     // Simulate the index and the file on disk drifting apart: the document record
     // still exists, but its bytes do not - deleted externally, a migration gap, a
     // disk issue.
-    unlinkSync(deps.documents.pathFor(vanishingId));
+    // Through the concrete file store, not `deps.documents`, which is now typed as the
+    // narrower `DocumentStoreApi` and deliberately has no `pathFor` - the Storage-backed
+    // store cannot answer it. Reaching for the real class here is honest: this test is
+    // specifically about the FILE store's bytes going missing underneath its index.
+    unlinkSync(await (deps.documents as DocumentStore).pathFor(vanishingId));
 
     // The handler documents exactly this answer - 500 with `document_missing` - so
     // the test asserts it. "Any status in [400, 600)" passed for a 404, a 403 and a
@@ -1059,5 +1330,446 @@ describe("routing", () => {
       method: "POST", headers: { "content-type": "application/json" }, body: "{not json",
     });
     expect(res.status).toBe(400);
+  });
+});
+
+/**
+ * The health route, which exists so a deployment can be checked by something other than
+ * a TCP connect. fly.toml's check calls exactly this path.
+ */
+describe("GET /api/health", () => {
+  it("answers 200 with no bearer token, unlike every other route", async () => {
+    const res = await fetch(`${base}/api/health`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    const body = await res.json() as { ok: boolean; service: string; uptimeSeconds: number };
+    expect(body.ok).toBe(true);
+    expect(body.service).toBe("arbiter-api");
+    expect(typeof body.uptimeSeconds).toBe("number");
+  });
+
+  /**
+   * A check that only ever sees the healthy state cannot tell "up" from "crash-looping
+   * and up again", which is the failure a health check is most likely to be watching
+   * for. The number is the only reason this route returns a body at all.
+   */
+  it("reports an uptime that moves", async () => {
+    const read = async (): Promise<number> =>
+      ((await (await fetch(`${base}/api/health`)).json()) as { uptimeSeconds: number }).uptimeSeconds;
+
+    const first = await read();
+    expect(first).toBeGreaterThanOrEqual(0);
+    expect(first).toBeLessThan(60 * 60 * 24);
+
+    /* THE SECOND READING IS THE TEST. A single one inside a range passes just as well
+       against a hardcoded constant, and a constant is exactly the bug that would make
+       this route unable to tell "up" from "crash-looping and up again" - the one thing
+       it returns a body for. `uptimeSeconds` is whole seconds (`Math.round`), so the
+       wait has to clear a second for the value to be guaranteed to differ. */
+    await new Promise((r) => setTimeout(r, 1100));
+    expect(await read()).toBeGreaterThan(first);
+  });
+
+  /**
+   * Being unauthenticated is the point, so it has to stay a route that says NOTHING
+   * about the deployment. A key name, a model, an account count or a database URL in
+   * here would be readable by anybody who can reach the port.
+   */
+  it("discloses nothing about the configuration", async () => {
+    const text = await (await fetch(`${base}/api/health`)).text();
+    expect(Object.keys(JSON.parse(text) as object).sort()).toEqual(["ok", "service", "uptimeSeconds"]);
+    for (const leak of ["gemini", "claude", "anthropic", "postgres", "key", "account", "user", "path", "dir"]) {
+      expect(text.toLowerCase(), leak).not.toContain(leak);
+    }
+  });
+});
+
+/**
+ * SERVING THE BUILT SITE FROM THE API PROCESS - the arrangement that puts the client and
+ * the API on one origin.
+ *
+ * The fixture below is the shape `npm run site:build` produces and nothing more: the
+ * landing page at the root, its own hashed bundle under `assets/`, and the deliberation
+ * client staged at `deliberation/` with a SEPARATE `assets/` of its own. That duplication
+ * is what several of these cases turn on - `/assets/x.js` and `/deliberation/assets/x.js`
+ * are different files belonging to different applications.
+ *
+ * A second handler over the same deps, rather than reconfiguring the shared one: every
+ * other test in this file asserts the unset behaviour, and the last case here asserts it
+ * explicitly against the original server.
+ */
+describe("the built site, behind ARBITER_STATIC_DIR", () => {
+  let siteBase: string;
+  let siteServer: Server;
+  let root: string;
+  /** A file OUTSIDE the served root, holding a string that must never appear in any
+   *  response body. Stands in for `.env` and the account store, which in a real
+   *  deployment sit two directories above `apps/landing/dist`. */
+  let secretPath: string;
+  const SECRET = "ARBITER_TEST_SECRET_a1b2c3d4";
+
+  const LANDING_HTML = "<!doctype html><title>landing</title><script src=\"/assets/landing-aaa.js\"></script>";
+  const CLIENT_HTML = "<!doctype html><title>deliberation client</title><script src=\"./assets/client-bbb.js\"></script>";
+  /* The public record page as `tools/stage-site.mjs` writes it to the SITE ROOT: a
+     root-absolute reference into the staged client's own assets/ directory. Root-absolute
+     because this document is served at `/r/<caseId>/<token>`, two real path segments deep,
+     where a relative `./assets/...` would resolve against `/r/<caseId>/` and 404. */
+  const PUBLIC_HTML = "<!doctype html><title>Deliberation record</title><script src=\"/deliberation/assets/public-ddd.js\"></script>";
+
+  beforeAll(async () => {
+    const tmp = mkdtempSync(join(tmpdir(), "arb-site-"));
+    root = join(tmp, "dist");
+    mkdirSync(join(root, "assets"), { recursive: true });
+    mkdirSync(join(root, "deliberation", "assets"), { recursive: true });
+    writeFileSync(join(root, "index.html"), LANDING_HTML);
+    writeFileSync(join(root, "public.html"), PUBLIC_HTML);
+    writeFileSync(join(root, "assets", "landing-aaa.js"), "export const which = 'landing';\n");
+    writeFileSync(join(root, "assets", "landing-aaa.css"), ":root{--which:landing}\n");
+    writeFileSync(join(root, "deliberation", "index.html"), CLIENT_HTML);
+    writeFileSync(join(root, "deliberation", "assets", "client-bbb.js"), "export const which = 'client';\n");
+    writeFileSync(join(root, "deliberation", "assets", "public-ddd.js"), "export const which = 'public';\n");
+    writeFileSync(join(root, "deliberation", "assets", "worker-ccc.mjs"), "export const which = 'worker';\n");
+    writeFileSync(join(root, "unknown.qqq"), "not a type this server knows\n");
+
+    // One directory up - the escape a traversal is trying to reach.
+    secretPath = join(tmp, "secret.env");
+    writeFileSync(secretPath, `DATABASE_URL=${SECRET}\n`);
+    // And a SIBLING whose name has the root as a prefix. `resolve(root + rel).startsWith(root)`
+    // - the obvious way to write the containment check - accepts this path, because
+    // "/tmp/x/dist-backup/..." really does start with "/tmp/x/dist".
+    mkdirSync(join(tmp, "dist-backup"), { recursive: true });
+    writeFileSync(join(tmp, "dist-backup", "secret.env"), `DATABASE_URL=${SECRET}\n`);
+
+    const handler = makeHandler({ ...deps, staticDir: root });
+    siteServer = createServer((req, res) => { void handler(req, res); });
+    await new Promise<void>((r) => siteServer.listen(0, "127.0.0.1", r));
+    siteBase = `http://127.0.0.1:${(siteServer.address() as AddressInfo).port}`;
+  });
+
+  afterAll(async () => { await new Promise<void>((r) => siteServer.close(() => r())); });
+
+  it("serves the landing page at the root", async () => {
+    const res = await fetch(`${siteBase}/`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(await res.text()).toBe(LANDING_HTML);
+  });
+
+  /**
+   * The one that decides whether the product is reachable at all. `/deliberation/` and
+   * `/deliberation` must both end at the STAGED CLIENT'S index.html - the landing page's
+   * is one directory up and is what a naive "serve root/index.html for a directory"
+   * would hand back.
+   */
+  it("lands /deliberation/ on the client's index.html, not the landing page's", async () => {
+    const res = await fetch(`${siteBase}/deliberation/`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toBe(CLIENT_HTML);
+    expect(html).not.toContain("<title>landing</title>");
+  });
+
+  /**
+   * WITHOUT THE TRAILING SLASH IT HAS TO REDIRECT, and serving the right document in
+   * place would be the subtler bug. apps/deliberation builds with `base: "./"`, so its
+   * index.html asks for `./assets/client-bbb.js`; resolved against `/deliberation` that
+   * is `/assets/client-bbb.js`, which in the real build is the LANDING page's directory -
+   * a 404 for this asset, or worse, somebody else's bundle. Resolved against
+   * `/deliberation/` it is `/deliberation/assets/client-bbb.js`, which is the file that
+   * was staged. The redirect is what makes the second thing true.
+   */
+  it("redirects /deliberation to /deliberation/ so relative assets resolve", async () => {
+    const res = await fetch(`${siteBase}/deliberation`, { redirect: "manual" });
+    expect(res.status).toBe(301);
+    expect(res.headers.get("location")).toBe("/deliberation/");
+
+    // Followed, it is the client - and the asset its html names now resolves.
+    expect(await (await fetch(`${siteBase}/deliberation`)).text()).toBe(CLIENT_HTML);
+    const asset = await fetch(`${siteBase}/deliberation/assets/client-bbb.js`);
+    expect(asset.status).toBe(200);
+    expect(await asset.text()).toContain("'client'");
+
+    // The same relative reference resolved WITHOUT the redirect. Nothing is there, which
+    // is precisely why the redirect is not cosmetic.
+    expect((await fetch(`${siteBase}/assets/client-bbb.js`)).status).toBe(404);
+  });
+
+  it("carries the query string across the redirect", async () => {
+    const res = await fetch(`${siteBase}/deliberation?invite=abc`, { redirect: "manual" });
+    expect(res.headers.get("location")).toBe("/deliberation/?invite=abc");
+  });
+
+  /**
+   * A `.js` bundle served as text/plain is refused by the browser as a module script, so
+   * the page loads and renders nothing - which reads as a failed build. The unknown
+   * extension is here to pin the FALLBACK: octet-stream downloads visibly, text/plain
+   * gets sniffed and rendered differently in each browser.
+   */
+  it("sets a content type per extension, and never falls back to text/plain", async () => {
+    const types: Record<string, string> = {
+      "/assets/landing-aaa.js": "text/javascript; charset=utf-8",
+      "/assets/landing-aaa.css": "text/css; charset=utf-8",
+      "/deliberation/assets/worker-ccc.mjs": "text/javascript; charset=utf-8",
+      "/index.html": "text/html; charset=utf-8",
+      "/unknown.qqq": "application/octet-stream",
+    };
+    for (const [path, type] of Object.entries(types)) {
+      const res = await fetch(`${siteBase}${path}`);
+      expect(res.status, path).toBe(200);
+      expect(res.headers.get("content-type"), path).toBe(type);
+    }
+  });
+
+  /**
+   * Vite hashes the filename of everything under `assets/`, so one URL there is one set
+   * of bytes forever and `immutable` skips no revalidation that could matter. index.html
+   * keeps its name across every deploy and NAMES those hashed files, so a cached copy
+   * points at assets the new deployment has deleted.
+   */
+  it("caches hashed assets immutably and index.html not at all", async () => {
+    const asset = await fetch(`${siteBase}/deliberation/assets/client-bbb.js`);
+    expect(asset.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+
+    for (const path of ["/", "/deliberation/", "/index.html"]) {
+      const res = await fetch(`${siteBase}${path}`);
+      expect(res.headers.get("cache-control"), path).toBe("no-cache");
+    }
+  });
+
+  it("revalidates index.html with an etag rather than resending it", async () => {
+    const first = await fetch(`${siteBase}/`);
+    const etag = first.headers.get("etag");
+    expect(etag).toMatch(/^"[0-9a-f]+-[0-9a-f]+"$/);
+    const second = await fetch(`${siteBase}/`, { headers: { "if-none-match": etag ?? "" } });
+    expect(second.status).toBe(304);
+    expect(await second.text()).toBe("");
+  });
+
+  /**
+   * PATH TRAVERSAL. This process's working directory is the repo root - the Dockerfile
+   * requires it - so an escape from `apps/landing/dist` reaches `.env`, the account store
+   * with its password hashes, and the deliberation log itself.
+   *
+   * The URL-encoded forms are the ones that matter and the reason a check has to run
+   * after decoding: `new URL()` collapses a literal `/../../x` while parsing, so that
+   * form never even looks dangerous, while `%2e%2e%2f` passes through it untouched and
+   * becomes `../` only once something reads it as a filename.
+   */
+  it("refuses every attempt to escape the static root", async () => {
+    // The escape target really is readable from disk, so a leak here is a leak and this
+    // test is not passing because the file happens to be missing.
+    expect(readFileSync(secretPath, "utf8")).toContain(SECRET);
+
+    const attempts = [
+      "/../../secret.env",                       // literal - URL() normalises this away
+      "/%2e%2e%2fsecret.env",                    // encoded, one level
+      "/%2e%2e%2f%2e%2e%2fsecret.env",           // encoded, two
+      "/%2E%2E%2Fsecret.env",                    // encoded, upper case
+      "/..%2fsecret.env",                        // half encoded
+      "/deliberation/%2e%2e%2f%2e%2e%2fsecret.env", // out of a subdirectory
+      "/%252e%252e%252fsecret.env",              // double encoded - must NOT decode twice
+      "/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+      // The sibling directory whose name has the root as a string prefix. A containment
+      // check written as `startsWith(root)` serves this one.
+      "/%2e%2e%2fdist-backup%2fsecret.env",
+    ];
+    for (const path of attempts) {
+      const res = await fetch(`${siteBase}${path}`);
+      expect(res.status, path).toBe(404);
+      expect(await res.text(), path).not.toContain(SECRET);
+    }
+  });
+
+  it("rejects a NUL byte and an invalid escape rather than passing them to the filesystem", async () => {
+    // A NUL truncates a path inside libc but not in a JavaScript string, so
+    // "index.html\0.png" can pass an extension check and open a different file.
+    expect((await fetch(`${siteBase}/index.html%00.png`)).status).toBe(400);
+    expect((await fetch(`${siteBase}/%zz`)).status).toBe(400);
+  });
+
+  /**
+   * NO SPA REWRITE. Both apps route on the fragment, so a missing file is a missing file
+   * and answering it with index.html at status 200 would hide a broken deploy behind a
+   * page that renders.
+   */
+  it("404s a file that is not there instead of rewriting to index.html", async () => {
+    const res = await fetch(`${siteBase}/assets/does-not-exist.js`);
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain("<!doctype html>");
+  });
+
+  /**
+   * THE SHARE LINK'S PAGE, and the one path in this server that answers with a document
+   * whose name is not in the URL.
+   *
+   * `/r/:caseId/:token` is what a QR code printed onto a record carries, so it is a real
+   * path rather than a fragment - which makes it the first and only thing here that needs
+   * a rewrite. The asset reference is the half of this that is easy to get wrong and
+   * impossible to see: `public.html` names its bundle root-absolutely, so serving the
+   * document from a mount where that reference does not resolve produces a 200 with a
+   * blank body and a 404 in the console - which reads as working from every angle except
+   * the reader's.
+   */
+  it("answers a share link with the public record page, assets and all", async () => {
+    const res = await fetch(`${siteBase}/r/c1/AbCd-_123`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(await res.text()).toBe(PUBLIC_HTML);
+
+    // The whole point: the script that document names is actually there.
+    const asset = await fetch(`${siteBase}/deliberation/assets/public-ddd.js`);
+    expect(asset.status).toBe(200);
+    expect(await asset.text()).toContain("'public'");
+  });
+
+  /**
+   * NOT index.html, which is the document that signs its visitor in as AUTO_EMAIL when a
+   * deployment has built one with credentials. A share URL that landed on the app shell
+   * would hand a session to anyone who mistyped one, so this asserts the negative rather
+   * than trusting the positive above.
+   */
+  it("never answers a share link with the app shell or the landing page", async () => {
+    const html = await (await fetch(`${siteBase}/r/c1/AbCd-_123`)).text();
+    expect(html).not.toContain("<title>landing</title>");
+    expect(html).not.toContain("<title>deliberation client</title>");
+  });
+
+  /** Same reason index.html is never cached: this document has a fixed name and NAMES the
+   *  hashed bundle, so a stored copy outlives the assets it points at. */
+  it("does not cache the public record page", async () => {
+    const res = await fetch(`${siteBase}/r/c1/AbCd-_123`);
+    expect(res.headers.get("cache-control")).toBe("no-cache");
+  });
+
+  /**
+   * NOINDEX, the same header `/api/public/report/...` sets on the data behind this page.
+   * `public.html` also carries a robots META tag, so this is the second statement of the
+   * same wish rather than the only one - it covers the fetches that never parse the HTML.
+   * The landing page must NOT carry it: that one is meant to be found.
+   */
+  it("asks robots not to index a share link, and only a share link", async () => {
+    const shared = await fetch(`${siteBase}/r/c1/AbCd-_123`);
+    expect(shared.headers.get("x-robots-tag")).toBe("noindex");
+
+    for (const path of ["/", "/index.html", "/deliberation/"]) {
+      const res = await fetch(`${siteBase}${path}`);
+      expect(res.headers.get("x-robots-tag"), path).toBeNull();
+    }
+  });
+
+  /**
+   * EXACTLY THREE SEGMENTS, matching what `/api/public/report/:caseId/:token` reads off
+   * `parts[3]` and `parts[4]`. The page and the API therefore agree on what a share URL
+   * is; a page that accepted shapes the API refuses would render itself and then fail its
+   * own fetch, which is a worse way to say "not a valid link" than not existing.
+   */
+  it("does not answer anything under /r that is not a whole share link", async () => {
+    for (const path of ["/r", "/r/", "/r/c1", "/r/c1/", "/r/c1/tok/extra", "/r//tok"]) {
+      const res = await fetch(`${siteBase}${path}`);
+      expect(res.status, path).toBe(404);
+      expect(await res.text(), path).not.toContain("<!doctype html>");
+    }
+  });
+
+  /**
+   * THE CASE ID AND TOKEN NEVER BECOME A FILENAME. The rule recognises the shape and then
+   * serves ONE fixed path, so there is nothing for a payload in either segment to steer -
+   * which is why the traversal suite above does not need a `/r/` variant of every case.
+   * A dot segment gets the record page, not a file above the root, and the page then says
+   * the link is not valid because the API refuses the id.
+   */
+  it("cannot be steered out of the root by what is in the two segments", async () => {
+    for (const path of [
+      "/r/%2e%2e/%2e%2e",
+      "/r/%2e%2e%2fsecret.env/tok",
+      "/r/c1/%2e%2e%2f%2e%2e%2fsecret.env",
+      "/r/%252e%252e%252fsecret.env/tok",
+    ]) {
+      const res = await fetch(`${siteBase}${path}`);
+      expect([200, 404], path).toContain(res.status);
+      expect(await res.text(), path).not.toContain(SECRET);
+    }
+  });
+
+  /** The method guard runs ahead of the rewrite, as it does for every other static path.
+   *  A share link is a document to read. */
+  it("refuses a write to a share link", async () => {
+    expect((await fetch(`${siteBase}/r/c1/AbCd-_123`, { method: "POST" })).status).toBe(405);
+  });
+
+  it("serves HEAD with headers and no body, and refuses a write", async () => {
+    const head = await fetch(`${siteBase}/`, { method: "HEAD" });
+    expect(head.status).toBe(200);
+    expect(head.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(await head.text()).toBe("");
+
+    expect((await fetch(`${siteBase}/`, { method: "POST" })).status).toBe(405);
+  });
+
+  /**
+   * THE SITE MUST NOT SHADOW THE API. Both are on one origin now, and the client's very
+   * first request on load is a same-origin `/api` call - if the static branch swallowed
+   * it, every deployment would serve a page that cannot sign itself in.
+   */
+  it("still routes /api to the API, and still 401s it without a token", async () => {
+    expect((await fetch(`${siteBase}/api/health`)).status).toBe(200);
+    expect((await fetch(`${siteBase}/api/people`)).status).toBe(401);
+    const res = await fetch(`${siteBase}/api/people`, { headers: { authorization: `Bearer ${tok["ann"]}` } });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(await res.json())).toBe(true);
+  });
+
+  /**
+   * And with the variable unset - which is every development run, where apps/landing's
+   * Vite server owns these paths - nothing changed. `base` is the server the rest of this
+   * file drives, built with no staticDir at all.
+   */
+  it("leaves the unconfigured server answering 404 outside /api, exactly as before", async () => {
+    for (const path of ["/", "/index.html", "/deliberation/", "/assets/landing-aaa.js"]) {
+      const res = await fetch(`${base}${path}`);
+      expect(res.status, path).toBe(404);
+      expect(await res.json()).toEqual({ error: "not_found" });
+    }
+  });
+});
+
+/**
+ * A ROOT WITH NO public.html, which is what `ARBITER_STATIC_DIR` pointed at for every
+ * deployment before `tools/stage-site.mjs` learned to write one - and what it points at
+ * again the moment somebody builds the landing page alone.
+ *
+ * The rewrite fails CLOSED. `/r/*` resolves to one fixed filename and answers 404 when it
+ * is not there, rather than falling back to whatever else the root holds. The fallback is
+ * the whole hazard: `index.html` is at that root, it is the document that signs its
+ * visitor in when a deployment built one with credentials, and "serve index.html for any
+ * path that has no file" is the one-line change that would connect the two.
+ */
+describe("a share link against a site that has no public record page", () => {
+  let siteBase: string;
+  let siteServer: Server;
+
+  beforeAll(async () => {
+    const root = join(mkdtempSync(join(tmpdir(), "arb-nopub-")), "dist");
+    mkdirSync(root, { recursive: true });
+    writeFileSync(join(root, "index.html"), "<!doctype html><title>landing only</title>");
+
+    const handler = makeHandler({ ...deps, staticDir: root });
+    siteServer = createServer((req, res) => { void handler(req, res); });
+    await new Promise<void>((r) => siteServer.listen(0, "127.0.0.1", r));
+    siteBase = `http://127.0.0.1:${(siteServer.address() as AddressInfo).port}`;
+  });
+
+  afterAll(async () => { await new Promise<void>((r) => siteServer.close(() => r())); });
+
+  it("404s rather than falling back to the document at the root", async () => {
+    const res = await fetch(`${siteBase}/r/c1/AbCd-_123`);
+    expect(res.status).toBe(404);
+    const body = await res.text();
+    expect(body).not.toContain("landing only");
+    expect(body).not.toContain("<!doctype html>");
+  });
+
+  it("still serves the site it does have", async () => {
+    expect((await fetch(`${siteBase}/`)).status).toBe(200);
   });
 });

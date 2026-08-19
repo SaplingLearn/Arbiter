@@ -89,6 +89,13 @@ export interface CaseListing {
   isOwner: boolean;
   submitted: number;
   of: number;
+  /**
+   * Whether THIS reader has answered. Not derivable from `submitted` and `of`, which is
+   * why it is on the wire: one of two answered is the same count to the person who
+   * answered and the person who has not. False for the convener, who holds no position -
+   * `isOwner` is what separates those two, not this.
+   */
+  youSubmitted: boolean;
   /** How many PDFs the case holds. Ask can answer nothing against a case with none,
    *  and the picker has to say so before a question is typed into a void. */
   documents: number;
@@ -225,21 +232,6 @@ export interface CaseSignature {
   /** False when the signer overrode the adjudication. */
   agreesWithAdjudication: boolean;
   reason: string;
-}
-
-/**
- * The adjudication as the SERVER holds it, for everyone who did not press the button.
- *
- * It used to exist only in the browser of whoever ran it - the POST answered with it
- * and nothing ever fetched it again - so a participant opening the verdict stage saw an
- * empty screen and the owner lost it on reload. Every field is nullable because "not
- * adjudicated yet" is the ordinary state of an open case, not an error.
- */
-export interface AdjudicationRecord {
-  adjudication: Adjudication | null;
-  source: "stub" | "live" | null;
-  at: string | null;
-  signature: CaseSignature | null;
 }
 
 /** One person, as the printable record names them. The seat travels so the document
@@ -505,9 +497,9 @@ export const api = {
   unanimity: (token: string, caseId: string) =>
     call<UnanimityReport>("GET", `/api/cases/${caseId}/unanimity`, token),
 
-  /** What was adjudicated, to anybody named on the case. See `AdjudicationRecord`. */
-  adjudication: (token: string, caseId: string) =>
-    call<AdjudicationRecord>("GET", `/api/cases/${caseId}/adjudication`, token),
+  /* NO `adjudication` CALL. `view` carries the adjudication, its source, the run
+     consensus and the signature - see `BlindView` - so the verdict stage reads it from
+     a request it was already making, and there is no second route to drift from it. */
 
   /** The whole case as one record, for the preview page. Any team member may ask:
    *  the server resolves a GET to a read, so a participant gets what the convener
@@ -524,6 +516,21 @@ export const api = {
   acceptFindings: (token: string, caseId: string, findings: unknown[]) =>
     call<{ inventory: Inventory; added: string[]; duplicates: string[] }>(
       "POST", `/api/cases/${caseId}/findings`, token, findings),
+  /** Whether the convener has published this case to a tokenised link, and the link
+   *  itself if so. Owner-only on the server, so the client fetches it only for the
+   *  owner too - see the effect that calls this in App.tsx.
+   *
+   *  `enabled` is the deployment's capability, not this case's state - false means
+   *  `ARBITER_SHARE_SECRET` is unset and publishing is off everywhere, which App.tsx
+   *  reads to withhold the control entirely rather than let a press of it 501. */
+  shareState: (token: string, caseId: string) =>
+    call<{ enabled: boolean; published: boolean; url: string | null }>("GET", `/api/cases/${caseId}/share`, token),
+
+  publish: (token: string, caseId: string) =>
+    call<{ url: string; token: string; createdAt: string }>("POST", `/api/cases/${caseId}/share`, token, {}),
+
+  revoke: (token: string, caseId: string) =>
+    call<{ revoked: boolean }>("DELETE", `/api/cases/${caseId}/share`, token),
 
   adjudicate: (token: string, caseId: string, at: string) =>
     call<{ adjudication: Adjudication; source: "stub" | "live"; consensus: Consensus | null }>(

@@ -4,40 +4,55 @@ import type { Route } from "../router.js";
  * THE MENU, AND THE ENVIRONMENT BEHIND EACH ENTRY — one table, because they are one
  * decision.
  *
- * The rail names the scene you are standing in (`codename`), and the backdrop mounts
- * it (`scene`). Kept apart, those two drift the first time a tab is reordered or a
- * scene renamed, and the failure is silent: a rail that says ARCHIVE over a field of
- * cells. Nothing here reaches into `packages/atmosphere` — `scene` is the id the
- * package publishes, and a wrong one is caught by the backdrop at mount.
+ * The rail lights the part of the product you are in (`scene` says which environment
+ * that entry stands in), and the backdrop mounts it. Kept apart, those two drift the
+ * first time a tab is reordered or a scene renamed, and the failure is silent: a rail
+ * that says ARCHIVE over a field of cells. Nothing here reaches into
+ * `packages/atmosphere` — `scene` is the id the package publishes, and a wrong one is
+ * caught by the backdrop at mount.
+ *
+ * THAT LAST SENTENCE IS A BUNDLE CONSTRAINT, NOT A STYLE PREFERENCE, and it is why the
+ * codenames below are a local table rather than a read of the registry that owns them.
+ * `STATES` lives in `scenes/registry.ts`, which statically imports all seven scene
+ * factories, and each of those imports `three` and `gsap`. `Backdrop.tsx` reaches the
+ * package through `await import()` for exactly this reason. `Chrome.tsx` imports this
+ * file eagerly, so a static `import { STATES }` here would pull the whole 3D stack into
+ * the shell chunk that renders the sign-in screen. The duplication is paid for in
+ * `test/nav.test.ts`, which imports the registry for real and fails if the two disagree
+ * — a test can afford the import, the shell cannot.
  */
 export interface NavItem {
   label: string;
-  /** The environment's own name, as the rail shows it on the active entry. */
-  codename: string;
   /** Scene id in `@arbiter/atmosphere`. */
   scene: string;
   to: Route;
 }
 
+/**
+ * EVERY ENVIRONMENT'S NAME, keyed by the scene id the backdrop mounts.
+ *
+ * This was a `codename` field on the menu entries, and that shape could only ever name
+ * the environments a menu entry points at. The record has no entry — it is reached from
+ * inside a case, never from the menu — so the corner readout fell back to whichever
+ * entry was lit and named the wrong world out loud: ARCHIVE while the Helix was closing
+ * over a sealed record. Measured, not inferred: `currentNav` answered `Archive` for
+ * `{ name: "record" }` while `sceneFor` mounted `record`, whose name is `Helix`.
+ *
+ * That is the drift this file's opening note warns about, arriving from the side the
+ * note did not expect — not a stale table, but a table that never covered the case.
+ * Keyed by scene it cannot recur, because the key IS what the backdrop mounted.
+ */
+export const CODENAME: Record<string, string> = {
+  dashboard: "Culture",
+  read: "Section",
+  new: "Genesis",
+  library: "Archive",
+  ask: "Synapse",
+  record: "Helix",
+};
+
 export const NAV: NavItem[] = [
-  /**
-   * THE DASHBOARD STANDS IN THE CULTURE, and it briefly stood in the Archive.
-   *
-   * The Archive draws one body per case, keyed by case, which the Culture cannot do -
-   * it picks a colony by hashing the case id, so two cases can share one blob and the
-   * flight to either lands on neither. `sceneFor` records that as the reason the CASE
-   * routes left this scene, and the same argument was applied to the screen that lists
-   * them.
-   *
-   * It is reverted because the exchange was a bad one HERE. On a case route the field
-   * is the subject and a body standing for the wrong case is a false statement; on the
-   * dashboard the colonies are weather, and nothing on the page asks a reader to count
-   * them. Trading the scene the product opens on for a countable field nobody was
-   * counting cost more than the collision it fixed. The Archive is still one cube per
-   * case everywhere cubes actually mean something - the library list and every case
-   * route - which is where the complaint started.
-   */
-  { label: "Dashboard", codename: "Culture", scene: "dashboard", to: { name: "dashboard" } },
+  { label: "Dashboard", scene: "dashboard", to: { name: "dashboard" } },
   /**
    * SECOND, between the dashboard and opening a case, because that is where reading
    * sits in the work. The dashboard says what is waiting on you; the next thing a
@@ -47,10 +62,10 @@ export const NAV: NavItem[] = [
    * It points at the reading room rather than at a document, because a menu entry has
    * no caseId and `read` requires one. See `{ name: "reading" }` in router.ts.
    */
-  { label: "Read", codename: "Section", scene: "read", to: { name: "reading" } },
-  { label: "New case", codename: "Genesis", scene: "new", to: { name: "new" } },
-  { label: "Library", codename: "Archive", scene: "library", to: { name: "cases" } },
-  { label: "Ask", codename: "Synapse", scene: "ask", to: { name: "ask" } },
+  { label: "Read", scene: "read", to: { name: "reading" } },
+  { label: "New case", scene: "new", to: { name: "new" } },
+  { label: "Library", scene: "library", to: { name: "cases" } },
+  { label: "Ask", scene: "ask", to: { name: "ask" } },
 ];
 
 /**
@@ -105,16 +120,36 @@ export function sceneFor(route: Route): string {
 }
 
 /**
- * Rail entry by the ROUTE it points at, so inserting a NAV entry cannot silently
- * repoint another.
+ * The name of the environment drawn behind a route — what the corner readout says.
  *
- * BY ROUTE, AND IT WAS BY SCENE. A scene id stopped identifying a rail entry the moment
- * the Dashboard joined the Library in the Archive: `find` returns the first match, so
- * every `navByScene("library")` - the library page and all four case routes - resolved
- * to the DASHBOARD entry, lighting the wrong tab and printing the wrong codename. The
- * Dashboard has since gone back to the Culture and no two entries share a scene today.
- * This stays keyed on the destination anyway: two entries sharing a world is a
- * legitimate arrangement, and it is the one this lookup could not survive.
+ * DERIVED FROM `sceneFor`, NOT FROM THE MENU, and that is the whole of the fix. The
+ * chrome asks two different questions and had one answer between them: which part of
+ * the product you are in (the menu highlight, `currentNav` below) and which place you
+ * are standing in (this). The record is reached from inside a case and has no menu
+ * entry, so answering the second question with the first named a world the reader was
+ * not in.
+ *
+ * `undefined` for a scene with no name, so the corner draws nothing rather than an
+ * empty dot. Adding a scene and forgetting to name it is now what shows up, instead of
+ * a wrong name that does not.
+ */
+export function codenameFor(route: Route): string | undefined {
+  return CODENAME[sceneFor(route)];
+}
+
+/** Rail entry by scene id, so inserting a NAV entry cannot silently repoint another. */
+
+/**
+ * Rail entry by the ROUTE it points at, and it used to be by scene.
+ *
+ * A scene id stops identifying an entry the moment two of them share a world. That is
+ * not hypothetical: the Dashboard was briefly moved into the Archive so its field would
+ * draw one body per case, and `find` returns the first match - so every lookup for
+ * `library`, meaning the library page and all four case routes, silently resolved to the
+ * DASHBOARD entry and printed its codename. The Dashboard has its own scene again and
+ * nothing shares one today; this stays keyed on the destination because two entries
+ * sharing a world is a legitimate arrangement and the scene-keyed lookup could not
+ * survive it. No two entries share a DESTINATION, which is what makes this total.
  */
 const navByRoute = (name: Route["name"]): NavItem | undefined =>
   NAV.find((n) => n.to.name === name);

@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ReportPage, reportTitle } from "../src/report.js";
-import type { CaseReport } from "../src/api.js";
+import { report } from "./fixtures/report.js";
 
 /**
  * The document that leaves the building.
@@ -12,70 +12,6 @@ import type { CaseReport } from "../src/api.js";
  * who never answered named rather than absent, and the signer's decision outranking the
  * model's. These are not layout tests - they are the honesty of the artefact.
  */
-
-const report = (over: Partial<CaseReport> = {}): CaseReport => ({
-  caseId: "case_1",
-  compoundLabel: "ARB-114",
-  context: "Once-daily oral, 12-week dosing.",
-  status: "signed",
-  owner: { id: "u-own", displayName: "R. Okafor", email: "r@arbiter.demo", seat: null },
-  panel: [
-    { id: "u-a", displayName: "A. Silva", email: "a@arbiter.demo", seat: 0 },
-    { id: "u-b", displayName: "B. Mehta", email: "b@arbiter.demo", seat: 1 },
-  ],
-  positions: [
-    {
-      participantId: "u-a", call: "do_not_advance",
-      reasoning: "The transporter signal is real and nothing measures the margin.",
-      citedFindingIds: ["f-hep"], external: [], submittedAt: "2026-08-16T09:00:00.000Z",
-    },
-    {
-      participantId: "u-b", call: "advance",
-      reasoning: "This assay overcalls for the class.",
-      citedFindingIds: [], external: [{ claim: "The assay overcalls for phenothiazines." }],
-      submittedAt: "2026-08-16T09:30:00.000Z",
-    },
-  ],
-  closedEarly: null,
-  findings: [
-    { id: "f-hep", label: "Human hepatocyte", assertion: "toxic", detail: "Signal at 10uM." },
-  ],
-  inventory: {
-    checklistVersion: "1.0",
-    modality: "small_molecule",
-    unmappedFindingIds: [],
-    entries: [
-      { itemId: "C2", half: "consequence", field: "Exposure margin", whatItBlocks: "R3 cannot be applied.", state: "absent", findingIds: [] },
-      { itemId: "M1", half: "mechanism", field: "Human-cell result", whatItBlocks: "R1 cannot be applied.", state: "present", findingIds: ["f-hep"] },
-    ],
-  },
-  unanimity: { unanimous: false, call: null, concerns: [] },
-  disagreement: {
-    split: [
-      { call: "advance", participantIds: ["u-b"] },
-      { call: "do_not_advance", participantIds: ["u-a"] },
-    ],
-    contested: [],
-    oneSided: [{ findingId: "f-hep", call: "do_not_advance" }],
-  },
-  adjudication: {
-    mechanism: { present: true, pathway: "BSEP inhibition.", citedFindingIds: ["f-hep"] },
-    consequence: { verdict: "cannot_conclude", reasoning: "No exposure margin was established.", citedFindingIds: [] },
-    ruleDisclosure: [
-      { ruleId: "R1", position: "applies", reasoning: "Human-cell evidence is present.", citedFindingIds: ["f-hep"] },
-      { ruleId: "R3", position: "cannot_determine", reasoning: "No margin was measured.", citedFindingIds: [] },
-    ],
-    missing: [{ field: "Exposure margin", whyItMatters: "R3 cannot be applied." }],
-    nextExperiment: "Measure Cmax against the tested concentration.",
-  },
-  adjudicationSource: "live",
-  adjudicatedAt: "2026-08-16T10:00:00.000Z",
-  signature: { by: "u-own", at: "2026-08-16T11:00:00.000Z", agreesWithAdjudication: true, reason: "" },
-  audit: { chainFailures: 0, sealFailures: 0, entries: 9, headHash: "a".repeat(64) },
-  generatedBy: { id: "u-a", displayName: "A. Silva", email: "a@arbiter.demo", seat: 0 },
-  generatedAt: "2026-08-16T12:00:00.000Z",
-  ...over,
-});
 
 describe("the printable record", () => {
   afterEach(() => { vi.restoreAllMocks(); });
@@ -258,8 +194,13 @@ describe("the printable record", () => {
     expect(document.title).toBe("arbiter-arb-114-2026-08-16");
   });
 
-  it("gives the reader a way back to the case", () => {
-    const { container } = render(<ReportPage report={report()} />);
+  it("gives the convener a way back to the case", () => {
+    // `share` present, even with no link published yet, is what marks this as the
+    // convener's own render of the page rather than a stranger's - see the "public
+    // page" tests below for the other half of this.
+    const { container } = render(
+      <ReportPage report={report()} share={{ url: null, onPublish: () => {}, onRevoke: () => {} }} />,
+    );
     expect(container.querySelector('a[href="#/case/case_1/reveal"]')).not.toBeNull();
   });
 
@@ -268,5 +209,79 @@ describe("the printable record", () => {
     // punctuation is worse than the id.
     expect(reportTitle({ compoundLabel: "///", caseId: "case_1", generatedAt: "2026-08-16T12:00:00.000Z" }))
       .toBe("arbiter-case-1-2026-08-16");
+  });
+});
+
+describe("publishing from the report", () => {
+  it("prints no QR and no URL when the record was never published", () => {
+    const { container } = render(
+      <ReportPage report={report()} share={{ url: null, onPublish: () => {}, onRevoke: () => {} }} />,
+    );
+    expect(container.querySelector(".rep-qr")).toBeNull();
+    // A printed link that never worked is worse than no link at all.
+    expect(container.textContent).not.toContain("/r/");
+  });
+
+  it("prints the QR and the URL beside it once published", () => {
+    const { container } = render(
+      <ReportPage report={report()}
+        share={{ url: "https://arbiter.test/r/c1/tok", onPublish: () => {}, onRevoke: () => {} }} />,
+    );
+    expect(container.querySelector(".rep-qr")).not.toBeNull();
+    // Readable beside the code, for anyone who cannot scan it.
+    expect(container.textContent).toContain("https://arbiter.test/r/c1/tok");
+  });
+
+  it("keeps the QR whole, so the paginator can never split it across a sheet", () => {
+    const { container } = render(
+      <ReportPage report={report()}
+        share={{ url: "https://arbiter.test/r/c1/tok", onPublish: () => {}, onRevoke: () => {} }} />,
+    );
+    const qr = container.querySelector(".rep-qr")!;
+    expect(qr.closest(".rep-block")).not.toBeNull();
+  });
+
+  it("keeps the controls off the paper", () => {
+    const { container } = render(
+      <ReportPage report={report()} share={{ url: null, onPublish: () => {}, onRevoke: () => {} }} />,
+    );
+    expect(container.querySelector(".rep-share")?.classList.contains("no-print")).toBe(true);
+  });
+
+  it("shows no controls at all with no share prop, which is how the public page renders", () => {
+    const { container } = render(<ReportPage report={report()} />);
+    expect(container.querySelector(".rep-share")).toBeNull();
+  });
+
+  it("still prints the QR on the public page, where there is a URL but no controls", () => {
+    const { container } = render(
+      <ReportPage report={report()} publishedUrl="https://arbiter.test/r/c1/tok" />,
+    );
+    expect(container.querySelector(".rep-qr")).not.toBeNull();
+    expect(container.querySelector(".rep-share")).toBeNull();
+  });
+
+  it("carries no link into the signed-in app on the public page", () => {
+    // Fix round 1: the top bar used to render unconditionally, so a stranger reading a
+    // share link saw "The record, ready to print" - written for the convener - and a
+    // "Back to the verdict" link into the app that owns AUTO_EMAIL. Gated on the same
+    // `share !== undefined` signal that already decides whether the publish/revoke
+    // section shows, so there is one rule, not two, for "is this the convener's page".
+    const { container } = render(
+      <ReportPage report={report()} publishedUrl="https://arbiter.test/r/c1/tok" />,
+    );
+    expect(screen.queryByText("The record, ready to print")).toBeNull();
+    expect(screen.queryByText("Back to the verdict")).toBeNull();
+    expect(container.querySelector('a[href="#/case/case_1/reveal"]')).toBeNull();
+    // Printing still works without an account - that button is not convener-specific.
+    expect(screen.getByRole("button", { name: /Print or save as PDF/ })).toBeInTheDocument();
+  });
+
+  it("says plainly that revoking cannot reach a page already printed", () => {
+    const { container } = render(
+      <ReportPage report={report()}
+        share={{ url: "https://arbiter.test/r/c1/tok", onPublish: () => {}, onRevoke: () => {} }} />,
+    );
+    expect(container.textContent).toMatch(/already printed|already saved/i);
   });
 });

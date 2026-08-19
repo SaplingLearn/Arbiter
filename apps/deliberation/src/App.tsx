@@ -3,11 +3,11 @@ import {
   api, ApiError, uploadDocument,
   type AuditResult, type BlindView, type CaseListing,
   type CaseReport, type CaseSummary, type ExtractionResult, type Finding, type Inventory,
-  type LibrarySource,
-  type Person, type Refusal, type Roster, type StoredDocument, type UnanimityReport,
+  type LibrarySource, type Person, type Refusal, type Roster, type StoredDocument,
+  type UnanimityReport,
 } from "./api.js";
 import { Layout, PageHead, Section, Steps } from "./Layout.js";
-import { AskPage, Dashboard, LibraryPage, NewCasePage } from "./pages.js";
+import { AskPage, AuthPage, Dashboard, LibraryPage, NewCasePage } from "./pages.js";
 import {
   Audit, Documents, ExtractionPanel, FindingsEditor, InventoryPanel, PositionForm,
   Refused, Reveal, RosterPanel, Verdict, Waiting,
@@ -30,15 +30,55 @@ import "./app.css";
  * reveal is available.
  */
 
+/** The shape of `import.meta.env` this file actually reads. Named so the decision below
+ *  can be handed an environment and tested, rather than only observed after a build. */
+export interface AutoSignInEnv {
+  readonly VITE_AUTO_EMAIL?: string | undefined;
+  readonly VITE_AUTO_PASSWORD?: string | undefined;
+  readonly DEV?: boolean | undefined;
+}
+
 /**
- * The identity every visitor arrives as.
+ * The identity every visitor arrives as - IN DEVELOPMENT, OR WHERE A BUILD ASKED FOR ONE.
  *
- * Configurable so a deployment can point it somewhere other than the seeded demo lead,
- * and so this file does not hard-code a password. See the note at the sign-in branch
- * below for what carrying one identity for everyone costs the record.
+ * These used to carry the seeded demo lead's address and its published password as
+ * unconditional `??` defaults, which made auto-sign-in a property of the SOURCE rather
+ * than of a deployment. The consequence was not visible from this file: `App.tsx` is
+ * `index.html`, `index.html` is the app shell, and the shell is served at `/deliberation/`
+ * on any deployment with `ARBITER_STATIC_DIR` set - so on every such deployment with the
+ * demo team seeded, anyone who reached that path was signed in as the convener and could
+ * read every case the deployment held. Nobody had to type a credential; the build carried
+ * one. That is a door that opens because a default was never overridden, which is the
+ * failure mode this repo refuses everywhere else it appears: `ARBITER_SHARE_SECRET` unset
+ * means sharing is OFF, not sharing without a secret.
+ *
+ * So the defaults are now scoped to `DEV` - true under `vite dev`, statically replaced
+ * with `false` by `vite build`, which lets the minifier drop the literals out of the
+ * bundle entirely. A DEVELOPMENT run behaves exactly as it always has, and so do
+ * `npm run dev`, `npm run deliberate:dev` and this app's tests. A BUILT artifact signs
+ * nobody in unless someone deliberately set both variables for that build - which a demo
+ * deployment does, on purpose, and a real one does not.
+ *
+ * An empty string counts as absent, for the same reason `ARBITER_SHARE_SECRET=""` does:
+ * a blank in a configuration file is somebody clearing a value, and reading it as a
+ * credential would fail open on exactly the input that meant "no".
+ *
+ * See the branch below for what carrying one identity for everyone costs the record even
+ * where it IS wanted.
  */
-const AUTO_EMAIL = import.meta.env["VITE_AUTO_EMAIL"] ?? "r.okafor@arbiter.demo";
-const AUTO_PASSWORD = import.meta.env["VITE_AUTO_PASSWORD"] ?? "arbiter-demo-2026";
+export function autoCredentials(env: AutoSignInEnv): { email: string; password: string } | null {
+  const dev = env.DEV === true;
+  const email = env.VITE_AUTO_EMAIL ?? (dev ? "r.okafor@arbiter.demo" : undefined);
+  const password = env.VITE_AUTO_PASSWORD ?? (dev ? "arbiter-demo-2026" : undefined);
+  // BOTH, or neither. Half a credential cannot sign anybody in, and letting one through
+  // would send `api.login` an empty password - a real request, a real failure, and an
+  // error panel that reads as the service being down rather than as a build that was
+  // never given an identity.
+  if (email === undefined || email === "" || password === undefined || password === "") return null;
+  return { email, password };
+}
+
+const AUTO = autoCredentials(import.meta.env);
 
 /** What is on screen for the moment between arriving and the session existing. Not a
  *  form, and deliberately not a spinner: it states what is happening. */
@@ -68,13 +108,17 @@ export function App(): ReactElement {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [view, setView] = useState<BlindView | null>(null);
   const [unanimity, setUnanimity] = useState<UnanimityReport | null>(null);
-  /* NO `adjudication` STATE, and the report branch's version of it is deliberately not
-     taken back. Both lines of work found the same bug - the verdict existed only in the
-     tab that ran it - and fixed it differently: that branch added a state field
-     `loadCase` fills, this one removed the field so `view` is the only carrier. The
-     second is the smaller surface, and `act` already reloads the case after every
-     action, so the freshly-adjudicated case arrives by the same path a reload does.
-     One source of truth instead of two that can disagree. */
+  /* NO `adjudication` STATE. It used to live here, written only by the POST that
+     produced it, and that was the whole of the bug: the verdict existed in the tab
+     that ran it and nowhere else - a participant reaching the verdict stage saw
+     nothing, and the owner lost it on refresh. `view` carries it now - `act` reloads
+     the case after every action, so the freshly-adjudicated case arrives by the same
+     path a reload does, and there is one source of truth instead of two that disagree.
+
+     The report branch fixed the same bug with a route of its own, `GET /adjudication`.
+     One of the two had to go, and this is the one that stayed: the verdict stage
+     already fetches `view`, so carrying the adjudication on it costs no extra request
+     and leaves no second endpoint to drift. */
   const [audit, setAudit] = useState<AuditResult | null>(null);
   const [docs, setDocs] = useState<StoredDocument[]>([]);
   const [roster, setRoster] = useState<Roster | null>(null);
@@ -93,6 +137,12 @@ export function App(): ReactElement {
    */
   const [report, setReport] = useState<CaseReport | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
+  /** Whether the convener has published this case, and to what link - owner-only, so
+   *  this stays null for anybody else. See the effect below for why it is fetched only
+   *  for the owner rather than for anyone who reaches the report route.
+   *  `enabled` is the deployment's, not this case's - see where `share` is passed to
+   *  `ReportPage` below for what happens when it is false. */
+  const [share, setShare] = useState<{ enabled: boolean; published: boolean; url: string | null } | null>(null);
 
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
@@ -127,6 +177,27 @@ export function App(): ReactElement {
   useEffect(() => { setRefusal(null); }, [route]);
 
   const caseId = caseIdOf(route);
+
+  /**
+   * WHO CONVENED THIS CASE, computed here rather than down with the rest of the case
+   * routes' derived state.
+   *
+   * The brief for this had `isOwner` used inside an effect placed beside the report
+   * fetch below, on the assumption that it was already in scope there - it is not: the
+   * case-routes `isOwner` used to live past the `if (token === null || me === null)`
+   * early return further down this component, and an effect is a hook, so it cannot be
+   * declared conditionally past a return that hooks above it do not take. Hoisting the
+   * computation here, alongside `caseId`, is what puts it in scope for that effect
+   * without turning the effect itself into something that runs only sometimes.
+   *
+   * `me !== null &&` guards the one case hoisting introduces that the original spot
+   * never had to consider: before that early return, `me` can still be null, and
+   * without the guard `roster?.ownerId === me?.id` would compare two `undefined`s and
+   * read as true for everyone until both have loaded.
+   */
+  const listing = mine.find((c) => c.caseId === caseId);
+  const isOwner = me !== null && (roster?.ownerId === me.id || (listing?.isOwner ?? false));
+
   const nameOf = useCallback(
     (id: string): string => people.find((p) => p.id === id)?.displayName ?? id,
     [people],
@@ -220,14 +291,37 @@ export function App(): ReactElement {
     return () => { live = false; };
   }, [token, caseId, route.name]);
 
-  /* Establish the session on arrival rather than asking for it. Runs once; a failure
-     surfaces as a message on the opening panel, never as a login form. */
+  /* Whether the case is published, fetched beside the report itself and gated the same
+     way - on arrival at the report route, and nowhere else. `!isOwner` is the one extra
+     guard the report fetch above does not need: `GET /share` 403s for anybody who is
+     not the convener, and firing it for every participant who opens their report would
+     be a console error on a page that is otherwise working correctly for them. */
   useEffect(() => {
-    if (token !== null) return;
+    if (token === null || caseId === null || route.name !== "report" || !isOwner) return;
+    let live = true;
+    setShare(null);
+    void (async () => {
+      try {
+        const s = await api.shareState(token, caseId);
+        if (live) setShare(s);
+      } catch {
+        if (live) setShare(null);
+      }
+    })();
+    return () => { live = false; };
+  }, [token, caseId, route.name, isOwner]);
+
+  /* Establish the session on arrival rather than asking for it - WHEN THERE IS AN IDENTITY
+     TO ESTABLISH IT FROM. Runs once; a failure surfaces as a message on the opening panel.
+     With no configured identity this effect does nothing at all and the branch below asks
+     for one, which is the whole of the fail-closed behaviour: there is no request to make,
+     so there is no session to leak to somebody who only arrived at the URL. */
+  useEffect(() => {
+    if (token !== null || AUTO === null) return;
     let live = true;
     void (async () => {
       try {
-        const { token: t, user } = await api.login(AUTO_EMAIL, AUTO_PASSWORD);
+        const { token: t, user } = await api.login(AUTO.email, AUTO.password);
         if (!live) return;
         setToken(t);
         setMe(user);
@@ -249,18 +343,35 @@ export function App(): ReactElement {
   };
 
   if (token === null || me === null) {
-    /* NO SIGN-IN. The landing page opens straight into the product.
+    /* TWO DOORS, and which one you get is decided by the build rather than by this render.
      *
-     * A session is still established — the API is unchanged and every route behind it
-     * requires a token — but it is established for you, from a configured identity,
-     * instead of being asked for.
+     * WITH A CONFIGURED IDENTITY there is no sign-in. The landing page opens straight into
+     * the product: a session is still established - the API is unchanged and every route
+     * behind it requires a token - but it is established for you instead of being asked
+     * for.
      *
-     * WHAT THIS COSTS, stated plainly because it is not a styling decision. This product
+     * WHAT THAT COSTS, stated plainly because it is not a styling decision. This product
      * seals positions and attributes them to a named person; the record's whole claim is
      * that it can prove who committed to what and that nobody edited it afterwards. With
      * one identity signing everybody in, the record still says "R. Okafor decided" for
      * whoever is at the keyboard. The mechanism is intact and the attribution is not.
-     * Restoring real sign-in is deleting this branch and putting `AuthPage` back. */
+     *
+     * WITHOUT ONE - which is any built artifact whose builder did not ask for it - the
+     * product asks who you are, and `AuthPage` has been sitting here unreferenced waiting
+     * to be the answer. This is the branch that stops a deployment from being readable by
+     * whoever finds the URL, and it is reached by DOING NOTHING rather than by setting
+     * something, because the reverse is how the door was open in the first place. */
+    if (AUTO === null) {
+      return (
+        <AuthPage
+          onSignedIn={(t, user) => {
+            setToken(t);
+            setMe(user);
+            setFatal(null);
+          }}
+        />
+      );
+    }
     return <Opening error={fatal} />;
   }
 
@@ -436,9 +547,9 @@ export function App(): ReactElement {
     return shell(<p className="muted">Loading the case…</p>);
   }
 
-  const listing = mine.find((c) => c.caseId === caseId);
+  // `listing` and `isOwner` are computed above, alongside `caseId` - see the comment
+  // there for why. Only `label` is local to the case routes.
   const label = listing?.compoundLabel ?? head.compoundLabel ?? caseId;
-  const isOwner = roster?.ownerId === me.id || (listing?.isOwner ?? false);
   const revealed = view.status !== "open";
   const frozen = view.own !== null || view.others.some((o) => o.submitted)
     ? "Somebody has already answered against this evidence. Changing it now would put a position on the record against an inventory its author never saw."
@@ -589,32 +700,39 @@ export function App(): ReactElement {
             one - so the states that used to render this button could only buy an
             error. The API refuses them too, now before it spends anything. */}
         {view.status === "locked" && isOwner && (
-          /* On a plate like everything else on this route. It is the one control that
-             spends money and takes a minute and a half, and it was the only thing on
-             the stage sitting on bare scene - which read as an afterthought beside the
-             reveal it follows. `<Section>` with no title is exactly `.section.glass`. */
+          /* ON A PLATE, AND DISABLED WHILE IT RUNS. Three model calls, sequential,
+              measured live at 102-121 seconds - long enough that an enabled button reads
+              as one that did nothing, and every extra press spends three more calls. The
+              label says which of the two it is, because "Adjudicating..." on a disabled
+              button is the only thing distinguishing a slow call from a dead one.
+              `<Section>` with no title is exactly `.section.glass`; this was the one
+              control on the stage sitting on bare scene. */
           <Section>
             <button className="primary" style={{ alignSelf: "flex-start" }}
-              /* DISABLED WHILE IT RUNS. Three model calls, sequential, measured at 102
-                 seconds live - long enough that an enabled button reads as one that did
-                 nothing, and every extra press spends three more calls of a thirty-call
-                 budget on an answer nobody is waiting for. */
               disabled={busy !== null}
-              onClick={() => act(
-                () => api.adjudicate(token, caseId, new Date().toISOString()),
-                "Adjudicating. The adjudicator runs three times and the verdict is the majority of the three, so this takes a minute or two.",
-              )}>
-              {busy === null ? "Adjudicate across the positions" : "Adjudicating…"}
+              onClick={() => act(() => api.adjudicate(token, caseId, new Date().toISOString()),
+                "Adjudicating - three runs, about two minutes...")}>
+              {busy === null ? "Adjudicate across the positions" : "Adjudicating..."}
             </button>
-            {busy !== null && <div className="note working">{busy}</div>}
           </Section>
         )}
         {view.adjudication !== null && (
           <Verdict adjudication={view.adjudication} source={view.adjudicationSource ?? "stub"}
-            consensus={view.consensus} signature={view.signature}
-            signerName={view.signature === null ? null : nameOf(view.signature.by)}
+            consensus={view.consensus}
             caseId={caseId}
+            /* The convener signs, and only while the record is still open. Asked here
+               rather than inside `Verdict` because the answer is the server's: a
+               participant used to be shown a form that could only earn them a 403. */
             canSign={isOwner && view.status !== "signed"}
+            /* The signature names its signer by id; the roster that turns that into a
+               person lives here, so the resolution happens here and `Verdict` stays
+               presentational. */
+            signed={view.signature === null ? null : {
+              name: nameOf(view.signature.by),
+              at: view.signature.at,
+              agreesWithAdjudication: view.signature.agreesWithAdjudication,
+              reason: view.signature.reason,
+            }}
             onSign={(agrees, reason) => act(() => api.sign(token, caseId, {
               at: new Date().toISOString(), agreesWithAdjudication: agrees, reason,
             }))} />
@@ -646,7 +764,38 @@ export function App(): ReactElement {
           </div>
         : report === null
           ? <p className="muted">Assembling the record…</p>
-          : <ReportPage report={report} {...(route.page === undefined ? {} : { page: route.page })} />,
+          : (
+            <ReportPage report={report} {...(route.page === undefined ? {} : { page: route.page })}
+              /* `share !== null` rather than `isOwner` alone: the fetch above is
+                 in flight for a moment after the route opens, and passing an
+                 empty `share` object during that window would flash a "Publish
+                 this record" button that immediately swaps for the real state a
+                 beat later - the same instant the page as a whole is still
+                 rendering "Assembling the record…". No prop at all until the
+                 fetch has actually landed is the honest version of "loading".
+
+                 `share.enabled` on top of that: false means this deployment has no
+                 ARBITER_SHARE_SECRET, so `POST /share` always 501s. Passing the prop
+                 anyway would draw "Publish this record", let it be pressed, and route
+                 the 501 through `act`'s catch-all into `setFatal` - swapping the whole
+                 report for "Something is not right" over a control that was never
+                 going to work. Omitting the prop is what the spec means by "the report
+                 page does not offer the control": the page still renders, just without
+                 a button that can only fail. */
+              {...(isOwner && share !== null && share.enabled ? {
+                share: {
+                  url: share.url,
+                  onPublish: () => act(async () => {
+                    const r = await api.publish(token, caseId);
+                    setShare({ enabled: true, published: true, url: r.url });
+                  }),
+                  onRevoke: () => act(async () => {
+                    await api.revoke(token, caseId);
+                    setShare({ enabled: true, published: false, url: null });
+                  }),
+                },
+              } : {})} />
+          ),
     );
   }
 

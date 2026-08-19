@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STATES } from "@arbiter/atmosphere";
-import { NAV, currentNav, sceneFor, transitionFor } from "../src/shell/nav.js";
+import { CODENAME, NAV, codenameFor, currentNav, sceneFor, transitionFor } from "../src/shell/nav.js";
 import type { Route } from "../src/router.js";
 
 /**
@@ -24,6 +24,20 @@ import type { Route } from "../src/router.js";
 const on = (name: "case" | "position" | "reveal" | "record"): Route =>
   ({ name, caseId: "c1" });
 
+/**
+ * Every route the router can produce, named once so the three checks that must cover
+ * ALL of them cannot quietly cover different subsets. The record and the two `read`
+ * shapes are the ones that matter here: they are the routes with no menu entry, which
+ * is where both bugs this file records actually lived.
+ */
+const EVERY_ROUTE: Route[] = [
+  { name: "dashboard" }, { name: "new" }, { name: "cases" }, { name: "ask" },
+  { name: "reading" }, { name: "signin" },
+  on("case"), on("position"), on("reveal"), on("record"),
+  { name: "read", caseId: "c1" },
+  { name: "read", caseId: "c1", documentId: "d1", page: 9 },
+];
+
 describe("the rail against the scene registry", () => {
   it("gives every menu entry a scene the atmosphere package actually publishes", () => {
     for (const n of NAV) {
@@ -32,11 +46,47 @@ describe("the rail against the scene registry", () => {
     }
   });
 
-  // The codename is what the corner readout prints. A NAV entry carrying a codename
-  // the registry disagrees with would put one scene's name under another scene.
+  /**
+   * THE LOCAL TABLE AGAINST THE REGISTRY THAT OWNS IT. `CODENAME` duplicates a field of
+   * `STATES` on purpose - nav.ts explains why it cannot import the registry without
+   * pulling `three` into the shell chunk - and this is where that duplication is paid
+   * for. A name that drifts from the registry puts one scene's word under another
+   * scene, which is the silent failure this whole file exists to catch.
+   */
   it("names each scene the same thing the registry does", () => {
-    for (const n of NAV) {
-      expect(STATES.find((s) => s.id === n.scene)?.codename).toBe(n.codename);
+    for (const [scene, codename] of Object.entries(CODENAME)) {
+      const state = STATES.find((s) => s.id === scene);
+      expect(state, `CODENAME names scene "${scene}"`).toBeDefined();
+      expect(state?.codename, `scene "${scene}"`).toBe(codename);
+    }
+  });
+
+  /**
+   * AND EVERY SCENE A ROUTE CAN REACH MUST BE IN IT. The check above only proves the
+   * names present are right; it says nothing about one that is missing, and missing is
+   * the shape this bug actually had. `record` had no name of its own, so the corner
+   * borrowed the lit menu entry's and said ARCHIVE over the Helix.
+   */
+  it("has a name for every scene a route can stand in", () => {
+    for (const r of EVERY_ROUTE) {
+      expect(codenameFor(r), `route "${r.name}" stands in scene "${sceneFor(r)}"`)
+        .toBeDefined();
+    }
+  });
+
+  /**
+   * THE CORNER AND THE BACKDROP, ASKED SEPARATELY AND COMPARED. This is the assertion
+   * that fails on the original bug: before `codenameFor` existed the corner read the lit
+   * menu entry, and for `{ name: "record" }` that answered `Archive` while `sceneFor`
+   * mounted `record`, whose name is `Helix`.
+   *
+   * Written against the two questions rather than against the table, so it still means
+   * something after the table is rewritten.
+   */
+  it("says the name of the scene actually drawn, on every route", () => {
+    for (const r of EVERY_ROUTE) {
+      const drawn = STATES.find((s) => s.id === sceneFor(r))?.codename;
+      expect(codenameFor(r), `route "${r.name}"`).toBe(drawn);
     }
   });
 
@@ -71,14 +121,7 @@ describe("the rail against the scene registry", () => {
    * precisely where the missing one was.
    */
   it("names a real scene for every route in the product", () => {
-    const routes: Route[] = [
-      { name: "dashboard" }, { name: "new" }, { name: "cases" }, { name: "ask" },
-      { name: "reading" }, { name: "signin" },
-      on("case"), on("position"), on("reveal"), on("record"),
-      { name: "read", caseId: "c1" },
-      { name: "read", caseId: "c1", documentId: "d1", page: 9 },
-    ];
-    for (const r of routes) {
+    for (const r of EVERY_ROUTE) {
       const scene = sceneFor(r);
       expect(STATES.map((s) => s.id), `route "${r.name}" asks for scene "${scene}"`)
         .toContain(scene);
@@ -171,7 +214,22 @@ describe("reading", () => {
   it("stands both read routes in Section", () => {
     expect(sceneFor({ name: "reading" })).toBe("read");
     expect(sceneFor({ name: "read", caseId: "c1" })).toBe("read");
-    expect(currentNav({ name: "reading" })?.codename).toBe("Section");
+    expect(codenameFor({ name: "reading" })).toBe("Section");
+  });
+
+  /**
+   * THE RECORD, WHICH IS WHERE THE CORNER AND THE MENU LEGITIMATELY DISAGREE.
+   *
+   * Both answers here are correct and they are different, which is the point of there
+   * being two functions. The menu lights the Library because the record is the last
+   * stage of a case and a case is one of the bodies in the Archive. The corner says
+   * Helix because a seal closing is what is actually drawn behind it. One question is
+   * "which part of the product", the other is "which place" - and the bug was answering
+   * the second with the first.
+   */
+  it("lights the Library on the record while the corner says Helix", () => {
+    expect(currentNav(on("record"))?.label).toBe("Library");
+    expect(codenameFor(on("record"))).toBe("Helix");
   });
 
   // The one case route that leaves the Archive. If this ever equals "library" again,

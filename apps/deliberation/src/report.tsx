@@ -4,7 +4,8 @@ import {
 } from "react";
 import { Wordmark } from "@arbiter/design";
 import type { CaseReport, Position, ReportPerson } from "./api.js";
-import { basisOf } from "./screens.js";
+import { basisOf } from "./basis.js";
+import { QrCode } from "./qr.js";
 import { href } from "./router.js";
 
 /**
@@ -30,6 +31,15 @@ import { href } from "./router.js";
  * indivisible unit, so a reviewer's argument is never split across a page boundary and
  * a table never loses its header. That is why the document is built as a flat list of
  * blocks rather than as nested markup: the list IS the set of legal break points.
+ *
+ * LIGHT ON PAPER, DARK ON SCREEN, one document either way. The sheet used to be light
+ * in both places, on the argument that it exists to be printed - which is right about
+ * paper and wrong about the screen, where a white page floating in a dark product reads
+ * as something that already left the building. The reader checking it has not left yet.
+ *
+ * The two differ by COLOUR AND NOTHING ELSE. Same blocks, same paginator, same breaks,
+ * so "what you scroll is what comes out" survives the change - see the token note in
+ * app.css, and the test that keeps it honest.
  *
  * NOTHING HERE IS SUMMARISED, and there is no model on this path. Every position is
  * printed whole, in its author's words, at the same size as every other. A shorter
@@ -605,9 +615,9 @@ function recordBlocks(report: CaseReport): Block[] {
   ];
 }
 
-function documentBlocks(report: CaseReport, nameOf: (id: string) => string): Block[] {
+function documentBlocks(report: CaseReport, nameOf: (id: string) => string, url: string | null): Block[] {
   const answered = report.positions.length;
-  return [
+  const out: Block[] = [
     block("masthead", (
       <header className="rep-masthead">
         <Wordmark className="rep-wordmark" />
@@ -630,6 +640,31 @@ function documentBlocks(report: CaseReport, nameOf: (id: string) => string): Blo
       </div>
     ))] : []),
     block("decision", <Decision report={report} nameOf={nameOf} />),
+  ];
+
+  /* IMMEDIATELY AFTER THE DECISION, ON THE FIRST SHEET, so a sheet of paper on a desk
+     leads back to the live record without anybody having to turn a page to find it.
+     It is a Block like any other, so the paginator keeps the code and its caption
+     together for free - no extra rule needed to stop it splitting across a break.
+     Absent whenever there is no URL, which is what keeps a never-published record
+     from printing a QR that leads nowhere. */
+  if (url !== null) {
+    out.push(block("qr", (
+      <div className="rep-qr-block">
+        <QrCode value={url} size={132} />
+        <div>
+          <div className="rep-label">The live record</div>
+          <p className="rep-tiny">
+            This document is a snapshot. Scan for the record as it stands now, including
+            anything signed after this was printed.
+          </p>
+          <p className="rep-mono rep-tiny">{url}</p>
+        </div>
+      </div>
+    )));
+  }
+
+  out.push(
     block("meta", (
       <div className="rep-meta">
         <div><span>case</span>{report.caseId}</div>
@@ -650,7 +685,9 @@ function documentBlocks(report: CaseReport, nameOf: (id: string) => string): Blo
     ...adjudicationBlocks(report),
     ...evidenceBlocks(report),
     ...recordBlocks(report),
-  ];
+  );
+
+  return out;
 }
 
 /* --------------------------------------------------------------- the paginator */
@@ -674,13 +711,17 @@ function documentBlocks(report: CaseReport, nameOf: (id: string) => string): Blo
  * complete and in order. Degrading to one long page is the correct failure: it is what
  * this looked like before, and it loses nothing but the page breaks.
  */
-function Paginate({ blocks, foot, at, toSheet }: {
+function Paginate({ blocks, foot, at, toSheet, onNavigate }: {
   blocks: Block[];
   foot: (page: number, of: number) => ReactNode;
   /** Which sheet is on screen. Clamped below - a stale link to sheet 9 of a document
    *  that is now 7 sheets long should land on the last one, not on nothing. */
   at: number;
   toSheet: (n: number) => string;
+  /** Turns the pager from links into buttons, for a caller with no route to hold the
+   *  sheet number in. See the comment on the `<nav>` below for which caller that is
+   *  and why. */
+  onNavigate?: (n: number) => void;
 }): ReactElement {
   const column = useRef<HTMLDivElement>(null);
   const probe = useRef<HTMLDivElement>(null);
@@ -765,7 +806,13 @@ function Paginate({ blocks, foot, at, toSheet }: {
 
         Links through the hash, not buttons over local state, for the reason the
         reader's pager gives: the route already carries the sheet, and that is what
-        makes it shareable, bookmarkable and reachable with the back button.
+        makes it shareable, bookmarkable and reachable with the back button. That
+        reasoning needs a route to parse the hash into a page number, which is exactly
+        what the public entry does not have - `public.tsx` imports no router at all,
+        deliberately, so a link that only ever changed `location.hash` would sit there
+        looking clickable and turning no page. `onNavigate`, when the caller supplies
+        it, swaps the link for a button and the hash for a state setter the caller owns;
+        omitted, the pager is exactly what it always was.
 
         ABOVE THE SHEET. An A4 page is taller than most windows, so a pager underneath
         sits a full sheet past the fold - turning to sheet 2 of 7 would mean scrolling
@@ -774,11 +821,15 @@ function Paginate({ blocks, foot, at, toSheet }: {
       {pages.length > 1 && (
         <nav className="pager no-print" aria-label="Sheets of the record">
           {current > 1
-            ? <a className="ghost" rel="prev" href={toSheet(current - 1)}>Previous</a>
+            ? (onNavigate === undefined
+                ? <a className="ghost" rel="prev" href={toSheet(current - 1)}>Previous</a>
+                : <button className="ghost" onClick={() => { onNavigate(current - 1); }}>Previous</button>)
             : <span className="ghost off">Previous</span>}
           <span className="at">Sheet {current} of {pages.length}</span>
           {current < pages.length
-            ? <a className="ghost" rel="next" href={toSheet(current + 1)}>Next</a>
+            ? (onNavigate === undefined
+                ? <a className="ghost" rel="next" href={toSheet(current + 1)}>Next</a>
+                : <button className="ghost" onClick={() => { onNavigate(current + 1); }}>Next</button>)
             : <span className="ghost off">Next</span>}
         </nav>
       )}
@@ -815,12 +866,29 @@ function Paginate({ blocks, foot, at, toSheet }: {
  * nothing else - no app chrome, and no button reading "print" printed onto the page it
  * printed.
  */
-export function ReportPage({ report, page }: { report: CaseReport; page?: number }): ReactElement {
+export function ReportPage({ report, page, share, publishedUrl, onNavigate }: {
+  report: CaseReport;
+  page?: number;
+  /** The convener's controls. Absent on the public page - which is what removes them
+   *  there, rather than a flag the public entry has to remember to pass. */
+  share?: { url: string | null; onPublish: () => void; onRevoke: () => void };
+  /** The published URL when there are no controls to go with it: the public page draws
+   *  the same QR the convener printed, so a scanned page and a shared link agree. */
+  publishedUrl?: string;
+  /** Passed straight to `Paginate`. See its own doc comment - this is how the public
+   *  page turns sheets with no router to carry the page number in the URL. */
+  onNavigate?: (n: number) => void;
+}): ReactElement {
   const nameOf = (id: string): string =>
     report.panel.concat(report.owner).find((p) => p.id === id)?.displayName ?? id;
 
+  // `share`, when present, is the more current answer - it comes from state this page
+  // itself keeps in sync with a publish or revoke; `publishedUrl` is what the public
+  // page passes instead, since it never has controls to hold a `share` object at all.
+  const url = share?.url ?? publishedUrl ?? null;
+
   // Stable across renders, because it is what the paginator re-measures on.
-  const blocks = useMemo(() => documentBlocks(report, nameOf), [report]);
+  const blocks = useMemo(() => documentBlocks(report, nameOf, url), [report, url]);
 
   /* THE TAB TITLE IS THE FILENAME. Chrome proposes `document.title` as the name in its
      save dialog, which is the only influence a page has over it - so the tab carries
@@ -835,19 +903,29 @@ export function ReportPage({ report, page }: { report: CaseReport; page?: number
   return (
     <div className="rep-wrap">
       <div className="rep-bar no-print">
-        <div>
-          <h1>The record, ready to print</h1>
-          <p className="muted">
-            The whole case as one document: the decision, every position in full, the adjudication,
-            the evidence it was decided on and the state of the chain. What you see below is what
-            prints - page for page. Choose <strong>Save as PDF</strong> as the destination to keep a copy.
-          </p>
-        </div>
+        {/* WRITTEN FOR THE CONVENER, NOT FOR WHOEVER HOLDS THE LINK. "The record, ready
+            to print" and "Back to the verdict" both address someone running this case -
+            the second is a link INTO the signed-in app, which is exactly the surface a
+            stranger reading a QR code must never be one click from. `share !== undefined`
+            is the same signal the publish/revoke section below already keys off, so
+            there is one rule for "is this the convener's own page", not two. */}
+        {share !== undefined && (
+          <div>
+            <h1>The record, ready to print</h1>
+            <p className="muted">
+              The whole case as one document: the decision, every position in full, the adjudication,
+              the evidence it was decided on and the state of the chain. What you see below is what
+              prints - page for page. Choose <strong>Save as PDF</strong> as the destination to keep a copy.
+            </p>
+          </div>
+        )}
         <div className="btn-row">
           <button className="primary" onClick={() => { window.print(); }}>Print or save as PDF</button>
-          <a href={href({ name: "reveal", caseId: report.caseId })}>
-            <button className="ghost">Back to the verdict</button>
-          </a>
+          {share !== undefined && (
+            <a href={href({ name: "reveal", caseId: report.caseId })}>
+              <button className="ghost">Back to the verdict</button>
+            </a>
+          )}
         </div>
       </div>
 
@@ -855,6 +933,7 @@ export function ReportPage({ report, page }: { report: CaseReport; page?: number
         blocks={blocks}
         at={page ?? 1}
         toSheet={(n) => href({ name: "report", caseId: report.caseId, page: n })}
+        {...(onNavigate === undefined ? {} : { onNavigate })}
         foot={(sheet, of) => (
           <>
             <span>ARBITER · {report.compoundLabel} · {report.caseId}</span>
@@ -862,6 +941,29 @@ export function ReportPage({ report, page }: { report: CaseReport; page?: number
           </>
         )}
       />
+
+      {/* THE CONVENER'S CONTROL, not the document's. `no-print` for the same reason as
+          the bar above: a button printed onto the record is the tell of a page that
+          never had a print stylesheet. `share === undefined` is how the public page -
+          which has no owner and no route to these three calls - renders no control at
+          all rather than one it would 403 the moment it was used. */}
+      {share !== undefined && (
+        <section className="rep-share no-print">
+          {share.url === null
+            ? <>
+                <p>Publish this record to a link anyone can open, and print a QR code for it onto the document.</p>
+                <button className="primary" onClick={share.onPublish}>Publish this record</button>
+              </>
+            : <>
+                <p className="rep-mono">{share.url}</p>
+                <p className="small muted">
+                  Anyone holding this link can read the record, without an account. Revoking it
+                  stops the link - it cannot reach a copy already printed or saved.
+                </p>
+                <button className="ghost" onClick={share.onRevoke}>Revoke this link</button>
+              </>}
+        </section>
+      )}
     </div>
   );
 }

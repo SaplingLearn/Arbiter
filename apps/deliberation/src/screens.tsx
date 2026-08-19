@@ -1,5 +1,6 @@
 import { useState, type ReactElement } from "react";
-import { api, ApiError, type Adjudication, type BlindView, type Consensus, type ExtractionResult, type Finding, type FindingProposal, type Inventory, type Position, type Refusal, type Roster, type Signature, type StoredDocument, type UnanimityReport } from "./api.js";
+import { api, ApiError, type Adjudication, type BlindView, type Consensus, type ExtractionResult, type Finding, type FindingProposal, type Inventory, type Refusal, type Roster, type StoredDocument, type UnanimityReport } from "./api.js";
+import { basisOf } from "./basis.js";
 import { Markdown } from "./markdown.js";
 import { Reviewer, collidingInitials } from "./Reviewer.js";
 import { initials } from "./Layout.js";
@@ -13,12 +14,6 @@ import { href } from "./router.js";
  * order is exactly what §3.1 exists to protect, because reading anybody else's call
  * before writing your own is the failure blind submission was built to prevent.
  */
-
-export function basisOf(p: Position): "cited" | "external" | "unsupported" {
-  if (p.citedFindingIds.length > 0) return "cited";
-  if (p.external.length > 0) return "external";
-  return "unsupported";
-}
 
 const CALL_LABEL: Record<string, string> = {
   advance: "Advance",
@@ -694,10 +689,17 @@ export function PositionForm({ token, caseId, findings, onDone }: {
           the redesign dropped and nothing replaced, so the three-way call button - the
           single most important control in the product - rendered as three words run
           together with no gap, no border and no pressed state. `.choice` carries the
-          layout and `button.ghost` carries the states, including aria-pressed. */}
+          layout and `button.ghost` carries the states, including aria-pressed.
+
+          LABELLED BY, NOT `htmlFor`. A label's `for` names a labelable form control and
+          a div is not one, so `htmlFor="call"` pointed at nothing and this group - the
+          single most important control in the product - reached a screen reader with no
+          accessible name at all. Nothing failed: an unmatched `for` is not an error, it
+          is simply silent. `role="group"` with `aria-labelledby` is the arrangement that
+          actually carries "Your call" across. */}
       <div className="field">
-        <label htmlFor="call">Your call</label>
-        <div className="choice" id="call">
+        <label id="call-label">Your call</label>
+        <div className="choice" role="group" aria-labelledby="call-label">
           {(["advance", "do_not_advance", "cannot_conclude"] as const).map((c) => (
             <button key={c} type="button" className="ghost" aria-pressed={call === c} onClick={() => setCall(c)}>
               {CALL_LABEL[c]}
@@ -932,26 +934,25 @@ function ReportLink({ caseId }: { caseId: string }): ReactElement {
  * in the middle of a safety verdict. `Markdown` builds React elements from strings
  * and never touches innerHTML, so it is strictly safer than the interpolation it
  * replaces as well as strictly more readable.
+ *
+ * THE ADJUDICATION ARRIVES ON `view`, not from a route of its own. Two branches fixed
+ * the same bug - the verdict living only in the tab that pressed the button - and this
+ * is the surviving half: `BlindView` carries the adjudication, its source, the run
+ * consensus and the signature, so one fetch serves the whole stage and there is no
+ * second endpoint to disagree with it.
  */
-export function Verdict({ adjudication, source, caseId, canSign = true, consensus = null, signature = null, signerName = null, onSign }: {
+export function Verdict({ adjudication, source, caseId, canSign, consensus = null, signed = null, onSign }: {
   adjudication: Adjudication; source: "stub" | "live";
   /** Which case the printable record belongs to. */
   caseId: string;
   /** The convener signs; everyone else reads. §6.7 - a committee advises and one
-   *  named individual decides, so this is false for most people who see this screen.
-   *  Defaults to true so a caller that has not yet worked out who is reading still
-   *  renders the form rather than silently hiding it. */
-  canSign?: boolean;
+   *  named individual decides, so this is false for most people who see this screen. */
+  canSign: boolean;
   consensus?: Consensus | null;
-  /** Present once the case is signed, which closes the record: the form becomes the
-   *  fact of who signed and what they said. */
-  signature?: Signature | null;
-  /** The signer, resolved to a name by the caller - `signature.by` is an account id.
-   *  NAMED RATHER THAN "somebody": one individual decides, and a record that says a
-   *  decision was made without saying whose is the half of §6.7 that matters least.
-   *  Optional, and the sentence reads without it, so a caller that cannot resolve the
-   *  id still renders a true statement instead of an id. */
-  signerName?: string | null;
+  /** Already signed, resolved to a name by the caller - the signature on `view` names
+   *  its signer by id, and only the caller holds the roster that turns it into a
+   *  person. Null while nobody has signed. */
+  signed?: { name: string; at: string; agreesWithAdjudication: boolean; reason: string } | null;
   onSign: (agrees: boolean, reason: string) => void;
 }): ReactElement {
   const [reason, setReason] = useState("");
@@ -1045,43 +1046,35 @@ export function Verdict({ adjudication, source, caseId, canSign = true, consensu
         </div>
       )}
 
-      {signature !== null ? (
-        <div className="verdict-group">
-          <h2>Signed</h2>
-          <p>
-            <strong>
-              {signerName === null || signerName.trim() === ""
-                ? `${signature.agreesWithAdjudication ? "Agreed with" : "Overrode"} this adjudication.`
-                : signature.agreesWithAdjudication
-                  ? `${signerName} signed this record.`
-                  : `${signerName} signed, overriding the adjudication.`}
-            </strong>
-          </p>
-          <div className="small muted mono">{signature.at}</div>
-          {signature.reason.trim() !== "" && <div className="md"><Markdown>{signature.reason}</Markdown></div>}
+      <h2 style={{ marginTop: 32 }}>Sign</h2>
+      <p className="muted">
+        One named person. No quorum, no threshold, no consensus mechanism - a committee
+        advises and an individual decides, and the signer may override this adjudication.
+      </p>
+
+      {/* WHAT IS ON SCREEN DEPENDS ON WHO IS READING, and the three states are
+          genuinely different. A participant used to see a sign form they were not
+          permitted to use: the server answers 403, so the control was a promise the
+          product could not keep. */}
+      {signed !== null ? (
+        <div className="note">
+          <strong>
+            {signed.agreesWithAdjudication
+              ? `${signed.name} signed this record.`
+              : `${signed.name} signed, overriding the adjudication.`}
+          </strong>
+          <div className="small muted mono">{signed.at}</div>
+          {/* Through `Markdown` for the same reason the adjudication's prose is: a
+              signer's reason is free text beside a safety verdict, and raw `**` in it
+              reads as the record having been typed badly. */}
+          {signed.reason.trim() !== "" && <div className="md"><Markdown>{signed.reason}</Markdown></div>}
         </div>
-      ) : !canSign ? (
-        /* WHAT IS ON SCREEN DEPENDS ON WHO IS READING, and the three states are
-           genuinely different. A participant used to see a sign form they were not
-           permitted to use: the server answers 403, so the control was a promise the
-           product could not keep. */
-        <div className="verdict-group">
-          <h2>Sign</h2>
-          <p className="small muted">
-            The convener signs this one. Until they do, nothing here has been decided - and
-            when they do, it appears on this screen and in the record below.
-          </p>
-        </div>
-      ) : (
-        <div className="verdict-group">
-          <h2>Sign</h2>
-          <p className="muted">
-            One named person. No quorum, no threshold, no consensus mechanism - a committee
-            advises and an individual decides, and you may override this adjudication.
-          </p>
-          {/* The same pair of dropped classes as the call control above, and the same
-              replacement: signing off on an adjudication is a two-way choice and it was
-              rendering as "AgreeOverride". */}
+      ) : canSign ? (
+        <>
+          {/* `.choice`/`.ghost`, not `.rail`/`.persona`: the latter pair no longer
+              exists, so the two controls collapsed into the single run of text
+              "AgreeOverride". Came in on the base branch with the same fix applied to
+              the call control above; kept here on the way past. */}
           <div className="choice">
             <button type="button" className="ghost" aria-pressed={agrees} onClick={() => setAgrees(true)}>Agree</button>
             <button type="button" className="ghost" aria-pressed={!agrees} onClick={() => setAgrees(false)}>Override</button>
@@ -1091,7 +1084,12 @@ export function Verdict({ adjudication, source, caseId, canSign = true, consensu
           <button className="primary" disabled={!agrees && reason.trim() === ""} onClick={() => onSign(agrees, reason)}>
             Sign the record
           </button>
-        </div>
+        </>
+      ) : (
+        <p className="small muted">
+          The convener signs this one. Until they do, nothing here has been decided - and
+          when they do, it appears on this screen and in the report below.
+        </p>
       )}
 
       <ReportLink caseId={caseId} />

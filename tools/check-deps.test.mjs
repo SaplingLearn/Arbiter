@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { checkDeps } from "./check-deps.mjs";
@@ -104,6 +104,35 @@ describe("checkDeps", () => {
     expect(problems).toHaveLength(2);
     expect(problems.join("\n")).toContain("vitest");
     expect(problems.join("\n")).toContain("tailwindcss");
+  });
+
+  it("does not police an exact pin on a WORKSPACE, whose version is not an install fact", () => {
+    // apps/harness pins @arbiter/engine to 1.0.0 and npm links it to packages/engine
+    // regardless. Bumping the engine and not the pin would have failed `npm run dev`
+    // for everybody, with a message about a stale install - which is the one diagnosis
+    // that cannot be right, because a symlink cannot be out of date with itself.
+    const root = tree({
+      "package.json": { name: "root", workspaces: ["apps/*", "packages/*"] },
+      "apps/harness/package.json": { name: "@a/harness", dependencies: { "@a/engine": "1.0.0" } },
+      "packages/engine/package.json": { name: "@a/engine", version: "1.1.0" },
+    });
+    mkdirSync(join(root, "node_modules/@a"), { recursive: true });
+    symlinkSync(join(root, "packages/engine"), join(root, "node_modules/@a/engine"), "dir");
+    expect(checkDeps(root)).toEqual([]);
+  });
+
+  it("still polices an exact pin on a package that was really installed", () => {
+    // The guard above must not have turned the pin check off in general - a hoisted
+    // copy at the wrong version is the pdfjs-dist failure the pin exists to catch.
+    const root = tree({
+      "package.json": WORKSPACE_ROOT,
+      "apps/web/package.json": { name: "@a/web", dependencies: { pdfjs: "4.10.38" } },
+      "node_modules/pdfjs/package.json": { name: "pdfjs", version: "5.0.0" },
+    });
+    const problems = checkDeps(root);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("4.10.38");
+    expect(problems[0]).toContain("5.0.0");
   });
 
   it("refuses a workspace pattern it cannot expand rather than silently skipping it", () => {

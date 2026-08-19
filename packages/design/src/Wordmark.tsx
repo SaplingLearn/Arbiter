@@ -1,168 +1,127 @@
 /**
- * THE WORDMARK — "ARBITER", built from rectangular strokes.
+ * THE LOGO — a ruling, and the word.
  *
- * ON WHAT THIS IS NOT. The reference recording this page's layout comes from carries
- * another company's custom-lettered wordmark, and reproducing it here was asked for and
- * is the one thing in the spec not done. A layout can be borrowed; a mark cannot — a
- * real firm's lettering in this header would make the page carry their identity, which
- * is a different act from taking an arrangement. What IS reproduced is the CONSTRUCTION
- * logic: every glyph made of axis-aligned rectangles on a shared grid, no curves, no
- * diagonals, uniform stroke, and one square with a 45-degree notch cut out of it.
+ * WHAT THIS REPLACED. The previous mark built every letter of "ARBITER" out of
+ * axis-aligned rectangles on a 10x14 grid, with a 3-unit stroke and a 3.4-unit gap. At the
+ * size both headers actually render it — 15 pixels tall — the stroke and the counters
+ * landed on the same pixel and the word closed into a solid slab; the leading notched
+ * square merged into the A. Hand-built letterforms cannot be rescued at that size, and the
+ * last bug against it (an R that read as an A, so the header said ARBITEA) was a symptom
+ * of the approach rather than of that one glyph.
  *
- * ON THE NOTCHED SQUARE. In the reference that notch lives inside the letter O. There is
- * no O in ARBITER, and inventing one would be worse than placing it deliberately — so it
- * leads the wordmark as a standalone glyph. That also makes it usable on its own as a
- * favicon or an avatar, which an notch buried inside a letterform never is.
+ * WHY REAL LETTERFORMS. The word is Host Grotesk at weight 600, converted to outlines.
+ * Outlines and not live `<text>`: the fonts arrive from the Google CDN, so a wordmark set
+ * in markup would reflow to a fallback face on a cold or offline load and break its own
+ * viewBox. Outlines also mean the logo owes nothing to the stylesheet.
  *
- * WHY A GRID MAP AND NOT PATHS. Seven letters is roughly forty rectangles. Hand-authored
- * as `<path d="...">` they cannot be adjusted — changing the stroke weight means editing
- * every coordinate — and a reviewer cannot tell a correct glyph from a broken one by
- * reading the numbers. Declared as rects on a 10x14 grid, the letterforms are legible
- * AS SOURCE and the whole mark re-proportions from `S` below.
+ * WHY THE SPACING IS NOT TRACKING. Every pair is spaced by the AREA of white between the
+ * two letters, with a clearance floor underneath so no two pieces of ink come closer than a
+ * minimum. That floor is what keeps the r's arm off the b — a collision uniform tracking
+ * cannot see, because tracking only knows advance widths and the r's arm is the one point
+ * that sticks out. Tracking a word out to 0.16em, as the old mark effectively did, is what
+ * made it read as a HUD label instead of a logo.
+ *
+ * THE MARK IS DELIBERATELY NOT AN "A". An A beside the word "Arbiter" is a stutter: the eye
+ * reads the letter, then reads it again, and in an all-caps setting the lockup is literally
+ * "A ARBITER". So the mark is two bars at the wordmark's own measured stem weight, of
+ * plainly unequal reach, their ends cut on the same 45 degrees as every chamfer in the
+ * interface. One position outweighed the other. No letterform repeats, and there is no
+ * second reading to explain.
+ *
+ * THE NUMBERS ARE MEASURED, NOT PICKED. `STEM` is the width of the wordmark's own i, taken
+ * off the outline on this grid. The bars are 1.18 stems thick and separated by 0.95 of a
+ * bar, so the mark is built entirely out of the word's own weight. Swap the face and every
+ * number here has to be re-derived — which is why this geometry is generated, not typed.
+ *
+ * DO NOT HAND-EDIT THE PATH DATA. `WORD` is generated: glyph outlines pulled from the face,
+ * spaced by the routine described above, then baked into one absolute path. There is
+ * nothing in those coordinates a reviewer can check by reading them and nothing a person
+ * can correct by nudging them. To change the wordmark, regenerate it.
+ *
+ * Host Grotesk is licensed under the SIL Open Font License, which permits outlining glyphs
+ * for a logo. No font file ships in this repository — only the resulting paths.
  */
 
-/** Stroke weight, in grid units. Every rectangle is this thick in its short dimension. */
-const S = 3;
-/** Letter box, in grid units. */
-const H = 14;
-const W = 10;
-/** Space between letters. */
-const GAP = 3.4;
-
-type Rect = [x: number, y: number, w: number, h: number];
+/** Cap height. Every coordinate in this file is on a 0-100 cap-height grid. */
+const CAP = 100;
 
 /**
- * The letterforms.
+ * The word's ink box, and where the cap line sits inside it.
  *
- * Read each entry as a stack of strokes: verticals first, then bars. A blocky grotesque
- * has no curves, so a "B" is two verticals and three bars, and an "R" is the same with
- * its lower right stroke moved out to make a leg.
+ * These differ: the b and the t rise above cap height, so the ink box is taller than CAP
+ * and its top edge is NOT the cap line. Anything aligned to the box rather than to
+ * `CAP_TOP` sits visibly high against the letters.
  */
-const GLYPHS: Record<string, { width: number; rects: Rect[] }> = {
-  A: {
-    width: W,
-    rects: [
-      [0, 0, S, H], // left stem
-      [W - S, 0, S, H], // right stem
-      [0, 0, W, S], // crossbar, top
-      [0, 6, W, S], // crossbar, middle
-    ],
-  },
-  R: {
-    width: W,
-    // THE LEG HAS TO STEP OUT. This glyph used to put the shoulder and the leg at the
-    // same x (both `W - S`), which stacks them into one unbroken right-hand stem — and a
-    // stem plus two bars is an A, not an R. The header read ARBITEA on every page that
-    // used it. The bowl is therefore pulled in by 2 units so the leg below it has
-    // somewhere to land, and the leg drops at the full width to make the step visible.
-    rects: [
-      [0, 0, S, H], // left stem
-      [0, 0, W - 2, S], // top bar, narrowed to the bowl
-      [W - S - 2, 0, S, 8.5], // shoulder, stopping at the middle bar
-      [0, 5.5, W - 2, S], // middle bar, at B and E's height
-      [W - S, 8.5, S, H - 8.5], // the leg, out past the bowl
-    ],
-  },
-  B: {
-    width: W,
-    rects: [
-      [0, 0, S, H],
-      [0, 0, W, S],
-      [0, 5.5, W, S],
-      [0, H - S, W, S],
-      [W - S, 0, S, 8.5],
-      [W - S, 5.5, S, H - 5.5],
-    ],
-  },
-  I: {
-    width: S,
-    rects: [[0, 0, S, H]],
-  },
-  T: {
-    width: W,
-    rects: [
-      [0, 0, W, S],
-      [(W - S) / 2, 0, S, H],
-    ],
-  },
-  E: {
-    width: W,
-    rects: [
-      [0, 0, S, H],
-      [0, 0, W, S],
-      [0, 5.5, W - 2, S], // the middle arm is short — it is what stops E reading as B
-      [0, H - S, W, S],
-    ],
-  },
-};
+const WORD_W = 457.57;
+const WORD_H = 104.57;
+const CAP_TOP = 2.86;
 
-const WORD = "ARBITER";
+/** Space between mark and word — wide enough that they read as two things, not a ligature. */
+const GAP = 38;
 
-/** The leading glyph: a square with a 45-degree notch out of its lower-right corner. */
-function notchedSquare(x: number): { d: string; width: number } {
-  const n = H * 0.38;
-  return {
-    width: H,
-    d: [
-      `M ${x} 0`,
-      `H ${x + H}`,
-      `V ${H - n}`,
-      `L ${x + H - n} ${H}`, // the 45-degree cut
-      `H ${x}`,
-      "Z",
-    ].join(" "),
-  };
-}
+/**
+ * THE RULING. Two bars, unequal reach, ends cut at 45 degrees.
+ *
+ * Thickness is 1.18 stems (20.2 units against a stem of 17.1). At exactly one stem the
+ * bars read as fallen-over letters; the extra weight is what makes them read as rules. The
+ * short bar stops at 58 of 100, far enough short of the long one that the inequality reads
+ * as the point rather than as a wobble.
+ */
+const MARK: readonly string[] = [
+  "M0 20.16H79.77L100 40.39H0Z",
+  "M0 59.61H37.77L58 79.84H0Z",
+];
 
+/** "Arbiter" — Host Grotesk 600, optically spaced, outlined. GENERATED; see above. */
+const WORD =
+  "M1.96 102.86 38.55 2.86H57.67L94.33 102.86H76.2L44.49 12.49H51.69L19.98 102.86ZM18.9 79.25 23.53 65.76H72.76L77.39 79.25ZM104.12 100V29.14H121.26V40.02Q123.96 34.65 128.2 31.58Q132.45 28.51 138.08 28.51H147.57V43.9H136.36Q131.36 43.9 128 46.55Q124.63 49.2 122.95 54.68Q121.26 60.16 121.26 68.49V100ZM200.79 101.71Q192.61 101.71 186.5 98.59Q180.39 95.47 176.67 89.88V100H159.53V-2.86H176.67V39.59Q180.1 34.78 185.93 31.1Q191.75 27.43 200.84 27.43Q210.94 27.43 218.79 32.29Q226.65 37.14 231.16 45.57Q235.67 54 235.67 64.71Q235.67 75.33 231.16 83.73Q226.65 92.14 218.79 96.93Q210.94 101.71 200.79 101.71ZM197.3 86.78Q203.45 86.78 208.19 83.92Q212.94 81.06 215.61 76.08Q218.28 71.1 218.28 64.67Q218.28 58.14 215.61 53.09Q212.94 48.04 208.19 45.2Q203.45 42.37 197.3 42.37Q191.2 42.37 186.49 45.2Q181.77 48.04 179.1 53.04Q176.43 58.04 176.43 64.57Q176.43 71.1 179.1 76.08Q181.77 81.06 186.49 83.92Q191.2 86.78 197.3 86.78ZM247.63 100V29.14H264.78V100ZM247.59 16.96V-0.51H264.94V16.96ZM309.96 100Q303.1 100 298.4 98.37Q293.7 96.73 291.31 92.13Q288.92 87.53 288.92 78.9V43.53H276.74V29.14H288.92V10.57H306.06V29.14H324.55V43.53H306.06V76.63Q306.06 80.45 306.8 82.33Q307.53 84.2 309.58 84.81Q311.64 85.41 315.37 85.41H323.88V100ZM367.06 101.71Q356.35 101.71 348.12 97.07Q339.9 92.43 335.26 84.17Q330.63 75.92 330.63 65.04Q330.63 53.96 335.19 45.47Q339.75 36.98 348.02 32.2Q356.29 27.43 367.14 27.43Q377.63 27.43 385.53 32.02Q393.43 36.61 397.8 44.4Q402.16 52.18 402.16 61.88Q402.16 63.31 402.16 65.03Q402.16 66.76 401.92 68.65H343.04V57.63H384.9Q384.47 50.16 379.48 45.79Q374.49 41.41 367.12 41.41Q361.82 41.41 357.32 43.76Q352.82 46.1 350.15 50.79Q347.49 55.47 347.49 62.59V66.65Q347.49 73.27 350.09 77.99Q352.69 82.71 357.11 85.17Q361.53 87.63 366.96 87.63Q372.82 87.63 376.82 84.99Q380.82 82.35 382.8 77.92H400.16Q398.24 84.65 393.64 90.05Q389.04 95.45 382.3 98.58Q375.55 101.71 367.06 101.71ZM414.12 100V29.14H431.26V40.02Q433.96 34.65 438.2 31.58Q442.45 28.51 448.08 28.51H457.57V43.9H446.36Q441.36 43.9 438 46.55Q434.63 49.2 432.95 54.68Q431.26 60.16 431.26 68.49V100Z";
+
+/**
+ * The logo: the ruling, then the word.
+ *
+ * Both headers size this with `height: 15px; width: auto`, which is the contract this
+ * component has always had. The viewBox is therefore the INK box and not a padded square —
+ * a bounding box with air in it renders the logo smaller than the number the stylesheet
+ * asked for, and every header would silently shrink.
+ */
 export function Wordmark({ className }: { className?: string }) {
-  const glyph = notchedSquare(0);
-
-  let cursor = glyph.width + GAP * 1.6;
-  const letters: { key: string; rects: Rect[] }[] = [];
-
-  for (const [i, ch] of [...WORD].entries()) {
-    const g = GLYPHS[ch];
-    // A missing glyph would silently drop a letter and nobody would notice in review.
-    if (!g) throw new Error(`Wordmark: no glyph for "${ch}"`);
-    letters.push({
-      key: `${ch}${i}`,
-      rects: g.rects.map(([x, y, w, h]) => [x + cursor, y, w, h] as Rect),
-    });
-    cursor += g.width + GAP;
-  }
-
-  const total = cursor - GAP;
-
   return (
     <svg
       className={className}
-      viewBox={`0 0 ${total} ${H}`}
+      viewBox={`0 0 ${CAP + GAP + WORD_W} ${WORD_H}`}
       fill="currentColor"
       role="img"
       aria-label="Arbiter"
     >
-      <path d={glyph.d} />
-      {letters.map((l) =>
-        l.rects.map(([x, y, w, h], j) => (
-          <rect key={`${l.key}-${j}`} x={x} y={y} width={w} height={h} />
-        )),
-      )}
+      {/* Hung off the CAP LINE, not the top of the ink box — see CAP_TOP above. */}
+      <g transform={`translate(0,${CAP_TOP})`}>
+        {MARK.map((d, i) => (
+          <path key={i} d={d} />
+        ))}
+      </g>
+      <g transform={`translate(${CAP + GAP},0)`}>
+        <path d={WORD} />
+      </g>
     </svg>
   );
 }
 
-/** The mark on its own — the notched square, square viewBox, for tight spaces. */
+/**
+ * The mark on its own — square viewBox, for the favicon, an avatar, or anywhere too tight
+ * for the word. Two bars survive 16 pixels; seven letters do not.
+ */
 export function Mark({ className }: { className?: string }) {
-  const n = H * 0.38;
   return (
     <svg
       className={className}
-      viewBox={`0 0 ${H} ${H}`}
+      viewBox={`0 0 ${CAP} ${CAP}`}
       fill="currentColor"
       role="img"
       aria-label="Arbiter"
     >
-      <path d={`M0 0 H${H} V${H - n} L${H - n} ${H} H0 Z`} />
+      {MARK.map((d, i) => (
+        <path key={i} d={d} />
+      ))}
     </svg>
   );
 }

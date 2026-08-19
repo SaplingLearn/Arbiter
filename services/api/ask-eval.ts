@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { DEFAULT_K, buildIndex, search } from "./retrieval.js";
 import { handleAsk } from "./ask.js";
 import { completeFromEnv, providerFor, type Provider } from "./interpret.js";
+import { loadEnv } from "./env.js";
 import { loadFixture, pagesFor, verifyFixture, type EvalItem } from "./retrieval-eval.js";
 
 /**
@@ -289,6 +290,20 @@ const invokedDirectly = process.argv[1] !== undefined
   && resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1]);
 
 if (invokedDirectly) {
+  /**
+   * MISSING UNTIL NOW, and it made this script the only eval that could not read
+   * `.env`. `verdict-five-eval.ts` and `counterfactual-eval.ts` both call it at their
+   * entry point; this one did not, so a configuration that ran those two answered
+   * "No credentials for the ask model" here. That is why HANDOFF-evaluation.md 5.1
+   * says to `export ARBITER_GCP_PROJECT` before `npm run ask:eval` while 1.1 offers
+   * `.env` as the equivalent - the export was a workaround for this bug, written
+   * down as if it were the instruction.
+   *
+   * Entry point only, per env.ts: importing this module during a test run must not
+   * load a developer's credentials and start making billed calls.
+   */
+  loadEnv();
+
   const items = loadFixture();
   const failures = verifyFixture(items, pagesFor);
   if (failures.length > 0) {

@@ -79,6 +79,16 @@ results/*
 !results/report/
 !results/report/arbiter-evaluation.pdf
 
+# The per-model evaluation results. These were ignored, and it cost the project all
+# five verdict metrics: verdict-five, counterfactual and determinism were measured,
+# reported in a handoff, and then existed on exactly one machine because nothing
+# whitelisted them. They are small JSON, they are the evidence behind every number on
+# a slide, and re-deriving one costs a live billed run. The FIGURES stay ignored on
+# purpose - tools/plot_evaluation.py rebuilds a PNG from this JSON, and cannot rebuild
+# the JSON from a PNG.
+!results/model-comparison/
+!results/model-comparison/*.json
+
 # Playwright output. The e2e run's traces and screenshots are diagnostics for a
 # single run, not artifacts anyone re-derives a number from.
 test-results/
@@ -126,8 +136,14 @@ gha-creds-*.json
 # Python
 __pycache__/
 *.pyc
-.venv/
-venv/
+# No trailing slash, deliberately. `.venv/` matches a DIRECTORY and not a symlink, and a
+# symlink is what the handoff tells you to make: `ln -sfn <repo>/.venv <scratch>/wk/.venv`
+# is how a scratch clone gets PyMuPDF without a reinstall. Following that instruction and
+# then running `git add -A` committed a 120000 blob holding an absolute path to one
+# machine - which then deletes itself from anyone else's worktree on the next checkout,
+# taking PDF extraction with it and failing as "PyMuPDF is not installed".
+.venv
+venv
 
 # OS
 .DS_Store

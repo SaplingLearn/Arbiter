@@ -4,6 +4,18 @@ Written 2026-08-16, mid-task, on branch `feat/product-in-the-atmosphere` (PR #22
 Everything in this document was verified against the repository on the day it was
 written, not recalled. Where a number appears, the file it came from is named.
 
+> **SUPERSEDED IN PART — read `docs/EVALUATION-SCOREBOARD.md` first.** **All ten benchmarks
+> are now measured**, on `gemini-3.5-flash` via Vertex/ADC, over 21 documents and a
+> 104-item fixture. Ask: 95.1%, 81.5%, 95.1%, 95.7%, 86.7% — **no Ask metric is 100% any
+> more**, because the corpus got harder rather than because anything was re-rolled. Verdict:
+> 8/8 on all five at n=8, which is the one remaining weak spot and is a sample-size problem.
+> Counterfactual sensitivity 83.3% (5/6), 0 stuck.
+>
+> §5's task was already complete when this document was written — the run landed in
+> `44754a6`, the same commit — so §0 item 2, §4 and §5 never caught up. They have since been
+> superseded again by the larger run above. §7 and §8 remain required reading and are
+> unaffected.
+
 **Read §0, then §1, then §5. Everything else is reference for when you need it.**
 
 **The one thing to know before you touch a number:** four times in this session a metric
@@ -36,13 +48,26 @@ predates the last dependency addition.
 
 ## 0. TL;DR — what to do, in order
 
-1. **§1** — set `ARBITER_GCP_PROJECT`. Nothing works without it. One line.
-2. **§5** — run `npm run ask:eval`. This is the only outstanding measurement. ~40 min.
-3. **§5.4** — copy the result into `results/model-comparison/`, regenerate figures.
+~~1. **§1** — set `ARBITER_GCP_PROJECT`. Nothing works without it. One line.~~
+~~2. **§5** — run `npm run ask:eval`. This is the only outstanding measurement. ~40 min.~~
+~~3. **§5.4** — copy the result into `results/model-comparison/`, regenerate figures.~~
+
+**Steps 2 and 3 are done** — see the banner above and
+`docs/EVALUATION-SCOREBOARD.md`. All five Ask metrics now have committed numbers. What
+replaces them:
+
+1. **§1** — set `ARBITER_GCP_PROJECT` and authenticate. Still the precondition for any
+   live run. One line, plus `gcloud auth application-default login`.
+2. **Re-run the verdict five.** `npx tsx services/api/verdict-five-eval.ts`, then
+   `counterfactual-eval.ts`. Their result files live under `results/model-comparison/`,
+   which is gitignored, so they were never committed and are absent from a fresh clone.
+   Both run against committed fixtures — no PDFs, no extraction cache, and cheap.
+3. **Commit the result JSON this time**, by widening the `.gitignore` whitelist to cover
+   `results/model-comparison/*.json`. Scoreboard §3.3.
 4. **§11** — decide what goes on the slides. That decision is Jack's, not yours; §11
    gives him what he needs to make it.
 
-If you do nothing else, do 1–3. Step 2 is the entire reason this document exists.
+If you do nothing else, do 1–3. Step 2 is now the entire reason this document exists.
 
 **Do not start by refactoring, re-tuning retrieval, or improving a score.** The scores
 are mostly fine. The gap is that two of them have never been measured.
@@ -233,11 +258,11 @@ a system that ignores the evidence cannot fake.
 
 | # | Metric | Result | State |
 |---|---|---|---|
-| 1 | Finds the passage (hit@16) | **96.2%** · n=53 | done — pure retrieval, no model |
-| 2 | Gets the fact right | — | **NEVER RUN — §5** |
-| 3 | Points you to a correct page | **96.2%** cited ≥1 gold page · n=53 | done |
-| 4 | Says when the document is silent | — | **NEVER RUN at n=16 — §5** |
-| 5 | Same answer however you ask | **90.0%** (18/20 groups) | done |
+| 1 | Finds the passage (hit@16) | **95.1%** (77/81), CI 88.0-98.1% | done — pure retrieval, no model |
+| 2 | Gets the fact right | **81.5%** (66/81), CI 71.7-88.4% | done — see scoreboard §2 |
+| 3 | Points you to a correct page | **95.1%** (77/81), CI 88.0-98.1% | done |
+| 4 | Says when the document is silent | **95.7%** (22/23), CI 79.0-99.2% | done — no longer 100% |
+| 5 | Same answer however you ask | **86.7%** (26/30 groups), CI 70.3-94.7% | done |
 
 Also on file: mean recall 91.5%, MRR 0.529, mean set-overlap stability 33.7%.
 
@@ -254,7 +279,12 @@ feels.
 
 ---
 
-## 4. What is on disk vs what is true
+## 4. What is on disk vs what is true — ⚠ NO LONGER ACCURATE
+
+> This section describes the state before `44754a6`. `results/ask-eval.json` is now the
+> 69-item, 16-unanswerable run with a `judged` field on every answerable item. Fixture and
+> results are in sync. The paragraph below is kept for the record of what was fixed.
+
 
 **The committed `results/ask-eval.json` and both `model-comparison/ask-eval-*.json` are
 from the OLD run.** Verified: 55 items, `unanswerable: 2`, no `judged` field at all,
@@ -271,7 +301,15 @@ unanswerable. Fixture and results are out of sync until you run §5. That is the
 
 ---
 
-## 5. THE TASK — re-run ask-eval
+## 5. ~~THE TASK~~ — DONE. Kept as the record of how the run was specified
+
+> Completed in `44754a6`. The run produced exactly what §5.3 asks for: 69 items, 16
+> unanswerable, `judgedCorrectRate` 0.7170, `refusalRate` 1.0, `errors: 0`. **Do not run
+> this again** — it is ~40 minutes and ~122 billed model calls to reproduce a committed
+> number. The reasoning in §5.2 about why the judge exists is still worth reading, and the
+> §5.4 trap about `plot_evaluation.py` reading from `model-comparison/` still applies to
+> the verdict re-run.
+
 
 ### 5.1 The command
 
@@ -442,7 +480,10 @@ quote rejected by the verbatim guard — the guard doing its job). It needs
 named person, and a finding that appeared because a model read a page has nobody behind
 it.
 
-**Ask metrics 2 and 4 have no committed numbers.** §5.
+~~**Ask metrics 2 and 4 have no committed numbers.**~~ Both are now committed — 71.7% and
+100% respectively. **What is missing instead is the verdict five**: their result JSONs live
+under the gitignored `results/model-comparison/` and were never committed, so they are
+absent from every clone but the one that produced them. Scoreboard §3.
 
 **`judgeCorrect` is self-grading.** The same model family answers and grades. The question
 is nearly mechanical, but the credible version needs a human grading ~20 answers so
