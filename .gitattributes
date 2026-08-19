@@ -1,0 +1,9 @@
+# Committed deliberation records keep the bytes they were written with.
+#
+# results/cases/README quotes the sha256 of the log file itself, and this machine has
+# core.autocrlf on: without this line a Windows checkout rewrites every LF to CRLF, the
+# quoted hash stops matching the file it names, and the first thing a reader does to
+# check the record fails for a reason that has nothing to do with the record.
+#
+# eol=lf rather than -text, so the file still diffs as text.
+results/cases/** text eol=lf

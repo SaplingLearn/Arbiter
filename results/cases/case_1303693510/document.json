@@ -1,0 +1,45 @@
+[
+  {
+    "id": "doc_cd476415e169a27af5",
+    "caseId": "case_1303693510",
+    "filename": "tucatinib-213411-multidiscipline.pdf",
+    "sha256": "a967fc68b6f00d4be32e3486ed89d627efa4d75e90cd267c7c62d20ed9d1acf0",
+    "bytes": 16586554,
+    "uploadedBy": "u_1e49cbdf2788f469d5",
+    "uploadedAt": "2026-08-17T03:35:53.669Z",
+    "measurement": {
+      "pages": 272,
+      "nonclinicalChapterPages": 37,
+      "toxPerPage": 0.136,
+      "characters": 643615,
+      "charactersPerPage": 2366,
+      "embeddedImages": 188,
+      "sparsePages": 0,
+      "toxTermHits": 154,
+      "liverTermHits": 1650,
+      "termCounts": {
+        "toxicology": {
+          "toxicolog": 37,
+          "nonclinical": 27,
+          "non-clinical": 1,
+          "pharmacolog": 81,
+          "NOAEL": 2,
+          "histopatholog": 6
+        },
+        "liver": {
+          "hepat": 154,
+          "liver": 120,
+          "transaminase": 20,
+          "ALT": 276,
+          "AST": 981,
+          "bilirubin": 93,
+          "cholestat": 1,
+          "biliary": 5
+        }
+      },
+      "ok": true,
+      "verdict": "readable",
+      "reason": "Readable, and it contains toxicology vocabulary."
+    }
+  }
+]

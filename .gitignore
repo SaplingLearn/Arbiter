@@ -89,6 +89,24 @@ results/*
 !results/model-comparison/
 !results/model-comparison/*.json
 
+# Deliberation records worth keeping. NOT runtime state, and that is the whole
+# distinction: `results/deliberation-log.jsonl` at the top level is whatever the last
+# `npm run demo:restore` left behind, but a record under results/cases/ is one specific
+# deliberation that something published cites.
+#
+# case_1303693510 is the tucatinib case docs/tucatinib-case-record.html transcribes, and
+# it cannot be re-derived. tools/demo-tucatinib.mjs opens a NEW case every run - new id,
+# new users, new timestamps, new chain - because the record is append-only, and seq 9 is
+# a live billed model call free to answer differently. Re-running produces *a* tucatinib
+# case, not *this* one. Its only copy was an untracked directory inside a harness
+# worktree under .claude/worktrees/, which is disposable: one `git worktree remove` and
+# the evidence behind a published page was gone while the page went on citing it.
+#
+# `**` and not `*`, because these are directories one deep and git will not descend into
+# a directory it has already excluded.
+!results/cases/
+!results/cases/**
+
 # Playwright output. The e2e run's traces and screenshots are diagnostics for a
 # single run, not artifacts anyone re-derives a number from.
 test-results/

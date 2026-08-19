@@ -1,0 +1,167 @@
+{
+  "caseId": "case_1303693510",
+  "compoundLabel": "Tucatinib (TUKYSA) - HER2+ metastatic breast cancer",
+  "context": "An oral HER2 kinase inhibitor given 300 mg twice daily with trastuzumab and capecitabine, continuously until disease progression, in patients with advanced metastatic disease, many with liver metastases. Decision point: does this package support advancing, and on what monitoring terms?",
+  "ownerId": "u_1e49cbdf2788f469d5",
+  "participantIds": [
+    "u_34fe46f99ee9c0e643",
+    "u_523931e4c0d0f42fc7",
+    "u_d006836f63ccab2e08"
+  ],
+  "seats": {
+    "u_34fe46f99ee9c0e643": 0,
+    "u_523931e4c0d0f42fc7": 1,
+    "u_d006836f63ccab2e08": 2
+  },
+  "status": "adjudicated",
+  "positions": [
+    {
+      "call": "do_not_advance",
+      "reasoning": "The rat liver findings begin at approximately the exposure a patient receives at 300 mg twice daily. There is no margin on that finding - not a thin one, none. The monkey sits at 3x, which is not comfort either. We are also being asked to accept three months of animal dosing as cover for a drug taken until progression, and the liver is already a target organ at three months. Reversibility after four weeks off drug is real and I am not dismissing it, but reversibility measured in a healthy rat that stopped dosing is not the same claim as reversibility in a metastatic patient who cannot stop.",
+      "citedFindingIds": [
+        "tuc-dosing-duration",
+        "tuc-exposure-margin",
+        "tuc-liver-target-organ"
+      ],
+      "external": [],
+      "participantId": "u_523931e4c0d0f42fc7",
+      "submittedAt": "2026-08-17T03:35:55.801Z"
+    },
+    {
+      "call": "advance",
+      "reasoning": "The BSEP number is being read as a mechanism when it is a concentration artefact. 47.1% inhibition at 10 micromolar is an assay result at a concentration hepatocytes never see at this dose, and the reviewers said so in the same paragraph. There is no disproportionate human metabolite, the compound clears hepatobiliary as designed, and the histopathology is hypertrophy and clinical-pathology shift - an adaptive picture, not necrosis. Everything reversed within four weeks. This is a monitorable signal in a population with metastatic disease and few alternatives, and it is managed with liver function test monitoring and dose modification, which is exactly what the label does.",
+      "citedFindingIds": [
+        "tuc-bsep-risk-low",
+        "tuc-no-dispro-metabolite",
+        "tuc-reversibility"
+      ],
+      "external": [],
+      "participantId": "u_d006836f63ccab2e08",
+      "submittedAt": "2026-08-17T03:35:55.801Z"
+    },
+    {
+      "call": "cannot_conclude",
+      "reasoning": "Both readings in front of me are defensible and they turn on one question this package does not answer: what concentration the hepatocyte actually sees. The BSEP result and the dismissal of it sit on the same page. On the clinical side 39.4% against 22.8% is real, but every patient was also on capecitabine and many had liver metastases, so I cannot attribute it.",
+      "citedFindingIds": [
+        "tuc-bsep-inhibition",
+        "tuc-bsep-risk-low",
+        "tuc-clinical-hepatotox",
+        "tuc-hys-law"
+      ],
+      "external": [
+        {
+          "claim": "A human hepatocyte assay at clinically relevant concentrations would separate the two readings of the BSEP result.",
+          "source": "Internal DMPK cascade, not in this package"
+        }
+      ],
+      "submittedAt": "2026-08-17T03:35:55.825Z",
+      "participantId": "u_34fe46f99ee9c0e643"
+    }
+  ],
+  "closedEarly": null,
+  "adjudication": {
+    "mechanism": {
+      "present": true,
+      "pathway": "Bile-salt export pump (BSEP) inhibition",
+      "citedFindingIds": [
+        "tuc-bsep-inhibition",
+        "tuc-bsep-risk-low"
+      ]
+    },
+    "consequence": {
+      "verdict": "advance",
+      "reasoning": "The package supports advancing because the liver findings, while significant (including clinical hepatotoxicity and Hy's Law cases), are reversible upon withdrawal and can be managed with routine liver function monitoring, which is acceptable given the target population of advanced metastatic breast cancer.",
+      "citedFindingIds": [
+        "tuc-liver-target-organ",
+        "tuc-exposure-margin",
+        "tuc-reversibility",
+        "tuc-dosing-duration",
+        "tuc-clinical-hepatotox",
+        "tuc-hys-law"
+      ]
+    },
+    "consequenceBasis": [
+      "Projected human daily dose",
+      "Exposure margin: tested concentration or NOAEL against projected human Cmax",
+      "Injury pattern: hepatocellular, cholestatic or mixed",
+      "Reversibility on withdrawal",
+      "Expected frequency and the population that would be exposed",
+      "Intended dosing duration"
+    ],
+    "ruleDisclosure": [
+      {
+        "ruleId": "R1",
+        "position": "cannot_determine",
+        "reasoning": "Blocked because human-cell hepatotoxicity results are missing.",
+        "citedFindingIds": []
+      },
+      {
+        "ruleId": "R2",
+        "position": "cannot_determine",
+        "reasoning": "Blocked because mitochondrial toxicity results are missing.",
+        "citedFindingIds": []
+      },
+      {
+        "ruleId": "R3",
+        "position": "applies",
+        "reasoning": "Applies because rat liver findings occur at a 1x exposure margin (clinically relevant) and BSEP inhibition is evaluated against clinical exposure.",
+        "citedFindingIds": [
+          "tuc-exposure-margin",
+          "tuc-bsep-inhibition",
+          "tuc-bsep-risk-low"
+        ]
+      },
+      {
+        "ruleId": "R4",
+        "position": "does_not_apply",
+        "reasoning": "Blocked because no structural alert or QSAR assessment is present in the package.",
+        "citedFindingIds": []
+      },
+      {
+        "ruleId": "R5",
+        "position": "does_not_apply",
+        "reasoning": "No conflicting studies of varying reliability at equal mechanistic relevance are present.",
+        "citedFindingIds": []
+      },
+      {
+        "ruleId": "R6",
+        "position": "applies",
+        "reasoning": "Applies because animal repeat-dose findings, clinical hepatotoxicity, and Hy's Law cases concordantly identify the liver as a target organ.",
+        "citedFindingIds": [
+          "tuc-liver-target-organ",
+          "tuc-clinical-hepatotox",
+          "tuc-hys-law"
+        ]
+      }
+    ],
+    "missing": [
+      {
+        "field": "Human-cell hepatotoxicity result",
+        "whyItMatters": "Without human-cell evidence, Rule R1 cannot be applied to compare human and animal in vivo sensitivity."
+      },
+      {
+        "field": "Mitochondrial toxicity result",
+        "whyItMatters": "Without mitochondrial toxicity data, Rule R2 cannot distinguish direct pathway key events from structural correlations."
+      },
+      {
+        "field": "Structural alert or QSAR assessment, with applicability domain stated",
+        "whyItMatters": "Without QSAR data and its applicability domain, Rule R4 cannot be applied to weight structural predictions."
+      },
+      {
+        "field": "External claim (u_34fe46f99ee9c0e643): A human hepatocyte assay at clinically relevant concentrations would separate the two readings of the BSEP result.",
+        "whyItMatters": "This assay would resolve the conflict between the 47.1% BSEP inhibition finding and the low-risk assessment."
+      }
+    ],
+    "nextExperiment": "Conduct a human hepatocyte assay at clinically relevant concentrations to resolve the BSEP inhibition risk and evaluate human-specific hepatotoxicity."
+  },
+  "consensus": {
+    "runs": 3,
+    "votes": 3,
+    "agreement": 1,
+    "distribution": {
+      "advance": 3
+    },
+    "split": false
+  },
+  "signature": null
+}

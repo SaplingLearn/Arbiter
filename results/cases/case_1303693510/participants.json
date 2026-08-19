@@ -1,0 +1,26 @@
+[
+  {
+    "id": "u_1e49cbdf2788f469d5",
+    "email": "r.okafor@arbiter.demo",
+    "displayName": "R. Okafor (programme lead)",
+    "signatureMethod": "password"
+  },
+  {
+    "id": "u_34fe46f99ee9c0e643",
+    "email": "a.silva@arbiter.demo",
+    "displayName": "A. Silva (toxicology)",
+    "signatureMethod": "password"
+  },
+  {
+    "id": "u_d006836f63ccab2e08",
+    "email": "b.mehta@arbiter.demo",
+    "displayName": "B. Mehta (DMPK)",
+    "signatureMethod": "password"
+  },
+  {
+    "id": "u_523931e4c0d0f42fc7",
+    "email": "c.lindqvist@arbiter.demo",
+    "displayName": "C. Lindqvist (clinical)",
+    "signatureMethod": "password"
+  }
+]
