@@ -1,0 +1,1476 @@
+<title>Tucatinib Adjudication Record</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* ─────────────────────────────────────────────────────────────
+   TOKENS — light is the bare :root, so the un-stamped (system)
+   state always resolves. Dark redefines tokens only, twice:
+   once for prefers-color-scheme, once for the explicit stamp.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --paper:      #e6eaee;
+  --sheet:      #f7f9fb;
+  --sheet-2:    #eef1f5;
+  --ink:        #141b24;
+  --ink-2:      #4d5c6b;
+  --ink-3:      #74838f;
+  --rule:       #ccd5dd;
+  --rule-2:     #dde3e9;
+  --indigo:     #2f4a6d;
+  --indigo-2:   #46658c;
+  --toxic:      #9c4318;
+  --toxic-bg:   #f2e2d8;
+  --safe:       #1a6353;
+  --safe-bg:    #d9e8e3;
+  --neutral:    #5b5f6b;
+  --neutral-bg: #e2e5ea;
+  --alarm:      #8a2b2f;
+  --shadow:     0 1px 2px rgba(20, 27, 36, .06), 0 8px 28px -18px rgba(20, 27, 36, .35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #0d1319;
+    --sheet:      #151d25;
+    --sheet-2:    #1b242e;
+    --ink:        #e3e9ef;
+    --ink-2:      #9fb0be;
+    --ink-3:      #74848f;
+    --rule:       #2b3742;
+    --rule-2:     #232e38;
+    --indigo:     #8fb3dc;
+    --indigo-2:   #a8c6e8;
+    --toxic:      #e0925f;
+    --toxic-bg:   #33231a;
+    --safe:       #5fbaa0;
+    --safe-bg:    #16302b;
+    --neutral:    #9aa2b0;
+    --neutral-bg: #232a33;
+    --alarm:      #e08287;
+    --shadow:     0 1px 2px rgba(0, 0, 0, .5), 0 8px 28px -18px rgba(0, 0, 0, .9);
+  }
+}
+:root[data-theme="dark"] {
+  --paper:      #0d1319;
+  --sheet:      #151d25;
+  --sheet-2:    #1b242e;
+  --ink:        #e3e9ef;
+  --ink-2:      #9fb0be;
+  --ink-3:      #74848f;
+  --rule:       #2b3742;
+  --rule-2:     #232e38;
+  --indigo:     #8fb3dc;
+  --indigo-2:   #a8c6e8;
+  --toxic:      #e0925f;
+  --toxic-bg:   #33231a;
+  --safe:       #5fbaa0;
+  --safe-bg:    #16302b;
+  --neutral:    #9aa2b0;
+  --neutral-bg: #232a33;
+  --alarm:      #e08287;
+  --shadow:     0 1px 2px rgba(0, 0, 0, .5), 0 8px 28px -18px rgba(0, 0, 0, .9);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sheet {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: clamp(16px, 3vw, 40px) clamp(14px, 3vw, 32px) 96px;
+}
+
+/* ── shared type ─────────────────────────────────────────── */
+.eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0;
+}
+.mono {
+  font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.prose { max-width: 68ch; }
+.prose p { margin: 0 0 .85em; }
+.prose p:last-child { margin-bottom: 0; }
+
+/* ── masthead ────────────────────────────────────────────── */
+.masthead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(20px, 4vw, 48px);
+  align-items: start;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--indigo);
+  border-radius: 2px;
+  padding: clamp(20px, 3.4vw, 38px);
+  box-shadow: var(--shadow);
+}
+.masthead h1 {
+  font-family: "Newsreader", ui-serif, Georgia, serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-size: clamp(34px, 6.2vw, 58px);
+  line-height: 1.04;
+  letter-spacing: -.015em;
+  text-wrap: balance;
+  margin: 14px 0 0;
+}
+.masthead h1 .latin {
+  display: block;
+  font-size: .44em;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--ink-2);
+  letter-spacing: 0;
+  margin-top: .5em;
+}
+.decision {
+  margin: 22px 0 0;
+  padding-left: 16px;
+  border-left: 2px solid var(--rule);
+  color: var(--ink-2);
+  font-size: 15.5px;
+  max-width: 56ch;
+}
+
+.verdict-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-top: 26px;
+}
+.verdict {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  background: var(--safe-bg);
+  color: var(--safe);
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  padding: 9px 16px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.verdict small {
+  font-size: 11px;
+  letter-spacing: .1em;
+  opacity: .8;
+}
+.verdict-note {
+  font-size: 13.5px;
+  color: var(--ink-3);
+  max-width: 32ch;
+}
+
+/* ── QR panel ────────────────────────────────────────────── */
+.qr-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 172px;
+}
+.qr-frame {
+  background: #ffffff;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 8px;
+  line-height: 0;
+}
+.qr { display: block; width: 152px; height: 152px; }
+.qr-cap {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ── provenance strip ────────────────────────────────────── */
+.provenance {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(196px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-top: none;
+  border-radius: 0 0 2px 2px;
+  overflow: hidden;
+}
+.prov-cell {
+  background: var(--sheet-2);
+  padding: 13px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.prov-cell dt {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.prov-cell dd {
+  margin: 0;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.prov-cell dd.ok { color: var(--safe); }
+
+/* ── sections, keyed to real audit-log sequence numbers ──── */
+.section {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: clamp(14px, 2.4vw, 28px);
+  margin-top: clamp(44px, 6vw, 76px);
+}
+.rail { position: relative; }
+.rail-seq {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: var(--indigo);
+  border-top: 2px solid var(--indigo);
+  padding-top: 8px;
+  display: block;
+}
+.rail-kind {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: .06em;
+  color: var(--ink-3);
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.section > .body { min-width: 0; }
+.section h2 {
+  font-family: "Newsreader", ui-serif, Georgia, serif;
+  font-weight: 500;
+  font-size: clamp(25px, 3.6vw, 34px);
+  line-height: 1.16;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+  margin: 0 0 4px;
+  padding-top: 2px;
+}
+.section .lede {
+  color: var(--ink-2);
+  font-size: 16.5px;
+  margin: 0 0 26px;
+  max-width: 64ch;
+}
+
+/* ── generic panel ───────────────────────────────────────── */
+.panel {
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: clamp(16px, 2.4vw, 26px);
+}
+
+/* ── caution note ────────────────────────────────────────── */
+.caution {
+  background: var(--toxic-bg);
+  border: 1px solid var(--toxic);
+  border-left-width: 3px;
+  border-radius: 2px;
+  padding: 18px 22px;
+  margin-top: 24px;
+}
+.caution h3 {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--toxic);
+  margin: 0 0 8px;
+}
+.caution p {
+  margin: 0 0 .7em;
+  font-size: 14.5px;
+  color: var(--ink);
+  max-width: 70ch;
+}
+.caution p:last-child { margin-bottom: 0; }
+
+/* ── tables ──────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 2px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+thead th {
+  text-align: left;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--sheet-2);
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--rule-2);
+  vertical-align: top;
+  color: var(--ink);
+}
+tbody tr:last-child td { border-bottom: none; }
+td.num, th.num { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.strong { font-weight: 600; }
+tr.is-focus td { background: var(--sheet-2); }
+
+/* ── chips ───────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 2px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.chip-toxic   { background: var(--toxic-bg);   color: var(--toxic); border-color: var(--toxic); }
+.chip-safe    { background: var(--safe-bg);    color: var(--safe);  border-color: var(--safe); }
+.chip-neutral { background: var(--neutral-bg); color: var(--neutral); border-color: var(--rule); }
+.chip-q {
+  background: transparent;
+  color: var(--indigo);
+  border-color: var(--indigo);
+  letter-spacing: .04em;
+}
+
+/* ── findings ────────────────────────────────────────────── */
+.findings { display: grid; gap: 14px; }
+.finding {
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--neutral);
+  border-radius: 2px;
+  padding: 18px clamp(16px, 2.2vw, 24px);
+}
+.finding.is-toxic { border-left-color: var(--toxic); }
+.finding.is-safe  { border-left-color: var(--safe); }
+.finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+.finding-head h3 {
+  font-family: "Public Sans", sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.finding-id {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+.finding-detail { margin: 0 0 14px; font-size: 15px; color: var(--ink-2); max-width: 72ch; }
+blockquote.quote {
+  margin: 0;
+  padding: 13px 16px;
+  background: var(--sheet-2);
+  border-left: 2px solid var(--rule);
+  font-family: "Newsreader", ui-serif, Georgia, serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.cite {
+  display: block;
+  margin-top: 9px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: .04em;
+  color: var(--ink-3);
+  font-style: normal;
+}
+
+/* ── coverage grid ───────────────────────────────────────── */
+.coverage {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+}
+.q {
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 13px 15px;
+  background: var(--sheet);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.q.absent { background: var(--sheet-2); border-style: dashed; }
+.q-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.q-id {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--indigo);
+}
+.q-field { font-size: 14px; font-weight: 600; line-height: 1.35; }
+.q.absent .q-field { color: var(--ink-2); }
+.q-blocks { font-size: 12.5px; color: var(--ink-3); line-height: 1.45; }
+.q-src {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+.q.disputed { border-color: var(--toxic); border-style: solid; }
+
+.tally {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+}
+.tally div { display: flex; align-items: baseline; gap: 8px; }
+.tally b {
+  font-family: "Newsreader", ui-serif, Georgia, serif;
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.tally span { font-size: 13px; color: var(--ink-3); }
+
+/* ── positions ───────────────────────────────────────────── */
+.positions { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.position {
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.position header { display: flex; flex-direction: column; gap: 8px; }
+.who { font-size: 15px; font-weight: 700; line-height: 1.3; }
+.who small { display: block; font-weight: 400; font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+.call {
+  align-self: flex-start;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+}
+.call-no  { background: var(--toxic-bg); color: var(--toxic); }
+.call-yes { background: var(--safe-bg);  color: var(--safe); }
+.call-abs { background: var(--neutral-bg); color: var(--neutral); border-color: var(--rule); }
+.position p { margin: 0; font-size: 14.5px; color: var(--ink-2); line-height: 1.55; }
+.cited { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; padding-top: 4px; }
+.seal {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--ink-3);
+  border-top: 1px dashed var(--rule);
+  padding-top: 9px;
+  overflow-wrap: anywhere;
+}
+
+/* ── adjudication ────────────────────────────────────────── */
+.adj {
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--indigo);
+  border-radius: 2px;
+  padding: clamp(18px, 2.6vw, 30px);
+}
+.adj-row {
+  display: grid;
+  grid-template-columns: 152px minmax(0, 1fr);
+  gap: 12px clamp(14px, 2vw, 26px);
+  padding: 18px 0;
+  border-bottom: 1px solid var(--rule-2);
+}
+.adj-row:first-child { padding-top: 0; }
+.adj-row:last-child { border-bottom: none; padding-bottom: 0; }
+.adj-label {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding-top: 3px;
+}
+.adj-value { min-width: 0; }
+.adj-value p { margin: 0 0 .7em; max-width: 70ch; }
+.adj-value p:last-child { margin-bottom: 0; }
+.pathway {
+  font-family: "Newsreader", ui-serif, Georgia, serif;
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.basis { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.basis li {
+  font-size: 14px;
+  color: var(--ink-2);
+  padding-left: 20px;
+  position: relative;
+}
+.basis li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: .62em;
+  width: 7px;
+  height: 7px;
+  background: var(--safe);
+  border-radius: 1px;
+}
+
+/* ── rule disclosure ─────────────────────────────────────── */
+.pos-applies { color: var(--safe); font-weight: 600; }
+.pos-blocked { color: var(--toxic); font-weight: 600; }
+.pos-na      { color: var(--ink-3); font-weight: 600; }
+
+/* ── gaps ────────────────────────────────────────────────── */
+.gaps { display: grid; gap: 12px; }
+.gap {
+  border: 1px dashed var(--rule);
+  border-left: 3px solid var(--indigo);
+  border-radius: 2px;
+  background: var(--sheet);
+  padding: 15px 18px;
+}
+.gap h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; line-height: 1.35; }
+.gap p { margin: 0; font-size: 14px; color: var(--ink-2); max-width: 72ch; }
+.experiment {
+  margin-top: 20px;
+  background: var(--sheet-2);
+  border: 1px solid var(--indigo);
+  border-radius: 2px;
+  padding: 22px clamp(18px, 2.4vw, 26px);
+}
+.experiment .eyebrow { color: var(--indigo); margin-bottom: 10px; }
+.experiment p {
+  margin: 0;
+  font-family: "Newsreader", ui-serif, Georgia, serif;
+  font-size: clamp(19px, 2.6vw, 24px);
+  line-height: 1.4;
+  max-width: 60ch;
+}
+.experiment .why { font-family: "Public Sans", sans-serif; font-size: 14.5px; color: var(--ink-2); margin-top: 14px; max-width: 70ch; }
+
+/* ── chain ───────────────────────────────────────────────── */
+.chain-verify {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: var(--safe-bg);
+  border: 1px solid var(--safe);
+  border-radius: 2px;
+  font-size: 14px;
+  color: var(--safe);
+}
+.chain-verify .mono { color: var(--safe); font-size: 12px; overflow-wrap: anywhere; }
+
+/* ── footer ──────────────────────────────────────────────── */
+.colophon {
+  margin-top: clamp(48px, 7vw, 84px);
+  padding-top: 22px;
+  border-top: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 22px;
+  font-size: 13.5px;
+  color: var(--ink-3);
+}
+.colophon h4 {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 8px;
+}
+.colophon p { margin: 0 0 .6em; max-width: 46ch; }
+.colophon code {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+  background: var(--sheet-2);
+  border: 1px solid var(--rule-2);
+  border-radius: 2px;
+  padding: 1px 5px;
+  overflow-wrap: anywhere;
+}
+
+/* ── responsive ──────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .masthead { grid-template-columns: minmax(0, 1fr); }
+  .qr-panel { flex-direction: row; align-items: center; width: auto; gap: 16px; }
+  .qr { width: 108px; height: 108px; }
+  .qr-cap { text-align: left; }
+}
+@media (max-width: 680px) {
+  .section { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .rail { display: flex; align-items: baseline; gap: 10px; }
+  .rail-seq { border-top: none; border-left: 2px solid var(--indigo); padding: 0 0 0 8px; }
+  .rail-kind { margin-top: 0; }
+  .adj-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+:where(a, [tabindex]):focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+</style>
+
+<div class="sheet">
+
+  <!-- ═══════════ MASTHEAD ═══════════ -->
+  <header class="masthead">
+    <div>
+      <p class="eyebrow">ARBITER · Adjudicated record · Case case_1303693510</p>
+      <h1>
+        Tucatinib
+        <span class="latin">Tukysa · HER2-positive metastatic breast cancer</span>
+      </h1>
+      <p class="decision">
+        An oral HER2 kinase inhibitor given 300&nbsp;mg twice daily with trastuzumab and
+        capecitabine, continuously until disease progression, in patients with advanced
+        metastatic disease — many of them with liver metastases. <strong>Does this package
+        support advancing, and on what monitoring terms?</strong>
+      </p>
+      <div class="verdict-block">
+        <span class="verdict">Advance <small>with monitoring</small></span>
+        <span class="verdict-note">Adjudicated against a room that split three ways: one advance, one do not advance, one abstention.</span>
+      </div>
+    </div>
+
+    <div class="qr-panel">
+      <div class="qr-frame">
+        <svg class="qr" role="img" aria-label="Scan for this record" viewBox="0 0 45 45" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg"><title>https://claude.ai/code/artifact/d8abda2b-720a-4f56-9974-0416b3a8fa10</title><rect width="45" height="45" fill="#ffffff"/><path d="M4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM12 4h1v1h-1zM15 4h1v1h-1zM18 4h1v1h-1zM19 4h1v1h-1zM21 4h1v1h-1zM23 4h1v1h-1zM24 4h1v1h-1zM26 4h1v1h-1zM27 4h1v1h-1zM28 4h1v1h-1zM29 4h1v1h-1zM31 4h1v1h-1zM34 4h1v1h-1zM35 4h1v1h-1zM36 4h1v1h-1zM37 4h1v1h-1zM38 4h1v1h-1zM39 4h1v1h-1zM40 4h1v1h-1zM4 5h1v1h-1zM10 5h1v1h-1zM13 5h1v1h-1zM17 5h1v1h-1zM22 5h1v1h-1zM23 5h1v1h-1zM25 5h1v1h-1zM29 5h1v1h-1zM30 5h1v1h-1zM34 5h1v1h-1zM40 5h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1zM7 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM13 6h1v1h-1zM14 6h1v1h-1zM15 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM21 6h1v1h-1zM25 6h1v1h-1zM26 6h1v1h-1zM27 6h1v1h-1zM30 6h1v1h-1zM31 6h1v1h-1zM34 6h1v1h-1zM36 6h1v1h-1zM37 6h1v1h-1zM38 6h1v1h-1zM40 6h1v1h-1zM4 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM12 7h1v1h-1zM13 7h1v1h-1zM16 7h1v1h-1zM18 7h1v1h-1zM19 7h1v1h-1zM20 7h1v1h-1zM22 7h1v1h-1zM24 7h1v1h-1zM27 7h1v1h-1zM28 7h1v1h-1zM29 7h1v1h-1zM30 7h1v1h-1zM31 7h1v1h-1zM32 7h1v1h-1zM34 7h1v1h-1zM36 7h1v1h-1zM37 7h1v1h-1zM38 7h1v1h-1zM40 7h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM12 8h1v1h-1zM20 8h1v1h-1zM21 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM27 8h1v1h-1zM29 8h1v1h-1zM30 8h1v1h-1zM31 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h1v1h-1zM37 8h1v1h-1zM38 8h1v1h-1zM40 8h1v1h-1zM4 9h1v1h-1zM10 9h1v1h-1zM12 9h1v1h-1zM13 9h1v1h-1zM14 9h1v1h-1zM15 9h1v1h-1zM16 9h1v1h-1zM17 9h1v1h-1zM21 9h1v1h-1zM23 9h1v1h-1zM24 9h1v1h-1zM29 9h1v1h-1zM30 9h1v1h-1zM34 9h1v1h-1zM40 9h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM12 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM24 10h1v1h-1zM26 10h1v1h-1zM28 10h1v1h-1zM30 10h1v1h-1zM32 10h1v1h-1zM34 10h1v1h-1zM35 10h1v1h-1zM36 10h1v1h-1zM37 10h1v1h-1zM38 10h1v1h-1zM39 10h1v1h-1zM40 10h1v1h-1zM12 11h1v1h-1zM13 11h1v1h-1zM17 11h1v1h-1zM18 11h1v1h-1zM19 11h1v1h-1zM24 11h1v1h-1zM25 11h1v1h-1zM26 11h1v1h-1zM27 11h1v1h-1zM30 11h1v1h-1zM4 12h1v1h-1zM8 12h1v1h-1zM10 12h1v1h-1zM11 12h1v1h-1zM12 12h1v1h-1zM13 12h1v1h-1zM15 12h1v1h-1zM20 12h1v1h-1zM23 12h1v1h-1zM24 12h1v1h-1zM30 12h1v1h-1zM31 12h1v1h-1zM32 12h1v1h-1zM33 12h1v1h-1zM34 12h1v1h-1zM35 12h1v1h-1zM36 12h1v1h-1zM37 12h1v1h-1zM40 12h1v1h-1zM5 13h1v1h-1zM7 13h1v1h-1zM9 13h1v1h-1zM11 13h1v1h-1zM15 13h1v1h-1zM18 13h1v1h-1zM22 13h1v1h-1zM23 13h1v1h-1zM27 13h1v1h-1zM28 13h1v1h-1zM31 13h1v1h-1zM33 13h1v1h-1zM35 13h1v1h-1zM36 13h1v1h-1zM39 13h1v1h-1zM5 14h1v1h-1zM7 14h1v1h-1zM8 14h1v1h-1zM9 14h1v1h-1zM10 14h1v1h-1zM12 14h1v1h-1zM15 14h1v1h-1zM16 14h1v1h-1zM19 14h1v1h-1zM21 14h1v1h-1zM23 14h1v1h-1zM25 14h1v1h-1zM27 14h1v1h-1zM28 14h1v1h-1zM31 14h1v1h-1zM32 14h1v1h-1zM33 14h1v1h-1zM35 14h1v1h-1zM38 14h1v1h-1zM5 15h1v1h-1zM7 15h1v1h-1zM8 15h1v1h-1zM11 15h1v1h-1zM14 15h1v1h-1zM16 15h1v1h-1zM19 15h1v1h-1zM20 15h1v1h-1zM21 15h1v1h-1zM22 15h1v1h-1zM23 15h1v1h-1zM24 15h1v1h-1zM25 15h1v1h-1zM26 15h1v1h-1zM27 15h1v1h-1zM30 15h1v1h-1zM31 15h1v1h-1zM32 15h1v1h-1zM34 15h1v1h-1zM35 15h1v1h-1zM36 15h1v1h-1zM37 15h1v1h-1zM38 15h1v1h-1zM39 15h1v1h-1zM4 16h1v1h-1zM6 16h1v1h-1zM8 16h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM12 16h1v1h-1zM13 16h1v1h-1zM14 16h1v1h-1zM16 16h1v1h-1zM18 16h1v1h-1zM20 16h1v1h-1zM21 16h1v1h-1zM24 16h1v1h-1zM25 16h1v1h-1zM26 16h1v1h-1zM28 16h1v1h-1zM30 16h1v1h-1zM33 16h1v1h-1zM34 16h1v1h-1zM35 16h1v1h-1zM38 16h1v1h-1zM39 16h1v1h-1zM40 16h1v1h-1zM5 17h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM17 17h1v1h-1zM19 17h1v1h-1zM22 17h1v1h-1zM25 17h1v1h-1zM27 17h1v1h-1zM29 17h1v1h-1zM30 17h1v1h-1zM31 17h1v1h-1zM36 17h1v1h-1zM37 17h1v1h-1zM6 18h1v1h-1zM7 18h1v1h-1zM8 18h1v1h-1zM10 18h1v1h-1zM11 18h1v1h-1zM14 18h1v1h-1zM15 18h1v1h-1zM19 18h1v1h-1zM21 18h1v1h-1zM24 18h1v1h-1zM27 18h1v1h-1zM28 18h1v1h-1zM29 18h1v1h-1zM30 18h1v1h-1zM31 18h1v1h-1zM33 18h1v1h-1zM34 18h1v1h-1zM35 18h1v1h-1zM36 18h1v1h-1zM37 18h1v1h-1zM38 18h1v1h-1zM7 19h1v1h-1zM9 19h1v1h-1zM11 19h1v1h-1zM14 19h1v1h-1zM15 19h1v1h-1zM17 19h1v1h-1zM18 19h1v1h-1zM19 19h1v1h-1zM21 19h1v1h-1zM22 19h1v1h-1zM23 19h1v1h-1zM24 19h1v1h-1zM26 19h1v1h-1zM28 19h1v1h-1zM31 19h1v1h-1zM35 19h1v1h-1zM36 19h1v1h-1zM38 19h1v1h-1zM39 19h1v1h-1zM7 20h1v1h-1zM10 20h1v1h-1zM12 20h1v1h-1zM13 20h1v1h-1zM14 20h1v1h-1zM16 20h1v1h-1zM17 20h1v1h-1zM18 20h1v1h-1zM19 20h1v1h-1zM22 20h1v1h-1zM26 20h1v1h-1zM27 20h1v1h-1zM28 20h1v1h-1zM32 20h1v1h-1zM34 20h1v1h-1zM35 20h1v1h-1zM37 20h1v1h-1zM38 20h1v1h-1zM40 20h1v1h-1zM5 21h1v1h-1zM8 21h1v1h-1zM12 21h1v1h-1zM13 21h1v1h-1zM18 21h1v1h-1zM20 21h1v1h-1zM23 21h1v1h-1zM24 21h1v1h-1zM25 21h1v1h-1zM27 21h1v1h-1zM30 21h1v1h-1zM31 21h1v1h-1zM33 21h1v1h-1zM35 21h1v1h-1zM36 21h1v1h-1zM37 21h1v1h-1zM38 21h1v1h-1zM39 21h1v1h-1zM7 22h1v1h-1zM10 22h1v1h-1zM11 22h1v1h-1zM20 22h1v1h-1zM24 22h1v1h-1zM25 22h1v1h-1zM26 22h1v1h-1zM27 22h1v1h-1zM29 22h1v1h-1zM30 22h1v1h-1zM31 22h1v1h-1zM34 22h1v1h-1zM36 22h1v1h-1zM38 22h1v1h-1zM4 23h1v1h-1zM6 23h1v1h-1zM7 23h1v1h-1zM14 23h1v1h-1zM15 23h1v1h-1zM16 23h1v1h-1zM17 23h1v1h-1zM18 23h1v1h-1zM21 23h1v1h-1zM25 23h1v1h-1zM28 23h1v1h-1zM30 23h1v1h-1zM31 23h1v1h-1zM33 23h1v1h-1zM35 23h1v1h-1zM37 23h1v1h-1zM38 23h1v1h-1zM39 23h1v1h-1zM4 24h1v1h-1zM6 24h1v1h-1zM7 24h1v1h-1zM8 24h1v1h-1zM9 24h1v1h-1zM10 24h1v1h-1zM15 24h1v1h-1zM16 24h1v1h-1zM17 24h1v1h-1zM18 24h1v1h-1zM19 24h1v1h-1zM21 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1zM25 24h1v1h-1zM26 24h1v1h-1zM28 24h1v1h-1zM31 24h1v1h-1zM33 24h1v1h-1zM34 24h1v1h-1zM35 24h1v1h-1zM37 24h1v1h-1zM38 24h1v1h-1zM4 25h1v1h-1zM5 25h1v1h-1zM6 25h1v1h-1zM7 25h1v1h-1zM9 25h1v1h-1zM12 25h1v1h-1zM15 25h1v1h-1zM17 25h1v1h-1zM19 25h1v1h-1zM21 25h1v1h-1zM22 25h1v1h-1zM24 25h1v1h-1zM27 25h1v1h-1zM28 25h1v1h-1zM29 25h1v1h-1zM30 25h1v1h-1zM31 25h1v1h-1zM32 25h1v1h-1zM35 25h1v1h-1zM36 25h1v1h-1zM39 25h1v1h-1zM4 26h1v1h-1zM6 26h1v1h-1zM7 26h1v1h-1zM8 26h1v1h-1zM9 26h1v1h-1zM10 26h1v1h-1zM12 26h1v1h-1zM14 26h1v1h-1zM19 26h1v1h-1zM20 26h1v1h-1zM22 26h1v1h-1zM25 26h1v1h-1zM26 26h1v1h-1zM27 26h1v1h-1zM28 26h1v1h-1zM29 26h1v1h-1zM31 26h1v1h-1zM32 26h1v1h-1zM33 26h1v1h-1zM34 26h1v1h-1zM35 26h1v1h-1zM36 26h1v1h-1zM37 26h1v1h-1zM38 26h1v1h-1zM39 26h1v1h-1zM7 27h1v1h-1zM9 27h1v1h-1zM11 27h1v1h-1zM13 27h1v1h-1zM20 27h1v1h-1zM24 27h1v1h-1zM25 27h1v1h-1zM27 27h1v1h-1zM28 27h1v1h-1zM31 27h1v1h-1zM35 27h1v1h-1zM36 27h1v1h-1zM38 27h1v1h-1zM39 27h1v1h-1zM40 27h1v1h-1zM6 28h1v1h-1zM10 28h1v1h-1zM11 28h1v1h-1zM14 28h1v1h-1zM17 28h1v1h-1zM20 28h1v1h-1zM23 28h1v1h-1zM24 28h1v1h-1zM28 28h1v1h-1zM30 28h1v1h-1zM34 28h1v1h-1zM37 28h1v1h-1zM38 28h1v1h-1zM40 28h1v1h-1zM4 29h1v1h-1zM7 29h1v1h-1zM13 29h1v1h-1zM15 29h1v1h-1zM16 29h1v1h-1zM18 29h1v1h-1zM22 29h1v1h-1zM23 29h1v1h-1zM26 29h1v1h-1zM27 29h1v1h-1zM29 29h1v1h-1zM31 29h1v1h-1zM33 29h1v1h-1zM35 29h1v1h-1zM36 29h1v1h-1zM37 29h1v1h-1zM7 30h1v1h-1zM8 30h1v1h-1zM10 30h1v1h-1zM16 30h1v1h-1zM18 30h1v1h-1zM19 30h1v1h-1zM21 30h1v1h-1zM22 30h1v1h-1zM23 30h1v1h-1zM27 30h1v1h-1zM29 30h1v1h-1zM31 30h1v1h-1zM32 30h1v1h-1zM33 30h1v1h-1zM35 30h1v1h-1zM37 30h1v1h-1zM38 30h1v1h-1zM6 31h1v1h-1zM7 31h1v1h-1zM12 31h1v1h-1zM14 31h1v1h-1zM17 31h1v1h-1zM19 31h1v1h-1zM20 31h1v1h-1zM21 31h1v1h-1zM23 31h1v1h-1zM24 31h1v1h-1zM25 31h1v1h-1zM26 31h1v1h-1zM27 31h1v1h-1zM30 31h1v1h-1zM31 31h1v1h-1zM35 31h1v1h-1zM38 31h1v1h-1zM39 31h1v1h-1zM4 32h1v1h-1zM5 32h1v1h-1zM6 32h1v1h-1zM10 32h1v1h-1zM11 32h1v1h-1zM12 32h1v1h-1zM17 32h1v1h-1zM18 32h1v1h-1zM21 32h1v1h-1zM25 32h1v1h-1zM26 32h1v1h-1zM27 32h1v1h-1zM28 32h1v1h-1zM32 32h1v1h-1zM33 32h1v1h-1zM34 32h1v1h-1zM35 32h1v1h-1zM36 32h1v1h-1zM38 32h1v1h-1zM39 32h1v1h-1zM40 32h1v1h-1zM12 33h1v1h-1zM14 33h1v1h-1zM16 33h1v1h-1zM17 33h1v1h-1zM19 33h1v1h-1zM20 33h1v1h-1zM22 33h1v1h-1zM25 33h1v1h-1zM27 33h1v1h-1zM29 33h1v1h-1zM30 33h1v1h-1zM32 33h1v1h-1zM36 33h1v1h-1zM39 33h1v1h-1zM4 34h1v1h-1zM5 34h1v1h-1zM6 34h1v1h-1zM7 34h1v1h-1zM8 34h1v1h-1zM9 34h1v1h-1zM10 34h1v1h-1zM12 34h1v1h-1zM14 34h1v1h-1zM17 34h1v1h-1zM19 34h1v1h-1zM20 34h1v1h-1zM21 34h1v1h-1zM24 34h1v1h-1zM27 34h1v1h-1zM29 34h1v1h-1zM32 34h1v1h-1zM34 34h1v1h-1zM36 34h1v1h-1zM39 34h1v1h-1zM4 35h1v1h-1zM10 35h1v1h-1zM14 35h1v1h-1zM16 35h1v1h-1zM17 35h1v1h-1zM20 35h1v1h-1zM21 35h1v1h-1zM22 35h1v1h-1zM23 35h1v1h-1zM26 35h1v1h-1zM27 35h1v1h-1zM28 35h1v1h-1zM30 35h1v1h-1zM32 35h1v1h-1zM36 35h1v1h-1zM37 35h1v1h-1zM38 35h1v1h-1zM40 35h1v1h-1zM4 36h1v1h-1zM6 36h1v1h-1zM7 36h1v1h-1zM8 36h1v1h-1zM10 36h1v1h-1zM12 36h1v1h-1zM15 36h1v1h-1zM16 36h1v1h-1zM17 36h1v1h-1zM18 36h1v1h-1zM22 36h1v1h-1zM23 36h1v1h-1zM26 36h1v1h-1zM32 36h1v1h-1zM33 36h1v1h-1zM34 36h1v1h-1zM35 36h1v1h-1zM36 36h1v1h-1zM37 36h1v1h-1zM38 36h1v1h-1zM39 36h1v1h-1zM40 36h1v1h-1zM4 37h1v1h-1zM6 37h1v1h-1zM7 37h1v1h-1zM8 37h1v1h-1zM10 37h1v1h-1zM14 37h1v1h-1zM18 37h1v1h-1zM20 37h1v1h-1zM23 37h1v1h-1zM24 37h1v1h-1zM27 37h1v1h-1zM28 37h1v1h-1zM30 37h1v1h-1zM31 37h1v1h-1zM33 37h1v1h-1zM34 37h1v1h-1zM35 37h1v1h-1zM37 37h1v1h-1zM40 37h1v1h-1zM4 38h1v1h-1zM6 38h1v1h-1zM7 38h1v1h-1zM8 38h1v1h-1zM10 38h1v1h-1zM13 38h1v1h-1zM15 38h1v1h-1zM17 38h1v1h-1zM20 38h1v1h-1zM21 38h1v1h-1zM24 38h1v1h-1zM25 38h1v1h-1zM26 38h1v1h-1zM27 38h1v1h-1zM28 38h1v1h-1zM29 38h1v1h-1zM30 38h1v1h-1zM32 38h1v1h-1zM34 38h1v1h-1zM37 38h1v1h-1zM4 39h1v1h-1zM10 39h1v1h-1zM17 39h1v1h-1zM21 39h1v1h-1zM22 39h1v1h-1zM25 39h1v1h-1zM27 39h1v1h-1zM30 39h1v1h-1zM36 39h1v1h-1zM37 39h1v1h-1zM38 39h1v1h-1zM39 39h1v1h-1zM4 40h1v1h-1zM5 40h1v1h-1zM6 40h1v1h-1zM7 40h1v1h-1zM8 40h1v1h-1zM9 40h1v1h-1zM10 40h1v1h-1zM12 40h1v1h-1zM13 40h1v1h-1zM14 40h1v1h-1zM15 40h1v1h-1zM16 40h1v1h-1zM17 40h1v1h-1zM18 40h1v1h-1zM19 40h1v1h-1zM20 40h1v1h-1zM21 40h1v1h-1zM22 40h1v1h-1zM23 40h1v1h-1zM24 40h1v1h-1zM25 40h1v1h-1zM26 40h1v1h-1zM28 40h1v1h-1zM33 40h1v1h-1zM35 40h1v1h-1zM37 40h1v1h-1zM38 40h1v1h-1zM39 40h1v1h-1zM40 40h1v1h-1z" fill="#141b24"/></svg>
+      </div>
+      <p class="qr-cap">Scan for<br>this record</p>
+    </div>
+  </header>
+
+  <dl class="provenance">
+    <div class="prov-cell">
+      <dt>Ruleset</dt>
+      <dd>v1.0 · ed073a8a</dd>
+    </div>
+    <div class="prov-cell">
+      <dt>Source document</dt>
+      <dd>sha256 a967fc68</dd>
+    </div>
+    <div class="prov-cell">
+      <dt>Evidence</dt>
+      <dd>9 findings · 9 of 12 questions</dd>
+    </div>
+    <div class="prov-cell">
+      <dt>Audit chain</dt>
+      <dd class="ok">10 events · contiguous</dd>
+    </div>
+    <div class="prov-cell">
+      <dt>Chain tip</dt>
+      <dd>85c23646…b05e01c0</dd>
+    </div>
+  </dl>
+
+  <!-- ═══════════ THE DOCUMENT ═══════════ -->
+  <section class="section">
+    <div class="rail">
+      <span class="rail-seq">seq 0</span>
+      <span class="rail-kind">case_opened<br>+ document</span>
+    </div>
+    <div class="body">
+      <h2>The document this case was built from</h2>
+      <p class="lede">
+        The FDA multi-disciplinary review for NDA 213411, uploaded whole and measured before
+        a single finding was drawn from it. It is the largest and most evidence-dense package
+        in the library — which is why this case, and not another, is the one to present.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Uploaded package</th>
+              <th class="num">Pages</th>
+              <th class="num">Nonclinical</th>
+              <th class="num">Characters</th>
+              <th class="num">Liver terms</th>
+              <th class="num">Tox terms</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="is-focus">
+              <td class="strong">Tukysa (tucatinib) — FDA NDA 213411 multi-disciplinary review</td>
+              <td class="num">272</td>
+              <td class="num">37</td>
+              <td class="num">643,615</td>
+              <td class="num">1,650</td>
+              <td class="num">154</td>
+            </tr>
+            <tr>
+              <td>Sotyktu (deucravacitinib) — EMA EPAR assessment report</td>
+              <td class="num">191</td>
+              <td class="num">16</td>
+              <td class="num">419,799</td>
+              <td class="num">509</td>
+              <td class="num">82</td>
+            </tr>
+            <tr>
+              <td>Imaavy (nipocalimab) — EMA EPAR assessment report</td>
+              <td class="num">178</td>
+              <td class="num">18</td>
+              <td class="num">494,931</td>
+              <td class="num">316</td>
+              <td class="num">91</td>
+            </tr>
+            <tr>
+              <td>Turalio (pexidartinib) — EMA EPAR refusal assessment report</td>
+              <td class="num">144</td>
+              <td class="num">16</td>
+              <td class="num">346,613</td>
+              <td class="num">598</td>
+              <td class="num">104</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="prose" style="margin-top:18px; color:var(--ink-2); font-size:15px;">
+        The upload gate measured the file at <span class="mono">272&nbsp;pages</span>,
+        <span class="mono">16.6&nbsp;MB</span>, <span class="mono">188</span> embedded images and
+        <span class="mono">0</span> sparse pages, and returned the verdict
+        <strong>readable — “Readable, and it contains toxicology vocabulary.”</strong>
+        Nothing was extracted until that check passed.
+      </p>
+
+      <div class="caution">
+        <h3>Read this before you present the verdict</h3>
+        <p>
+          An FDA multi-disciplinary review is <em>one</em> document, written by reviewers who
+          already knew the clinical outcome. Two of the nine findings below — the 39.4&nbsp;per&nbsp;cent
+          transaminase rate and the Hy’s Law cases — are drawn from the clinical safety section at
+          pages&nbsp;189–190. They are real evidence, and they are also hindsight.
+        </p>
+        <p>
+          <strong>Use this case to exercise the deliberation, never to score prediction.</strong>
+          If someone asks whether ARBITER “predicted” tucatinib’s hepatotoxicity, the honest
+          answer is that it was never blind to it. What the case demonstrates is the reconciliation
+          of evidence that genuinely disagrees — and page&nbsp;98 supplies that disagreement all by itself.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ FINDINGS ═══════════ -->
+  <section class="section">
+    <div class="rail">
+      <span class="rail-seq">seq 3</span>
+      <span class="rail-kind">findings<br>recorded</span>
+    </div>
+    <div class="body">
+      <h2>Nine findings, every one quoted</h2>
+      <p class="lede">
+        Six assert toxicity, three assert safety, and two of them sit on the same page of the
+        same review contradicting each other. Each carries the verbatim sentence it was drawn
+        from and the page it appears on.
+      </p>
+
+      <div class="findings">
+
+        <article class="finding is-toxic">
+          <div class="finding-head">
+            <h3>Liver is a target organ in rat and monkey</h3>
+            <span class="chip chip-toxic">Toxic</span>
+            <span class="chip chip-q">M5</span>
+            <span class="finding-id">tuc-liver-target-organ</span>
+          </div>
+          <p class="finding-detail">
+            Repeat-dose studies in rats and monkeys name the liver as a target organ alongside
+            the GI tract: clinical-pathology shifts, increased liver weight and hepatocyte
+            hypertrophy. An adaptive-looking picture rather than necrosis, but the review treats
+            the liver as one of the two major toxicities of the compound.
+          </p>
+          <blockquote class="quote">
+            “In rats and monkeys, treatment-related liver toxicities included changes in clinical
+            pathology, increases in liver weight and hepatocyte hypertrophy.”
+            <cite class="cite">FDA NDA 213411 multi-disciplinary review · p. 34</cite>
+          </blockquote>
+        </article>
+
+        <article class="finding is-toxic">
+          <div class="finding-head">
+            <h3>Rat liver findings begin at the human exposure</h3>
+            <span class="chip chip-toxic">Toxic</span>
+            <span class="chip chip-q">C1</span>
+            <span class="chip chip-q">C2</span>
+            <span class="finding-id">tuc-exposure-margin</span>
+          </div>
+          <p class="finding-detail">
+            In the 13-week studies the liver findings in female rats begin at an exposure similar
+            to what a patient receives at the recommended 300&nbsp;mg twice-daily dose — a margin of
+            roughly 1×, not 10×. The monkey findings sit at about 3×. There is no exposure
+            headroom on the rat finding.
+          </p>
+          <blockquote class="quote">
+            “In the 13-week studies, liver toxicities were observed in female rats at doses
+            ≥&nbsp;20&nbsp;mg/kg/day (similar to the human exposure at the recommended dose of 300&nbsp;mg
+            twice daily based on AUC) and in monkeys at 40&nbsp;mg/kg/day (approximately 3 times the
+            exposure in humans at the recommended dose of 300&nbsp;mg twice daily based on AUC).”
+            <cite class="cite">FDA NDA 213411 multi-disciplinary review · p. 34</cite>
+          </blockquote>
+        </article>
+
+        <article class="finding is-toxic">
+          <div class="finding-head">
+            <h3>BSEP transport inhibited 47.1 per cent at 10 µM</h3>
+            <span class="chip chip-toxic">Toxic</span>
+            <span class="chip chip-q">M2</span>
+            <span class="finding-id">tuc-bsep-inhibition</span>
+          </div>
+          <p class="finding-detail">
+            Direct measurement of bile-salt export pump inhibition — the most common route to
+            cholestatic injury, and a mechanism rule&nbsp;R2 treats as a key event rather than a
+            structural correlation. Nearly half of BSEP-mediated transport is inhibited at
+            10&nbsp;micromolar. A public review almost never contains this number.
+          </p>
+          <blockquote class="quote">
+            “ONT-380 inhibited the transport of the probe substrates of BCRP and BSEP by 67.7%
+            and 47.1%, respectively.”
+            <cite class="cite">FDA NDA 213411 multi-disciplinary review · p. 98</cite>
+          </blockquote>
+        </article>
+
+        <article class="finding is-safe">
+          <div class="finding-head">
+            <h3>Reviewers judged the transporter interaction risk low</h3>
+            <span class="chip chip-safe">Safe</span>
+            <span class="chip chip-q">M2</span>
+            <span class="finding-id">tuc-bsep-risk-low</span>
+          </div>
+          <p class="finding-detail">
+            The same page that reports 47.1&nbsp;per&nbsp;cent BSEP inhibition concludes the interaction
+            likelihood is low, because 10&nbsp;micromolar is far above the concentration a patient’s
+            hepatocytes see. This finding and the one above cover the same checklist question and
+            disagree, which leaves that question <em>present rather than resolved</em>.
+          </p>
+          <blockquote class="quote">
+            “The regulatory authorities consider the likelihood of drug interaction with inhibitors
+            of BCRP (tucatinib only), BSEP (tucatinib only), OAT2 (ONT-993 only) to be low.”
+            <cite class="cite">FDA NDA 213411 multi-disciplinary review · p. 98</cite>
+          </blockquote>
+        </article>
+
+        <article class="finding is-safe">
+          <div class="finding-head">
+            <h3>Findings reversed in a four-week recovery period</h3>
+            <span class="chip chip-safe">Safe</span>
+            <span class="chip chip-q">C4</span>
+            <span class="finding-id">tuc-reversibility</span>
+          </div>
+          <p class="finding-detail">
+            The toxicities were dose-dependent and reversible, or trending reversible, after four
+            treatment-free weeks. This is the strongest reassuring finding in the package: a
+            reversible, monitorable signal is managed with liver function tests rather than stopped.
+          </p>
+          <blockquote class="quote">
+            “In repeat-dose toxicology studies with tucatinib, toxicities were generally
+            dose-dependent and were reversible or showed tendency of reversibility after a 4-week
+            treatment-free recovery period.”
+            <cite class="cite">FDA NDA 213411 multi-disciplinary review · p. 35</cite>
+          </blockquote>
+        </article>
+
+        <article class="finding is-safe">
+          <div class="finding-head">
+            <h3>No disproportionate human metabolite</h3>
+            <span class="chip chip-safe">Safe</span>
+            <span class="chip chip-q">M3</span>
+            <span class="finding-id">tuc-no-dispro-metabolite</span>
+          </div>
+          <p class="finding-detail">
+            Tucatinib is cleared by metabolism through the hepatobiliary route in rat and monkey,
+            and no human metabolite appears at a level requiring its own nonclinical assessment.
+          </p>
+          <blockquote class="quote">
+            “There are no human disproportionate metabolites requiring additional nonclinical studies.”
+            <cite class="cite">FDA NDA 213411 multi-disciplinary review · p. 34</cite>
+          </blockquote>
+        </article>
+
+        <article class="finding is-toxic">
+          <div class="finding-head">
+            <h3>Three months of animal dosing against indefinite human dosing</h3>
+            <span class="chip chip-toxic">Toxic</span>
+            <span class="chip chip-q">C6</span>
+            <span class="finding-id">tuc-dosing-duration</span>
+          </div>
+          <p class="finding-detail">
+            The repeat-dose programme runs to three months in both species. Patients take
+            tucatinib twice daily until their disease progresses, routinely longer than three
+            months, and the liver is already a target organ at three months. The duration is
+            stated and it exceeds what was tested.
+          </p>
+          <blockquote class="quote">
+            “Twice daily oral administration of tucatinib was assessed in repeat-dose toxicity
+            studies for up to 3 months in rats and monkeys, consistent with the clinical route of
+            administration and intended dosing schedule.”
+            <cite class="cite">FDA NDA 213411 multi-disciplinary review · p. 34</cite>
+          </blockquote>
+        </article>
+
+        <article class="finding is-toxic">
+          <div class="finding-head">
+            <h3>39.4 per cent of treated patients had a liver-enzyme event</h3>
+            <span class="chip chip-toxic">Toxic</span>
+            <span class="chip chip-q">C5</span>
+            <span class="finding-id">tuc-clinical-hepatotox</span>
+          </div>
+          <p class="finding-detail">
+            In HER2CLIMB, AST/ALT/bilirubin increases occurred in 39.4% of patients on tucatinib
+            against 22.8% on control. Hepatotoxicity drove dose reduction in 8% of patients and
+            discontinuation in 1.5%, and the FDA placed it under Warnings and Precautions. The
+            population is patients with advanced metastatic disease.
+          </p>
+          <blockquote class="quote">
+            “TEAEs of AST/ALT/bilirubin increase occurred in 39.4% of subjects treated with
+            tucatinib on HER2CLIMB. The incidence was higher on the tucatinib arm than the control
+            arm (22.8%).”
+            <cite class="cite">FDA NDA 213411 multi-disciplinary review · p. 189 — clinical safety section, see caution above</cite>
+          </blockquote>
+        </article>
+
+        <article class="finding is-toxic">
+          <div class="finding-head">
+            <h3>Hy’s Law cases, in a hepatocellular pattern</h3>
+            <span class="chip chip-toxic">Toxic</span>
+            <span class="chip chip-q">C3</span>
+            <span class="finding-id">tuc-hys-law</span>
+          </div>
+          <p class="finding-detail">
+            Eleven subjects met the broad laboratory screen of AST/ALT above 3× ULN with
+            concurrent bilirubin above 2× ULN, and five met full Hy’s Law laboratory criteria.
+            Hy’s Law is a hepatocellular pattern by definition, so the injury-pattern question is
+            answered in kind. Attribution to tucatinib alone is confounded — every patient was
+            also on capecitabine and many had liver metastases — but the pattern is not in doubt.
+          </p>
+          <blockquote class="quote">
+            “A total of 11 subjects in the tucatinib integrated safety population met the initial
+            broader laboratory criteria of AST/ALT&gt;3xULN and concurrent bilirubin&gt;2xULN.”
+            <cite class="cite">FDA NDA 213411 multi-disciplinary review · p. 190 — clinical safety section, see caution above</cite>
+          </blockquote>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ COVERAGE ═══════════ -->
+  <section class="section">
+    <div class="rail">
+      <span class="rail-seq">seq 4</span>
+      <span class="rail-kind">inventory<br>published</span>
+    </div>
+    <div class="body">
+      <h2>What the package answers, and what it does not</h2>
+      <p class="lede">
+        Twelve pre-registered questions — six on mechanism, six on consequence — checked against
+        the evidence before any position was taken. Nine are answered. The three that are not each
+        disable a specific rule, and the record says which.
+      </p>
+
+      <div class="tally">
+        <div><b>9</b><span>questions present</span></div>
+        <div><b>3</b><span>questions absent</span></div>
+        <div><b>1</b><span>answered by two findings that disagree</span></div>
+        <div><b>0</b><span>findings that map to nothing</span></div>
+      </div>
+
+      <div class="coverage">
+
+        <div class="q">
+          <div class="q-top"><span class="q-id">C1</span><span class="chip chip-safe">Present</span></div>
+          <div class="q-field">Projected human daily dose</div>
+          <div class="q-blocks">Without it, severity cannot be scaled — dose is the strongest single predictor of whether a mechanism becomes an injury.</div>
+          <div class="q-src">tuc-exposure-margin</div>
+        </div>
+
+        <div class="q">
+          <div class="q-top"><span class="q-id">C2</span><span class="chip chip-safe">Present</span></div>
+          <div class="q-field">Exposure margin against projected human C<sub>max</sub></div>
+          <div class="q-blocks">Without it, rule R3 cannot be applied to any reassuring result — a clean assay run below human exposure is indistinguishable from evidence of safety.</div>
+          <div class="q-src">tuc-exposure-margin</div>
+        </div>
+
+        <div class="q">
+          <div class="q-top"><span class="q-id">C3</span><span class="chip chip-safe">Present</span></div>
+          <div class="q-field">Injury pattern: hepatocellular, cholestatic or mixed</div>
+          <div class="q-blocks">Hepatocellular injury and a cholestatic enzyme rise carry different prognoses and different stopping rules.</div>
+          <div class="q-src">tuc-hys-law</div>
+        </div>
+
+        <div class="q">
+          <div class="q-top"><span class="q-id">C4</span><span class="chip chip-safe">Present</span></div>
+          <div class="q-field">Reversibility on withdrawal</div>
+          <div class="q-blocks">The difference between a monitorable signal and a programme-stopping one. Reversible transaminase elevation is managed; irreversible injury is not.</div>
+          <div class="q-src">tuc-reversibility</div>
+        </div>
+
+        <div class="q">
+          <div class="q-top"><span class="q-id">C5</span><span class="chip chip-safe">Present</span></div>
+          <div class="q-field">Expected frequency, and the population exposed</div>
+          <div class="q-blocks">A rate that matters cannot otherwise be distinguished from one that does not.</div>
+          <div class="q-src">tuc-clinical-hepatotox</div>
+        </div>
+
+        <div class="q">
+          <div class="q-top"><span class="q-id">C6</span><span class="chip chip-safe">Present</span></div>
+          <div class="q-field">Intended dosing duration</div>
+          <div class="q-blocks">Chronic dosing in a healthy population and short-course dosing in serious disease tolerate entirely different signals.</div>
+          <div class="q-src">tuc-dosing-duration</div>
+        </div>
+
+        <div class="q disputed">
+          <div class="q-top"><span class="q-id">M2</span><span class="chip chip-toxic">Disputed</span></div>
+          <div class="q-field">Bile-salt export pump inhibition</div>
+          <div class="q-blocks">Answered twice, on the same page, in opposite directions. This is the conflict the case turns on.</div>
+          <div class="q-src">tuc-bsep-inhibition · tuc-bsep-risk-low</div>
+        </div>
+
+        <div class="q">
+          <div class="q-top"><span class="q-id">M3</span><span class="chip chip-safe">Present</span></div>
+          <div class="q-field">Reactive metabolite or covalent binding</div>
+          <div class="q-blocks">The main route to idiosyncratic injury — what withdrew most of the drugs this system exists to catch.</div>
+          <div class="q-src">tuc-no-dispro-metabolite</div>
+        </div>
+
+        <div class="q">
+          <div class="q-top"><span class="q-id">M5</span><span class="chip chip-safe">Present</span></div>
+          <div class="q-field">Repeat-dose in vivo liver findings</div>
+          <div class="q-blocks">Whole-organism observation — whether an in vitro signal survives absorption, distribution and clearance.</div>
+          <div class="q-src">tuc-liver-target-organ</div>
+        </div>
+
+        <div class="q absent">
+          <div class="q-top"><span class="q-id">M1</span><span class="chip chip-neutral">Absent</span></div>
+          <div class="q-field">Human-cell hepatotoxicity result</div>
+          <div class="q-blocks">Rule R1 cannot be applied at all. Animal in vivo evidence has nothing to be weighed against.</div>
+          <div class="q-src">— no finding</div>
+        </div>
+
+        <div class="q absent">
+          <div class="q-top"><span class="q-id">M4</span><span class="chip chip-neutral">Absent</span></div>
+          <div class="q-field">Mitochondrial toxicity result</div>
+          <div class="q-blocks">A key event in the liver-injury pathway is unmeasured, so rule R2 cannot separate direct pathway evidence from structural correlation.</div>
+          <div class="q-src">— no finding</div>
+        </div>
+
+        <div class="q absent">
+          <div class="q-top"><span class="q-id">M6</span><span class="chip chip-neutral">Absent</span></div>
+          <div class="q-field">Structural alert / QSAR, with applicability domain</div>
+          <div class="q-blocks">Rule R4 cannot be applied: a structural prediction with no stated domain is either trusted blindly or discarded blindly.</div>
+          <div class="q-src">— no finding</div>
+        </div>
+
+      </div>
+
+      <p class="prose" style="margin-top:18px; color:var(--ink-2); font-size:15px;">
+        All three absences are the same kind of absence: <strong>M1, M4 and M6 are internal
+        screening assays a sponsor runs and a regulator does not publish.</strong> That is a fact
+        about the document source, not about the drug — a sponsor running ARBITER on their own
+        package would have all three.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════ POSITIONS ═══════════ -->
+  <section class="section">
+    <div class="rail">
+      <span class="rail-seq">seq 5–8</span>
+      <span class="rail-kind">position_sealed<br>× 3 · revealed</span>
+    </div>
+    <div class="body">
+      <h2>Three people, sealed before anyone saw the others</h2>
+      <p class="lede">
+        Each reviewer committed a hash of their position before any of them was revealed, so no
+        one’s call could be shaped by the room. The commitments are in the log; the reasoning
+        below is what those hashes opened to.
+      </p>
+
+      <div class="positions">
+
+        <article class="position">
+          <header>
+            <div class="who">C. Lindqvist<small>Clinical</small></div>
+            <span class="call call-no">Do not advance</span>
+          </header>
+          <p>
+            The rat liver findings begin at approximately the exposure a patient receives at
+            300&nbsp;mg twice daily. There is no margin on that finding — not a thin one, none. The
+            monkey sits at 3×, which is not comfort either. We are also being asked to accept
+            three months of animal dosing as cover for a drug taken until progression, and the
+            liver is already a target organ at three months. Reversibility after four weeks off
+            drug is real and I am not dismissing it, but reversibility measured in a healthy rat
+            that stopped dosing is not the same claim as reversibility in a metastatic patient who
+            cannot stop.
+          </p>
+          <div class="cited">
+            <span class="chip chip-neutral">tuc-dosing-duration</span>
+            <span class="chip chip-neutral">tuc-exposure-margin</span>
+            <span class="chip chip-neutral">tuc-liver-target-organ</span>
+          </div>
+          <div class="seal">sealed 3779037a…2bc141b1</div>
+        </article>
+
+        <article class="position">
+          <header>
+            <div class="who">B. Mehta<small>DMPK</small></div>
+            <span class="call call-yes">Advance</span>
+          </header>
+          <p>
+            The BSEP number is being read as a mechanism when it is a concentration artefact.
+            47.1% inhibition at 10&nbsp;micromolar is an assay result at a concentration hepatocytes
+            never see at this dose, and the reviewers said so in the same paragraph. There is no
+            disproportionate human metabolite, the compound clears hepatobiliary as designed, and
+            the histopathology is hypertrophy and clinical-pathology shift — an adaptive picture,
+            not necrosis. Everything reversed within four weeks. This is a monitorable signal in a
+            population with metastatic disease and few alternatives, and it is managed with liver
+            function test monitoring and dose modification, which is exactly what the label does.
+          </p>
+          <div class="cited">
+            <span class="chip chip-neutral">tuc-bsep-risk-low</span>
+            <span class="chip chip-neutral">tuc-no-dispro-metabolite</span>
+            <span class="chip chip-neutral">tuc-reversibility</span>
+          </div>
+          <div class="seal">sealed 242055cf…2ec07cf1</div>
+        </article>
+
+        <article class="position">
+          <header>
+            <div class="who">A. Silva<small>Toxicology</small></div>
+            <span class="call call-abs">Cannot conclude</span>
+          </header>
+          <p>
+            Both readings in front of me are defensible and they turn on one question this package
+            does not answer: what concentration the hepatocyte actually sees. The BSEP result and
+            the dismissal of it sit on the same page. On the clinical side 39.4% against 22.8% is
+            real, but every patient was also on capecitabine and many had liver metastases, so I
+            cannot attribute it.
+          </p>
+          <div class="cited">
+            <span class="chip chip-neutral">tuc-bsep-inhibition</span>
+            <span class="chip chip-neutral">tuc-bsep-risk-low</span>
+            <span class="chip chip-neutral">tuc-clinical-hepatotox</span>
+            <span class="chip chip-neutral">tuc-hys-law</span>
+          </div>
+          <div class="seal">
+            sealed 7c5c44f0…3fcb3635<br>
+            external claim entered: “A human hepatocyte assay at clinically relevant concentrations
+            would separate the two readings of the BSEP result.” — internal DMPK cascade, not in this package
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ ADJUDICATION ═══════════ -->
+  <section class="section">
+    <div class="rail">
+      <span class="rail-seq">seq 9</span>
+      <span class="rail-kind">adjudicated</span>
+    </div>
+    <div class="body">
+      <h2>The adjudication</h2>
+      <p class="lede">
+        Mechanism first, consequence second, and the two kept apart on purpose — a mechanism can
+        be real and still not reach the patient.
+      </p>
+
+      <div class="adj">
+        <div class="adj-row">
+          <div class="adj-label">Mechanism</div>
+          <div class="adj-value">
+            <div class="pathway">Bile-salt export pump (BSEP) inhibition</div>
+            <p style="margin-top:8px; color:var(--ink-2); font-size:14.5px;">
+              Present. Cited to <span class="mono">tuc-bsep-inhibition</span> and
+              <span class="mono">tuc-bsep-risk-low</span> — the pathway is named from the two
+              findings that disagree about it, not from the one that suits the verdict.
+            </p>
+          </div>
+        </div>
+
+        <div class="adj-row">
+          <div class="adj-label">Consequence</div>
+          <div class="adj-value">
+            <p style="margin-bottom:12px;"><span class="verdict" style="font-size:13px; padding:6px 12px;">Advance</span></p>
+            <p>
+              The package supports advancing because the liver findings, while significant
+              (including clinical hepatotoxicity and Hy’s Law cases), are reversible upon
+              withdrawal and can be managed with routine liver function monitoring, which is
+              acceptable given the target population of advanced metastatic breast cancer.
+            </p>
+            <p style="color:var(--ink-3); font-size:13.5px;">
+              Cited: tuc-liver-target-organ · tuc-exposure-margin · tuc-reversibility ·
+              tuc-dosing-duration · tuc-clinical-hepatotox · tuc-hys-law
+            </p>
+          </div>
+        </div>
+
+        <div class="adj-row">
+          <div class="adj-label">Basis</div>
+          <div class="adj-value">
+            <ul class="basis">
+              <li>Projected human daily dose</li>
+              <li>Exposure margin: tested concentration or NOAEL against projected human C<sub>max</sub></li>
+              <li>Injury pattern: hepatocellular, cholestatic or mixed</li>
+              <li>Reversibility on withdrawal</li>
+              <li>Expected frequency and the population that would be exposed</li>
+              <li>Intended dosing duration</li>
+            </ul>
+            <p style="margin-top:12px; color:var(--ink-3); font-size:13.5px;">
+              All six consequence questions were answered. The verdict rests on the complete half
+              of the checklist, and the record says so rather than implying it.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:23px; margin:40px 0 6px;">Every rule, disclosed — including the ones that could not run</h3>
+      <p class="prose" style="color:var(--ink-2); font-size:15px; margin-bottom:16px;">
+        Six pre-registered rules, hashed to <span class="mono">ed073a8a…</span> before any case was
+        run. Two applied, two were blocked by missing evidence, and two did not apply. A rule that
+        could not run is reported as loudly as one that did.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="num">Rule</th>
+              <th>Statement</th>
+              <th>Position</th>
+              <th>Why</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="num strong">R1</td>
+              <td>Human relevance — human-cell evidence defeats animal in vivo evidence.</td>
+              <td class="pos-blocked">Cannot determine</td>
+              <td>Blocked because human-cell hepatotoxicity results are missing.</td>
+            </tr>
+            <tr>
+              <td class="num strong">R2</td>
+              <td>Mechanistic proximity — evidence measuring an AOP key event defeats evidence that only correlates with structure.</td>
+              <td class="pos-blocked">Cannot determine</td>
+              <td>Blocked because mitochondrial toxicity results are missing.</td>
+            </tr>
+            <tr class="is-focus">
+              <td class="num strong">R3</td>
+              <td>Exposure relevance — a positive finding at clinically relevant exposure defeats a negative finding whose margin is unstated.</td>
+              <td class="pos-applies">Applies</td>
+              <td>Rat liver findings occur at a 1× exposure margin, and BSEP inhibition is evaluated against clinical exposure.</td>
+            </tr>
+            <tr>
+              <td class="num strong">R4</td>
+              <td>Applicability domain — evidence from a model outside its domain is discounted or excluded.</td>
+              <td class="pos-na">Does not apply</td>
+              <td>No structural alert or QSAR assessment is present in the package.</td>
+            </tr>
+            <tr>
+              <td class="num strong">R5</td>
+              <td>Study reliability — higher-reliability studies defeat lower-reliability ones at equal mechanistic relevance.</td>
+              <td class="pos-na">Does not apply</td>
+              <td>No conflicting studies of varying reliability at equal mechanistic relevance.</td>
+            </tr>
+            <tr class="is-focus">
+              <td class="num strong">R6</td>
+              <td>Concordance — independent sources agreeing raises confidence more than one source agreeing with itself.</td>
+              <td class="pos-applies">Applies</td>
+              <td>Animal repeat-dose findings, clinical hepatotoxicity and Hy’s Law cases concordantly identify the liver as a target organ.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ GAPS ═══════════ -->
+  <section class="section">
+    <div class="rail">
+      <span class="rail-seq">seq 9</span>
+      <span class="rail-kind">missing<br>+ next experiment</span>
+    </div>
+    <div class="body">
+      <h2>What would change this answer</h2>
+      <p class="lede">
+        Four gaps, each named with the thing it blocks. The last one is not a missing document —
+        it is the claim a reviewer entered from outside the package, recorded as a gap because
+        nothing in the evidence supports it yet.
+      </p>
+
+      <div class="gaps">
+        <div class="gap">
+          <h3>Human-cell hepatotoxicity result</h3>
+          <p>Without human-cell evidence, rule R1 cannot be applied to compare human and animal in vivo sensitivity.</p>
+        </div>
+        <div class="gap">
+          <h3>Mitochondrial toxicity result</h3>
+          <p>Without mitochondrial toxicity data, rule R2 cannot distinguish direct pathway key events from structural correlations.</p>
+        </div>
+        <div class="gap">
+          <h3>Structural alert or QSAR assessment, with applicability domain stated</h3>
+          <p>Without QSAR data and its applicability domain, rule R4 cannot be applied to weight structural predictions.</p>
+        </div>
+        <div class="gap">
+          <h3>External claim entered by A. Silva</h3>
+          <p>
+            “A human hepatocyte assay at clinically relevant concentrations would separate the two
+            readings of the BSEP result.” This assay would resolve the conflict between the 47.1%
+            BSEP inhibition finding and the low-risk assessment.
+          </p>
+        </div>
+      </div>
+
+      <div class="experiment">
+        <p class="eyebrow">Recommended next experiment</p>
+        <p>
+          Conduct a human hepatocyte assay at clinically relevant concentrations to resolve the
+          BSEP inhibition risk and evaluate human-specific hepatotoxicity.
+        </p>
+        <p class="why">
+          This is the part worth pausing on in a demo. The planner did not ask “which assay is
+          usually informative?” — it asked which rule was doing the defeating and what evidence
+          would overturn <em>that specific rule</em>. R3 turned on a concentration nobody in the
+          room could pin down, so the recommendation is the one experiment that settles the
+          disagreement between B.&nbsp;Mehta and C.&nbsp;Lindqvist, and it simultaneously fills the
+          M1 gap that blocked R1 entirely.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ CHAIN ═══════════ -->
+  <section class="section">
+    <div class="rail">
+      <span class="rail-seq">seq 0–9</span>
+      <span class="rail-kind">hash chain</span>
+    </div>
+    <div class="body">
+      <h2>The audit trail</h2>
+      <p class="lede">
+        Ten events, each hashing the one before it. Change any payload and every hash after it
+        stops matching — which is what makes the reasoning recoverable six months later, when a
+        regulator or a colleague asks why.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="num">Seq</th>
+              <th>Event</th>
+              <th>Actor</th>
+              <th class="num">Hash</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="num">0</td><td class="strong">case_opened</td><td>R. Okafor — programme lead</td><td class="num">1b2b3ffb…</td></tr>
+            <tr><td class="num">1</td><td class="strong">inventory_published</td><td>R. Okafor</td><td class="num">6bac28c2…</td></tr>
+            <tr><td class="num">2</td><td class="strong">demo_seeded</td><td>R. Okafor</td><td class="num">dc62e49e…</td></tr>
+            <tr><td class="num">3</td><td class="strong">case_opened</td><td>R. Okafor — 9 findings recorded</td><td class="num">…</td></tr>
+            <tr><td class="num">4</td><td class="strong">inventory_published</td><td>R. Okafor — 12 questions mapped</td><td class="num">…</td></tr>
+            <tr><td class="num">5</td><td class="strong">position_sealed</td><td>C. Lindqvist — clinical</td><td class="num">3779037a…</td></tr>
+            <tr><td class="num">6</td><td class="strong">position_sealed</td><td>B. Mehta — DMPK</td><td class="num">242055cf…</td></tr>
+            <tr><td class="num">7</td><td class="strong">position_sealed</td><td>A. Silva — toxicology</td><td class="num">7c5c44f0…</td></tr>
+            <tr><td class="num">8</td><td class="strong">revealed</td><td>3 positions opened together</td><td class="num">a85251fc…</td></tr>
+            <tr class="is-focus"><td class="num">9</td><td class="strong">adjudicated</td><td>verdict: advance</td><td class="num">85c23646…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="chain-verify">
+        <strong>Chain verified — contiguous across all 10 events.</strong>
+        <span class="mono">head 0000…0000 → tip 85c2364630a92f6d5198655fa6f0a828ac2d2cdfed74b66c2550a477b05e01c0</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ COLOPHON ═══════════ -->
+  <footer class="colophon">
+    <div>
+      <h4>Provenance</h4>
+      <p>Case <code>case_1303693510</code>, opened 2026-08-17. Findings seeded from the uploaded package as fixture <code>Tukysa (tucatinib) — FDA NDA 213411 multi-disciplinary review</code>, sha256 <code>a967fc68…9d1acf0</code>.</p>
+      <p>Document <code>doc_cd476415e169a27af5</code> · 272 pages · 16,586,554 bytes.</p>
+    </div>
+    <div>
+      <h4>Method</h4>
+      <p>Ruleset v1.0, hashed <code>ed073a8a7f6d…0b5db136</code> before any case was run. The harness refuses to start if the computed hash differs — no rule was tuned after seeing a result.</p>
+      <p>The reasoning engine is a pure function: no clock, no randomness, no I/O, deterministic to a single hash across 1000 runs.</p>
+    </div>
+    <div>
+      <h4>Sharing this record</h4>
+      <p>The product publishes a record to a tokenised URL of the shape <code>/r/:caseId/:token</code>, with this QR printed beside the link it encodes. The code above resolves to this page.</p>
+      <p>ARBITER · Pfizer Digital &amp; Technology Hackathon 2026 · Team BU 1 — Jack He, Andres Lopez, Jose Cruz-Lopez.</p>
+    </div>
+  </footer>
+
+</div>
